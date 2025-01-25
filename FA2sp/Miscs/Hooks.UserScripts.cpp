@@ -59,6 +59,8 @@ enum UserScriptType {
     ID_SET_OVERLAY_DATA,
     ID_GET_VARIABLE_IN_POOL,
     ID_SET_VARIABLE_IN_POOL,
+    ID_WAYPOINT_TO_STRING,
+    ID_STRING_TO_WAYPOINT,
 
     ID_NEW_COUNT,
 
@@ -124,6 +126,10 @@ DEFINE_HOOK(510ED9, CUserScripts_NewFunction_SetIDNum, 8)
         IDNum = ID_GET_VARIABLE_IN_POOL;
     else if (name == "SetVariableInPool")
         IDNum = ID_SET_VARIABLE_IN_POOL;
+    else if (name == "WaypointToString")
+        IDNum = ID_WAYPOINT_TO_STRING;
+    else if (name == "StringToWaypoint")
+        IDNum = ID_STRING_TO_WAYPOINT;
 
     if (IDNum > -1)
         R->Stack(STACK_OFFS(0xA20, 0xA00), IDNum);
@@ -151,6 +157,8 @@ DEFINE_HOOK(511832, CUserScripts_NewFunction_DisableReplaceVariable0, 5)
     case ID_GET_VALUE_AT:
     case ID_STRING_EQUALS:
     case ID_GET_VARIABLE_IN_POOL:
+    case ID_WAYPOINT_TO_STRING:
+    case ID_STRING_TO_WAYPOINT:
         return 0x51183C;
         break;
     default:
@@ -783,6 +791,34 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
                 break;
         }
         UserScriptExt::VariablePool[UserScriptExt::GetParam(Params, 0)] = UserScriptExt::GetParam(Params, 1);
+        break;
+    }
+    // 0: variable, 1: waypoint(int), 2: execute
+    case ID_WAYPOINT_TO_STRING:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        auto wp = atoi(UserScriptExt::GetParam(Params, 1));
+        UserScriptExt::Temps.push_back(STDHelpers::WaypointToString(wp));
+        UserScriptExt::EditVaribale = true;
+        break;
+    }
+    // 0: variable, 1: waypoint(string), 2: execute
+    case ID_STRING_TO_WAYPOINT:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        auto wp = UserScriptExt::GetParam(Params, 1);
+        UserScriptExt::Temps.push_back(STDHelpers::StringToWaypointStr(wp));
+        UserScriptExt::EditVaribale = true;
         break;
     }
     default:

@@ -23,6 +23,9 @@ CRITICAL_SECTION cs;
 
 DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
 {
+	if (!ExtConfigs::StringBufferFixedAllocation)
+		return 0;
+
 	GET_STACK(int, nLen, 0x4);
 
 	
@@ -38,6 +41,9 @@ DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
 
 DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
 {
+	if (!ExtConfigs::StringBufferFixedAllocation)
+		return 0;
+
 	if (changedNLen)
 	{
 		R->ESI(oldNLen);

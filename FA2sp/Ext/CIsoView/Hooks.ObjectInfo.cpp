@@ -126,6 +126,7 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             bool isBuilding, ppmfc::CString objectX, ppmfc::CString objectY, bool calculateElevation = false)
             {
                 if (range <= 0) return;
+                range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
                 std::vector<MapCoord> mapCoordsInRange;
 
                 float ElevationIncrement = mmh.GetSingle("ElevationModel", "ElevationIncrement");

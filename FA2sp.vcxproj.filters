@@ -216,6 +216,27 @@
     <ClInclude Include="FA2sp\Miscs\TheaterInfo.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Miscs\StringtableLoader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\Common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -542,6 +563,42 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.PlaceConnectedTiles.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\Hooks.FA2MiscFix.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\Common.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CMapData\Hooks.CreateShore.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter..cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\Hooks.UserScripts.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CMapData\Body.RandomGround.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -632,6 +689,21 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

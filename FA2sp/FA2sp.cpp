@@ -128,6 +128,8 @@ bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
 bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
+bool ExtConfigs::StringBufferFixedAllocation;
+int ExtConfigs::RangeBound_MaxRange;
 
 
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -228,12 +230,14 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	
 
+	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 16);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile");
 	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay");
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
+	ExtConfigs::StringBufferFixedAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferFixedAllocation", true);
 
 	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
 	{

@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Chinese|Win32">
+      <Configuration>Release_Chinese</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|Win32">
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
@@ -19,6 +23,13 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
@@ -40,11 +51,20 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
+    <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>MFC42\include;FA2pp;$(IncludePath)</IncludePath>
     <LibraryPath>MFC42\lib;Release;$(LibraryPath)</LibraryPath>
@@ -92,6 +112,46 @@
       <IgnoreSpecificDefaultLibraries>
       </IgnoreSpecificDefaultLibraries>
     </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_Chinese|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;NOMINMAX;CHINESE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BufferSecurityCheck>
+      </BufferSecurityCheck>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <DisableSpecificWarnings>4065;4530;4731;4244;4114;4172;4018;4390;4091;6269;28159;26812;28251;26495;</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)\%(RelativeDir)</ObjectFileName>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <MinimalRebuild>
+      </MinimalRebuild>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalOptions>-DISOLATION_AWARE_ENABLED %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <EnableModules>false</EnableModules>
+      <Optimization>MaxSpeed</Optimization>
+      <BuildStlModules>false</BuildStlModules>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <AdditionalDependencies>DbgHelp.lib;legacy_stdio_definitions.lib;CncVxlRenderText.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/SAFESEH:NO %(AdditionalOptions)</AdditionalOptions>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+    </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>CHINESE;</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -143,12 +203,18 @@
     <ClCompile Include="FA2sp\Algorithms\sha1.cpp" />
     <ClCompile Include="FA2sp\Algorithms\sha1impl.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
     <ClCompile Include="FA2sp\Ext\CAITriggerTypes\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -164,6 +230,7 @@
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
@@ -174,10 +241,12 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Hooks.InitPalettes.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Hooks.LoadObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMapData\Body.RandomGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.AutoPropertyBrush.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.BuildingTypeDatas.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.Pack.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMapData\Hooks.CreateShore.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapD\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapValidator\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapValidator\Hooks.cpp" />
@@ -209,11 +278,14 @@
     <ClCompile Include="FA2sp\Hooks.Debug.cpp" />
     <ClCompile Include="FA2sp\MFCWindow\Hooks.cpp" />
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter..cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DialogStyle.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.FA2MiscFix.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.UserScripts.cpp" />
     <ClCompile Include="FA2sp\Miscs\PlaceHolder.cpp" />
     <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp" />
     <ClCompile Include="FA2sp\Miscs\VoxelDrawer.cpp" />
@@ -252,6 +324,9 @@
     <ClInclude Include="FA2sp\Algorithms\sha1impl.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
@@ -260,6 +335,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\resource.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CAITriggerTypes\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
@@ -294,6 +372,7 @@
     <ClInclude Include="FA2sp\Helpers\TheaterHelpers.h" />
     <ClInclude Include="FA2sp\Helpers\Templates.hpp" />
     <ClInclude Include="FA2sp\Logger.h" />
+    <ClInclude Include="FA2sp\Miscs\StringtableLoader.h" />
     <ClInclude Include="FA2sp\Miscs\TheaterInfo.h" />
     <ClInclude Include="FA2sp\Miscs\VoxelDrawer.h" />
     <ClInclude Include="FA2sp\Miscs\Exception.h" />
@@ -312,6 +391,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
@@ -319,6 +401,8 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CCreateMap2.rc" />

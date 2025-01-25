@@ -132,6 +132,8 @@ public:
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
     static bool INIEditor_IgnoreTeams;
+    static bool StringBufferFixedAllocation;
+    static int RangeBound_MaxRange;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;
