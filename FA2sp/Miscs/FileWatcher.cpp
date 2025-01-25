@@ -8,6 +8,11 @@
 #include "../Helpers/Translations.h"
 
 #include <thread>
+#include <CIsoView.h>
+
+bool FileWatcher::IsSavingMap = false;
+bool FileWatcher::IsMapJustSaved = false;
+bool FileWatcher::IsMessageBoxShowing = false;
 
 FileWatcher::FileWatcher(const char* path, std::chrono::milliseconds delay, bool& running,
     std::optional<std::filesystem::file_time_type>& savemap_time)
@@ -27,16 +32,21 @@ void FileWatcher::Callback(std::string path, Status status)
 {
     UNREFERENCED_PARAMETER(path);
 
+    if (ExtConfigs::IsQuitingProgram)
+        return;
+
     if (status == Status::Modified)
     {
         const ppmfc::CString message = Translations::TranslateOrDefault(
-            "FileWatcherMessage", "Mapfile had been externally modified. Please reload the map file if you want to continue."
+            "FileWatcherMessage", "Mapfile has been modified externally. Please reload the map file to continue."
         );
-        CFinalSunApp::Instance->GetDialog()->MessageBox(
+        IsMessageBoxShowing = true;
+        MessageBox(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd,
             message,
             "FA2sp",
             MB_OK | MB_ICONEXCLAMATION
         );
+        IsMessageBoxShowing = false;
     }
 }
 
@@ -48,6 +58,18 @@ void FileWatcher::start(const std::function<void(std::string, Status)>& action)
 
         if (!ExtConfigs::FileWatcher)
             return;
+        
+        if (IsSavingMap)
+            continue;     
+
+        if (ExtConfigs::IsQuitingProgram)
+            continue;
+
+        if (IsMapJustSaved)
+        {
+            IsMapJustSaved = false;
+            continue;
+        }
 
         const std::string curr_path = path_;
         if (curr_path != previous_path_)

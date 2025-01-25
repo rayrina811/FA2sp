@@ -4,6 +4,8 @@
 #include <CMixFile.h>
 #include <CLoading.h>
 #include <CINI.h>
+#include <Drawing.h>
+#include <string>
 
 DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 {
@@ -12,15 +14,29 @@ DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 	bool result = pThis->InitMixFilesFix();
 	R->EAX(result);
 
-	if (!result)
-	{
-		MessageBox(NULL, "Failed to load necessary mix file!", "Fatal Error!", MB_OK);
-		ExitProcess(114514);
-	}
-
 	return 0x48A26A;
 }
 
+
+DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
+{
+	GET(int, hMix, ESI);
+	GET(CLoadingExt*, pThis, ECX);
+	GET_STACK(const char*, lpBuffer, STACK_OFFS(0x1C4, 0x1B4));
+	if (hMix != NULL) return 0x48FE68;
+
+	ppmfc::CString filename = lpBuffer;
+	filename.SetAt(1, 'G');
+	hMix = pThis->SearchFile(filename);
+	if (hMix != NULL)
+	{
+		R->ESI(hMix);
+		R->Stack(STACK_OFFS(0x1C4, 0x1B4), filename);
+		return 0x48FE68;
+	}
+
+	return 0x48FDA8;
+}
 DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 {
 	GET(CLoadingExt*, pThis, ECX);

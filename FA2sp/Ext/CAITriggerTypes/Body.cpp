@@ -7,6 +7,7 @@
 #include "..\CMapData\Body.h"
 #include "..\CFinalSunApp\Body.h"
 #include "Body.h"
+#include "../../FA2sp.h"
 
 void CAITriggerTypesExt::ProgramStartupInit()
 {
@@ -53,9 +54,9 @@ BOOL CAITriggerTypesExt::OnInitDialogExt()
 	GetDlgItem(1456, &hSides);
 	while (::SendMessage(hSides, CB_DELETESTRING, 0, NULL) != CB_ERR);
 
-	::SendMessage(hSides, CB_ADDSTRING, NULL, (LPARAM)"0 - All");
+	::SendMessage(hSides, CB_ADDSTRING, NULL, (LPARAM)Translations::TranslateOrDefault("AITriggerAllSides", "0 - All sides"));
 	int i = 1;
-	if (auto sides = CINI::FAData->GetSection("Sides"))
+	if (auto sides = CINI::FAData->GetSection("AITriggerSides"))
 	{
 		for (auto& itr : sides->GetEntities())
 		{
@@ -98,7 +99,58 @@ void CAITriggerTypesExt::OnBNCloneAITriggerClicked()
 		auto nLen = ::GetWindowTextLength(hName);
 		auto pStr = new char[nLen + 1];
 		::GetWindowText(hName, pStr, nLen + 1);
-		name.Format("%s Clone", pStr);
+
+		ppmfc::CString oldname;
+		oldname.Format("%s", pStr);
+		ppmfc::CString newName;
+		if (ExtConfigs::CloneWithOrderedID)
+		{
+			const char* splitter = " ";
+			auto splitN = STDHelpers::SplitString(oldname, splitter);
+			auto lastS = std::string(splitN.back());
+
+			if (STDHelpers::IsNumber(lastS))
+			{
+				int lastID = std::stoi(lastS);
+
+				for (size_t i = 0; i < splitN.size() - 1; ++i) {
+					auto sps = splitN[i];
+					newName += sps + splitter;
+				}
+				char temp_char[114];
+				sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+				newName += temp_char;
+			}
+			else
+			{
+				const char* splitter2 = "-";
+				splitN = STDHelpers::SplitString(oldname, splitter2);
+				lastS = std::string(splitN.back());
+				if (STDHelpers::IsNumber(lastS))
+				{
+					int lastID = std::stoi(lastS);
+
+					for (size_t i = 0; i < splitN.size() - 1; ++i) {
+						auto sps = splitN[i];
+						newName += sps + splitter2;
+					}
+					char temp_char[114];
+					sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+					newName += temp_char;
+				}
+				else
+				{
+					char temp_char[114];
+					sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, 2);
+					newName = oldname + " " + temp_char;
+				}
+			}
+		}
+		else
+			newName = oldname + " Clone";
+
+
+		name.Format("%s", newName);
 		delete[] pStr;
 
 		value = name + ",";

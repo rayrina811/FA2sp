@@ -1,6 +1,7 @@
 #include "Body.h"
 
 #include <CINI.h>
+#include <string>
 
 void CSingleplayerSettingsExt::ProgramStartupInit()
 {
@@ -18,30 +19,46 @@ void CSingleplayerSettingsExt::ProgramStartupInit()
 
 BOOL CSingleplayerSettingsExt::PreTranslateMessageExt(MSG* pMsg)
 {
-	if (pMsg->message == EN_KILLFOCUS || pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN)
+	auto pWnd = (ppmfc::CWnd*)this->GetDlgItem(1400);
+	if (pMsg->hwnd == pWnd->m_hWnd && pMsg->message == WM_LBUTTONDOWN)
 	{
-		auto process = [&pMsg, this](int nID, const char* pKey) -> bool
+		auto process = [&pMsg, this](int nID, const char* pKey)// -> bool
 		{
 			auto pWnd = (ppmfc::CWnd*)this->GetDlgItem(nID);
-			if (pMsg->hwnd == pWnd->m_hWnd)
-			{
-				ppmfc::CString buffer;
-				pWnd->GetWindowText(buffer);
-				CINI::CurrentDocument->WriteString("Ranking", pKey, buffer);
-				return true;
-			}
-			return false;
+			ppmfc::CString buffer;
+			pWnd->GetWindowText(buffer);
+			CINI::CurrentDocument->WriteString("Ranking", pKey, buffer);
 		};
-		
-		if (!process(1356, "ParTimeEasy"))
-		if (!process(1357, "ParTimeMedium"))
-		if (!process(1358, "ParTimeHard"))
-		if (!process(1359, "OverParTitle"))
-		if (!process(1360, "OverParMessage"))
-		if (!process(1361, "UnderParTitle"))
-		if (!process(1362, "UnderParMessage"))
-		;
+		auto processGeneral = [&pMsg, this](int nID, const char* pKey)// -> bool
+		{
+			auto pWnd = (ppmfc::CWnd*)this->GetDlgItem(nID);
+			ppmfc::CString buffer;
+			pWnd->GetWindowText(buffer);
+			if (buffer == "")
+				CINI::CurrentDocument->DeleteKey("General", pKey);
+			else
+				CINI::CurrentDocument->WriteString("General", pKey, buffer);
+		};
 
+		if (pMsg->hwnd == pWnd->m_hWnd)
+		{
+			process(1356, "ParTimeEasy");
+			process(1357, "ParTimeMedium");
+			process(1358, "ParTimeHard");
+			process(1359, "OverParTitle");
+			process(1360, "OverParMessage");
+			process(1361, "UnderParTitle");
+			process(1362, "UnderParMessage");
+			processGeneral(1366, "CampaignMoneyDeltaEasy");
+			processGeneral(1368, "CampaignMoneyDeltaHard");
+			processGeneral(1370, "SpyMoneyStealPercent");
+			processGeneral(1372, "TeamDelays");
+			processGeneral(1374, "PrismSupportModifier");
+			processGeneral(1376, "DefaultMirageDisguises");
+		}
+
+		pMsg->hwnd = this->m_hWnd;
+		
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

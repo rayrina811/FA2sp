@@ -17,4 +17,5 @@ public:
 	static void UpdateTheaterInfo();
 
 	static std::vector<InfoStruct> CurrentInfo;
+	static std::vector<InfoStruct> CurrentInfoNonMorphable;
 };

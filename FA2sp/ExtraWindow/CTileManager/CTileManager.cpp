@@ -114,7 +114,19 @@ BOOL CALLBACK CTileManager::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
         CTileManager::Close(hwnd);
         return TRUE;
     }
+    case 114514: // used for update
+    {
+        CTileManager::Nodes.clear();
+        CTileManager::Datas.clear();
+        HWND hTileTypes = GetDlgItem(hwnd, 6100);
+        InitNodes();
 
+        while (SendMessage(hTileTypes, LB_DELETESTRING, 0, NULL) != LB_ERR);
+        for (auto& x : CTileManager::Nodes)
+            SendMessage(hTileTypes, LB_ADDSTRING, NULL, (LPARAM)x.first.c_str());
+
+        UpdateTypes(hwnd);
+    }
     }
 
     // Process this message through default handler

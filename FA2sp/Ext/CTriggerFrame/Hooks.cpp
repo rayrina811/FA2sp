@@ -7,9 +7,11 @@
 #include <CIsoView.h>
 
 #include <set>
+#include <numeric>
 
 #include "../CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../FA2sp.h"
 
 DEFINE_HOOK(4FA450, CTriggerFrame_Update, 7)
 {
@@ -27,11 +29,42 @@ DEFINE_HOOK(4FA450, CTriggerFrame_Update, 7)
 
     if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
     {
+        std::vector<std::string> strings;
+        std::vector<std::string> IDs;
+        std::vector<LPTSTR> m_pchDatas;
+
         for (auto& pair : pSection->GetEntities())
         {
             auto splits = STDHelpers::SplitString(pair.second, 2);
-            int nIdx = pThis->CCBCurrentTrigger.AddString(splits[2]);
-            pThis->CCBCurrentTrigger.SetItemDataPtr(nIdx, pair.first.m_pchData);
+            int nIdx;
+            if (ExtConfigs::DisplayTriggerID)
+            {
+                strings.push_back(std::string(splits[2]));
+                IDs.push_back(std::string(pair.first));
+                m_pchDatas.push_back(pair.first.m_pchData);
+            }
+            else
+            {
+                nIdx = pThis->CCBCurrentTrigger.AddString(splits[2]);
+                pThis->CCBCurrentTrigger.SetItemDataPtr(nIdx, pair.first.m_pchData);
+            }
+        }
+        if (ExtConfigs::DisplayTriggerID)
+        {
+            std::vector<size_t> indices(strings.size());
+            std::vector<std::string> sorted_strings = strings;
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](size_t i1, size_t i2) {
+                return sorted_strings[i1] < sorted_strings[i2];
+                });
+            for (size_t i = 0; i < strings.size(); ++i) 
+            {
+                ppmfc::CString tmp;
+                tmp.Format("%s (%s)", IDs[indices[i]].c_str(), strings[indices[i]].c_str());
+
+                pThis->CCBCurrentTrigger.InsertString((int)i, tmp);
+                pThis->CCBCurrentTrigger.SetItemDataPtr((int)i, m_pchDatas[indices[i]]);
+            }
         }
     }
 
@@ -90,11 +123,28 @@ DEFINE_HOOK(4FAAD0, CTriggerFrame_OnBNNewTriggerClicked, 7)
 
     auto ID = CINI::GetAvailableIndex();
     auto Owner = CMapData::Instance->FindAvailableOwner(0, 1);
-    ppmfc::CString Name =
-        CTriggerFrameExt::CreateFromTriggerSort ?
-        TriggerSort::Instance.GetCurrentPrefix() + "New Trigger" : 
-        ppmfc::CString("New Trigger");
+    ppmfc::CString Name;
+    if (ExtConfigs::NewTriggerPlusID)
+    {
+        int plusID = atoi(ID) - 1000000;
+        char temp2[512];
+        sprintf(temp2, ExtConfigs::NewTriggerPlusID_Digits, plusID);
+        ppmfc::CString nameplus = temp2;
+        nameplus.TrimRight();
+        Name =
+            CTriggerFrameExt::CreateFromTriggerSort ?
+            TriggerSort::Instance.GetCurrentPrefix() + "New Trigger " + nameplus :
+            ppmfc::CString("New Trigger " + nameplus);
+    }
+    else
+    {
+        Name =
+            CTriggerFrameExt::CreateFromTriggerSort ?
+            TriggerSort::Instance.GetCurrentPrefix() + "New Trigger" :
+            ppmfc::CString("New Trigger");
+    }
 
+    
     auto TriggerBuffer = Owner + ",<none>,"+ Name + ",0,1,1,1,0";
 
     CINI::CurrentDocument->WriteString("Triggers", ID, TriggerBuffer);
@@ -102,10 +152,50 @@ DEFINE_HOOK(4FAAD0, CTriggerFrame_OnBNNewTriggerClicked, 7)
     CINI::CurrentDocument->WriteString("Actions", ID, "0");
     auto TagID = CINI::GetAvailableIndex();
     CINI::CurrentDocument->WriteString("Tags", TagID, "0," + Name + " 1," + ID);
+    if (ExtConfigs::DisplayTriggerID)
+    {
+        if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+        {
+            std::vector<std::string> strings;
+            std::vector<std::string> IDs;
 
-    int nIndex = pThis->CCBCurrentTrigger.AddString(Name);
-    pThis->CCBCurrentTrigger.SetItemDataPtr(nIndex, ID.m_pchData);
-    pThis->CCBCurrentTrigger.SetCurSel(nIndex);
+            for (auto& pair : pSection->GetEntities())
+            {
+                auto splits = STDHelpers::SplitString(pair.second, 2);
+                strings.push_back(std::string(splits[2]));
+                IDs.push_back(std::string(pair.first));
+            }
+            strings.push_back(std::string(Name));
+            IDs.push_back(std::string(ID));
+
+            std::vector<size_t> indices(strings.size());
+            std::vector<std::string> sorted_strings = strings;
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](size_t i1, size_t i2) {
+                return sorted_strings[i1] < sorted_strings[i2];
+                });
+            for (size_t i = 0; i < strings.size(); ++i)
+            {
+                if (ID == IDs[indices[i]].c_str())
+                {
+                    ppmfc::CString tmp;
+                    tmp.Format("%s (%s)", ID, Name);
+
+                    pThis->CCBCurrentTrigger.InsertString(i, tmp);
+                    pThis->CCBCurrentTrigger.SetItemDataPtr(i, ID.m_pchData);
+                    pThis->CCBCurrentTrigger.SetCurSel(i);
+                    break;
+                }
+            }
+
+        }
+    }
+    else
+    {
+        int nIndex = pThis->CCBCurrentTrigger.AddString(Name);
+        pThis->CCBCurrentTrigger.SetItemDataPtr(nIndex, ID.m_pchData);
+        pThis->CCBCurrentTrigger.SetCurSel(nIndex);
+    }
 
     pThis->OnCBCurrentTriggerSelectedChanged();
 
@@ -124,12 +214,12 @@ DEFINE_HOOK(4FB1B0, CTriggerFrame_OnBNDelTriggerClicked, 6)
         if (auto ID = reinterpret_cast<const char*>(pThis->CCBCurrentTrigger.GetItemDataPtr(nCurSel)))
         {
             const char* pMessage =
-                "If you want to delete all attached tags, too, press Yes.\n"
-                "If you don't want to delete these tags, press No.\n"
-                "If you want to cancel to deletion of the trigger, press Cancel.\n"
-                "Note: CellTags will be deleted too using this function if you press Yes.";
+                "删除触发和关联的标签，请点击是。\n"
+                "删除触发但保留标签，请点击否。\n"
+                "如果误触了，点击「取消」撤销本次删除操作。\n"
+                "注意：选择“是”时，如果地图上有关联的单元标记，它们也会被删除。";
 
-            int nResult = pThis->MessageBox(pMessage, "Delete trigger", MB_YESNOCANCEL);
+            int nResult = pThis->MessageBox(pMessage, "删除触发", MB_YESNOCANCEL);
             if (nResult == IDYES || nResult == IDNO)
             {
                 TriggerSort::Instance.DeleteTrigger(ID);
@@ -165,6 +255,8 @@ DEFINE_HOOK(4FB1B0, CTriggerFrame_OnBNDelTriggerClicked, 6)
                                 int nMapCoord = CMapData::Instance->GetCoordIndex(nCoord % 1000, nCoord / 1000);
                                 CMapData::Instance->CellDatas[nMapCoord].CellTag = -1;
                             }
+                            CMapData::Instance->UpdateFieldCelltagData(FALSE); //important
+                            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
                         }
                         
                     }
@@ -226,19 +318,125 @@ DEFINE_HOOK(4FC180, CTriggerFrame_OnBNCloneTriggerClicked, 6)
             auto& Name = splits[2];
             auto NewID = CINI::GetAvailableIndex();
 
-            buffer.Format("%s,%s,%s Clone,%s,%s,%s,%s",
-                splits[0], splits[1], splits[2], splits[3],
+            ppmfc::CString newName;
+            if (ExtConfigs::CloneWithOrderedID)
+            {
+                const char* splitter = " ";
+                auto splitN = STDHelpers::SplitString(Name, splitter);
+                auto lastS = std::string(splitN.back());
+
+                if (STDHelpers::is_number(lastS))
+                {
+                    int lastID = std::stoi(lastS);
+                    
+                    for (size_t i = 0; i < splitN.size() - 1; ++i) {
+                        auto sps = splitN[i];
+                        newName += sps + splitter;
+                    }
+                    char temp_char[512];
+                    sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+                    newName += temp_char;
+                }
+                else
+                {
+                    const char* splitter2 = "-";
+                    splitN = STDHelpers::SplitString(Name, splitter2);
+                    lastS = std::string(splitN.back());
+                    if (STDHelpers::is_number(lastS))
+                    {
+                        int lastID = std::stoi(lastS);
+
+                        for (size_t i = 0; i < splitN.size() - 1; ++i) {
+                            auto sps = splitN[i];
+                            newName += sps + splitter2;
+                        }
+                        char temp_char[512];
+                        sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+                        newName += temp_char;
+                    }
+                    else
+                    {
+                        char temp_char[512];
+                        sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, 2);
+                        newName = Name + " " + temp_char;
+                    }
+                }
+            }
+            else
+                newName = Name + " Clone";
+                
+
+            buffer.Format("%s,%s,%s,%s,%s,%s,%s",
+                splits[0], splits[1], newName, splits[3],
                 splits[4], splits[5], splits[6]);
 
             CINI::CurrentDocument->WriteString("Triggers", NewID, buffer);
             CINI::CurrentDocument->WriteString("Events", NewID, CINI::CurrentDocument->GetString("Events", CurrentID));
             CINI::CurrentDocument->WriteString("Actions", NewID, CINI::CurrentDocument->GetString("Actions", CurrentID));
             auto TagID = CINI::GetAvailableIndex();
-            CINI::CurrentDocument->WriteString("Tags", TagID, "0,New tag," + NewID);
 
-            int nIndex = pThis->CCBCurrentTrigger.AddString(Name + " Clone");
-            pThis->CCBCurrentTrigger.SetItemDataPtr(nIndex, NewID.m_pchData);
-            pThis->CCBCurrentTrigger.SetCurSel(nIndex);
+            ppmfc::CString repeatMode = "0";
+            if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+            {
+                auto& section = pSection->GetEntities();
+                size_t i = 0;
+                for (auto& itr : section)
+                {
+                    auto splitsT = STDHelpers::SplitString(itr.second, 3);
+                    if (strcmp(splitsT[2], CurrentID) == 0)
+                        repeatMode = splitsT[0];
+                }
+            }
+
+
+            CINI::CurrentDocument->WriteString("Tags", TagID, repeatMode + ",New tag," + NewID);
+
+            int nIndex;
+            if (ExtConfigs::DisplayTriggerID)
+            {
+                if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+                {
+                    std::vector<std::string> strings;
+                    std::vector<std::string> IDs;
+
+                    for (auto& pair : pSection->GetEntities())
+                    {
+                        auto splits = STDHelpers::SplitString(pair.second, 2);
+                        strings.push_back(std::string(splits[2]));
+                        IDs.push_back(std::string(pair.first));
+                    }
+                    strings.push_back(std::string(newName));
+                    IDs.push_back(std::string(NewID));
+
+                    std::vector<size_t> indices(strings.size());
+                    std::vector<std::string> sorted_strings = strings;
+                    std::iota(indices.begin(), indices.end(), 0);
+                    std::sort(indices.begin(), indices.end(), [&](size_t i1, size_t i2) {
+                        return sorted_strings[i1] < sorted_strings[i2];
+                        });
+                    for (size_t i = 0; i < strings.size(); ++i)
+                    {
+                        if (NewID == IDs[indices[i]].c_str())
+                        {
+                            ppmfc::CString tmp;
+                            tmp.Format("%s (%s)", NewID, newName);
+
+                            pThis->CCBCurrentTrigger.InsertString(i, tmp);
+                            pThis->CCBCurrentTrigger.SetItemDataPtr(i, NewID.m_pchData);
+                            pThis->CCBCurrentTrigger.SetCurSel(i);
+                            break;
+                        }
+                    }
+
+                }
+            }
+            else
+            {
+                nIndex = pThis->CCBCurrentTrigger.AddString(newName);
+                pThis->CCBCurrentTrigger.SetItemDataPtr(nIndex, NewID.m_pchData);
+                pThis->CCBCurrentTrigger.SetCurSel(nIndex);
+            }
+
 
             pThis->OnCBCurrentTriggerSelectedChanged();
 

@@ -18,19 +18,7 @@
     <ClInclude Include="FA2sp\FA2sp.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CScriptTypes\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTaskforce\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTriggerFrame\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTriggerOption\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Logger.h">
@@ -51,9 +39,6 @@
     <ClInclude Include="FA2sp\Helpers\Helper.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CScriptTypes\Functional.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -69,9 +54,6 @@
     <ClInclude Include="FA2sp\Helpers\MultimapHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\Helpers\ControlHelpers.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\FA2sp.Constants.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -79,15 +61,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Helpers\Templates.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTriggerEvent\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTriggerAction\Body.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\Ext\CTeamTypes\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Ext\CIsoView\Body.h">
@@ -144,9 +117,6 @@
     <ClInclude Include="FA2sp\Miscs\SaveMap.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\Miscs\TheaterInfo.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\Ext\CMapData\Body.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -198,27 +168,60 @@
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\UI\resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TeamSort.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Miscs\TheaterInfo.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTaskforce\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTaskforce\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerFrame\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerOption\Body.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Logger.cpp">
@@ -242,9 +245,6 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.FileNames.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Helpers\MutexHelper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -266,9 +266,6 @@
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Helpers\ControlHelpers.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -281,31 +278,13 @@
     <ClCompile Include="FA2sp\ExtraWindow\CTileManager\CTileManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\Hooks.LoadParams.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.Performance.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtWaypoints.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerEvent\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerAction\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTeamTypes\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTeamTypes\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Body.CurrentScript.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.Palette.cpp">
@@ -324,12 +303,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Palettes.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerOption\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerAction\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\VoxelDrawer.cpp">
@@ -363,9 +336,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TriggerSort.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CTriggerFrame\Hooks.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Body.cpp">
@@ -402,9 +372,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Hooks.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CMapData\Body.cpp">
@@ -459,9 +426,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.AutoPropertyBrush.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Algorithms\sha1impl.cpp">
@@ -528,6 +492,54 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TeamSort.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.PlaceConnectedTiles.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -601,10 +613,32 @@
     <ResourceCompile Include="FA2sp\UI\CMapValidator.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FA2sp\FA2sp.manifest">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="0001-Fix-FA2pp-FAVector-T-cannot-pass-compile.patch" />
   </ItemGroup>
 </Project>

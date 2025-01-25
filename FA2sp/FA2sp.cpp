@@ -22,70 +22,161 @@ ppmfc::CString FA2sp::Buffer;
 std::map<ppmfc::CString, ppmfc::CString> FA2sp::TutorialTextsMap;
 void* FA2sp::pExceptionHandler = nullptr;
 
+bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
 int	 ExtConfigs::ObjectBrowser_GuessMode;
+int	 ExtConfigs::ObjectBrowser_GuessMax;
 bool ExtConfigs::ObjectBrowser_CleanUp;
 bool ExtConfigs::ObjectBrowser_SafeHouses;
+bool ExtConfigs::ObjectBrowser_Foundation;
+bool ExtConfigs::LoadLunarWater;
+bool ExtConfigs::LoadCivilianStringtable;
 bool ExtConfigs::AllowIncludes;
 bool ExtConfigs::AllowPlusEqual;
 bool ExtConfigs::TutorialTexts_Hide;
 bool ExtConfigs::TutorialTexts_Fix;
+bool ExtConfigs::TutorialTexts_Viewer;
+bool ExtConfigs::SkipTipsOfTheDay;
 bool ExtConfigs::SortByTriggerName;
+bool ExtConfigs::SortByLabelName;
+bool ExtConfigs::NewTriggerPlusID;
+bool ExtConfigs::DisplayTriggerID;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
+int ExtConfigs::WeaponRangeBound_Color;
+int ExtConfigs::WeaponRangeMinimumBound_Color;
+int ExtConfigs::SecondaryWeaponRangeBound_Color;
+int ExtConfigs::SecondaryWeaponRangeMinimumBound_Color;
+bool ExtConfigs::WeaponRangeBound_SubjectToElevation;
+int ExtConfigs::GapRangeBound_Color;
+int ExtConfigs::SensorsRangeBound_Color;
+int ExtConfigs::CloakRangeBound_Color;
+int ExtConfigs::PsychicRangeBound_Color;
+int ExtConfigs::GuardRangeBound_Color;
+int ExtConfigs::SightRangeBound_Color;
 int ExtConfigs::CursorSelectionBound_HeightColor;
 int ExtConfigs::Waypoint_Color;
 bool ExtConfigs::Waypoint_Background;
 int ExtConfigs::Waypoint_Background_Color;
 CPoint ExtConfigs::Waypoint_Text_ExtraOffset;
+int ExtConfigs::BaseNodeIndex_Color;
+bool ExtConfigs::BaseNodeIndex_Background;
+bool ExtConfigs::BaseNodeIndex;
+int ExtConfigs::BaseNodeIndex_Background_Color;
 bool ExtConfigs::ExtWaypoints;
 int ExtConfigs::UndoRedoLimit;
+bool ExtConfigs::UndoRedo_ShiftPlaceTile;
+bool ExtConfigs::UndoRedo_HoldPlaceOverlay;
 bool ExtConfigs::UseRGBHouseColor;
 bool ExtConfigs::SaveMap_AutoSave;
 int ExtConfigs::SaveMap_AutoSave_Interval;
 int ExtConfigs::SaveMap_AutoSave_MaxCount;
 bool ExtConfigs::SaveMap_OnlySaveMAP;
+//bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
+//bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
+bool ExtConfigs::SaveMap_FileEncodingComment;
 bool ExtConfigs::VerticalLayout;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
+int ExtConfigs::TerrainGeneratorColor;
 bool ExtConfigs::MultiSelectionShiftDeselect;
 bool ExtConfigs::RandomTerrainObjects;
 unsigned int ExtConfigs::MaxVoxelFacing;
 bool ExtConfigs::DDrawInVideoMem;
 bool ExtConfigs::DDrawEmulation;
 bool ExtConfigs::NoHouseNameTranslation;
+bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
 bool ExtConfigs::ExtendedValidationNoError;
 bool ExtConfigs::HideNoRubbleBuilding;
 bool ExtConfigs::ModernObjectBrowser;
-bool ExtConfigs::ExtVariables;
+bool ExtConfigs::PlayerAtXForTechnos;
 bool ExtConfigs::FileWatcher;
-bool ExtConfigs::CustomOnlineWebsites;
+bool ExtConfigs::LoadRA2MixFilesOnly;
+bool ExtConfigs::ExtVariables;
+bool ExtConfigs::TestNotLoaded;
+bool ExtConfigs::CloneWithOrderedID;
+bool ExtConfigs::InfantrySubCell_GameDefault;
+bool ExtConfigs::InfantrySubCell_Edit;
+bool ExtConfigs::InfantrySubCell_Edit_Single;
+bool ExtConfigs::InfantrySubCell_Edit_Drag;
+bool ExtConfigs::InfantrySubCell_Edit_Place;
+bool ExtConfigs::InfantrySubCell_Edit_FixCenter;
+bool ExtConfigs::InfantrySubCell_OccupationBits;
+bool ExtConfigs::PlaceStructureOverlappingCheck;
+bool ExtConfigs::PlaceStructureResort;
+bool ExtConfigs::PlaceStructureUpgrades;
+bool ExtConfigs::PlaceStructureUpgradeStrength;
+bool ExtConfigs::InitializeMap;
+bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::ArtImageSwap;
+bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
+bool ExtConfigs::ExtendedValidationAres;
+bool ExtConfigs::AIRepairDefaultYes;
+bool ExtConfigs::TriggerList_AttachedTriggers;
+bool ExtConfigs::TagList_AttachedObjects;
+bool ExtConfigs::SaveMaps_BetterMapPreview;
+bool ExtConfigs::SaveMaps_BetterMapPreview_Lighting;
+bool ExtConfigs::CursorSelectionBound_AutoColor;
+bool ExtConfigs::FillArea_ConsiderLAT;
+bool ExtConfigs::FillArea_ConsiderWater;
+bool ExtConfigs::DPIAware;
+bool ExtConfigs::SkipBrushSizeChangeOnTools;
+bool ExtConfigs::INIEditor_IgnoreTeams;
+
+
+ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
+ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
+ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
+
 
 MultimapHelper Variables::Rules = { &CINI::Rules(), &CINI::CurrentDocument() };
 MultimapHelper Variables::FAData = { &CINI::FAData() };
+MultimapHelper Variables::Rules_FAData = { &CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData() };
+std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesIndicies;
+std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesIndiciesWithoutMap;
 
 void FA2sp::ExtConfigsInitialize()
 {	
 	ExtConfigs::BrowserRedraw = CINI::FAData->GetBool("ExtConfigs", "BrowserRedraw");
 	ExtConfigs::ModernObjectBrowser = CINI::FAData->GetBool("ExtConfigs", "ModernObjectBrowser");
 	ExtConfigs::ObjectBrowser_GuessMode = CINI::FAData->GetInteger("ExtConfigs", "ObjectBrowser.GuessMode", 0);
+	ExtConfigs::ObjectBrowser_GuessMax = CINI::FAData->GetInteger("ExtConfigs", "ObjectBrowser.GuessMax", 15);
 	ExtConfigs::ObjectBrowser_CleanUp = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.CleanUp");
 	ExtConfigs::ObjectBrowser_SafeHouses = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.SafeHouses");
+	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
+	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
+	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
+	
+	
 	
 	ExtConfigs::AllowIncludes = CINI::FAData->GetBool("ExtConfigs", "AllowIncludes");
 	ExtConfigs::AllowPlusEqual = CINI::FAData->GetBool("ExtConfigs", "AllowPlusEqual");
 
 	ExtConfigs::TutorialTexts_Hide = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Hide");
 	ExtConfigs::TutorialTexts_Fix = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Fix");
+	ExtConfigs::TutorialTexts_Viewer = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Viewer");
+
+	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay");
 	
 	ExtConfigs::SortByTriggerName = CINI::FAData->GetBool("ExtConfigs", "SortByTriggerName");
-	
+	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
+	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
+	ExtConfigs::DisplayTriggerID = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerID");
+	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID");
+	auto temp = CINI::FAData->GetString("ExtConfigs", "CloneWithOrderedID.Digits");
+	temp.TrimRight();
+	ExtConfigs::CloneWithOrderedID_Digits = temp;
+
+	auto temp2 = CINI::FAData->GetString("ExtConfigs", "NewTriggerPlusID.Digits");
+	temp2.TrimRight();
+	ExtConfigs::NewTriggerPlusID_Digits = temp2;
+
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
 	ExtConfigs::AdjustDropdownWidth_Max = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Max", 360);
@@ -96,18 +187,53 @@ void FA2sp::ExtConfigsInitialize()
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.Color", 0x3CA03C);
 	ExtConfigs::CursorSelectionBound_HeightColor = 
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.HeightIndicatorColor", 0x3C3C3C);
+	ExtConfigs::CursorSelectionBound_AutoColor = CINI::FAData->GetBool("ExtConfigs", "CursorSelectionBound.AutoHeightColor");
+	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT");
+	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater");
+
+	ExtConfigs::DPIAware = CINI::FAData->GetBool("ExtConfigs", "DPIAware");
 
 	ExtConfigs::Waypoint_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Color", 0xFF0000);
 	ExtConfigs::Waypoint_Background = CINI::FAData->GetBool("ExtConfigs", "Waypoint.Background");
 	ExtConfigs::Waypoint_Background_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Background.Color", 0xFFFFFF);
 
+	ExtConfigs::WeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeBound.Color", 0xFFFF00);
+	ExtConfigs::WeaponRangeMinimumBound_Color = CINI::FAData->GetColor("ExtConfigs", "WeaponRangeMinimumBound.Color", 0xC8C800);
+	ExtConfigs::SecondaryWeaponRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SecondaryWeaponRangeBound.Color", 0x82FF00);
+	ExtConfigs::SecondaryWeaponRangeMinimumBound_Color = CINI::FAData->GetColor("ExtConfigs", "SecondaryWeaponRangeMinimumBound.Color", 0x64C800);
+
+	ExtConfigs::GapRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "GapRangeBound.Color", 0xFF0000);
+	ExtConfigs::SensorsRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SensorsRangeBound.Color", 0xFF00FF);
+	ExtConfigs::CloakRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "CloakRangeBound.Color", 0x0000FF);
+	ExtConfigs::PsychicRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "PsychicRangeBound.Color", 0x00FFFF);
+	ExtConfigs::GuardRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "GuardRangeBound.Color", 0x00FF00);
+	ExtConfigs::SightRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SightRangeBound.Color", 0xFFFFFF);
+
+	ExtConfigs::WeaponRangeBound_SubjectToElevation = CINI::FAData->GetBool("ExtConfigs", "WeaponRangeBound.SubjectToElevation");
+
+	ExtConfigs::Waypoint_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Color", 0x0000FF);
+	ExtConfigs::Waypoint_Background = CINI::FAData->GetBool("ExtConfigs", "Waypoint.Background");
+	ExtConfigs::Waypoint_Background_Color = CINI::FAData->GetColor("ExtConfigs", "Waypoint.Background.Color", 0xFFFFFF);
+
+	ExtConfigs::BaseNodeIndex_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Color", 0x00FFFF);
+	ExtConfigs::BaseNodeIndex_Background = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex.Background");
+	ExtConfigs::BaseNodeIndex = CINI::FAData->GetBool("ExtConfigs", "BaseNodeIndex");
+	ExtConfigs::BaseNodeIndex_Background_Color = CINI::FAData->GetColor("ExtConfigs", "BaseNodeIndex.Background.Color", 0x3C3C3C);
+
 	ExtConfigs::Waypoint_Text_ExtraOffset = CINI::FAData->GetPoint("ExtConfigs", "Waypoint.Text.ExtraOffset");
+	ExtConfigs::Waypoint_SkipCheckList = CINI::FAData->GetString("ExtConfigs", "Waypoint.SkipCheckList");
 
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
+	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
+	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
+	
 
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 16);
+	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile");
+	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay");
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
+	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
 
 	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
 	{
@@ -118,7 +244,10 @@ void FA2sp::ExtConfigsInitialize()
 	{
 		ExtConfigs::SaveMap_AutoSave_Interval = -1;
 	}
+	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
+	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
+	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
 	ExtConfigs::SaveMap_DefaultPreviewOptionSP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionSP", 1);
 
@@ -127,6 +256,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
 
 	ExtConfigs::MultiSelectionColor = CINI::FAData->GetColor("ExtConfigs", "MultiSelectionColor", 0x00FF00);
+	ExtConfigs::TerrainGeneratorColor = CINI::FAData->GetColor("ExtConfigs", "TerrainGeneratorColor", 0x00FFFF);
 	ExtConfigs::MultiSelectionShiftDeselect = CINI::FAData->GetBool("ExtConfigs", "MultiSelectionShiftDeselect");
 
 	ExtConfigs::RandomTerrainObjects = CINI::FAData->GetBool("ExtConfigs", "RandomTerrainObjects");
@@ -142,56 +272,44 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DDrawEmulation = CINI::FAData->GetBool("ExtConfigs", "DDrawEmulation");
 
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
+	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
 
-	ExtConfigs::EnableMultiSelection = CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection", true);
-	if (!ExtConfigs::EnableMultiSelection)
-	{
-		MessageBox(NULL, 
-			"You have disabled Multi-selection, this tag is supposed to be deprecated in future "
-			"version of FA2sp. So if you are disabling it because of the feature has some problem, "
-			"please report it at https://github.com/secsome/FA2sp/issues. Thanks for your help.",
-			"FA2sp", MB_OK | MB_ICONINFORMATION
-		);
-	}
+	ExtConfigs::EnableMultiSelection = CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection");
 
 	ExtConfigs::ExtendedValidationNoError = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationNoError");
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");
 
-	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
-
+	ExtConfigs::PlayerAtXForTechnos = CINI::FAData->GetBool("ExtConfigs", "PlayerAtXForTechnos");
 	ExtConfigs::FileWatcher = CINI::FAData->GetBool("ExtConfigs", "FileWatcher", true);
+	ExtConfigs::LoadRA2MixFilesOnly = CINI::FAData->GetBool("ExtConfigs", "LoadRA2MixFilesOnly");
+	ExtConfigs::InfantrySubCell_GameDefault = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.GameDefault");
+	ExtConfigs::InfantrySubCell_Edit = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit");
+	ExtConfigs::InfantrySubCell_Edit_Single = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit.Single");
+	ExtConfigs::InfantrySubCell_Edit_Drag = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit.Drag");
+	ExtConfigs::InfantrySubCell_Edit_Place = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit.Place");
+	ExtConfigs::InfantrySubCell_Edit_FixCenter = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit.FixCenter");
+	ExtConfigs::InfantrySubCell_OccupationBits = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.OccupationBits");
+	ExtConfigs::PlaceStructureOverlappingCheck = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.OverlappingCheck");
+	ExtConfigs::PlaceStructureResort = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.Resort");
+	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
+	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
+	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
+	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
+	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
+	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
 
-	ExtConfigs::CustomOnlineWebsites = CINI::FAData->GetBool("ExtConfigs", "CustomOnlineWebsites");
-	if (ExtConfigs::CustomOnlineWebsites)
-	{
-		if (auto pStr = CINI::FAData->TryGetString("OnlineWebsites", "Custom1"))
-		{
-			auto res = STDHelpers::SplitString(*pStr);
-			if (res.size() == 2)
-			{
-				CFinalSunAppExt::ExternalLinks[4].first = res[1];
-				CFinalSunAppExt::ExternalLinks[4].second = res[0];
-			}
-		}
-		if (auto pStr = CINI::FAData->TryGetString("OnlineWebsites", "Custom2"))
-		{
-			auto res = STDHelpers::SplitString(*pStr);
-			if (res.size() == 2)
-			{
-				CFinalSunAppExt::ExternalLinks[5].first = res[1];
-				CFinalSunAppExt::ExternalLinks[5].second = res[0];
-			}
-		}
-		if (auto pStr = CINI::FAData->TryGetString("OnlineWebsites", "Custom3"))
-		{
-			auto res = STDHelpers::SplitString(*pStr);
-			if (res.size() == 2)
-			{
-				CFinalSunAppExt::ExternalLinks[6].first = res[1];
-				CFinalSunAppExt::ExternalLinks[6].second = res[0];
-			}
-		}
-	}
+	ExtConfigs::TriggerList_AttachedTriggers = CINI::FAData->GetBool("ExtConfigs", "TriggerList.AttachedTriggers" , true);
+	ExtConfigs::TagList_AttachedObjects = CINI::FAData->GetBool("ExtConfigs", "TagList.AttachedObjects", true);
+	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
+	ExtConfigs::SaveMaps_BetterMapPreview_Lighting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview.Lighting");
+
+	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
+
+
+	ExtConfigs::InitializeMap = false;
+
+	ExtConfigs::TestNotLoaded = false;
+
 }
 
 // DllMain

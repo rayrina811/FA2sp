@@ -13,28 +13,28 @@ DEFINE_HOOK(4B026A, CMapData_SetAircraftData_AutoPropertyBrush, 5)
 	
 	return 0;
 }
-
-DEFINE_HOOK(4ACE0E, CMapData_SetBuildingData_AutoPropertyBrush, 5)
-{
-	if (CIsoViewExt::AutoPropertyBrush[1])
-	{
-		REF_STACK(CBuildingData, data, STACK_OFFS(0x194, 0x184));
-		CViewObjectsExt::ApplyPropertyBrush_Building(data);
-	}
-
-	return 0;
-}
-
-DEFINE_HOOK(4AC4ED, CMapData_SetInfantryData_AutoPropertyBrush, 9)
-{
-	if (CIsoViewExt::AutoPropertyBrush[2])
-	{
-		REF_STACK(CInfantryData, data, STACK_OFFS(0x11C, 0x108));
-		CViewObjectsExt::ApplyPropertyBrush_Infantry(data);
-	}
-
-	return 0;
-}
+// rewritten
+//DEFINE_HOOK(4ACE0E, CMapData_SetBuildingData_AutoPropertyBrush, 5)
+//{
+//	if (CIsoViewExt::AutoPropertyBrush[1])
+//	{
+//		REF_STACK(CBuildingData, data, STACK_OFFS(0x194, 0x184));
+//		CViewObjectsExt::ApplyPropertyBrush_Building(data);
+//	}
+//
+//	return 0;
+//}
+//
+//DEFINE_HOOK(4AC4ED, CMapData_SetInfantryData_AutoPropertyBrush, 9)
+//{
+//	if (CIsoViewExt::AutoPropertyBrush[2])
+//	{
+//		REF_STACK(CInfantryData, data, STACK_OFFS(0x11C, 0x108));
+//		CViewObjectsExt::ApplyPropertyBrush_Infantry(data);
+//	}
+//
+//	return 0;
+//}
 
 DEFINE_HOOK(4B0D7B, CMapData_SetUnitData_AutoPropertyBrush, 5)
 {

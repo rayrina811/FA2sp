@@ -2,16 +2,28 @@
 
 #include "../../FA2sp.h"
 #include "../CIsoView/Body.h"
+#include "../CMapData/Body.h"
 #include "../CFinalSunApp/Body.h"
-
+#include <CMapData.h>
 #include <CLoading.h>
 #include <CInputMessageBox.h>
 #include "../../Miscs/Palettes.h"
+#include "../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
+#include "../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
+#include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+#include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
+#include "../CTileSetBrowserFrame/Body.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
+std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
+int CFinalSunDlgExt::SearchObjectType = -1;
+enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 
 void CFinalSunDlgExt::ProgramStartupInit()
 {
@@ -25,7 +37,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	WORD wmMsg = HIWORD(wParam);
 
 	HMENU hMenu = *this->GetMenu();
-	auto SetLayerStatus = [this, &hMenu](int id, bool& param)
+	auto SetLayerStatus = [this, &hMenu, wmID](int id, bool& param)
 	{
 		if (GetMenuState(hMenu, id, MF_BYCOMMAND) & MF_CHECKED)
 		{
@@ -36,8 +48,170 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			param = true;
 			CheckMenuItem(hMenu, id, MF_CHECKED);
+
 		}
+		if (wmID >= 30000 && wmID < 31000)
 		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+	};
+	auto SetFilterStatus = [this, &hMenu, wmID](int id, bool& param)
+		{
+			if (GetMenuState(hMenu, id, MF_BYCOMMAND) & MF_CHECKED)
+			{
+				param = false;
+				CheckMenuItem(hMenu, id, MF_UNCHECKED);
+			}
+			else
+			{
+				param = true;
+				CheckMenuItem(hMenu, id, MF_CHECKED);
+
+
+				const ppmfc::CString title = Translations::TranslateOrDefault(
+					"ObjectFilterTitle", "Object Filter"
+				);
+				const ppmfc::CString message = Translations::TranslateOrDefault(
+					"ObjectFilterMessage", "Please input Object ID(s):\n\nSeparate multiple objects with \",\". Leave it blank to display all.\nAfter confirmation, set object property filtering (optional)."
+				);
+				const ppmfc::CString message2 = Translations::TranslateOrDefault(
+					"ObjectFilterMessageCT", "Please input Tag ID(s):\n\nSeparate multiple tags with \",\". You can only fill in the last digits."
+				);
+				ppmfc::CString result;
+				if (wmID != 30020)
+					result = CInputMessageBox::GetString(message, title);
+				else
+					result = CInputMessageBox::GetString(message2, title);
+
+				if (STDHelpers::IsNullOrWhitespace(result))
+					result = "";
+				STDHelpers::TrimString(result);
+
+
+				CViewObjectsExt::InitPropertyDlgFromProperty = true;
+				if (wmID == 30020)
+				{
+					CViewObjectsExt::ObjectFilterCT.clear();
+					CViewObjectsExt::ObjectFilterCT = STDHelpers::SplitString(result);
+					if (STDHelpers::IsNullOrWhitespace(result))
+						CheckMenuItem(hMenu, id, MF_UNCHECKED);
+
+				}
+				if (wmID == 30015)
+				{
+					CViewObjectsExt::ObjectFilterB.clear();
+					CViewObjectsExt::ObjectFilterB = STDHelpers::SplitString(result);
+
+					if (CViewObjectsExt::BuildingBrushDlgBF.get() == nullptr)
+						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::BuildingBrushBools)
+						v = false;
+
+					CViewObjectsExt::BuildingBrushDlgBF->ppmfc::CDialog::DoModal();
+
+					int index = 0;
+					for (auto& v : CViewObjectsExt::BuildingBrushBools)
+					{
+						CViewObjectsExt::BuildingBrushBoolsBF[index] = v;
+						index++;
+					}
+				}
+				else if (wmID == 30016)
+				{
+					CViewObjectsExt::ObjectFilterI.clear();
+					CViewObjectsExt::ObjectFilterI = STDHelpers::SplitString(result);
+
+					if (CViewObjectsExt::InfantryBrushDlgF.get() == nullptr)
+						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::InfantryBrushBools)
+						v = false;
+
+					CViewObjectsExt::InfantryBrushDlgF->ppmfc::CDialog::DoModal();
+
+					int index = 0;
+					for (auto& v : CViewObjectsExt::InfantryBrushBools)
+					{
+						CViewObjectsExt::InfantryBrushBoolsF[index] = v;
+						index++;
+					}
+				}
+				else if (wmID == 30017)
+				{
+					CViewObjectsExt::ObjectFilterV.clear();
+					CViewObjectsExt::ObjectFilterV = STDHelpers::SplitString(result);
+
+					if (CViewObjectsExt::VehicleBrushDlgF.get() == nullptr)
+						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::VehicleBrushBools)
+						v = false;
+
+					CViewObjectsExt::VehicleBrushDlgF->ppmfc::CDialog::DoModal();
+
+					int index = 0;
+					for (auto& v : CViewObjectsExt::VehicleBrushBools)
+					{
+						CViewObjectsExt::VehicleBrushBoolsF[index] = v;
+						index++;
+					}
+				}
+				else if (wmID == 30018)
+				{
+					CViewObjectsExt::ObjectFilterA.clear();
+					CViewObjectsExt::ObjectFilterA = STDHelpers::SplitString(result);
+
+					if (CViewObjectsExt::AircraftBrushDlgF.get() == nullptr)
+						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::AircraftBrushBools)
+						v = false;
+
+					CViewObjectsExt::AircraftBrushDlgF->ppmfc::CDialog::DoModal();
+
+					int index = 0;
+					for (auto& v : CViewObjectsExt::AircraftBrushBools)
+					{
+						CViewObjectsExt::AircraftBrushBoolsF[index] = v;
+						index++;
+					}
+				}
+				else if (wmID == 30019)
+				{
+					CViewObjectsExt::ObjectFilterBN.clear();
+					CViewObjectsExt::ObjectFilterBN = STDHelpers::SplitString(result);
+
+					if (CViewObjectsExt::BuildingBrushDlgBNF.get() == nullptr)
+						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::BuildingBrushBools)
+						v = false;
+
+					CViewObjectsExt::BuildingBrushDlgBNF->ppmfc::CDialog::DoModal();
+
+					int index = 0;
+					for (auto& v : CViewObjectsExt::BuildingBrushBools)
+					{
+						CViewObjectsExt::BuildingBrushBoolsBNF[index] = v;
+						index++;
+					}
+				}
+
+
+				CViewObjectsExt::InitPropertyDlgFromProperty = false;
+			}
+
+			if (wmID >= 30000 && wmID < 31000)
+				this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		};
+	auto SetMenuStatusTrue = [this, &hMenu](int id, bool& param)
+	{
+		param = true;
+		CheckMenuItem(hMenu, id, MF_CHECKED);
+	};
+	auto SetMenuStatusFalse = [this, &hMenu](int id, bool& param)
+	{
+		param = false;
+		CheckMenuItem(hMenu, id, MF_UNCHECKED);
 	};
 
 	auto SetLightingStatus = [this, &hMenu](int id)
@@ -98,6 +272,58 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		return TRUE;
 	case 30012:
 		SetLayerStatus(30012, CIsoViewExt::DrawBounds);
+		return TRUE;	
+	case 30013:
+		SetLayerStatus(30013, CIsoViewExt::DrawBaseNodeIndex);
+		return TRUE;
+	case 30014:
+		SetLayerStatus(30014, CIsoViewExt::RockCells);
+		return TRUE;
+	case 30015:
+		SetFilterStatus(30015, CIsoViewExt::DrawStructuresFilter);
+		return TRUE;
+	case 30016:
+		SetFilterStatus(30016, CIsoViewExt::DrawInfantriesFilter);
+		return TRUE;
+	case 30017:
+		SetFilterStatus(30017, CIsoViewExt::DrawUnitsFilter);
+		return TRUE;
+	case 30018:
+		SetFilterStatus(30018, CIsoViewExt::DrawAircraftsFilter);
+		return TRUE;
+	case 30019:
+		SetFilterStatus(30019, CIsoViewExt::DrawBasenodesFilter);
+		return TRUE;
+	case 30020:
+		SetFilterStatus(30020, CIsoViewExt::DrawCellTagsFilter);
+		return TRUE;
+	case 30021:
+		SetLayerStatus(30021, CIsoViewExt::DrawVeterancy);
+		return TRUE;
+	case 30050:
+		SetMenuStatusTrue(30000, CIsoViewExt::DrawStructures);
+		SetMenuStatusTrue(30001, CIsoViewExt::DrawInfantries);
+		SetMenuStatusTrue(30002, CIsoViewExt::DrawUnits);
+		SetMenuStatusTrue(30003, CIsoViewExt::DrawAircrafts);
+		SetMenuStatusTrue(30004, CIsoViewExt::DrawBasenodes);
+		SetMenuStatusTrue(30005, CIsoViewExt::DrawWaypoints);
+		SetMenuStatusTrue(30006, CIsoViewExt::DrawCelltags);
+		SetMenuStatusTrue(30007, CIsoViewExt::DrawMoneyOnMap);
+		SetMenuStatusTrue(30008, CIsoViewExt::DrawOverlays);
+		SetMenuStatusTrue(30009, CIsoViewExt::DrawTerrains);
+		SetMenuStatusTrue(30010, CIsoViewExt::DrawSmudges);
+		SetMenuStatusTrue(30011, CIsoViewExt::DrawTubes);
+		SetMenuStatusTrue(30012, CIsoViewExt::DrawBounds);
+		SetMenuStatusTrue(30013, CIsoViewExt::DrawBaseNodeIndex);
+		SetMenuStatusTrue(30021, CIsoViewExt::DrawVeterancy);
+		SetMenuStatusFalse(30014, CIsoViewExt::RockCells);
+		SetMenuStatusFalse(30015, CIsoViewExt::DrawStructuresFilter);
+		SetMenuStatusFalse(30016, CIsoViewExt::DrawInfantriesFilter);
+		SetMenuStatusFalse(30017, CIsoViewExt::DrawUnitsFilter);
+		SetMenuStatusFalse(30018, CIsoViewExt::DrawAircraftsFilter);
+		SetMenuStatusFalse(30019, CIsoViewExt::DrawBasenodesFilter);
+		SetMenuStatusFalse(30020, CIsoViewExt::DrawCellTagsFilter);
+		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		return TRUE;
 	case 31000:
 	case 31001:
@@ -138,12 +364,52 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			break;
 		if (!ShellExecute(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL))
 		{
-			std::string buffer = "Failed to open url, try manually: ";
-			buffer += url;
-			MessageBox(buffer.c_str());
+			ppmfc::CString pMessage = Translations::TranslateOrDefault("FailedToOpenLink",
+				"Unable to open link, please try manually:");
+
+			pMessage += " ";
+			pMessage += url.c_str();
+			MessageBox(pMessage);
 		}
 		break;
 	}
+	case 34001:
+		SetLayerStatus(34001, CIsoViewExt::PasteGround);
+		return TRUE;
+	case 34002:
+		SetLayerStatus(34002, CIsoViewExt::PasteOverlays);
+		return TRUE;
+	case 34003:
+		SetLayerStatus(34003, CIsoViewExt::PasteStructures);
+		return TRUE;
+	case 34004:
+		SetLayerStatus(34004, CIsoViewExt::PasteInfantries);
+		return TRUE;
+	case 34005:
+		SetLayerStatus(34005, CIsoViewExt::PasteUnits);
+		return TRUE;
+	case 34006:
+		SetLayerStatus(34006, CIsoViewExt::PasteAircrafts);
+		return TRUE;
+	case 34007:
+		SetLayerStatus(34007, CIsoViewExt::PasteTerrains);
+		return TRUE;
+	case 34008:
+		SetLayerStatus(34008, CIsoViewExt::PasteSmudges);
+		return TRUE;
+	case 34051:
+		SetLayerStatus(34051, CIsoViewExt::PasteOverriding);
+		return TRUE;
+	case 34050:
+		SetMenuStatusTrue(34001, CIsoViewExt::PasteGround);
+		SetMenuStatusTrue(34002, CIsoViewExt::PasteOverlays);
+		SetMenuStatusTrue(34003, CIsoViewExt::PasteStructures);
+		SetMenuStatusTrue(34004, CIsoViewExt::PasteInfantries);
+		SetMenuStatusTrue(34005, CIsoViewExt::PasteUnits);
+		SetMenuStatusTrue(34006, CIsoViewExt::PasteAircrafts);
+		SetMenuStatusTrue(34007, CIsoViewExt::PasteTerrains);
+		SetMenuStatusTrue(34008, CIsoViewExt::PasteSmudges);
+		return TRUE;
 	default:
 		break;
 	}
@@ -154,17 +420,27 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		if (CLoading::IsFileExists(file.c_str()))
 			this->LoadMap(file.c_str());
 	}
+	if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		ppmfc::CString buffer;
+		buffer = CFinalSunApp::MapPath;
+		if (CLoading::IsFileExists(buffer))
+			this->LoadMap(CFinalSunApp::MapPath);
+	}
 
 	// navigate to coordinate
-	if (wmID == 40134 && CMapData::Instance->MapWidthPlusHeight)
+	if (wmID == 40134)
 	{
-		while (true)
+		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
+		pTSB->OnBNSearchClicked();
+
+		while (false)
 		{
 			const ppmfc::CString title = Translations::TranslateOrDefault(
-				"NavigateCoordTitle", "Navigate to coordinate"
+				"NavigateCoordTitle", "Find Coordinate"
 			);
 			const ppmfc::CString message = Translations::TranslateOrDefault(
-				"NavigateCoordMessage", "Please input the coordinate in the format like X,Y"
+				"NavigateCoordMessage", "Please input coordinate (format):\nX,Y"
 			);
 			const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
 				"NavigateCoordInvalidTitle", "Error!"
@@ -182,7 +458,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_format = Translations::TranslateOrDefault(
 					"NavigateCoordInvalidFormat", "Invalid format!"
 				);
-				::MessageBox(NULL, invalid_format, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_format, invalid_title, MB_OK | MB_ICONERROR);
 				continue;
 			}
 
@@ -194,17 +470,575 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
 					"NavigateCoordInvalidCoord", "Invalid coordinate!"
 				);
-				::MessageBox(NULL, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
 				continue;
 			}
 
+			CMapDataExt::CellDataExt_FindCell.X = y;
+			CMapDataExt::CellDataExt_FindCell.Y = x;
+			CMapDataExt::CellDataExt_FindCell.drawCell = true;
+
 			CIsoView::GetInstance()->MoveToMapCoord(x, y);
+
+			CMapDataExt::CellDataExt_FindCell.drawCell = false;
+			
+			break;
+		}
+	}
+
+	if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
+		pTSB->OnBNTileManagerClicked();
+	}
+	if (wmID == 40138)
+	{
+		if (CNewTeamTypes::GetHandle() == NULL)
+			CNewTeamTypes::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40139)
+	{
+		if (CNewTaskforce::GetHandle() == NULL)
+			CNewTaskforce::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40150)
+	{
+		if (CNewScript::GetHandle() == NULL)
+			CNewScript::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40151)
+	{
+		if (CNewTrigger::GetHandle() == NULL)
+			CNewTrigger::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40154)
+	{
+		if (CNewINIEditor::GetHandle() == NULL)
+			CNewINIEditor::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40155)
+	{
+		if (CCsfEditor::GetHandle() == NULL)
+			CCsfEditor::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40156)
+	{
+		if (CNewAITrigger::GetHandle() == NULL)
+			CNewAITrigger::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+		}
+
+	}
+	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		const ppmfc::CString title = Translations::TranslateOrDefault(
+			"AutocreateLAT", "Autocreate LAT"
+		);
+		const ppmfc::CString message = Translations::TranslateOrDefault(
+			"AutocreateLATmessage", "FA2 will recalculate LAT for the entire Map according to the rules of the game engine, which can be undone using the undo key. Do you want to continue?"
+		);
+		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
+
+		if (result == IDYES)
+		{
+			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+
+			for (int x = 0; x < CMapData::Instance->MapWidthPlusHeight; x++)
+				for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; y++)
+					CMapDataExt::SmoothTileAt(x, y, true);
+
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+			CMapData::Instance->DoUndo();
+		}
+
+	}
+	if (wmID == 40153 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		const ppmfc::CString title = Translations::TranslateOrDefault(
+			"SmoothWater", "Smooth Water"
+		);
+		const ppmfc::CString message = Translations::TranslateOrDefault(
+			"SmoothWatermessage", "FA2 will regenerate the water and eliminate fragmented terrain tiles, which can be undone using the undo key. Do you want to continue?"
+		);
+		int result = ::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_YESNO);
+
+		if (result == IDYES)
+		{
+			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+
+			CMapDataExt::SmoothWater();
+
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+			CMapData::Instance->DoUndo();
+		}
+
+	}
+	//delete objects
+	if (wmID == 40136 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		CIsoView::CurrentCommand->Command = 0x2; // delete
+		CIsoView::CurrentCommand->Type = 0;
+
+		MessageBeep(MB_ICONWARNING);
+
+	}
+
+	// Search Object
+	if ((wmID == 40131|| wmID == 40132) && CMapData::Instance->MapWidthPlusHeight)
+	{
+		int wmID2 = wmID;
+		while (true)
+		{
+			if (wmID2 == 40132 && SearchObjectIndex.first == "")
+				break;
+
+			ppmfc::CString result = "";
+
+			const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
+				"SearchObjectNotFoundTitle", "Error!"
+			);
+			const ppmfc::CString end_title = Translations::TranslateOrDefault(
+				"SearchObjectTitle", "Search Object"
+			);
+			const ppmfc::CString title = Translations::TranslateOrDefault(
+				"SearchObjectTitle", "Search Object"
+			);
+			const ppmfc::CString message = Translations::TranslateOrDefault(
+				"SearchObjectMessage", "Please input Object ID:\n\nSeparate multiple objects with \",\". Type A/B/I/V for all aircrafts/ buildings/ infantries/ vehicles. After confirmation, set object property filtering (optional)."
+			);
+
+			if (wmID2 == 40131)
+			{
+				SearchObjectIndex.first = "";
+				SearchObjectIndex.second = -1;
+				SearchObjectType = -1;
+
+				result = CInputMessageBox::GetString(message, title);
+				// canceled
+				if (STDHelpers::IsNullOrWhitespace(result))
+					break;
+
+				STDHelpers::TrimString(result);
+
+				MultimapHelper mmh;
+				mmh.AddINI(&CINI::Rules());
+				mmh.AddINI(&CINI::CurrentDocument());
+
+				auto air = mmh.GetSection("AircraftTypes");
+				auto inf = mmh.GetSection("InfantryTypes");
+				auto str = mmh.GetSection("BuildingTypes");
+				auto veh = mmh.GetSection("VehicleTypes");
+				if (result == "A")
+					SearchObjectType = FindType::Aircraft;
+				else if (result == "B")
+					SearchObjectType = FindType::Structure;
+				else if (result == "I")
+					SearchObjectType = FindType::Infantry;
+				else if (result == "V")
+					SearchObjectType = FindType::Unit;
+
+				if (SearchObjectType == -1)
+					for (auto pair : air)
+					{
+						if (pair.second == result)
+						{
+							SearchObjectType = FindType::Aircraft;
+							break;
+						}
+					}
+				if (SearchObjectType == -1)
+					for (auto pair : inf)
+					{
+						if (pair.second == result)
+						{
+							SearchObjectType = FindType::Infantry;
+							break;
+						}
+					}
+				if (SearchObjectType == -1)
+					for (auto pair : str)
+					{
+						if (pair.second == result)
+						{
+							SearchObjectType = FindType::Structure;
+							break;
+						}
+					}
+				if (SearchObjectType == -1)
+					for (auto pair : veh)
+					{
+						if (pair.second == result)
+						{
+							SearchObjectType = FindType::Unit;
+							break;
+						}
+					}
+	
+				if (SearchObjectType == -1)
+				{
+					const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
+						"SearchObjectParseFailed", "Cannot parse your input ID!"
+					);
+					::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+					SearchObjectIndex.first = "";
+					SearchObjectIndex.second = -1;
+					break;
+				}
+
+				CViewObjectsExt::InitPropertyDlgFromProperty = true;
+
+
+				if (SearchObjectType == FindType::Aircraft)
+				{
+					if (CViewObjectsExt::AircraftBrushDlg.get() == nullptr)
+						CViewObjectsExt::AircraftBrushDlg = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::AircraftBrushBools)
+						v = false;
+
+					CViewObjectsExt::AircraftBrushDlg->ppmfc::CDialog::DoModal();
+				}
+
+				if (SearchObjectType == FindType::Infantry)
+				{
+					if (CViewObjectsExt::InfantryBrushDlg.get() == nullptr)
+						CViewObjectsExt::InfantryBrushDlg = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::InfantryBrushBools)
+						v = false;
+
+					CViewObjectsExt::InfantryBrushDlg->ppmfc::CDialog::DoModal();
+				}
+
+				if (SearchObjectType == FindType::Structure)
+				{
+					if (CViewObjectsExt::BuildingBrushDlg.get() == nullptr)
+						CViewObjectsExt::BuildingBrushDlg = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::BuildingBrushBools)
+						v = false;
+
+					CViewObjectsExt::BuildingBrushDlg->ppmfc::CDialog::DoModal();
+				}
+
+				if (SearchObjectType == FindType::Unit)
+				{
+					if (CViewObjectsExt::VehicleBrushDlg.get() == nullptr)
+						CViewObjectsExt::VehicleBrushDlg = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
+
+					for (auto& v : CViewObjectsExt::VehicleBrushBools)
+						v = false;
+
+					CViewObjectsExt::VehicleBrushDlg->ppmfc::CDialog::DoModal();
+				}
+
+				CViewObjectsExt::InitPropertyDlgFromProperty = false;
+			}
+			
+			if (result == "" && wmID2 == 40132)
+				result = SearchObjectIndex.first;
+
+			auto SearchSection = [&](const char* section)
+				{
+					std::pair<int, int> resultp(-1, -1);
+					if (auto pSection = CMapData::Instance->INI.GetSection(section))
+					{
+						for (auto pair : pSection->GetEntities())
+						{
+
+							auto atoms = STDHelpers::SplitString(pair.second);
+							if (atoms.size() < 5)
+								continue;
+							auto pID = atoms[1];
+							auto results = STDHelpers::SplitString(result);
+							if (!results.empty())
+								if (std::find(results.begin(), results.end(), pID) != results.end() ||
+									(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
+									(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
+									(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
+									(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
+									)
+								{
+									bool met = false;
+									int index = atoi(pair.first);
+
+									auto results2 = STDHelpers::SplitString(SearchObjectIndex.first);
+									if (std::find(results2.begin(), results2.end(), pID) != results2.end() ||
+										(std::find(results.begin(), results.end(), "A") != results.end() && SearchObjectType == FindType::Aircraft) ||
+										(std::find(results.begin(), results.end(), "B") != results.end() && SearchObjectType == FindType::Structure) ||
+										(std::find(results.begin(), results.end(), "I") != results.end() && SearchObjectType == FindType::Infantry) ||
+										(std::find(results.begin(), results.end(), "V") != results.end() && SearchObjectType == FindType::Unit)
+										)
+									{
+										if (SearchObjectIndex.second >= index)
+											continue;
+									}
+									CAircraftData airData;
+									CInfantryData infData;
+									CBuildingData buiData;
+									CUnitData unitData;
+									switch (SearchObjectType) {
+									case FindType::Aircraft: 
+										CMapData::Instance->GetAircraftData(index, airData);
+										if (CheckProperty_Aircraft(airData))
+											met = true;
+										break;
+									case FindType::Infantry: 
+										CMapData::Instance->GetInfantryData(index, infData);
+										if (CheckProperty_Infantry(infData))
+											met = true;
+										break;
+									case FindType::Structure: 
+										CMapData::Instance->GetBuildingData(index, buiData);
+										if (CheckProperty_Building(buiData))
+											met = true;
+										break;
+									case FindType::Unit: 
+										CMapData::Instance->GetUnitData(index, unitData);
+										if (CheckProperty_Vehicle(unitData))
+											met = true;
+										break;
+									default: break;
+									}
+
+									if (met)
+									{
+										SearchObjectIndex.first = result;
+										SearchObjectIndex.second = index;
+										resultp.first = atoi(atoms[3]);
+										resultp.second = atoi(atoms[4]);
+										break;
+									}
+								}
+						}
+					}
+					return resultp;
+				};
+			std::pair<int, int> location;
+			switch (SearchObjectType) {
+			case FindType::Aircraft: location = SearchSection("Aircraft"); break;
+			case FindType::Infantry: location = SearchSection("Infantry"); break;
+			case FindType::Structure: location = SearchSection("Structures"); break;
+			case FindType::Unit: location = SearchSection("Units"); break;
+			default: break;
+			}
+
+			if (location.first == -1 && location.second == -1)
+			{
+				if (SearchObjectIndex.second != -1)
+				{
+					const ppmfc::CString end_coord = Translations::TranslateOrDefault(
+						"SearchObjectEndMessage", "Found the last matching object. Restart from beginning?"
+					);
+					int result = ::MessageBox(CFinalSunDlg::Instance->m_hWnd, end_coord, end_title, MB_YESNO | MB_ICONQUESTION);
+
+
+					if (result == IDYES)
+					{
+						wmID2 = 40132;
+						SearchObjectIndex.second = -1;
+						continue;
+					}
+					if (result == IDNO)
+					{
+						break;
+					}
+				}
+				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
+					"SearchObjectNotFoundMessage", "Cannot find matching object!"
+				);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				SearchObjectIndex.first = "";
+				SearchObjectIndex.second = -1;
+				SearchObjectType = -1;
+				break;
+
+			}
+
+			if (!CMapData::Instance->IsCoordInMap(location.first, location.second))
+			{
+				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
+					"NavigateCoordInvalidCoord", "Invalid coordinate!"
+				);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				break;
+			}
+			CMapDataExt::CellDataExt_FindCell.X = location.second;
+			CMapDataExt::CellDataExt_FindCell.Y = location.first;
+			CMapDataExt::CellDataExt_FindCell.drawCell = true;
+
+			CIsoView::GetInstance()->MoveToMapCoord(location.first, location.second);
+
+			CMapDataExt::CellDataExt_FindCell.drawCell = false;
+
 			break;
 		}
 	}
 
 	return this->ppmfc::CDialog::OnCommand(wParam, lParam);
 }
+bool CFinalSunDlgExt::CheckProperty_Vehicle(CUnitData data)
+{
+	if (!CViewObjectsExt::VehicleBrushDlg)
+		return true;
+
+	auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+		{
+			if (CViewObjectsExt::VehicleBrushBools[nCheckBoxIdx - 1300])
+			{
+				if (dst == src) return true;
+				else return false;
+			}
+			return true;
+		};
+	if (
+		CheckValue(1300, CViewObjectsExt::VehicleBrushDlg->CString_House, data.House) &&
+		CheckValue(1301, CViewObjectsExt::VehicleBrushDlg->CString_HealthPoint, data.Health) &&
+		CheckValue(1302, CViewObjectsExt::VehicleBrushDlg->CString_State, data.Status) &&
+		CheckValue(1303, CViewObjectsExt::VehicleBrushDlg->CString_Direction, data.Facing) &&
+		CheckValue(1304, CViewObjectsExt::VehicleBrushDlg->CString_VeteranLevel, data.VeterancyPercentage) &&
+		CheckValue(1305, CViewObjectsExt::VehicleBrushDlg->CString_Group, data.Group) &&
+		CheckValue(1306, CViewObjectsExt::VehicleBrushDlg->CString_OnBridge, data.IsAboveGround) &&
+		CheckValue(1307, CViewObjectsExt::VehicleBrushDlg->CString_FollowerID, data.FollowsIndex) &&
+		CheckValue(1308, CViewObjectsExt::VehicleBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+		CheckValue(1309, CViewObjectsExt::VehicleBrushDlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+		CheckValue(1310, CViewObjectsExt::VehicleBrushDlg->CString_Tag, data.Tag)
+		)
+		return true;
+	else
+		return false;
+}
+
+bool CFinalSunDlgExt::CheckProperty_Building(CBuildingData data)
+{
+	if (!CViewObjectsExt::BuildingBrushDlg)
+		return true;
+
+	auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+		{
+			if (CViewObjectsExt::BuildingBrushBools[nCheckBoxIdx - 1300])
+			{
+				if (dst == src) return true;
+				else return false;
+			}
+			return true;
+		};
+	if (
+		CheckValue(1300, CViewObjectsExt::BuildingBrushDlg->CString_House, data.House) &&
+		CheckValue(1301, CViewObjectsExt::BuildingBrushDlg->CString_HealthPoint, data.Health) &&
+		CheckValue(1302, CViewObjectsExt::BuildingBrushDlg->CString_Direction, data.Facing) &&
+		CheckValue(1303, CViewObjectsExt::BuildingBrushDlg->CString_Sellable, data.AISellable) &&
+		CheckValue(1304, CViewObjectsExt::BuildingBrushDlg->CString_Rebuildable, data.AIRebuildable) &&
+		CheckValue(1305, CViewObjectsExt::BuildingBrushDlg->CString_EnergySupport, data.PoweredOn) &&
+		CheckValue(1306, CViewObjectsExt::BuildingBrushDlg->CString_UpgradeCount, data.Upgrades) &&
+		CheckValue(1307, CViewObjectsExt::BuildingBrushDlg->CString_Spotlight, data.SpotLight) &&
+		CheckValue(1308, CViewObjectsExt::BuildingBrushDlg->CString_Upgrade1, data.Upgrade1) &&
+		CheckValue(1309, CViewObjectsExt::BuildingBrushDlg->CString_Upgrade2, data.Upgrade2) &&
+		CheckValue(1310, CViewObjectsExt::BuildingBrushDlg->CString_Upgrade3, data.Upgrade3) &&
+		CheckValue(1311, CViewObjectsExt::BuildingBrushDlg->CString_AIRepairs, data.AIRepairable) &&
+		CheckValue(1312, CViewObjectsExt::BuildingBrushDlg->CString_ShowName, data.Nominal) &&
+		CheckValue(1313, CViewObjectsExt::BuildingBrushDlg->CString_Tag, data.Tag)
+		)
+	return true;
+	else
+		return false;
+}
+
+bool CFinalSunDlgExt::CheckProperty_Infantry(CInfantryData data)
+{
+	if (!CViewObjectsExt::InfantryBrushDlg)
+		return true;
+
+	auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+		{
+			if (CViewObjectsExt::InfantryBrushBools[nCheckBoxIdx - 1300])
+			{
+				if (dst == src) return true;
+				else return false;
+			}
+			return true;
+		};
+	if (
+		CheckValue(1300, CViewObjectsExt::InfantryBrushDlg->CString_House, data.House) &&
+		CheckValue(1301, CViewObjectsExt::InfantryBrushDlg->CString_HealthPoint, data.Health) &&
+		CheckValue(1302, CViewObjectsExt::InfantryBrushDlg->CString_State, data.Status) &&
+		CheckValue(1303, CViewObjectsExt::InfantryBrushDlg->CString_Direction, data.Facing) &&
+		CheckValue(1304, CViewObjectsExt::InfantryBrushDlg->CString_VerteranStatus, data.VeterancyPercentage) &&
+		CheckValue(1305, CViewObjectsExt::InfantryBrushDlg->CString_Group, data.Group) &&
+		CheckValue(1306, CViewObjectsExt::InfantryBrushDlg->CString_OnBridge, data.IsAboveGround) &&
+		CheckValue(1307, CViewObjectsExt::InfantryBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+		CheckValue(1308, CViewObjectsExt::InfantryBrushDlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+		CheckValue(1309, CViewObjectsExt::InfantryBrushDlg->CString_Tag, data.Tag)
+		)
+	return true;
+	else
+		return false;
+}
+
+bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
+{
+	if (!CViewObjectsExt::AircraftBrushDlg)
+		return true;
+
+	auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+		{
+			if (CViewObjectsExt::AircraftBrushBools[nCheckBoxIdx - 1300])
+			{
+				if (dst == src) return true;
+				else return false;
+			}
+			return true;
+		};
+	if (
+		CheckValue(1300, CViewObjectsExt::AircraftBrushDlg->CString_House, data.House) &&
+		CheckValue(1301, CViewObjectsExt::AircraftBrushDlg->CString_HealthPoint, data.Health) &&
+		CheckValue(1302, CViewObjectsExt::AircraftBrushDlg->CString_Direction, data.Facing) &&
+		CheckValue(1303, CViewObjectsExt::AircraftBrushDlg->CString_Status, data.Status) &&
+		CheckValue(1304, CViewObjectsExt::AircraftBrushDlg->CString_VeteranLevel, data.VeterancyPercentage) &&
+		CheckValue(1305, CViewObjectsExt::AircraftBrushDlg->CString_Group, data.Group) &&
+		CheckValue(1306, CViewObjectsExt::AircraftBrushDlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+		CheckValue(1307, CViewObjectsExt::AircraftBrushDlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+		CheckValue(1308, CViewObjectsExt::AircraftBrushDlg->CString_Tag, data.Tag)
+		)
+	return true;
+	else
+		return false;
+}
+
 
 BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 {

@@ -3,6 +3,8 @@
 #include <CFinalSunApp.h>
 #include <Helpers/Macro.h>
 #include <CINI.h>
+#include "../FA2sp.h"
+#include <CMapData.h>
 
 CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
@@ -47,7 +49,10 @@ bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& re
             auto itr = section->GetEntities().find(pLabelName);
             if (itr != section->GetEntities().end())
             {
-                ret = itr->second;
+                auto buffer = itr->second;
+                buffer.Replace("\\n", "\n");
+                buffer.Replace("\\t", "\t");
+                ret = buffer;
                 return true;
             }
         }
@@ -63,11 +68,35 @@ const char* Translations::TranslateOrDefault(const char* lpLabelName, const char
         {
             auto itr = section->GetEntities().find(lpLabelName);
             if (itr != section->GetEntities().end())
-                return itr->second;
+            {
+                auto buffer = itr->second;
+                buffer.Replace("\\n", "\n");
+                buffer.Replace("\\t", "\t");
+                buffer.Replace("\\r", "\r");
+                return buffer;
+            }
+                
         }
     }
 
     return lpDefault;
+}
+const char* Translations::TranslateStringVariables(int n, const char* originaltext, const char* inserttext)
+{
+    char c[50];
+    _itoa(n, c, 10);
+
+    char seekedstring[50];
+    seekedstring[0] = '%';
+    seekedstring[1] = 0;
+    strcat(seekedstring, c);
+
+    ppmfc::CString orig = originaltext;
+    if (orig.Find(seekedstring) < 0) return orig;
+
+    orig.Replace(seekedstring, inserttext);
+
+    return orig;
 }
 
 void Translations::TranslateItem(CWnd* pWnd, int nSubID, const char* lpKey)
@@ -82,4 +111,59 @@ void Translations::TranslateItem(CWnd* pWnd, const char* lpKey)
     ppmfc::CString buffer;
     if (Translations::GetTranslationItem(lpKey, buffer))
         pWnd->SetWindowText(buffer);
+}
+
+DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
+{
+    if (ExtConfigs::NoHouseNameTranslation)
+    {
+        GET_STACK(ppmfc::CString*, pRet, 0x4);
+        REF_STACK(ppmfc::CString, src, 0x8);
+        GET_STACK(bool, IDToUIName, 0xC);
+
+        new(pRet) ppmfc::CString(src);
+        R->EAX(pRet);
+
+        return 0x43CA72;
+    }
+    else
+    {
+        GET_STACK(ppmfc::CString*, pRet, 0x4);
+        REF_STACK(ppmfc::CString, src, 0x8);
+        GET_STACK(bool, IDToUIName, 0xC);
+
+
+        auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+        ppmfc::CString translated;
+
+        if (IDToUIName)
+        {
+            for (auto& pair : countries)
+            {
+                if (ExtConfigs::BetterHouseNameTranslation)
+                    translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                else
+                    translated = CMapData::GetUIName(pair.second);
+
+                src.Replace(pair.second, translated);
+            }
+        }
+        else
+        {
+            for (auto& pair : countries)
+            {
+                if (ExtConfigs::BetterHouseNameTranslation)
+                    translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                else
+                    translated = CMapData::GetUIName(pair.second);
+                src.Replace(translated, pair.second);
+            }
+        }
+        new(pRet) ppmfc::CString(src);
+        R->EAX(pRet);
+
+        return 0x43CA72;
+
+    }
+    return 0;
 }

@@ -19,16 +19,17 @@ BEGIN
     "P",            40038,                  VIRTKEY, CONTROL, NOINVERT
     "U",            40043,                  VIRTKEY, CONTROL, NOINVERT
     "H",            40039,                  VIRTKEY, CONTROL, NOINVERT
-    "R",            40076,                  VIRTKEY, CONTROL, NOINVERT
+    "R",            40151,                  VIRTKEY, CONTROL, NOINVERT
     "G",            40042,                  VIRTKEY, CONTROL, NOINVERT
-    "T",            40046,                  VIRTKEY, CONTROL, NOINVERT
-    "C",            40044,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "E",            40045,                  VIRTKEY, CONTROL, NOINVERT
-    "J",            40047,                  VIRTKEY, CONTROL, NOINVERT
+    "T",            40139,                  VIRTKEY, CONTROL, NOINVERT
+    "C",            40150,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "C",            40155,                  VIRTKEY, ALT, CONTROL, NOINVERT
+    "E",            40138,                  VIRTKEY, CONTROL, NOINVERT
+    "J",            40156,                  VIRTKEY, CONTROL, NOINVERT
     "K",            40048,                  VIRTKEY, CONTROL, NOINVERT
     "Q",            40082,                  VIRTKEY, CONTROL, NOINVERT
     "M",            40037,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "I",            40049,                  VIRTKEY, CONTROL, NOINVERT
+    "I",            40154,                  VIRTKEY, CONTROL, NOINVERT
     VK_F5,          40053,                  VIRTKEY, NOINVERT
     VK_F6,          40054,                  VIRTKEY, NOINVERT
     VK_F7,          40064,                  VIRTKEY, NOINVERT
@@ -41,6 +42,30 @@ BEGIN
     "W",            40133,                  VIRTKEY, CONTROL, NOINVERT
     VK_F2,          40024,                  VIRTKEY, NOINVERT
     "F",            40134,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "T",            40137,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+    "0",            30050,                  VIRTKEY, CONTROL, NOINVERT
+    "5",            30008,                  VIRTKEY, CONTROL, NOINVERT
+    "6",            30009,                  VIRTKEY, CONTROL, NOINVERT
+    "7",            30010,                  VIRTKEY, CONTROL, NOINVERT
+    "1",            30000,                  VIRTKEY, CONTROL, NOINVERT
+    "2",            30001,                  VIRTKEY, CONTROL, NOINVERT
+    "3",            30002,                  VIRTKEY, CONTROL, NOINVERT
+    "4",            30003,                  VIRTKEY, CONTROL, NOINVERT
+    "8",            30004,                  VIRTKEY, CONTROL, NOINVERT
+    "0",            30005,                  VIRTKEY, ALT, NOINVERT
+    "1",            30006,                  VIRTKEY, ALT, NOINVERT
+    "2",            30011,                  VIRTKEY, ALT, NOINVERT
+    "3",            30007,                  VIRTKEY, ALT, NOINVERT
+    "4",            30012,                  VIRTKEY, ALT, NOINVERT 
+    "5",            30021,                  VIRTKEY, ALT, NOINVERT
+	"6",            30014,                  VIRTKEY, ALT, NOINVERT
+    "9",            30013,                  VIRTKEY, CONTROL, NOINVERT
+	//"Q",            40131,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+	//"W",            40132,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
+	VK_DELETE,      40136,                  VIRTKEY, NOINVERT
+	"O",            40018,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
 END
 
 101 RT_MANIFEST "FA2sp.manifest"
+
+

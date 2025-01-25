@@ -39,3 +39,9 @@ void RunTime::ResetMemoryContentAt(ptr_type addr, const void* content, size_t si
 	memcpy(pplContent + offset, content, size);
 	ret = VirtualProtectEx(process, pplContent + offset, size, oldProtect, &newProtect);
 }
+
+void RunTime::ResetStaticCharAt(ptr_type addr, const char* content)
+{
+	char* targetAddress = reinterpret_cast<char*>(addr);
+	std::memcpy(targetAddress, content, std::strlen(content) + 1);
+}

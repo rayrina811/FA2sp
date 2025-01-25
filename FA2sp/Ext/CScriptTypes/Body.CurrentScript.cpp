@@ -176,12 +176,7 @@ bool CurrentScript::IsExtraParamEnabled(int actionIndex)
 		return false;
 	const auto& param = CScriptTypeParam::ExtParams[itr->second.ParamCode_].Param_;
 	if (param < 0)
-	{
-		ppmfc::CString buffer;
-		buffer.Format("%d", -param);
-		buffer = CINI::FAData->GetString("ScriptTypeLists", buffer);
-		return CINI::FAData->GetBool(buffer, "HasExtraParam");
-	}
+		return CScriptTypeParamCustom::ExtParamsCustom[-param].HasExtraParam_;
 	return false;
 }
 
@@ -194,115 +189,60 @@ void CurrentScript::LoadExtraParamBox(ppmfc::CComboBox& comboBox, int actionInde
 {
 	comboBox.DeleteAllStrings();
 
-	if (actionIndex == 46 || actionIndex == 47 || actionIndex == 56 || actionIndex == 58)
-	{
-		comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.0", "0 - Min Threat")), 0);
-		comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.1", "1 - Max Threat")), 1);
-		comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.2", "2 - Nearest")), 2);
-		comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.3", "3 - Farthest")), 3);
-		return;
-	}
-
 	auto itr = CScriptTypeAction::ExtActions.find(actionIndex);
 	if (itr == CScriptTypeAction::ExtActions.end())
 		return;
+	bool hasExtraParam = false;
 	const auto& param = CScriptTypeParam::ExtParams[itr->second.ParamCode_].Param_;
-	if (param < 0)
-	{
-		ppmfc::CString buffer;
-		buffer.Format("%d", -param);
+	if (actionIndex == 46 || actionIndex == 47 || actionIndex == 56 || actionIndex == 58)
+		hasExtraParam = true;
+	if (param < 0 && CScriptTypeParamCustom::ExtParamsCustom[-param].HasExtraParam_ > 0)
+		hasExtraParam = true;
 
-		buffer = CINI::FAData->GetString("ScriptTypeLists", buffer);
-		if (CINI::FAData->GetBool(buffer, "HasExtraParam"))
+	if (hasExtraParam)
+	{
+		if (param < 0 && CScriptTypeParamCustom::ExtParamsCustom[-param].HasExtraParam_ > 1)
 		{
-			buffer = CINI::FAData->GetString(buffer, "ExtraParamType");
-			int nBuiltInType = CINI::FAData->GetInteger(buffer, "BuiltInType", -1);
-			if (nBuiltInType != -1)
+
+			MultimapHelper mmh;
+			switch (CScriptTypeParamCustom::ExtParamsCustom[-param].LoadFrom2_)
 			{
-				switch (nBuiltInType)
+			default:
+			case 0:
+				mmh.AddINI(&CINI::FAData());
+				break;
+			case 1:
+				mmh.AddINI(&CINI::Rules());
+				break;
+			case 2:
+				mmh.AddINI(&CINI::Rules());
+				mmh.AddINI(&CINI::CurrentDocument());
+				break;
+			case 3:
+				mmh.AddINI(&CINI::CurrentDocument());
+				break;
+			}
+
+			auto&& entries = mmh.ParseIndicies(CScriptTypeParamCustom::ExtParamsCustom[-param].XtraSection_, true);
+			if (entries.size() > 0)
+			{
+				CString buffer;
+				for (size_t i = 0, sz = entries.size(); i < sz; ++i)
 				{
-				default:
-				case 0:
-					break;
-				case 1:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Target(comboBox);
-					break;
-				case 2:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Waypoint(comboBox);
-					break;
-				case 3:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_ScriptLine(
-						comboBox,
-						CFinalSunDlg::Instance->ScriptTypes.CCBCurrentScript,
-						CFinalSunDlg::Instance->ScriptTypes.CLBScriptActions
-					);
-					break;
-				case 4:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_SplitGroup(comboBox);
-					break;
-				case 5:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_GlobalVariables(comboBox);
-					break;
-				case 6:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_ScriptTypes(comboBox);
-					break;
-				case 7:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_TeamTypes(comboBox);
-					break;
-				case 8:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Houses(comboBox);
-					break;
-				case 9:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Speechs(comboBox);
-					break;
-				case 10:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Sounds(comboBox);
-					break;
-				case 11:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Movies(comboBox);
-					break;
-				case 12:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Themes(comboBox);
-					break;
-				case 13:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Countries(comboBox);
-					break;
-				case 14:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_LocalVariables(comboBox);
-					break;
-				case 15:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Facing(comboBox);
-					break;
-				case 16:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_BuildingTypes(comboBox);
-					break;
-				case 17:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Animations(comboBox);
-					break;
-				case 18:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_TalkBubble(comboBox);
-					break;
-				case 19:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Status(comboBox);
-					break;
-				case 20:
-					CScriptTypesFunctions::CScriptTypes_LoadParams_Boolean(comboBox);
-					break;
+
+					buffer.Format("%u - ", i);
+					buffer += entries[i];
+					comboBox.SetItemData(comboBox.AddString(buffer), i);
 				}
 			}
-			else
-			{
-				if (auto pSection = CINI::FAData->GetSection(buffer))
-					for (auto& pair : pSection->GetEntities())
-					{
-						int data;
-						if (sscanf_s(pair.first, "%d", &data) == 1)
-						{
-							buffer = pair.first + " - " + pair.second;
-							comboBox.SetItemData(comboBox.AddString(buffer), data);
-						}
-					}
-			}
+
+		}
+		else
+		{
+			comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.0", "0 - 最小威胁")), 0);
+			comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.1", "1 - 最大威胁")), 1);
+			comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.2", "2 - 最近")), 2);
+			comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptExtraParam.Preference.3", "3 - 最远")), 3);
 		}
 	}
 }

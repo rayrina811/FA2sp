@@ -1,12 +1,42 @@
 #include <Helpers/Macro.h>
+#include <Miscs/Miscs.LoadParams.h>
+#include <CMapData.h>
 
 #include "Body.h"
+#include "../../FA2sp.h"
 
 #include "../CFinalSunDlg/Body.h"
 
-DEFINE_HOOK(451AEC, CPropertyInfantry_OnInitDialog_HidePropertyBrushCheckes, 7)
+DEFINE_HOOK(451A70, CPropertyInfantry_OnInitDialog, 7)
 {
-    GET(CPropertyInfantry*, pThis, ESI);
+    GET(CPropertyInfantry*, pThis, ECX);
+
+    pThis->ppmfc::CDialog::OnInitDialog();
+
+    CMapData::Instance->UpdateCurrentDocument();
+
+
+    if (!CMapData::Instance->IsMultiOnly())
+    {
+        Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
+    }
+    else
+    {
+        if (ExtConfigs::TestNotLoaded)
+        {
+
+        }
+        else if (ExtConfigs::PlayerAtXForTechnos)
+            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, true);
+        else
+            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
+    }
+
+    Miscs::LoadParams::Tags(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1083)), true);
+
+    pThis->CSCStrength.SetRange(0, 256);
+    pThis->CSCStrength.SetPos(atoi(pThis->CString_HealthPoint));
+    pThis->UpdateData(FALSE);
 
     if (!CViewObjectsExt::InitPropertyDlgFromProperty)
     {
@@ -14,5 +44,7 @@ DEFINE_HOOK(451AEC, CPropertyInfantry_OnInitDialog_HidePropertyBrushCheckes, 7)
             pThis->GetDlgItem(i)->ShowWindow(SW_HIDE);
     }
 
-    return 0;
+    pThis->Translate();
+
+    return 0x451AF4;
 }

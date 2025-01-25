@@ -18,6 +18,8 @@ public:
 
 	//static void ProgramStartupInit();
 
+	static bool HasFile_ReadyToReadFromFolder;
+
 	bool InitMixFilesFix();
 
 	void LoadObjects(ppmfc::CString pRegName);
@@ -73,11 +75,13 @@ private:
 		Smudge = 5
 	};
 
+public:
 	ppmfc::CString GetArtID(ppmfc::CString ID);
 	ppmfc::CString GetVehicleOrAircraftFileID(ppmfc::CString ID);
 	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
 	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
+private:
 	ObjectType GetItemType(ppmfc::CString ID);
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, ppmfc::CString name);

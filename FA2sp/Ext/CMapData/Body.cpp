@@ -4,16 +4,49 @@
 
 #include <CFinalSunApp.h>
 #include <CFinalSunDlg.h>
-
+#include <corecrt_math_defines.h>
 #include <algorithm>
 #include <vector>
 #include <format>
+#include "../../Helpers/STDHelpers.h"
+#include <Miscs/Miscs.h>
+#include <CIsoView.h>
+#include "../CFinalSunDlg/Body.h"
+#include "../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
+#include "../../ExtraWindow/CNewTaskforce/CNewTaskforce.h"
+#include "../../ExtraWindow/CNewScript/CNewScript.h"
+#include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CSearhReference/CSearhReference.h"
+#include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+#include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
+#include "../CTileSetBrowserFrame/TabPages/TriggerSort.h"
+#include "../CTileSetBrowserFrame/TabPages/TeamSort.h"
+#include "../CTileSetBrowserFrame/TabPages/WaypointSort.h"
+#include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
+#include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
+#include "../../Miscs/MultiSelection.h"
+#include "../../Helpers/Translations.h"
+#include "../CIsoView/Body.h"
+#include "../CTileSetBrowserFrame/TabPages/TagSort.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
-std::vector<BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
+std::map<int, BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
 std::vector<OverlayTypeData> CMapDataExt::OverlayTypeDatas;
+CellDataExt CMapDataExt::CellDataExt_FindCell;
+std::vector<CellDataExt> CMapDataExt::CellDataExts;
+//MapCoord CMapDataExt::CurrentMapCoord;
+MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
+bool CMapDataExt::SkipUpdateBuildingInfo = false;
+CTileTypeClass* CMapDataExt::TileData = nullptr;
+int CMapDataExt::TileDataCount = 0;
+int CMapDataExt::ShoreSet12 = 0;
+int CMapDataExt::CurrentTheaterIndex;
+std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
+std::vector<int> CMapDataExt::TileSet_starts;
+std::map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -34,10 +67,1147 @@ int CMapDataExt::GetOreValueAt(CellData& cell)
     return GetOreValue(cell.Overlay, cell.OverlayData);
 }
 
+BuildingPowers CMapDataExt::GetStructurePower(CBuildingData object)
+{
+	BuildingPowers ret;
+	auto roundToPrecision = [](double value, int precision)
+		{
+			double multiplier = std::pow(10.0, precision);
+			return std::round(value * multiplier) / multiplier;
+		};
+	int strength = (int)((double)Variables::Rules.GetInteger(object.TypeID, "Strength") * (double)(atoi(object.Health) / 256.0));
+	if (strength == 0 && atoi(object.Health) > 0)
+		strength = 1;
+
+	int power1 = 0;
+	int power2 = 0;
+	int power3 = 0;
+	int powerMain = Variables::Rules.GetInteger(object.TypeID, "Power");
+	if (powerMain > 0)
+		powerMain = ((double)powerMain) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+
+	if (object.Upgrade1 != "None" && atoi(object.Upgrades) >= 1)
+	{
+		power1 = Variables::Rules.GetInteger(object.Upgrade1, "Power");
+		if (power1 > 0)
+			power1 = ((double)power1) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+	}
+	if (object.Upgrade2 != "None" && atoi(object.Upgrades) >= 2)
+	{
+		power2 = Variables::Rules.GetInteger(object.Upgrade2, "Power");
+		if (power2 > 0)
+			power2 = ((double)power2) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+	}
+	if (object.Upgrade3 != "None" && atoi(object.Upgrades) >= 3)
+	{
+		power3 = Variables::Rules.GetInteger(object.Upgrade3, "Power");
+		if (power3 > 0)
+			power3 = ((double)power3) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+	}
+	ret.TotalPower = powerMain + power1 + power2 + power3;
+	ret.Output = (powerMain > 0 ? powerMain : 0) 
+		+ (power1 > 0 ? power1 : 0)
+		+ (power2 > 0 ? power2 : 0)
+		+ (power3 > 0 ? power3 : 0);
+	ret.Drain = (powerMain < 0 ? powerMain : 0)
+		+ (power1 < 0 ? power1 : 0)
+		+ (power2 < 0 ? power2 : 0)
+		+ (power3 < 0 ? power3 : 0);
+	return ret;
+}
+
+BuildingPowers CMapDataExt::GetStructurePower(ppmfc::CString value)
+{
+	auto atoms = STDHelpers::SplitString(value, 16);
+	CBuildingData object;
+	object.TypeID = atoms[1];
+	object.Health = atoms[2];
+	object.Upgrades = atoms[10];
+	object.Upgrade1 = atoms[12];
+	object.Upgrade2 = atoms[13];
+	object.Upgrade3 = atoms[14];
+	return GetStructurePower(object);
+}
+
+void CMapDataExt::UpdateTriggers()
+{
+	CMapDataExt::Triggers.clear();
+	if (auto pSection = CINI::CurrentDocument->GetSection("Triggers")) {
+		for (const auto& pair : pSection->GetEntities()) {
+			std::shared_ptr<Trigger> trigger(Trigger::create(pair.first));
+			if (!trigger) {
+				continue;
+			}
+			if (CMapDataExt::Triggers.find(pair.first) == CMapDataExt::Triggers.end()) {
+				CMapDataExt::Triggers[pair.first] = std::move(trigger);
+			}
+		}
+	}    
+	if (TriggerSort::Instance.IsVisible())
+	{
+		TriggerSort::Instance.LoadAllTriggers();
+	}
+}
+
+ppmfc::CString CMapDataExt::AddTrigger(std::shared_ptr<Trigger> trigger) {
+	if (!trigger) {
+		return "";
+	}
+	ppmfc::CString id = trigger->ID;
+	CMapDataExt::Triggers[id] = std::move(trigger);
+	return id;
+}
+
+ppmfc::CString CMapDataExt::AddTrigger(ppmfc::CString id) {
+	std::shared_ptr<Trigger> trigger(Trigger::create(id));
+
+	if (!trigger) {
+		return "";
+	}
+
+	CMapDataExt::Triggers[id] = std::move(trigger);
+	return id;
+}
+
+std::shared_ptr<Trigger> CMapDataExt::GetTrigger(ppmfc::CString id) {
+	auto it = CMapDataExt::Triggers.find(id);
+	if (it != CMapDataExt::Triggers.end()) {
+		return std::shared_ptr<Trigger>(it->second.get(), [](Trigger*) {});
+	}
+	return nullptr;
+}
+
+void CMapDataExt::DeleteTrigger(ppmfc::CString id)
+{
+	auto it = CMapDataExt::Triggers.find(id);
+	if (it != CMapDataExt::Triggers.end()) {
+		CMapDataExt::Triggers.erase(it);
+	}
+}
+
+bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, int bottom)
+{
+	if (!this->IsCoordInMap(x, y))
+		return false;
+	int pos = this->GetCoordIndex(x, y);
+	auto cell = this->GetCellAt(pos);
+	int tileIndex = cell->TileIndex;
+	if (tileIndex == 0xFFFF)
+		tileIndex = 0;
+
+	int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
+	int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
+
+	int subIdx = 0;
+	for (int m = 0; m < CMapDataExt::TileData[tileIndex].Height; m++)
+	{
+		for (int n = 0; n < CMapDataExt::TileData[tileIndex].Width; n++)
+		{
+			if (!this->IsCoordInMap(m + oriX, n + oriY))
+				return false;
+			if (startX >= 0)
+				if (m + oriX < startX || n + oriY < startY || m + oriX >= right || n + oriY >= bottom)
+					return false;
+
+			auto cell2 = this->GetCellAt(m + oriX, n + oriY);
+			int tileIndex2 = cell2->TileIndex;
+			if (tileIndex2 == 0xFFFF)
+				tileIndex2 = 0;
+
+			if (CMapDataExt::TileData[tileIndex].TileBlockDatas[subIdx].ImageData != NULL)
+			{
+				if (tileIndex != tileIndex2)
+					return false;
+
+				if (cell2->TileSubIndex != subIdx)
+					return false;
+			}
+
+			subIdx++;
+		}
+	}
+
+	return true;
+
+}
+
+void CMapDataExt::SetHeightAt(int x, int y, int height)
+{
+	if (height < 0) height = 0;
+	if (height > 14) height = 14;
+	if (this->IsCoordInMap(x, y))
+		this->CellDatas[x + y * this->MapWidthPlusHeight].Height = height;
+}
+
+void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
+{
+	if (!this->IsCoordInMap(X, Y))
+		return;
+	int width = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(index)].Width;
+	int height = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(index)].Height;
+	int startHeight = this->GetCellAt(X, Y)->Height;
+
+	int subIdx = 0;
+	switch (callType)
+	{
+	case 1: // random terrain
+	{
+		for (int m = 0; m < height; m++)
+		{
+			for (int n = 0; n < width; n++)
+			{
+				if (!this->IsCoordInMap(m + X, n + Y))
+					continue;
+				if (CMapDataExt::TileData[index].TileBlockDatas[subIdx].ImageData != NULL)
+				{
+					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+					if (cellExt.AddRandomTile) return;
+				}
+				subIdx++;
+			}
+		}	
+	}
+	break;
+	default:
+		break;
+	}
+
+	subIdx = 0;
+	for (int m = 0; m < height; m++)
+	{
+		for (int n = 0; n < width; n++)
+		{
+			if (!this->IsCoordInMap(m + X, n + Y))
+				continue;
+			auto cell = this->GetCellAt(m + X, n + Y);
+			if (CMapDataExt::TileData[index].TileBlockDatas[subIdx].ImageData != NULL)
+			{
+				cell->TileIndex = index;
+				cell->TileSubIndex = subIdx;
+				cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[index].AltTypeCount + 1);
+				SetHeightAt(m + X, n + Y, startHeight + CMapDataExt::TileData[index].TileBlockDatas[subIdx].Height);
+				CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+
+				auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+				switch (callType)
+				{
+				case 1: // random terrain
+				{
+					cellExt.AddRandomTile = true;
+				}
+				break;
+				default:
+					break;
+				}
+			}
+			subIdx++;
+		}
+	}
+}
+
+std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriIntact)
+{
+	std::vector<MapCoord> ret;
+	if (!oriIntact || IsTileIntact(x, y))
+	{
+		int pos = this->GetCoordIndex(x, y);
+		auto cell = this->GetCellAt(pos);
+		int tileIndex = cell->TileIndex;
+		if (tileIndex == 0xFFFF)
+			tileIndex = 0;
+
+		int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
+		int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
+
+		int subIdx = 0;
+		for (int m = 0; m < CMapDataExt::TileData[tileIndex].Height; m++)
+		{
+			for (int n = 0; n < CMapDataExt::TileData[tileIndex].Width; n++)
+			{
+				if (CMapDataExt::TileData[tileIndex].TileBlockDatas[subIdx].ImageData != NULL)
+				{
+					MapCoord mc;
+					mc.X = m + oriX;
+					mc.Y = n + oriY;
+					ret.push_back(mc);
+				}
+				subIdx++;
+			}
+		}
+
+		return ret;
+	}
+	return ret;
+}
+
+
+void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
+{
+	auto& Map = CMapData::Instance();
+	if (!Map.IsCoordInMap(dwPos)) return;
+	if (damageStage == -1)
+		damageStage = Map.GetOverlayDataAt(dwPos) / 16;
+	else if (damageStage == -2)
+	{
+		MultimapHelper mmh;
+		mmh.AddINI(&CINI::Rules());
+		auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
+		int damageLevel = CINI::Art().GetInteger(overlays[overlay], "DamageLevels");
+		std::vector<int> rnd;
+		for (int i = 0; i < damageLevel; i++)
+			rnd.push_back(i);
+
+		damageStage = STDHelpers::RandomSelectInt(rnd);
+	}
+
+	int overlayData = 16 * damageStage;
+	int X = Map.GetXFromCoordIndex(dwPos);
+	int Y = Map.GetYFromCoordIndex(dwPos);
+	if (firstRun)
+		Map.SetOverlayAt(dwPos, overlay);
+	else
+		if (Map.GetOverlayAt(dwPos) != overlay)
+			return;
+	//                              8      2    4      1
+	//                              NW     SE   SW     NE
+	const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
+
+	if (Map.IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+	{
+		int thisPos = Map.GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
+		if (Map.GetOverlayAt(thisPos) == overlay)
+			overlayData += 8;
+	}
+	if (Map.IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
+	{
+		int thisPos = Map.GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
+		if (Map.GetOverlayAt(thisPos) == overlay)
+			overlayData += 2;
+	}
+	if (Map.IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
+	{
+		int thisPos = Map.GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
+		if (Map.GetOverlayAt(thisPos) == overlay)
+			overlayData += 4;
+	}
+	if (Map.IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
+	{
+		int thisPos = Map.GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
+		if (Map.GetOverlayAt(thisPos) == overlay)
+			overlayData += 1;
+	}
+	Map.SetOverlayDataAt(dwPos, overlayData);
+
+	if (firstRun)
+	{
+		PlaceWallAt(Map.GetCoordIndex(X - 1, Y), overlay, -1, false);
+		PlaceWallAt(Map.GetCoordIndex(X + 1, Y), overlay, -1, false);
+		PlaceWallAt(Map.GetCoordIndex(X, Y - 1), overlay, -1, false);
+		PlaceWallAt(Map.GetCoordIndex(X, Y + 1), overlay, -1, false);
+	}
+
+}
+
+
+int CMapDataExt::GetInfantryAt(int dwPos, int dwSubPos)
+{
+	if (dwSubPos == 0xFFFFFFFF)
+	{
+		int i;
+		for (i = 0; i < 3; i++)
+			if (CMapData::Instance->CellDatas[dwPos].Infantry[i] != -1)
+				return CMapData::Instance->CellDatas[dwPos].Infantry[i];
+		return -1;
+	}
+	if (dwSubPos == 4)
+		dwSubPos = 0;
+	else if (dwSubPos == 3)
+		dwSubPos = 2;
+	else if (dwSubPos == 2)
+		dwSubPos = 1;
+	else if (dwSubPos == 1)
+		dwSubPos = 0;
+	return CMapData::Instance->CellDatas[dwPos].Infantry[dwSubPos];
+}
+
 void CMapDataExt::InitOreValue()
 {
     OreValue[OreType::Aboreus] = CINI::Rules->GetInteger("Aboreus", "Value");
     OreValue[OreType::Cruentus] = CINI::Rules->GetInteger("Cruentus", "Value");
     OreValue[OreType::Riparius] = CINI::Rules->GetInteger("Riparius", "Value");
     OreValue[OreType::Vinifera] = CINI::Rules->GetInteger("Vinifera", "Value");
+}
+
+void CMapDataExt::SmoothAll()
+{
+	if (CFinalSunApp::Instance().DisableAutoLat)
+		return;
+
+	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto tileDataBrush = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
+	auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+
+	for (int x = -tileDataBrush.Height; x < (pIsoView->BrushSizeX - 1) * tileDataBrush.Height + 2; x++)
+	{
+		for (int y = -tileDataBrush.Width; y < (pIsoView->BrushSizeY - 1) * tileDataBrush.Width + 2; y++)
+		{
+			SmoothTileAt(x + point.X, y + point.Y);
+		}
+	}
+
+}
+
+void CMapDataExt::SmoothWater()
+{
+	std::vector<int> BigWaterTiles;
+	std::vector<int> SmallWaterTiles;
+
+	int waterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet", 21);
+	if (waterSet < 0 || waterSet > CMapDataExt::TileSet_starts.size())
+		return;
+
+	for (int i = 0; i < 6; i++)
+		BigWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
+
+	for (int i = 8; i < 13; i++)
+		SmallWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
+
+	
+	int side = CMapData::Instance->MapWidthPlusHeight;
+	auto CellDatas = CMapData::Instance->CellDatas;
+
+
+	// first check all the water tiles
+	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
+	{
+		auto& cellExt = CMapDataExt::CellDataExts[i];
+		auto& cell = CMapData::Instance->CellDatas[i];
+		cellExt.Processed = false;
+		cellExt.IsWater = false;
+		for (auto idx : BigWaterTiles)
+			if (cell.TileIndex == idx)
+				cellExt.IsWater = true;
+		for (auto idx : SmallWaterTiles)
+			if (cell.TileIndex == idx)
+				cellExt.IsWater = true;
+	}
+
+	// then replace all 2x2 water
+	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
+	{
+		int Y = i / side;
+		int X = i % side;
+		if (!CMapData::Instance->IsCoordInMap(X, Y))
+			continue;
+
+		auto& cell = CMapDataExt::CellDataExts[i];
+		if (cell.IsWater && !cell.Processed)
+		{
+			bool replaceBig = true;
+			for (int d = 0; d < 2; d++)
+			{
+				for (int e = 0; e < 2; e++)
+				{
+					int dwPos = X + d + (Y + e) * side;
+					auto& newCell = CMapDataExt::CellDataExts[dwPos];
+					if (!newCell.IsWater || newCell.Processed)
+						replaceBig = false;
+				}
+			}
+			if (replaceBig)
+			{
+				int random = STDHelpers::RandomSelectInt(BigWaterTiles);
+				int subIdx = 0;
+				for (int d = 0; d < 2; d++)
+				{
+					for (int e = 0; e < 2; e++)
+					{
+						int dwPos = X + d + (Y + e) * side;
+						CellDatas[dwPos].TileIndex = random;
+						CellDatas[dwPos].TileSubIndex = subIdx++;
+						CellDatas[dwPos].Flag.AltIndex = 0;
+						CMapDataExt::CellDataExts[dwPos].Processed = true;
+					}
+				}
+			}
+		}
+	}
+
+	// last fill remained 1x1 water
+	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
+	{
+		int Y = i / side;
+		int X = i % side;
+		if (! CMapData::Instance->IsCoordInMap(X, Y))
+			continue;
+
+		auto& cell = CMapDataExt::CellDataExts[i];
+		if (cell.IsWater && !cell.Processed)
+		{
+			int random = STDHelpers::RandomSelectInt(SmallWaterTiles);
+			int dwPos = X + Y  * side;
+			CellDatas[dwPos].TileIndex = random;
+			CellDatas[dwPos].TileSubIndex = 0;
+			CellDatas[dwPos].Flag.AltIndex = 0;
+			CMapDataExt::CellDataExts[dwPos].Processed = true;
+		}
+	}
+}
+
+void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
+{
+	if (! CMapData::Instance->IsCoordInMap(X, Y))
+		return;
+
+	auto& mapData = CMapData::Instance();
+	auto cellDatas = mapData.CellDatas;
+	auto& ini = CINI::CurrentTheater();
+	auto& fadata = CINI::FAData();
+
+	int PaveTile = ini->GetInteger("General", "PaveTile", -10);
+	int GreenTile = ini->GetInteger("General", "GreenTile", -10);
+	int MiscPaveTile = ini->GetInteger("General", "MiscPaveTile", -10);
+	int Medians = ini->GetInteger("General", "Medians", -10);
+	int PavedRoads = ini->GetInteger("General", "PavedRoads", -10);
+	int ShorePieces = ini->GetInteger("General", "ShorePieces", -10);
+	int WaterBridge = ini->GetInteger("General", "WaterBridge", -10);
+
+	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
+	if (cell->TileIndex == 0xFFFF) cell->TileIndex = 0;
+	int dwPos = X + Y * mapData.MapWidthPlusHeight;
+			
+	int loopLimit = CMapDataExt::Tile_to_lat.size();
+	if (gameLAT)
+		loopLimit = 7;
+	for (int latidx = 0; latidx < loopLimit; ++latidx)
+	{
+		int iSmoothSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][0], -1);
+		int iLatSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][1], -1);
+		//int iTargetSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][2], -1);
+
+		iSmoothSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][0], iSmoothSet);
+		iLatSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][1], iLatSet);
+		//iTargetSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][2], iTargetSet);
+
+		if (iLatSet >= 0 && iSmoothSet >= 0 && iSmoothSet < CMapDataExt::TileSet_starts.size() && iLatSet < CMapDataExt::TileSet_starts.size() &&//iTargetSet >= 0 &&
+			(CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet == iSmoothSet ||
+				CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet == iLatSet ))
+				// || CMapDataExt::TileData[cell->TileIndex].TileSet == iTargetSet))
+		{
+			std::vector<int> SmoothLatList;
+			for (int slIdx = CMapDataExt::TileSet_starts[iLatSet]; slIdx < CMapDataExt::TileSet_starts[iLatSet + 1]; slIdx++)
+				SmoothLatList.push_back(slIdx);
+			for (int slIdx = CMapDataExt::TileSet_starts[iSmoothSet]; slIdx < CMapDataExt::TileSet_starts[iSmoothSet + 1]; slIdx++)
+				SmoothLatList.push_back(slIdx);
+			//PaveTile	-	MiscPaveTile	
+			//PaveTile	-	Medians	
+			//PaveTile	-	PavedRoads	
+			//CrystalTile	-	CrystalCliff	(Firestorm only)
+			//GreenTile	-	ShorePieces	(Red Alert 2/Yuri's Revenge only)
+			//GreenTile	-	WaterBridge	(Red Alert 2/Yuri's Revenge only)
+			if (iSmoothSet == PaveTile)
+			{
+				if (MiscPaveTile >= 0)
+				for (int slIdx = CMapDataExt::TileSet_starts[MiscPaveTile]; slIdx < CMapDataExt::TileSet_starts[MiscPaveTile + 1]; slIdx++)
+					SmoothLatList.push_back(slIdx);
+				if (Medians >= 0)
+				for (int slIdx = CMapDataExt::TileSet_starts[Medians]; slIdx < CMapDataExt::TileSet_starts[Medians + 1]; slIdx++)
+					SmoothLatList.push_back(slIdx);
+				if (PavedRoads >= 0)
+				for (int slIdx = CMapDataExt::TileSet_starts[PavedRoads]; slIdx < CMapDataExt::TileSet_starts[PavedRoads + 1]; slIdx++)
+					SmoothLatList.push_back(slIdx);
+			}
+			if (iSmoothSet == GreenTile)
+			{
+				if (ShorePieces >= 0)
+				for (int slIdx = CMapDataExt::TileSet_starts[ShorePieces]; slIdx < CMapDataExt::TileSet_starts[ShorePieces + 1]; slIdx++)
+					SmoothLatList.push_back(slIdx);
+				if (WaterBridge >= 0)
+				for (int slIdx = CMapDataExt::TileSet_starts[WaterBridge]; slIdx < CMapDataExt::TileSet_starts[WaterBridge + 1]; slIdx++)
+					SmoothLatList.push_back(slIdx);
+			}
+			
+			if (!gameLAT)
+				if (CMapDataExt::Tile_to_lat[latidx].size() == 3)
+				{
+					auto noLatTiles = fadata.GetString("LATSettings", CMapDataExt::Tile_to_lat[latidx][2]);
+					if (noLatTiles != "")
+					{
+						for (auto& noLatTile : STDHelpers::SplitString(noLatTiles))
+						{
+							int noLatTileIdx = atoi(noLatTile);
+							if (noLatTileIdx < CMapDataExt::TileSet_starts.size() - 1)
+								for (int slIdx = CMapDataExt::TileSet_starts[noLatTileIdx]; slIdx < CMapDataExt::TileSet_starts[noLatTileIdx + 1]; slIdx++)
+									SmoothLatList.push_back(slIdx);
+						}
+					}
+				}
+
+
+
+			if (CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet != iSmoothSet && CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet != iLatSet) break;
+
+			int ts[3][3];  // terrain info
+			for (int i = 0; i < 3; i++)
+			{
+				for (int e = 0; e < 3; e++)
+				{
+					if ( CMapData::Instance->IsCoordInMap(X + i - 1, Y + e - 1))
+					{
+						auto cell2 = CMapData::Instance().TryGetCellAt(X + i - 1, Y + e - 1);
+						auto it = std::find(SmoothLatList.begin(), SmoothLatList.end(), GetSafeTileIndex(cell2->TileIndex));
+
+						if (it != SmoothLatList.end())
+							ts[i][e] = 1;
+						else
+							ts[i][e] = 0;
+					}
+					else
+						ts[i][e] = 0;
+				}
+			}
+
+			int needed = -1;
+			int ils = 1;
+
+			if (ts[1][1] == ils)
+			{
+				// single lat
+				if (ts[0][1] != ils && ts[1][0] != ils
+					&& ts[1][2] != ils && ts[2][1] != ils)
+					needed = 16;
+				else if (ts[0][1] == ils && ts[1][0] == ils
+					&& ts[1][2] == ils && ts[2][1] == ils)
+					needed = 0;
+				else if (ts[0][1] == ils && ts[2][1] == ils &&
+					ts[1][0] != ils && ts[1][2] != ils)
+					needed = 11;
+				else if (ts[1][0] == ils && ts[1][2] == ils &&
+					ts[0][1] != ils && ts[2][1] != ils)
+					needed = 6;
+				else if (ts[1][0] != ils && ts[0][1] == ils &&
+					ts[2][1] == ils)
+					needed = 9;
+				else if (ts[2][1] != ils && ts[1][0] == ils &&
+					ts[1][2] == ils)
+					needed = 5;
+				else if (ts[1][2] != ils && ts[0][1] == ils &&
+					ts[2][1] == ils)
+					needed = 3;
+				else if (ts[0][1] != ils && ts[1][0] == ils &&
+					ts[1][2] == ils)
+					needed = 2;
+				else if (ts[0][1] == ils && ts[1][0] != ils &&
+					ts[1][2] != ils && ts[2][1] != ils)
+					needed = 15;
+				else if (ts[1][2] == ils && ts[1][0] != ils &&
+					ts[0][1] != ils && ts[2][1] != ils)
+					needed = 14;
+				else if (ts[2][1] == ils && ts[1][0] != ils &&
+					ts[0][1] != ils && ts[1][2] != ils)
+					needed = 12;
+				else if (ts[1][0] == ils && ts[0][1] != ils &&
+					ts[1][2] != ils && ts[2][1] != ils)
+					needed = 8;
+				else if (ts[1][0] != ils && ts[2][1] != ils)
+					needed = 13;
+				else if (ts[1][0] != ils && ts[0][1] != ils)
+					needed = 10;
+				else if (ts[2][1] != ils && ts[1][2] != ils)
+					needed = 7;
+				else if (ts[0][1] != ils && ts[1][2] != ils)
+					needed = 4;
+
+
+			}
+
+			needed -= 1;
+			int i = 0;
+			if (needed >= 0)
+			{
+				i = CMapDataExt::TileSet_starts[iLatSet];
+
+				// i is first lat tile
+				int e;
+				for (e = 0; e < needed; e++)
+				{
+					i += CMapDataExt::TileData[i].TileBlockCount;
+				}
+
+
+				cellDatas[dwPos].TileIndex = i;
+				cellDatas[dwPos].TileSubIndex = 0;
+				cellDatas[dwPos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[i].AltTypeCount + 1);
+				//SetTileAt(dwPos, i, 0);
+			}
+			else if (needed == -1)
+			{
+				i = CMapDataExt::TileSet_starts[iSmoothSet];
+
+				cellDatas[dwPos].TileIndex = i;
+				cellDatas[dwPos].TileSubIndex = 0;
+				cellDatas[dwPos].Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[i].AltTypeCount + 1);
+			}
+		}
+	}
+
+
+}
+
+void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CString oldStructure)
+{
+	auto Map = &CMapData::Instance();
+	auto& fielddata_size = Map->CellDataCount;
+	auto& fielddata = Map->CellDatas;
+	CMapData::Instance->UpdateCurrentDocument();
+	auto m_mapfile = Map->GetMapDocument();
+
+	int i = 0;
+	for (i = 0; i < Map->MapWidthPlusHeight * Map->MapWidthPlusHeight; i++)
+	{
+		if (fielddata[i].Structure >= ID)
+		{
+			fielddata[i].Structure = -1;
+			fielddata[i].TypeListIndex = -1;
+		}
+
+	}
+
+	if (m_mapfile->SectionExists("Structures"))
+	{
+		auto sec = m_mapfile->GetSection("Structures");
+		i = 0;
+		//CMapDataExt::BuildingRenderDatasFix.clear();
+		for (auto& data : sec->GetEntities())
+		{
+			if (i < ID)
+			{
+
+				i++;
+				continue;
+			}
+			auto& value = data.second;
+			const auto& splits = STDHelpers::SplitString(value);
+
+			BuildingRenderData data;
+			data.HouseColor = Miscs::GetColorRef(splits[0]);
+			data.ID = splits[1];
+			data.Strength = std::clamp(atoi(splits[2]), 0, 256);
+			data.Y = atoi(splits[3]);
+			data.X = atoi(splits[4]);
+			data.Facing = atoi(splits[5]);
+			data.PowerUpCount = atoi(splits[10]);
+			data.PowerUp1 = splits[12];
+			data.PowerUp2 = splits[13];
+			data.PowerUp3 = splits[14];
+			CMapDataExt::BuildingRenderDatasFix[i] = data;
+
+			int X = atoi(splits[4]);
+			int Y = atoi(splits[3]);
+			const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
+			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+			if (!DataExt.IsCustomFoundation())
+			{
+				for (int dy = 0; dy < DataExt.Width; ++dy)
+				{
+					for (int dx = 0; dx < DataExt.Height; ++dx)
+					{
+						const int x = X + dx;
+						const int y = Y + dy;
+						auto pCell = CMapData::Instance->GetCellAt(x, y);
+						pCell->Structure = i;
+						pCell->TypeListIndex = BuildingIndex;
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
+					}
+				}
+			}
+			else
+			{
+				for (const auto& block : *DataExt.Foundations)
+				{
+					const int x = X + block.Y;
+					const int y = Y + block.X;
+					auto pCell = CMapData::Instance->GetCellAt(x, y);
+					pCell->Structure = i;
+					pCell->TypeListIndex = BuildingIndex;
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
+				}
+			}
+
+
+			i++;
+		}
+
+		if (ExtConfigs::PlaceStructureResort)
+			if (ID < sec->GetEntities().size())
+			{
+				std::vector<ppmfc::CString> buildings;
+				for (auto& b : sec->GetEntities())
+				{
+					buildings.push_back(b.second);
+				}
+				int idx = 0;
+				m_mapfile->DeleteSection("Structures");
+				auto newSec = m_mapfile->AddOrGetSection("Structures");
+				for (auto& b : buildings)
+				{
+					char buffer[10];
+					_itoa(idx, buffer, 10);
+					m_mapfile->WriteString(newSec, buffer, b);
+					idx++;
+				}
+			}
+	}
+}
+
+std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
+{
+	std::vector<int> result;
+	MultimapHelper mmh;
+	mmh.AddINI(&CINI::Rules());
+	mmh.AddINI(&CINI::CurrentDocument());
+	auto art = &CINI::Art();
+	auto image = mmh.GetString(structure, "Image", structure);
+	std::string foundation = std::string(art->GetString(image, "Foundation", "1X1"));
+	if (foundation == "")
+		foundation = "1X1";
+	std::transform(foundation.begin(), foundation.end(), foundation.begin(), (int(*)(int))tolower);
+
+	if (foundation == "custom")
+	{
+		std::string x = std::string(art->GetString(image, "Foundation.X", "5"));
+		std::string y = std::string(art->GetString(image, "Foundation.Y", "5"));
+		foundation = x + "x" + y;
+	}
+	auto found = STDHelpers::SplitString(foundation.c_str(), "x");
+	result.push_back(atoi(found[1]));
+	result.push_back(atoi(found[0]));//居然是反的？
+	return result;
+}
+
+ppmfc::CString CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing)
+{
+	if (oldMapCoord == newMapCoord)
+		return currentFacing;
+	if (oldMapCoord.X == newMapCoord.X)
+	{
+		if (newMapCoord.Y >= oldMapCoord.Y)
+			return "64";
+		else
+			return "192";
+	}
+	else
+	{
+		auto Tan = (double)(newMapCoord.Y - oldMapCoord.Y) / (double)(newMapCoord.X - oldMapCoord.X);
+		auto radian = (atan(Tan) / M_PI) * 180.0;
+		if (newMapCoord.X >= oldMapCoord.X)
+		{
+			if (radian >= 67.5)
+				return "64";
+			else if (radian >= 22.5)
+				return "96";
+			else if (radian >= -22.5)
+				return "128";
+			else if (radian >= -67.5)
+				return "160";
+			else
+				return "192";
+		}
+		else
+		{
+			if (radian >= 67.5)
+				return "192";
+			else if (radian >= 22.5)
+				return "224";
+			else if (radian >= -22.5)
+				return "0";
+			else if (radian >= -67.5)
+				return "32";
+			else
+				return "64";
+		}
+	}
+	return "0";
+}
+int CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord)
+{
+	if (oldMapCoord == newMapCoord)
+		return 0;
+	if (oldMapCoord.X == newMapCoord.X)
+	{
+		if (newMapCoord.Y >= oldMapCoord.Y)
+			return 2;
+		else
+			return 6;
+	}
+	else
+	{
+		auto Tan = (double)(newMapCoord.Y - oldMapCoord.Y) / (double)(newMapCoord.X - oldMapCoord.X);
+		auto radian = (atan(Tan) / M_PI) * 180.0;
+		if (newMapCoord.X >= oldMapCoord.X)
+		{
+			if (radian >= 67.5)
+				return 2;
+			else if (radian >= 22.5)
+				return 3;
+			else if (radian >= -22.5)
+				return 4;
+			else if (radian >= -67.5)
+				return 5;
+			else
+				return 6;
+		}
+		else
+		{
+			if (radian >= 67.5)
+				return 6;
+			else if (radian >= 22.5)
+				return 7;
+			else if (radian >= -22.5)
+				return 0;
+			else if (radian >= -67.5)
+				return 1;
+			else
+				return 2;
+		}
+	}
+	return 0;
+}
+
+int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
+{
+	if (oldMapCoord == newMapCoord)
+		return 0;
+	if (oldMapCoord.X == newMapCoord.X)
+	{
+		if (newMapCoord.Y >= oldMapCoord.Y)
+			return 2;
+		else
+			return 6;
+	}
+	else
+	{
+		auto Tan = (double)(newMapCoord.Y - oldMapCoord.Y) / (double)(newMapCoord.X - oldMapCoord.X);
+		auto radian = (atan(Tan) / M_PI) * 180.0;
+		if (newMapCoord.X >= oldMapCoord.X)
+		{
+			if (radian >= 45)
+				return 2;
+			else if (radian >= -45)
+				return 4;
+			else
+				return 6;
+		}
+		else
+		{
+			if (radian >= 45)
+				return 6;
+			else if (radian >= -45)
+				return 0;
+			else
+				return 2;
+		}
+	}
+	return 0;
+}
+
+void CMapDataExt::InitializeAllHdmEdition()
+{
+	CIsoView::CurrentCommand->Type = 0;
+	CIsoView::CurrentCommand->Command = 0;
+
+	Variables::OrderedRulesIndicies = Variables::OrderedRulesIndiciesWithoutMap;
+
+	for (auto& section : CINI::CurrentDocument->Dict) {
+		auto&& cur = CINI::CurrentDocument->ParseIndiciesData(section.first);
+		auto& Indicies = Variables::OrderedRulesIndicies[section.first];
+		for (int i = 0; i < cur.size(); i++)
+		{
+			auto& key = cur[i];
+			ppmfc::CString value = CINI::CurrentDocument->GetString(section.first, key, "");
+			value.Trim();
+			if (value != "") {
+				// map's include is different with ares'
+				bool same = false;
+				for (auto& checkSame : Indicies) {
+					if (checkSame.second == value) {
+						same = true;
+						break;
+					}
+				}
+				if (!same) {
+					Indicies.push_back(std::make_pair(key, value));
+				}
+			}
+		}
+	}
+
+	if (CNewTeamTypes::GetHandle())
+		::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+
+	if (CNewTaskforce::GetHandle())
+		::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+
+	if (CNewScript::GetHandle())
+		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+
+	if (CNewTrigger::GetHandle())
+		::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+	else
+		CMapDataExt::UpdateTriggers();
+
+	if (CNewINIEditor::GetHandle())
+		::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+	
+	if (CNewAITrigger::GetHandle())
+		::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+
+	if (IsWindowVisible(CCsfEditor::GetHandle()))
+	{
+		::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
+	}
+	if (CSearhReference::GetHandle())
+	{
+		CSearhReference::SetSearchID("");
+		::SendMessage(CSearhReference::GetHandle(), WM_CLOSE, 0, 0);
+	}
+
+	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	if (thisTheater == "TEMPERATE")
+	{
+		CurrentTheaterIndex = 0;
+		CMapDataExt::TileData = CTileTypeInfo::Temperate().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Temperate().Count;
+	}
+	if (thisTheater == "SNOW")
+	{
+		CurrentTheaterIndex = 1;
+		CMapDataExt::TileData = CTileTypeInfo::Snow().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Snow().Count;
+	}
+	if (thisTheater == "URBAN")
+	{
+		CurrentTheaterIndex = 2;
+		CMapDataExt::TileData = CTileTypeInfo::Urban().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Urban().Count;
+	}
+	if (thisTheater == "NEWURBAN")
+	{
+		CurrentTheaterIndex = 3;
+		CMapDataExt::TileData = CTileTypeInfo::NewUrban().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::NewUrban().Count;
+	}
+	if (thisTheater == "LUNAR")
+	{
+		CurrentTheaterIndex = 4;
+		CMapDataExt::TileData = CTileTypeInfo::Lunar().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Lunar().Count;
+	}
+	if (thisTheater == "DESERT")
+	{
+		CurrentTheaterIndex = 5;
+		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
+	}
+
+	CMapDataExt::Tile_to_lat.clear();
+	CMapDataExt::Tile_to_lat = {
+	{"SandTile", "ClearToSandLat"},
+	{"GreenTile", "ClearToGreenLat"},
+	{"RoughTile", "ClearToRoughLat"},
+	{"PaveTile", "ClearToPaveLat"},
+	{"BlueMoldTile", "ClearToBlueMoldLat"},
+	{"CrystalTile", "ClearToCrystalLat"},
+	{"SwampTile", "WaterToSwampLat"}
+	};
+
+	if (auto pLAT = CINI::FAData().GetSection("LATGroups"))
+	{
+		for (auto& pair : pLAT->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(pair.second);
+			if (atoms.size() >= 3)
+			{
+				std::vector<ppmfc::CString> group;
+				if (CINI::CurrentDocument().GetString("Map", "Theater") != atoms[0])
+					continue;
+				group.push_back(atoms[1]);
+				group.push_back(atoms[2]);
+				if (atoms.size() >= 4)
+					group.push_back(atoms[3]);
+				CMapDataExt::Tile_to_lat.push_back(group);
+			}
+		}
+	}
+
+	CMapDataExt::TileSet_starts.clear();
+
+	if (auto theater = CINI::CurrentTheater())
+	{
+		int totalIndex = 0;
+		ppmfc::CString sName = "";
+		CMapDataExt::TileSet_starts.push_back(0);
+		for (int index = 0; index < 10000; index++)
+		{
+			sName.Format("TileSet%04d", index);
+
+			if (theater->SectionExists(sName))
+			{
+				totalIndex += theater->GetInteger(sName, "TilesInSet");
+				CMapDataExt::TileSet_starts.push_back(totalIndex);
+			}
+			else break;
+		}
+	}
+
+	int shorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", 12);
+	int tileStart = CMapDataExt::TileSet_starts[shorePieces];
+	ShoreSet12 = tileStart + 12;
+
+	CViewObjectsExt::ConnectedTile_Initialize();
+
+	CMapDataExt::CellDataExts.clear();
+	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
+	{
+		CellDataExt cell;
+		cell.Adjusted = false;
+		cell.CreateSlope = false;
+		CMapDataExt::CellDataExts.push_back(cell);
+	}
+	// already done in UpdateTriggers()
+	//if (TriggerSort::Instance.IsVisible())
+	//{
+	//	TriggerSort::Instance.LoadAllTriggers();
+	//}
+
+	if (TagSort::Instance.IsVisible())
+	{
+		TagSort::Instance.LoadAllTriggers();
+	}
+	if (TeamSort::Instance.IsVisible())
+	{
+		TeamSort::Instance.LoadAllTriggers();
+	}
+	if (WaypointSort::Instance.IsVisible())
+	{
+		WaypointSort::Instance.LoadAllTriggers();
+	}
+	if (TaskforceSort::Instance.IsVisible())
+	{
+		TaskforceSort::Instance.LoadAllTriggers();
+	}
+	if (ScriptSort::Instance.IsVisible())
+	{
+		ScriptSort::Instance.LoadAllTriggers();
+	}
+	if (WaypointSort::Instance.IsVisible())
+	{
+		WaypointSort::Instance.LoadAllTriggers();
+	}
+
+	 CTerrainGenerator::RangeFirstCell.X = -1;
+	 CTerrainGenerator::RangeFirstCell.Y = -1;
+	 CTerrainGenerator::RangeSecondCell.X = -1;
+	 CTerrainGenerator::RangeSecondCell.Y = -1;
+	 CTerrainGenerator::UseMultiSelection = false;
 }

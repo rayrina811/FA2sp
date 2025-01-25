@@ -4,22 +4,48 @@
 #include "../../../Helpers/STDHelpers.h"
 
 #include <CFinalSunDlg.h>
+#include "TeamSort.h"
+#include "WaypointSort.h"
+#include "../../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../../Helpers/Translations.h"
+#include "../../CMapData/Body.h"
+using namespace std;
 
 TriggerSort TriggerSort::Instance;
+std::map<ppmfc::CString, ppmfc::CString> TriggerSort::TriggerTags;
+std::map<ppmfc::CString, std::vector<ppmfc::CString>> TriggerSort::TriggerTagsParent;
+std::vector<ppmfc::CString> TriggerSort::attachedTriggers;
+std::vector<ppmfc::CString> TriggerSort::TreeViewTexts;
+std::vector<std::vector<ppmfc::CString>> TriggerSort::TreeViewTextsVector;
 
 void TriggerSort::LoadAllTriggers()
 {
+    ExtConfigs::InitializeMap = false;
     this->Clear();
 
-    // TODO : 
-    // Optimisze the efficiency
-    if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+    TriggerTags.clear();
+    TriggerTagsParent.clear();
+    TreeViewTexts.clear();
+    TreeViewTextsVector.clear();
+    for (auto& triggerPair : CMapDataExt::Triggers)
     {
-        for (auto& pair : pSection->GetEntities())
+        auto& trigger = triggerPair.second;
+
+        if (trigger->AttachedTrigger != "<none>")
         {
-            this->AddTrigger(pair.first);
+            if (auto atri = CMapDataExt::GetTrigger(trigger->AttachedTrigger))
+            {
+                TriggerTags[trigger->ID] = trigger->AttachedTrigger;
+            }
+            TriggerTagsParent[trigger->AttachedTrigger].push_back(trigger->ID);
         }
     }
+    for (auto& triggerPair : CMapDataExt::Triggers)
+    {
+        auto& trigger = triggerPair.second;
+        this->AddTrigger(trigger->ID);
+    }
+    ExtConfigs::InitializeMap = true;
 }
 
 void TriggerSort::Clear()
@@ -34,20 +60,26 @@ BOOL TriggerSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     case TVN_SELCHANGED:
         if (auto pID = reinterpret_cast<const char*>(lpNmTreeView->itemNew.lParam))
         {
-            if (strlen(pID))
+            if (strlen(pID) && ExtConfigs::InitializeMap)
             {
-                if (CFinalSunDlg::Instance->TriggerFrame.m_hWnd)
+                if (IsWindowVisible(CNewTrigger::GetHandle()))
                 {
                     auto pStr = CINI::CurrentDocument->GetString("Triggers", pID);
                     auto results = STDHelpers::SplitString(pStr);
                     if (results.size() <= 3)
                         return FALSE;
                     pStr = results[2];
-                    auto idx = CFinalSunDlg::Instance->TriggerFrame.CCBCurrentTrigger.FindStringExact(0, pStr);
+                    //if (ExtConfigs::DisplayTriggerID)
+                    {
+                        ppmfc::CString tmp;
+                        pStr.Format("%s (%s)", pID, pStr);
+                    }
+                    auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
                     if (idx == CB_ERR)
                         return FALSE;
-                    CFinalSunDlg::Instance->TriggerFrame.CCBCurrentTrigger.SetCurSel(idx);
-                    CFinalSunDlg::Instance->TriggerFrame.OnCBCurrentTriggerSelectedChanged();
+
+                    SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
+                    CNewTrigger::OnSelchangeTrigger();
                     return TRUE;
                 }
                 else
@@ -113,7 +145,7 @@ void TriggerSort::HideWindow() const
 void TriggerSort::ShowMenu(POINT pt) const
 {
     HMENU hPopupMenu = ::CreatePopupMenu();
-    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::AddTrigger, "New Trigger from this group");
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::Refresh, Translations::TranslateOrDefault("Refresh", "Refresh"));
     ::TrackPopupMenu(hPopupMenu, TPM_VERTICAL | TPM_HORIZONTAL, pt.x, pt.y, NULL, this->GetHwnd(), nullptr);
 }
 
@@ -183,7 +215,7 @@ TriggerSort::operator HWND() const
 HTREEITEM TriggerSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 {
     TVITEM tvi;
-    char chLabel[0x200];
+    char chLabel[0x200] = { 0 };
 
     for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
         tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
@@ -205,6 +237,122 @@ HTREEITEM TriggerSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
     }
     return NULL;
 }
+void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, ppmfc::CString triggerID, ppmfc::CString parentName) const
+{
+    for (auto id : attachedTriggers)
+    {
+        if (TriggerTags[triggerID] == id)
+        {
+            if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
+            {
+                ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+                TreeViewTexts.push_back(pTrigger2);
+                hParent = hNode;
+                TVINSERTSTRUCT tvis;
+                tvis.hInsertAfter = TVI_SORT;
+                tvis.hParent = hParent;
+                tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+                tvis.item.pszText = TreeViewTexts.back().m_pchData;
+                tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
+                TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+                return;
+            }
+        }
+    }
+    
+    if (TriggerTags[triggerID] != "")
+        if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
+        {
+            
+            auto pTrigger2 = CINI::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
+            auto RET2 = STDHelpers::SplitString(pTrigger2);
+            if (RET2.size() > 2)
+            {
+                pTrigger2 = RET2[2];
+
+                ppmfc::CString pszText = ppmfc::CString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2 + " (" + TriggerTags[triggerID] + ")";
+                TreeViewTexts.push_back(pszText);
+
+                hParent = hNode;
+                TVINSERTSTRUCT tvis;
+                tvis.hInsertAfter = TVI_SORT;
+                tvis.hParent = hParent;
+                tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+                tvis.item.pszText = TreeViewTexts.back().m_pchData;
+                tvis.item.lParam = (LPARAM)TriggerTags[triggerID].m_pchData;
+                TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+
+                ppmfc::CString element = TriggerTags[triggerID];
+                attachedTriggers.push_back(element);
+                AddAttachedTrigger(hParent, TriggerTags[triggerID], TreeViewTexts.back());
+
+            }
+
+        }
+}
+
+void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString triggerID, ppmfc::CString parentName) const
+{
+    auto hParent2 = hParent;
+    if (TriggerTagsParent[triggerID].size() > 0)
+        for (auto& parentTrigger : TriggerTagsParent[triggerID])
+        {
+            if (HTREEITEM hNode = this->FindLabel(hParent2, parentName))
+            {
+                for (auto id : attachedTriggers)
+                {
+                    if (parentTrigger == id)
+                    {
+                        if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
+                        {
+                            ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+                            TreeViewTexts.push_back(pTrigger2);
+                            hParent = hNode;
+                            TVINSERTSTRUCT tvis;
+                            tvis.hInsertAfter = TVI_SORT;
+                            tvis.hParent = hParent;
+                            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+                            tvis.item.pszText = TreeViewTexts.back().m_pchData;
+                            tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
+                            TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+                            return;
+                        }
+                    }
+
+                }
+
+                auto pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
+                auto RET2 = STDHelpers::SplitString(pTrigger2);
+                if (RET2.size() > 2)
+                {
+                    pTrigger2 = RET2[2];
+
+                    ppmfc::CString pszText = ppmfc::CString(Translations::TranslateOrDefault("Sort.TriggerAttachedTo", "Trigger Attached To:")) + " " + pTrigger2 + " (" + parentTrigger + ")";
+                    TreeViewTexts.push_back(pszText);
+
+                    hParent = hNode;
+                    TVINSERTSTRUCT tvis;
+                    tvis.hInsertAfter = TVI_SORT;
+                    tvis.hParent = hParent;
+                    tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+                    tvis.item.pszText = TreeViewTexts.back().m_pchData;
+                    tvis.item.lParam = (LPARAM)parentTrigger.m_pchData;
+                    TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+                    ppmfc::CString element = parentTrigger;
+                    attachedTriggers.push_back(element);
+
+                    AddAttachedTriggerReverse(hParent, parentTrigger, TreeViewTexts.back());
+                }
+            }
+        }
+
+
+}
+
 
 std::vector<ppmfc::CString> TriggerSort::GetGroup(ppmfc::CString triggerId, ppmfc::CString& name) const
 {
@@ -214,7 +362,7 @@ std::vector<ppmfc::CString> TriggerSort::GetGroup(ppmfc::CString triggerId, ppmf
     pSrc = ret[2];
     int nStart = pSrc.Find('[');
     int nEnd = pSrc.Find(']');
-    if (nStart < nEnd)
+    if (nStart < nEnd && nStart == 0)
     {
         name = pSrc.Mid(nEnd + 1);
         pSrc = pSrc.Mid(nStart + 1, nEnd - nStart - 1);
@@ -228,10 +376,12 @@ std::vector<ppmfc::CString> TriggerSort::GetGroup(ppmfc::CString triggerId, ppmf
     return ret;
 }
 
-void TriggerSort::AddTrigger(std::vector<ppmfc::CString>&& group, ppmfc::CString name, ppmfc::CString id) const
+void TriggerSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name, ppmfc::CString id) const
 {
+    TreeViewTextsVector.push_back(group);
+
     HTREEITEM hParent = TVI_ROOT;
-    for (auto& node : group)
+    for (auto& node : TreeViewTextsVector.back())
     {
         if (HTREEITEM hNode = this->FindLabel(hParent, node))
         {
@@ -256,8 +406,13 @@ void TriggerSort::AddTrigger(std::vector<ppmfc::CString>&& group, ppmfc::CString
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
-            strcat(item.pszText, " (" + id + ")");
-            item.lParam = (LPARAM)id.m_pchData;
+            ppmfc::CString text = item.pszText;
+            text += " (" + id + ")";
+            TreeViewTexts.push_back(text);
+            item.pszText = TreeViewTexts.back().m_pchData;
+
+            TreeViewTexts.push_back(id);
+            item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
             TreeView_SetItem(this->GetHwnd(), &item);
         }
     }
@@ -267,10 +422,29 @@ void TriggerSort::AddTrigger(std::vector<ppmfc::CString>&& group, ppmfc::CString
         tvis.hInsertAfter = TVI_SORT;
         tvis.hParent = hParent;
         tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-        tvis.item.pszText = name.m_pchData;
-        strcat(tvis.item.pszText, " (" + id + ")");
-        tvis.item.lParam = (LPARAM)id.m_pchData;
+        ppmfc::CString text = name;
+        text += " (" + id + ")";
+        TreeViewTexts.push_back(text);
+        tvis.item.pszText = TreeViewTexts.back().m_pchData;
+        TreeViewTexts.push_back(id);
+        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
         TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+        if (ExtConfigs::TriggerList_AttachedTriggers)
+        if (HTREEITEM hNode = this->FindLabel(hParent, text))
+        {
+            auto hParent2 = hParent;
+            attachedTriggers.clear();
+            ppmfc::CString element = id;
+            attachedTriggers.push_back(element);
+            AddAttachedTrigger(hParent2, element, text);
+
+            hParent2 = hParent;
+            attachedTriggers.clear();
+            element = id;
+            attachedTriggers.push_back(element);
+            AddAttachedTriggerReverse(hParent2, element, text);
+        }
     }
 }
 
@@ -280,7 +454,7 @@ void TriggerSort::AddTrigger(ppmfc::CString triggerId) const
     {
         ppmfc::CString name;
         auto group = this->GetGroup(triggerId, name);
-        this->AddTrigger(std::move(group), name, triggerId);
+        this->AddTrigger(group, name, triggerId);
     }
 }
 
@@ -308,9 +482,23 @@ void TriggerSort::DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent)
     }
 }
 
-DEFINE_HOOK(4FA450, CTriggerFrame_Update_TriggerSort, 7)
-{
-    if(TriggerSort::Instance.IsVisible())
-        TriggerSort::Instance.LoadAllTriggers();
-    return 0;
-}
+// just mannual update
+//DEFINE_HOOK(4FA450, CTriggerFrame_Update_TriggerSort, 7)
+//{
+//    
+    //if (TriggerSort::Instance.IsVisible())
+    //{
+    //    TriggerSort::Instance.LoadAllTriggers();
+    //}
+    //    
+    //if (TeamSort::Instance.IsVisible())
+    //{
+    //    TeamSort::Instance.LoadAllTriggers();
+    //}
+    //if (WaypointSort::Instance.IsVisible())
+    //{
+    //    WaypointSort::Instance.LoadAllTriggers();
+    //}
+
+//    return 0;
+//}

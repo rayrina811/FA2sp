@@ -10,3 +10,10 @@ Release
 # Don't ignore these files:
 !Debug/vxl_drawing_lib.lib
 !Release/vxl_drawing_lib.lib
+*.rc_bak
+*.swp_bak
+*.swp
+*.7z
+/FA2sp/Release_Chinese/FA2sp/Miscs
+*.obj
+/FA2sp/Release_Chinese

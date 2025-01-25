@@ -1,0 +1,44 @@
+#include "Windows.h"
+
+311 DIALOG 0, 0, 357, 329
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "CSF Viewer"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "Tahoma"
+{
+   CONTROL "Search Label/Text:", 1003, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 30, 63, 8 
+   CONTROL "", 1004, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 77, 28, 110, 13 
+   CONTROL "Apply", 1016, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 231, 28, 45, 13 
+   CONTROL "Reload CSF", 1015, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 281, 28, 70, 13 
+   CONTROL "", 1008, "SysListView32", LVS_REPORT | WS_CHILD | WS_BORDER | WS_TABSTOP, 7, 44, 343, 176 
+   CONTROL "", 1009, "RichEdit", ES_LEFT | ES_MULTILINE | WS_CHILD | WS_BORDER | WS_VSCROLL | WS_TABSTOP, 7, 239, 343, 81 
+   CONTROL "When the trigger editor is to open and the parameter of the selected action is CSF, Click 'Apply' to apply the currently selected CSF text", 1010, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 5, 343, 18 
+   CONTROL "Label Name:", 1012, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 226, 68, 8 
+   CONTROL "", 1013, EDIT, ES_LEFT | ES_AUTOHSCROLL | ES_READONLY | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 77, 223, 110, 13 
+}
+
+
+
+// we don't need an editor
+//311 DIALOG 0, 0, 357, 342
+//STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+//CAPTION "CSF Viewer & Editor"
+//LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+//FONT 8, "Tahoma"
+//{
+//   CONTROL "Selected Csf File:", 1000, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 43, 63, 8 
+//   CONTROL "", 1001, COMBOBOX, CBS_DROPDOWN | CBS_SORT | WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP, 77, 43, 110, 196 
+//   CONTROL "New File", 1002, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 265, 43, 40, 12 
+//   CONTROL "Search Label/Text:", 1003, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 61, 63, 8 
+//   CONTROL "", 1004, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 77, 59, 110, 12 
+//   CONTROL "Add", 1005, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 220, 59, 40, 12 
+//   CONTROL "Clone", 1006, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 265, 59, 40, 12 
+//   CONTROL "Delete", 1007, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 311, 59, 40, 12 
+//   CONTROL "", 1008, "SysListView32", LVS_REPORT | WS_CHILD | WS_BORDER | WS_TABSTOP, 7, 75, 343, 176
+//   CONTROL "", 1009, "RichEdit", WS_CHILD | WS_BORDER | WS_VSCROLL | WS_TABSTOP | 0x4, 7, 270, 343, 60 
+//   CONTROL "Editing is only feasible when a specific CSF file is selected. The file will be saved in the game directory and will overwrite the original file. It will not be saved into the mix file.", 1010, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 5, 343, 18 
+//   CONTROL "fa2civilian.csf and fa2extra.csf are CSFs built into FA2, with the highest priority, used to provide translation for mainly civilian objects. They are stored in fa2extra.mix under the FA2 directory.", 1014, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 22, 343, 18 
+//   CONTROL "Save", 1011, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 311, 43, 40, 12 
+//   CONTROL "Set Label Name:", 1012, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 257, 68, 8 
+//   CONTROL "", 1013, EDIT, ES_LEFT | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 77, 254, 110, 12 
+//}

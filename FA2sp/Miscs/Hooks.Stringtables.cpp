@@ -3,31 +3,60 @@
 #include <FAMemory.h>
 #include <CFinalSunApp.h>
 
+#include "../Helpers/STDHelpers.h"
 #include "../FA2sp.h"
+#include "StringtableLoader.h"
 
 #include <map>
 #include <fstream>
-
-class StringtableLoader
-{
-public:
-    static void LoadCSFFiles();
-    static void LoadCSFFile(const char* pName);
-    static bool ParseCSFFile(char* buffer, DWORD size);
-    static void WriteCSFFile();
-    static bool LoadToBuffer();
-
-    static std::map<CString, CString> CSFFiles_Stringtable;
-    static char* pEDIBuffer;
-    static bool bLoadRes;
-};
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
 std::map<CString, CString> StringtableLoader::CSFFiles_Stringtable;
 
+DEFINE_HOOK(4B2633, QueryUIName_init, 5)
+{
+    return 0x4B33D1;
+}
+
+
+DEFINE_HOOK(4B33D1, QueryUIName, 9)
+{
+    GET_STACK(char*, pRegName, 0x118);
+
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Rules());
+    mmh.AddINI(&CINI::CurrentDocument());
+
+    auto uiname = std::string(mmh.GetString(pRegName, "UIName", ""));
+    std::transform(uiname.begin(), uiname.end(), uiname.begin(), [](unsigned char c) { return std::tolower(c); });
+    CString ccstring = "";
+    if (uiname != "")
+        ccstring = StringtableLoader::CSFFiles_Stringtable[uiname.c_str()];
+    if (ccstring == "")
+        ccstring = mmh.GetString(pRegName, "Name", "");
+    if (ccstring == "")
+        ccstring = "MISSING";
+
+    ppmfc::CString uiname2 = uiname.c_str();
+    if (uiname2.Find("nostr:") == 0) {
+        ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
+    }
+
+    wchar_t* m_wchar;
+    int len = MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), NULL, 0);
+    m_wchar = new wchar_t[len + 1];
+    MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), m_wchar, len);
+    m_wchar[len] = '\0';
+
+
+    R->EDI(m_wchar);
+    return 0;
+}
+
 DEFINE_HOOK(492D10, CSFFiles_Stringtables_Support_1, 5)
 {
+    StringtableLoader::CSFFiles_Stringtable.clear();
     StringtableLoader::LoadCSFFiles();
     StringtableLoader::bLoadRes = StringtableLoader::LoadToBuffer();
     if (StringtableLoader::bLoadRes)
@@ -50,7 +79,7 @@ DEFINE_HOOK(49433B, CSFFiles_Stringtables_Support_2, 6)
         strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
         DeleteFile(tmpCsfFile);
         Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
-        StringtableLoader::CSFFiles_Stringtable.clear();
+        //StringtableLoader::CSFFiles_Stringtable.clear();
         StringtableLoader::bLoadRes = false;
     }
     return 0;
@@ -65,20 +94,174 @@ void StringtableLoader::LoadCSFFiles()
         strcpy_s(nameBuffer, CINI::FAData->GetString("Filenames", "CSF", "RA2.CSF"));
     LoadCSFFile(nameBuffer);
     char stringtable[20];
-    for (int i = 1; i <= 99; ++i)
+    for (int i = 0; i <= 99; ++i)
     {
         sprintf_s(stringtable, "stringtable%02d.csf", i);
         LoadCSFFile(stringtable);
     }
+    for (int i = 0; i <= 99; ++i)
+    {
+        sprintf_s(stringtable, "stringtable%02d.llf", i);
+        LoadCSFFile(stringtable);
+    }
+    for (int i = 0; i <= 99; ++i)
+    {
+        sprintf_s(stringtable, "lcstring%02d.ecs", i);
+        LoadCSFFile(stringtable);
+    }
+
+    LoadCSFFile("fa2extra.csf", true);
+    if (ExtConfigs::LoadCivilianStringtable)
+        LoadCSFFile("fa2civilian.csf", true);
+
+    if (auto pSection = CINI::FAData->GetSection("ExtraStringtables"))
+    {
+        std::map<int, ppmfc::CString> collector;
+
+        for (const auto& [key, index] : pSection->GetIndices())
+            collector[index] = key;
+
+        ppmfc::CString path;
+
+        for (const auto& [_, key] : collector)
+        {
+            LoadCSFFile(key, CINI::FAData->GetBool("ExtraStringtables", key));
+        }
+    }
+
     WriteCSFFile();
 }
 
-void StringtableLoader::LoadCSFFile(const char* pName)
-{   
+void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
+{
     DWORD dwSize;
-    if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize))
-        if (ParseCSFFile((char*)pBuffer, dwSize))
-            Logger::Debug("Successfully Loaded file %s.\n", pName);
+    if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize, fa2path)) {
+        ppmfc::CString name = pName;
+        name.MakeUpper();
+        if (name.Mid(name.GetLength() - 3) == "LLF") {
+            auto ret = GetLinesFromBuffer((char*)pBuffer, dwSize);
+            if (ParseLLFFile(ret))
+                Logger::Debug("Successfully Loaded file %s.\n", pName);
+        }
+        else if (name.Mid(name.GetLength() - 3) == "ECS") {
+            auto ret = GetLinesFromBuffer((char*)pBuffer, dwSize);
+            if (ParseECSFile(ret))
+                Logger::Debug("Successfully Loaded file %s.\n", pName);
+        }
+        else {
+            if (ParseCSFFile((char*)pBuffer, dwSize))
+                Logger::Debug("Successfully Loaded file %s.\n", pName);
+        }
+    }
+
+    
+}
+
+bool StringtableLoader::ParseECSFile(std::vector<ppmfc::CString> ret)
+{
+    ppmfc::CString currentLabel = "";
+    ppmfc::CString currentContent = "";
+    bool isMultiline = false;
+    bool isMultilineFirst = false;
+    for (ppmfc::CString line : ret) {
+        if (line.Find("#") == 0) continue;
+
+        int start = line.Find("> ");
+        int multiStart = line.Find(">>");
+        if (start <= 0 && multiStart <= 0 && currentLabel == "") continue;
+        if (start > 0) {
+            isMultiline = false;
+            currentLabel = line.Mid(0, start);
+            currentLabel.MakeLower();
+            ppmfc::CString left = line.Mid(start + 2);
+            currentContent = left;
+        }
+        else if (multiStart > 0) {
+            isMultiline = true;
+            isMultilineFirst = true;
+            currentLabel = line.Mid(0, multiStart);
+            currentLabel.MakeLower();
+            currentContent = "";
+            continue;
+        }
+        else if (currentLabel != "" && isMultiline) {
+            int multiline = line.Find("  ");
+            if (multiline == 0) {
+                ppmfc::CString left = line.Mid(2);
+                if (!isMultilineFirst) {
+                    currentContent += "\n";
+                }
+                else{
+                    isMultilineFirst = false;
+                }
+                currentContent += left;
+            }
+        }
+        StringtableLoader::CSFFiles_Stringtable[CString(currentLabel)] = CString(currentContent);
+        FA2sp::TutorialTextsMap[currentLabel] = currentContent;
+    }
+    return true;
+}
+
+bool StringtableLoader::ParseLLFFile(std::vector<ppmfc::CString> ret)
+{
+    ppmfc::CString currentLabel = "";
+    ppmfc::CString currentContent = "";
+    bool firstLineEmpty = false;
+    for (ppmfc::CString line : ret) {
+        if (line.Find("#") == 0) continue;
+        if (line.Find(" #") != -1) {
+            line = line.Mid(0, line.Find(" #"));
+        }
+
+        int start = line.Find(": ");
+        if (start <= 0 && currentLabel == "") continue;
+        if (start > 0) {
+            currentLabel = line.Mid(0, start);
+            currentLabel.MakeLower();
+            currentContent = "";
+            ppmfc::CString left = line.Mid(start + 2);
+            ppmfc::CString leftTrim = left;
+            leftTrim.Trim();
+            if (leftTrim == ">-") {
+                firstLineEmpty = true;
+                continue;
+            }
+            else {
+                firstLineEmpty = false;
+                currentContent += left;
+            }
+        }
+        else if (currentLabel != "") {
+            int multiline = line.Find("  ");
+            if (multiline == 0) {
+                ppmfc::CString left = line.Mid(2);
+                if (!firstLineEmpty) {
+                    currentContent += "\n";
+                }
+                else {
+                    firstLineEmpty = false;
+                }
+                currentContent += left;
+            }
+        }
+        StringtableLoader::CSFFiles_Stringtable[CString(currentLabel)] = CString(currentContent);
+        FA2sp::TutorialTextsMap[currentLabel] = currentContent;
+    }
+    return true;
+}
+
+std::vector<ppmfc::CString> StringtableLoader::GetLinesFromBuffer(char* buffer, DWORD size)
+{
+    std::vector<ppmfc::CString> ret;
+    std::string fileContent(reinterpret_cast<const char*>(buffer), size);
+
+    std::istringstream stream(fileContent);
+    std::string line;
+    while (std::getline(stream, line)) {
+        ret.push_back(ppmfc::CString(STDHelpers::UTF8ToANSI(line).c_str()));
+    }
+    return ret;
 }
 
 bool StringtableLoader::ParseCSFFile(char* buffer, DWORD size)
@@ -148,8 +331,8 @@ bool StringtableLoader::ParseCSFFile(char* buffer, DWORD size)
             }
 
             StringtableLoader::CSFFiles_Stringtable[labelstr] = CString(value);
-            if (ExtConfigs::TutorialTexts_Fix)
-                FA2sp::TutorialTextsMap[labelstr] = value;
+            //if (!ExtConfigs::TutorialTexts_Hide)
+            FA2sp::TutorialTextsMap[labelstr] = value;
 
             delete[] labelstr;
             delete[] value;

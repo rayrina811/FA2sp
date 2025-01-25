@@ -35,7 +35,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 
 	HRESULT hr = S_OK;
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	HRESULT(WINAPI **ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*) = decltype(ppDirectDrawCreate)(0x591030);
+	HRESULT(WINAPI * *ppDirectDrawCreate)(GUID*, LPDIRECTDRAW*, IUnknown*) = decltype(ppDirectDrawCreate)(0x591030);
 
 	hr = (*ppDirectDrawCreate)(ExtConfigs::DDrawEmulation ? pIID_DirectDrawEmulation : nullptr, &pIsoView->lpDirectDraw, nullptr);
 	if (FAILED(hr))
@@ -146,7 +146,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	if (!ExtConfigs::DDrawInVideoMem)
 		dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
 	dds.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
-	
+
 	hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDBackBufferSurface, nullptr);
 	if (FAILED(hr))
 	{

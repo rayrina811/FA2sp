@@ -8,6 +8,7 @@ POPUP "File"
 	MENUITEM "New\tCtrl+N",  57600
 	MENUITEM SEPARATOR
 	MENUITEM "Open\tCtrl+O",  40001
+	MENUITEM "Re-Open\tCtrl+Shift+O",  40018
 	MENUITEM SEPARATOR
 	MENUITEM "Save\tCtrl+S",  57603
 	MENUITEM "Save as\tCtrl+Shift+S",  40002
@@ -36,21 +37,22 @@ POPUP "Edit"
 	MENUITEM SEPARATOR
 	MENUITEM "Houses\tCtrl+H",  40039
 	MENUITEM SEPARATOR
-	MENUITEM "Trigger editor\tCtrl+R",  40076
+	MENUITEM "Trigger editor\tCtrl+R",  40151
 	MENUITEM "Tag editor\tCtrl+G",  40042
 	MENUITEM SEPARATOR
-	MENUITEM "Taskforces\tCtrl+T",  40046
-	MENUITEM "Scripts\tCtrl+Shift+C",  40044
-	MENUITEM "Teams\tCtrl+E",  40045
+	MENUITEM "Taskforces\tCtrl+T",  40139
+	MENUITEM "Scripts\tCtrl+Shift+C",  40150
+	MENUITEM "Teams\tCtrl+E",  40138
 	MENUITEM SEPARATOR
-	MENUITEM "AI Triggers\tCtrl+J",  40047
+	MENUITEM "AI Triggers\tCtrl+J",  40156
 	MENUITEM "AI Trigger enabling\tCtrl+K",  40048
 	MENUITEM SEPARATOR
 	MENUITEM "Local variables\tCtrl+Q",  40082
 	MENUITEM SEPARATOR
 	MENUITEM "Singleplayer settings\tCtrl+Shift+M",  40037
 	MENUITEM SEPARATOR
-	MENUITEM "INI editing\tCtrl+I",  40049
+	MENUITEM "INI editing\tCtrl+I",  40154
+	MENUITEM "CSF viewer\tCtrl+Alt+C",  40155
 }
 POPUP "Terrain"
 {
@@ -71,23 +73,23 @@ POPUP "Map tools"
 	MENUITEM "Change map height",  40077
 	MENUITEM SEPARATOR
 	MENUITEM "Autocreate shores",  40096
-	MENUITEM "Auto level using cliffs",  40085
+	MENUITEM "Autocreate LAT",  40152
+	MENUITEM "Smoothen Water",  40153
+	// MENUITEM "Auto level using cliffs",  40085
 	MENUITEM SEPARATOR
 	MENUITEM "Paint cliff front\tF3",  40092
 	MENUITEM "Paint cliff back\tF4",  40093
-	MENUITEM SEPARATOR
-	MENUITEM "Search Waypoint\tCtrl+W",  40133
-	MENUITEM "Navigate to coordinate\tCtrl+Shift+F", 40134
+	 MENUITEM SEPARATOR
+	// MENUITEM "Search Object\tCtrl+Shift+Q",  40131
+	// MENUITEM "Search Next Object\tCtrl+Shift+W",  40132
+	// MENUITEM "Search Waypoint\tCtrl+W",  40133
+	MENUITEM "Global Search\tCtrl+Shift+F", 40134
 	MENUITEM SEPARATOR
 	MENUITEM "Tool Scripts",  40135
+	MENUITEM SEPARATOR
+	MENUITEM "Delete Objects",  40136
 }
-POPUP "Online"
-{
-	MENUITEM "FA2sp Github Page",  33000
-	MENUITEM "Phobos Github Page",  33001
-	MENUITEM "PPM Forum MainPage",  33002
-	MENUITEM "ModEnc MainPage",  33003
-}
+
 POPUP "Options"
 {
 	MENUITEM "Settings",  40004
@@ -97,31 +99,39 @@ POPUP "Options"
 	MENUITEM "Show Building Outline",  40123
 	MENUITEM "Disable AutoShore\tCtrl+A",  40104
 	MENUITEM "Disable AutoLat\tCtrl+L",  40105
-	MENUITEM "Disable Slope Correction",  40120
+    // MENUITEM "Disable Slope Correction",  40120
 }
-POPUP "Help"
-{
-	// MENUITEM "Manual\tF1",  57670
-	// MENUITEM SEPARATOR
-	MENUITEM "Info",  40006
-	MENUITEM "Credits",  40075
-	// MENUITEM "Tip of the day",  40022
-}
+
 POPUP "Layers"
 {
-	MENUITEM "Structures", 30000
-	MENUITEM "Infantries", 30001
-	MENUITEM "Units", 30002
-	MENUITEM "Aircrafts", 30003
-	MENUITEM "Basenodes", 30004
-	MENUITEM "Waypoints", 30005
-	MENUITEM "Celltags", 30006
-	MENUITEM "MoneyOnMap", 30007
-	MENUITEM "Overlays", 30008
-	MENUITEM "Terrains", 30009
-	MENUITEM "Smudges", 30010
-	MENUITEM "Tubes", 30011
-	MENUITEM "Bounds", 30012
+	MENUITEM "Show All\tCtrl+0",  30050
+	MENUITEM SEPARATOR
+	MENUITEM "Structures\tCtrl+1",  30000
+	MENUITEM "Infantries\tCtrl+2",  30001
+	MENUITEM "Units\tCtrl+3",  30002
+	MENUITEM "Aircrafts\tCtrl+4",  30003
+	MENUITEM SEPARATOR
+	MENUITEM "Overlays\tCtrl+5",  30008
+	MENUITEM "Terrains\tCtrl+6",  30009
+	MENUITEM "Smudges\tCtrl+7",  30010
+	MENUITEM SEPARATOR
+	MENUITEM "Basenodes\tCtrl+8",  30004
+	MENUITEM "Basenode Index\tCtrl+9",  30013
+	MENUITEM "Waypoints\tAlt+0",  30005
+	MENUITEM "Celltags\tAlt+1",  30006
+	MENUITEM "Tubes\tAlt+2",  30011
+	MENUITEM SEPARATOR
+	MENUITEM "MoneyOnMap\tAlt+3",  30007
+	MENUITEM "Bounds\tAlt+4",  30012
+	MENUITEM "Veterancy\tAlt+6",  30021
+	MENUITEM "Rock Cells\tAlt+5",  30014
+	MENUITEM SEPARATOR
+	MENUITEM "Structures Filter",  30015
+	MENUITEM "Infantries Filter",  30016
+	MENUITEM "Units Filter",  30017
+	MENUITEM "Aircrafts Filter",  30018
+	MENUITEM "Basenodes Filter",  30019
+	MENUITEM "CellTags Filter",  30020
 }
 POPUP "Lighting"
 {
@@ -136,5 +146,38 @@ POPUP "Property brush"
 	MENUITEM "Auto apply Infantries", 32002
 	MENUITEM "Auto apply Vehicles", 32003
 	MENUITEM "Auto apply Aircrafts", 32000	
+}
+POPUP "Paste Options"
+{
+	MENUITEM "Paste All",  34050
+	MENUITEM "Overriding",  34051
+	MENUITEM SEPARATOR
+	MENUITEM "Paste Ground", 34001
+	MENUITEM "Paste Overlay", 34002
+	MENUITEM SEPARATOR
+	MENUITEM "Paste Buildings", 34003
+	MENUITEM "Paste Infantries", 34004
+	MENUITEM "Paste Vehicles", 34005
+	MENUITEM "Paste Aircrafts", 34006
+	MENUITEM SEPARATOR
+	MENUITEM "Paste Terrains", 34007
+	MENUITEM "Paste Smudges", 34008
+}
+POPUP "Online"
+{
+	MENUITEM "FA2sp Github Page",  33000
+	MENUITEM "FA2sp HDM Edition Github Page",  33001
+	MENUITEM "Phobos Documentation Page",  33002
+	MENUITEM "PPM Forum MainPage",  33003
+	MENUITEM "ModEnc MainPage",  33004
+	MENUITEM "RA2 Map Guide (Chinese)",  33005
+}
+POPUP "Help"
+{
+	// MENUITEM "Manual\tF1",  57670
+	// MENUITEM SEPARATOR
+	MENUITEM "Info",  40006
+	MENUITEM "Credits",  40075
+	// MENUITEM "Tip of the day",  40022
 }
 }

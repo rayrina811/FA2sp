@@ -28,6 +28,10 @@ public:
     static void Callback(std::string path, Status status);
     void start(const std::function<void(std::string, Status)>& action);
 
+    static bool IsSavingMap;
+    static bool IsMapJustSaved;
+    static bool IsMessageBoxShowing;
+
 private:
 
     const char* path_;

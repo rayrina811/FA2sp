@@ -3,6 +3,8 @@
 #include <CFinalSunApp.h>
 #include <CMixFile.h>
 #include <CINI.h>
+#include "../../Helpers/Translations.h"
+bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 
 bool CLoadingExt::InitMixFilesFix()
 {
@@ -80,7 +82,18 @@ bool CLoadingExt::InitMixFilesFix()
 		return value;
 	};
 
-	// Init_Bootstrap_Mixfiles
+	ppmfc::CString fa2extra = CFinalSunApp::Instance->ExePath();
+	fa2extra += "\\";
+	fa2extra += "fa2extra.mix";
+	if (auto id = CMixFile::Open(fa2extra, 0))
+	{
+		Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
+	}
+	else
+	{
+		Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
+	}
+
 	ppmfc::CString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
 	for (int i = 99; i >= 0; --i)
 	{
@@ -130,6 +143,29 @@ bool CLoadingExt::InitMixFilesFix()
 	if (!LoadMixFile("ISOGEN.MIX"))		return false;
 	if (!LoadMixFile("CONQUER.MIX"))	return false;
 
+	//MARBLE should be ahead of normal theater mixes
+	ppmfc::CString FullPath = CFinalSunApp::ExePath();
+	FullPath += "\\MARBLE.MIX";
+	int result = CMixFile::Open(FullPath, 0);
+	if (result)
+	{
+		Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
+		CFinalSunApp::Instance->MarbleLoaded = TRUE;
+	}
+	else
+	{
+		if (LoadMixFile("MARBLE.MIX"))
+			CFinalSunApp::Instance->MarbleLoaded = TRUE;
+		else
+		{
+			CFinalSunApp::Instance->MarbleLoaded = FALSE;
+			ppmfc::CString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+				"Failed to load marble.mix! Framework mode won't be able to use!");
+			::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+		}
+	}
+
+
 	// Init_Theaters
 	LoadMixFile("TEMPERATMD.MIX");
 	LoadMixFile("ISOTEMMD.MIX");
@@ -167,26 +203,12 @@ bool CLoadingExt::InitMixFilesFix()
 	LoadMixFile("LUNAR.MIX");
 	LoadMixFile("ISOLUN.MIX");
 	LoadMixFile("LUN.MIX");
+
+	LoadMixFile("LANGMD.MIX");
+	LoadMixFile("LANGUAGE.MIX");
 	
 
-	if (LoadMixFile("MARBLE.MIX"))
-		CFinalSunApp::Instance->MarbleLoaded = TRUE;
-	else
-	{
-		ppmfc::CString FullPath = CFinalSunApp::ExePath();
-		FullPath += "\\MARBLE.MIX";
-		int result = CMixFile::Open(FullPath, 0);
-		if (result)
-		{
-			Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
-			CFinalSunApp::Instance->MarbleLoaded = TRUE;
-		}
-		else
-		{
-			CFinalSunApp::Instance->MarbleLoaded = FALSE;
-			::MessageBox(NULL, "Failed to load marble.mix! Framework mode won't be able to use!", "FA2sp", MB_OK | MB_ICONEXCLAMATION);
-		}
-	}
+
 
 	return true;
 }

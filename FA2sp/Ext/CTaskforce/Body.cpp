@@ -4,6 +4,7 @@
 #include "../../Helpers/Translations.h"
 
 #include <CINI.h>
+#include "../../FA2sp.h"
 
 void CTaskForceExt::ProgramStartupInit()
 {
@@ -37,7 +38,6 @@ BOOL CTaskForceExt::OnInitDialogExt()
 	Translations::TranslateItem(this, 50807, "TaskforceCloTask");
 	Translations::TranslateItem(this, 1146, "TaskforceNewUnit");
 	Translations::TranslateItem(this, 1147, "TaskforceDelUnit");
-	Translations::TranslateItem(this, 50808, "TaskforceCloUnit");
 
 	return TRUE;
 }
@@ -103,7 +103,55 @@ void CTaskForceExt::OnBNCloneTaskforceClicked()
 			auto data = CINI::CurrentDocument->GetString(currentID, key, "1,E1");
 			CINI::CurrentDocument->WriteString(value, key, data);
 		}
-		auto name = CINI::CurrentDocument->GetString(currentID, "Name", "New Taskforce") + " Clone";
+
+		auto oldname = CINI::CurrentDocument->GetString(currentID, "Name", "New Taskforce");
+		ppmfc::CString newName;
+		if (ExtConfigs::CloneWithOrderedID)
+		{
+			const char* splitter = " ";
+			auto splitN = STDHelpers::SplitString(oldname, splitter);
+			auto lastS = std::string(splitN.back());
+
+			if (STDHelpers::is_number(lastS))
+			{
+				int lastID = std::stoi(lastS);
+
+				for (size_t i = 0; i < splitN.size() - 1; ++i) {
+					auto sps = splitN[i];
+					newName += sps + splitter;
+				}
+				char temp_char[512];
+				sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+				newName += temp_char;
+			}
+			else
+			{
+				const char* splitter2 = "-";
+				splitN = STDHelpers::SplitString(oldname, splitter2);
+				lastS = std::string(splitN.back());
+				if (STDHelpers::is_number(lastS))
+				{
+					int lastID = std::stoi(lastS);
+
+					for (size_t i = 0; i < splitN.size() - 1; ++i) {
+						auto sps = splitN[i];
+						newName += sps + splitter2;
+					}
+					char temp_char[512];
+					sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+					newName += temp_char;
+				}
+				else
+				{
+					char temp_char[512];
+					sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, 2);
+					newName = oldname + " " + temp_char;
+				}
+			}
+		}
+		else
+			newName = oldname + " Clone";
+		auto name = newName;
 		CINI::CurrentDocument->WriteString(value, "Name", name);
 		
 		auto group = CINI::CurrentDocument->GetString(currentID, "Group", "-1");

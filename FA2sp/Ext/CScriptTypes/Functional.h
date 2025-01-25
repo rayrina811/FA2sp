@@ -20,97 +20,10 @@ static void CScriptTypes_LoadParams_TypeList(ppmfc::CComboBox& comboBox, int nID
 {
     comboBox.DeleteAllStrings();
 
-    ppmfc::CString buffer;
-    buffer.Format("%d", nID);
-
-    buffer = CINI::FAData->GetString("ScriptTypeLists", buffer);
-    int nBuiltInType = CINI::FAData->GetInteger(buffer, "BuiltInType", -1);
-    if (nBuiltInType != -1)
-    {
-        switch (nBuiltInType)
-        {
-        default:
-        case 0:
-            break;
-        case 1:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Target(comboBox);
-            break;
-        case 2:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Waypoint(comboBox);
-            break;
-        case 3:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_ScriptLine(
-                comboBox,
-                CFinalSunDlg::Instance->ScriptTypes.CCBCurrentScript,
-                CFinalSunDlg::Instance->ScriptTypes.CLBScriptActions
-            );
-            break;
-        case 4:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_SplitGroup(comboBox);
-            break;
-        case 5:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_GlobalVariables(comboBox);
-            break;
-        case 6:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_ScriptTypes(comboBox);
-            break;
-        case 7:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_TeamTypes(comboBox);
-            break;
-        case 8:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Houses(comboBox);
-            break;
-        case 9:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Speechs(comboBox);
-            break;
-        case 10:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Sounds(comboBox);
-            break;
-        case 11:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Movies(comboBox);
-            break;
-        case 12:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Themes(comboBox);
-            break;
-        case 13:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Countries(comboBox);
-            break;
-        case 14:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_LocalVariables(comboBox);
-            break;
-        case 15:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Facing(comboBox);
-            break;
-        case 16:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_BuildingTypes(comboBox);
-            break;
-        case 17:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Animations(comboBox);
-            break;
-        case 18:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_TalkBubble(comboBox);
-            break;
-        case 19:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Status(comboBox);
-            break;
-        case 20:
-            CScriptTypesFunctions::CScriptTypes_LoadParams_Boolean(comboBox);
-            break;
-        }
-    }
-    else
-    {
-        if (auto pSection = CINI::FAData->GetSection(buffer))
-            for (auto& pair : pSection->GetEntities())
-            {
-                int data;
-                if (sscanf_s(pair.first, "%d", &data) == 1)
-                {
-                    buffer = pair.first + " - " + pair.second;
-                    comboBox.SetItemData(comboBox.AddString(buffer), data);
-                }
-            }
-    }
+    ControlHelpers::ComboBox::LoadSectionList(comboBox,
+		CScriptTypeParamCustom::ExtParamsCustom[nID].Section_,
+		CScriptTypeParamCustom::ExtParamsCustom[nID].LoadFrom_,
+		CScriptTypeParamCustom::ExtParamsCustom[nID].ShowIndex_);
 }
 
 // 1
@@ -118,18 +31,18 @@ static void CScriptTypes_LoadParams_Target(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.0", "0 - Not specified")), 0);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.1", "1 - Anything (uses auto-targeting)")), 1);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.2", "2 - Buildings")), 2);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.3", "3 - Harvesters")), 3);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.4", "4 - Infantry")), 4);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.5", "5 - Vehicles")), 5);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.6", "6 - Factories")), 6);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.7", "7 - Base defenses")), 7);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.8", "8 - Base threats")), 7);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.9", "9 - Power plants")), 9);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.10", "10 - Occupiables")), 10);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.11", "11 - Tech Buildings")), 11);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.0", "0 - 任意目标")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.1", "1 - 任意目标(同0)")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.2", "2 - 建筑物")), 2);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.3", "3 - 矿车矿场")), 3);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.4", "4 - 步兵")), 4);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.5", "5 - 车辆")), 5);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.6", "6 - 生产建筑")), 6);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.7", "7 - 防御建筑")), 7);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.8", "8 - 基地威胁")), 8);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.9", "9 - 电厂")), 9);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.10", "10 - 驻军建筑")), 10);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Target.11", "11 - 科技建筑")), 11);
 }
 
 // 2
@@ -222,10 +135,10 @@ static void CScriptTypes_LoadParams_SplitGroup(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
     
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.0", "0 - Keep Transports, Keep Units")), 0);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.1", "1 - Keep Transports, Lose Units")), 1);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.2", "2 - Lose Transports, Keep Units")), 2);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.3", "3 - Lose Transports, Lose Units")), 3);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.0", "0 - 保留载具，保留成员")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.1", "1 - 保留载具，丢弃成员")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.2", "2 - 丢弃载具，保留成员")), 2);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.SplitGroup.3", "3 - 丢弃载具，丢弃成员")), 3);
 }
 
 // 5
@@ -233,18 +146,17 @@ static void CScriptTypes_LoadParams_GlobalVariables(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    auto& rules = CINI::Rules();
-    if (auto entities = rules.GetSection("VariableNames"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Rules());
+
+    auto&& entries = mmh.ParseIndicies("VariableNames", true);
+    if (entries.size() > 0)
     {
-        CString text;
-        for (auto& x : entities->GetEntities())
+        CString buffer;
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (x.first != "Name" && !STDHelpers::IsNoneOrEmpty(x.first))
-            {
-                int l = atoi(x.first);
-                text.Format("%d - %s", l, x.second);
-                comboBox.SetItemData(comboBox.AddString(text), l);
-            }
+            buffer.Format("%u - %s", i, entries[i]);
+            comboBox.SetItemData(comboBox.AddString(buffer), i);
         }
     }
 }
@@ -254,19 +166,19 @@ static void CScriptTypes_LoadParams_ScriptTypes(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    auto& doc = CINI::CurrentDocument();
-    if (auto entities = doc.GetSection("ScriptTypes"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Ai());
+    mmh.AddINI(&CINI::CurrentDocument());
+
+    auto&& entries = mmh.ParseIndicies("ScriptTypes", true);
+    if (entries.size() > 0)
     {
         CString text, finaltext = "";
-        for (auto& ent : entities->GetEntities())
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (doc.SectionExists(ent.second) && !STDHelpers::IsNoneOrEmpty(ent.second))
-            {
-                int id = atoi(ent.first);
-                text = doc.GetString(ent.second, "Name");
-                finaltext.Format("%d - %s - %s", id, ent.second, text);
-                comboBox.SetItemData(comboBox.AddString(finaltext), id);
-            }
+            text = mmh.GetString(entries[i], "Name");
+            finaltext.Format("%d - %s - %s", i, entries[i], text);
+            comboBox.SetItemData(comboBox.AddString(finaltext), i);
         }
     }
 
@@ -276,20 +188,20 @@ static void CScriptTypes_LoadParams_ScriptTypes(ppmfc::CComboBox& comboBox)
 static void CScriptTypes_LoadParams_TeamTypes(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
+    
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Ai());
+    mmh.AddINI(&CINI::CurrentDocument());
 
-    auto& doc = CINI::CurrentDocument();
-    if (auto entities = doc.GetSection("TeamTypes"))
+    auto&& entries = mmh.ParseIndicies("TeamTypes", true);
+    if (entries.size() > 0)
     {
         CString text, finaltext = "";
-        for (auto& ent : entities->GetEntities())
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (doc.SectionExists(ent.second) && !STDHelpers::IsNoneOrEmpty(ent.second))
-            {
-                int id = atoi(ent.first);
-                text = doc.GetString(ent.second, "Name");
-                finaltext.Format("%d - %s - %s", id, ent.second, text);
-                comboBox.SetItemData(comboBox.AddString(finaltext), id);
-            }
+            text = mmh.GetString(entries[i], "Name");
+            finaltext.Format("%d - %s - %s", i, entries[i], text);
+            comboBox.SetItemData(comboBox.AddString(finaltext), i);
         }
     }
 
@@ -307,19 +219,21 @@ static void CScriptTypes_LoadParams_Speechs(ppmfc::CComboBox& comboBox)
     comboBox.DeleteAllStrings();
 
     auto& eva = CINI::Eva();
-    if (auto entities = eva.GetSection("DialogList"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Eva());
+
+    auto&& entries = mmh.ParseIndicies("DialogList", true);
+    if (entries.size() > 0)
     {
-        CString text;
-        for (auto& ent : entities->GetEntities())
+        CString buffer;
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (eva.SectionExists(ent.second))
-            {
-                int id = atoi(ent.first);
-                text.Format("%d - %s - %s", id, ent.second, eva.GetString(ent.second, "Text"));
-                comboBox.SetItemData(comboBox.AddString(text), id);
-            }
+            buffer.Format("%d - %s - %s", i, entries[i], eva.GetString(entries[i], "Text"));
+            comboBox.SetItemData(comboBox.AddString(buffer), i);
         }
     }
+
+
 
 }
 
@@ -328,20 +242,20 @@ static void CScriptTypes_LoadParams_Sounds(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    auto& sound = CINI::Sound();
-    if (auto entities = sound.GetSection("SoundList"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Sound());
+
+    auto&& entries = mmh.ParseIndicies("SoundList", true);
+    if (entries.size() > 0)
     {
-        CString text;
-        for (auto& ent : entities->GetEntities())
+        CString buffer;
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (sound.SectionExists(ent.second) && !STDHelpers::IsNoneOrEmpty(ent.second))
-            {
-                int id = atoi(ent.first);
-                text.Format("%d - %s", id, ent.second);
-                comboBox.SetItemData(comboBox.AddString(text), id);
-            }
+            buffer.Format("%u - %s", i, entries[i]);
+            comboBox.SetItemData(comboBox.AddString(buffer), i);
         }
     }
+
 }
 
 // 11
@@ -349,18 +263,17 @@ static void CScriptTypes_LoadParams_Movies(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    auto& art = CINI::Art();
-    if (auto entities = art.GetSection("Movies"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Art());
+    auto&& entries = mmh.ParseIndicies("Movies", true);
+    if (entries.size() > 0)
     {
-        CString text;
-        for (auto& ent : entities->GetEntities())
+        CString buffer;
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (ent.first != "Name")
-            {
-                int id = atoi(ent.first);
-                text.Format("%d - %s", id, ent.second);
-                comboBox.SetItemData(comboBox.AddString(text), id);
-            }
+
+            buffer.Format("%d - %s", i, entries[i]);
+            comboBox.SetItemData(comboBox.AddString(buffer), i);
         }
     }
 }
@@ -370,18 +283,17 @@ static void CScriptTypes_LoadParams_Themes(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    auto& theme = CINI::Theme();
-    if (auto entities = theme.GetSection("Themes"))
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Theme());
+    auto&& entries = mmh.ParseIndicies("Themes", true);
+    if (entries.size() > 0)
     {
-        CString text;
-        for (auto& ent : entities->GetEntities())
+        CString buffer;
+        for (size_t i = 0, sz = entries.size(); i < sz; ++i)
         {
-            if (theme.SectionExists(ent.second) && !STDHelpers::IsNoneOrEmpty(ent.second))
-            {
-                int id = atoi(ent.first);
-                text.Format("%d - %s", id, ent.second);
-                comboBox.SetItemData(comboBox.AddString(text), id);
-            }
+
+            buffer.Format("%d - %s", i, entries[i]);
+            comboBox.SetItemData(comboBox.AddString(buffer), i);
         }
     }
 }
@@ -417,14 +329,14 @@ static void CScriptTypes_LoadParams_Facing(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.0", "0 - NE")), 0);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.1", "1 - E")), 1);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.2", "2 - SE")), 2);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.3", "3 - S")), 3);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.4", "4 - SW")), 4);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.5", "5 - W")), 5);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.6", "6 - NW")), 6);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.7", "7 - N")), 7);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.0", "0 - ↗")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.1", "1 - →")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.2", "2 - ↘")), 2);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.3", "3 - ↓")), 3);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.4", "4 - ↙")), 4);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.5", "5 - ←")), 5);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.6", "6 - ↖")), 6);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Facing.7", "7 - ↑")), 7);
 }
 
 // 16
@@ -436,7 +348,7 @@ static void CScriptTypes_LoadParams_BuildingTypes(ppmfc::CComboBox& comboBox)
 // 17
 static void CScriptTypes_LoadParams_Animations(ppmfc::CComboBox& comboBox)
 {
-    ControlHelpers::ComboBox::LoadGenericList(comboBox, "Animations", true, true);
+    ControlHelpers::ComboBox::LoadGenericList(comboBox, "Animations", false, true, true);
 }
 
 // 18
@@ -444,10 +356,10 @@ static void CScriptTypes_LoadParams_TalkBubble(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.0", "0 - None")), 0);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.1", "1 - Asterisk(*)")), 1);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.2", "2 - Question mark(?)")), 2);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.3", "3 - Exclamation mark(!)")), 3);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.0", "0 - 无")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.1", "1 - 星号(*)")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.2", "2 - 问号(?)")), 2);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.TalkBubble.3", "3 - 感叹号(!)")), 3);
 }
 
 // 19
@@ -456,38 +368,38 @@ static void CScriptTypes_LoadParams_Status(ppmfc::CComboBox& comboBox)
     comboBox.DeleteAllStrings();
 
     int i = 0;
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.0", "0 - Sleep")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.0", "0 - ※Sleep (休眠，不还击)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.1", "1 - Attack nearest enemy")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.2", "2 - Move")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.3", "3 - QMove")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.4", "4 - Retreat home for R&R")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.5", "5 - Guard")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.6", "6 - Sticky (never recruit)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.4", "4 - Retreat (撤离地图)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.5", "5 - ※Guard (原地警戒)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.6", "6 - Sticky (固守，不主动攻击)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.7", "7 - Enter object")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.8", "8 - Capture object")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.9", "9 - Move into & get eaten")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.10", "10 - Harvest")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.11", "11 - Area Guard")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.10", "10 - Harvest (采矿)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.11", "11 - ※Area Guard (区域警戒)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.12", "12 - Return (to refinery)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.13", "13 - Stop")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.14", "14 - Ambush (wait until discovered)")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.15", "15 - Hunt")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.16", "16 - Unload")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.15", "15 - ※Hunt (游猎)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.16", "16 - ※Unload (卸载或部署)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.17", "17 - Sabotage (move in & destroy)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.18", "18 - Construction")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.19", "19 - Deconstruction")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.20", "20 - Repair")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.21", "21 - Rescue")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.22", "22 - Missile")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.23", "23 - Harmless")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.23", "23 - ※Harmless (无威胁)")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.24", "24 - Open")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.25", "25 - Patrol")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.26", "26 - Paradrop approach drop zone")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.27", "27 - Paradrop overlay drop zone")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.28", "28 - Wait")), i++);
     comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.29", "29 - Attack again")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.30", "30 - Spyplane approach")), i++);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.31", "31 - Spyplane overfly")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.30", "30 - Spyplane approach (YR)")), i++);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Status.31", "31 - Spyplane overfly (YR)")), i++);
 }
 
 // 20
@@ -495,8 +407,23 @@ static void CScriptTypes_LoadParams_Boolean(ppmfc::CComboBox& comboBox)
 {
     comboBox.DeleteAllStrings();
 
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Boolean.0", "0 - FALSE")), 0);
-    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Boolean.1", "1 - TRUE")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Boolean.0", "0 - 否")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.Boolean.1", "1 - 是")), 1);
+}
+
+// 21
+static void CScriptTypes_LoadParams_CameraSpeed(ppmfc::CComboBox& comboBox)
+{
+	if (ControlHelpers::ComboBox::LoadSectionList(comboBox, "CameraSpeed", 3, false))
+		return;
+
+    comboBox.DeleteAllStrings();
+
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.CameraSpeed.0", "0 - 非常慢")), 0);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.CameraSpeed.1", "1 - 慢")), 1);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.CameraSpeed.2", "2 - 正常")), 2);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.CameraSpeed.3", "3 - 快")), 3);
+    comboBox.SetItemData(comboBox.AddString(Translations::TranslateOrDefault("ScriptParam.CameraSpeed.4", "4 - 非常快")), 4);
 }
 
 };

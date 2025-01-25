@@ -32,7 +32,13 @@ DEFINE_HOOK(4D2680, CMyViewFrame_OnCreateClient, 5)
                 pThis->pIsoView->pParent = pThis;
                 pThis->pTileSetBrowserFrame = (CTileSetBrowserFrame*)pThis->pRightFrame->CSplitter.GetPane(0, 1);
                 pThis->pViewObjects = (CViewObjects*)pThis->SplitterWnd.GetPane(0, 0);
-                pThis->Minimap.CreateEx(0, nullptr, "Minimap", 0, rect, nullptr, 0);
+                pThis->Minimap.CreateEx(0, nullptr, "Minimap", 0, rect, pThis, 0);
+
+                LONG style = GetWindowLong(pThis->Minimap, GWL_STYLE);
+                style &= ~(WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+                style |= WS_SYSMENU;
+                SetWindowLong(pThis->Minimap, GWL_STYLE, style);
+
                 pThis->Minimap.Update();
                 if (bRes = pThis->StatusBar.CreateEx(pThis, 0x900))
                 {

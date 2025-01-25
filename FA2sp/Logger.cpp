@@ -1,6 +1,9 @@
 #include "Logger.h"
 #include <windows.h>
 #include <share.h>
+#include <codecvt>
+#include <locale>
+#include <iostream>
 
 char Logger::pTime[24];
 char Logger::pBuffer[0x800];

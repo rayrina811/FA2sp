@@ -5,12 +5,14 @@
 #include "../FA2sp.Constants.h"
 
 #include <Helpers\Macro.h>
-
+#include <iostream>
+#include <filesystem>
 #include <CFinalSunApp.h>
 #include <CFinalSunDlg.h>
 #include <CLoading.h>
 #include <CMapData.h>
 #include <FA2PP.h>
+#include "../Helpers/Translations.h"
 
 LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 {
@@ -38,6 +40,8 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 
 	//	if (IsDebuggerAttached()) return EXCEPTION_CONTINUE_SEARCH;
 
+	std::wstring log_file_path = L"";
+
 	switch (pExs->ExceptionRecord->ExceptionCode)
 	{
 	case EXCEPTION_ACCESS_VIOLATION:
@@ -63,7 +67,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	case 0xE06D7363: // exception thrown and not caught
 	{
 		std::wstring path = Exception::PrepareSnapshotDirectory();
-
+		log_file_path = path;
 		std::wstring except_file = path + L"\\except.txt";
 
 		if (FILE* except = _wfsopen(except_file.c_str(), L"w", _SH_DENYNO)) {
@@ -71,6 +75,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 			fprintf(except, "Internal Error encountered!\n");
 			fprintf(except, pDelim);
 			fprintf(except, VERSION_STRVER);
+			fprintf(except, ", "  __str(HDM_PRODUCT_VERSION));
 			fprintf(except, "\n");
 			fprintf(except, pDelim);
 
@@ -92,8 +97,9 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 			fclose(except);
 			Logger::Raw("Exception data has been saved to file:\n%ls\n", except_file.c_str());
 		}
-
-		if (MessageBox(CFinalSunDlg::Instance->m_hWnd, "FinalAlert 2 has encountered a fatal error!\nWould you like to create a full crash report for the developer?", "Fatal Error!", MB_YESNO | MB_ICONERROR) == IDYES) {
+		if (MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError", 
+			"FinalAlert 2 has encountered a fatal error!\nWould you like to create a full crash report for the developer?"), 
+			"Fatal Error!", MB_YESNO | MB_ICONERROR) == IDYES) {
 			HCURSOR loadCursor = LoadCursor(nullptr, IDC_WAIT);
 			SetClassLong(CFinalSunDlg::Instance->m_hWnd, GCL_HCURSOR, reinterpret_cast<LONG>(loadCursor));
 			SetCursor(loadCursor);
@@ -126,17 +132,51 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	{
 		Logger::Raw("Trying to save current map.\n");
 		ppmfc::CString fcrash_backup = CFinalSunApp::ExePath();
-		fcrash_backup += "\\fcrash_backup.map";
+
+		ppmfc::CString directoryPath = CFinalSunApp::ExePath();
+		directoryPath += "\\CrashBackups";
+		if (!std::filesystem::exists(directoryPath.m_pchData)) {
+			try {
+				if (std::filesystem::create_directory(directoryPath.m_pchData)) {
+					fcrash_backup += "\\CrashBackups";
+				}
+				else {
+					
+				}
+			}
+			catch (const std::filesystem::filesystem_error& e) {
+				UNREFERENCED_PARAMETER(e);
+			}
+		}
+		else
+		{
+			fcrash_backup += "\\CrashBackups";
+		}
+
+
+		ppmfc::CString backup_name;
+		SYSTEMTIME time;
+		GetLocalTime(&time);
+		backup_name.Format("fcrash_backup-%04u%02u%02u-%02u%02u%02u.map", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
+		fcrash_backup += "\\" + backup_name;
 
 		SaveMapExt::IsAutoSaving = true;
 		CFinalSunDlg::Instance->SaveMap(fcrash_backup);
 		SaveMapExt::IsAutoSaving = false;
 
-		MessageBox(CFinalSunDlg::Instance->m_hWnd, "Current MapData has been saved as fcrash_backup.map.", "Fatal Error!", MB_OK | MB_ICONINFORMATION);
+		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.SaveMap", 
+			"Current MapData has been saved as: \n") + fcrash_backup, "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 	}
 	else
-		MessageBox(CFinalSunDlg::Instance->m_hWnd, "Seems there's no map had been loaded.", "Fatal Error!", MB_OK | MB_ICONINFORMATION);
-	
+		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.MapNotLoaded",
+			"Seems there's no map had been loaded."), "Fatal Error!", MB_OK | MB_ICONINFORMATION);
+
+	if (log_file_path == L"")
+		log_file_path = Exception::PrepareSnapshotDirectory();
+	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\FA2sp.log").m_pchData, log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\syringe.log").m_pchData, log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\finalalert2log.txt").m_pchData, log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
+
 	CLoading::Instance->Release();
 
 	CINI::Rules->Release();

@@ -8,7 +8,7 @@
 #include "../../Helpers/Helper.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/Translations.h"
-
+bool CScriptTypesExt::IsOnlyEditAction = true;
 // WM_COMMAND
 BOOL CScriptTypesExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 {
@@ -40,6 +40,11 @@ BOOL CScriptTypesExt::PreTranslateMessageExt(MSG* pMsg)
 		elif (pMsg->hwnd == this->GetDlgItem(6306)->GetSafeHwnd())
 			this->OnBNMoveDownClicked();
 	}
+	//else if (pMsg->message == WM_KEYUP)
+	//{
+	//	if (pMsg->wParam == VK_RETURN)
+	//		this->OnLBScriptActionsSelectChanged(true);
+	//}
 
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
 }
@@ -128,6 +133,9 @@ void CScriptTypesExt::UpdateParams(int actionIndex)
 	case 20:
 		CScriptTypesFunctions::CScriptTypes_LoadParams_Boolean(this->CCBScriptParameter);
 		break;
+	case 21:
+		CScriptTypesFunctions::CScriptTypes_LoadParams_CameraSpeed(this->CCBScriptParameter);
+		break;
 	}
 	if (param.Param_ < 0)
 		CScriptTypesFunctions::CScriptTypes_LoadParams_TypeList(this->CCBScriptParameter, -param.Param_);
@@ -155,7 +163,9 @@ void CScriptTypesExt::UpdateParams(int actionIndex)
 
 std::map<int, CScriptTypeAction> CScriptTypeAction::ExtActions;
 std::map<int, CScriptTypeParam> CScriptTypeParam::ExtParams;
+std::map<int, CScriptTypeParamCustom> CScriptTypeParamCustom::ExtParamsCustom;
 std::map<int, int> CScriptTypesExt::RealScriptID;
+int CScriptTypesExt::LastSelectedActionIndex;
 BOOL CScriptTypesExt::OnInitDialogExt()
 {
 	BOOL ret = ppmfc::CDialog::OnInitDialog();
@@ -219,6 +229,59 @@ BOOL CScriptTypesExt::OnInitDialogExt()
 				[[fallthrough]];
 			case 1:
 				CScriptTypeParam::ExtParams[id].Label_ = pParseBuffer[0];
+				SAFE_RELEASE(pParseBuffer[0]);
+			case 0:
+				continue;
+			}
+		}
+	}
+
+	if (auto entities = ini.GetSection("ScriptParamTypes"))
+	{
+		char* pParseBuffer[6] = { nullptr };
+		int pParsedVal = 0;
+		for (auto& pair : entities->GetEntities())
+		{
+			int id = atoi(pair.first);
+			if (id < 0) continue;
+			auto count =
+				ParseList(pair.second, (const char**)(pParseBuffer), 6);
+			auto temp = (ppmfc::CString)pParseBuffer[5];
+			switch (count)
+			{
+			default:
+			case 6:
+				pParsedVal = atoi((const char*)pParseBuffer[5]);
+				CScriptTypeParamCustom::ExtParamsCustom[id].LoadFrom2_ = pParsedVal > 0 ? pParsedVal : 0;
+				pParsedVal = 0;
+				SAFE_RELEASE(pParseBuffer[1]);
+				[[fallthrough]];
+			case 5:	
+				STDHelpers::TrimString(temp);
+				CScriptTypeParamCustom::ExtParamsCustom[id].XtraSection_ = pParseBuffer[4];
+				SAFE_RELEASE(pParseBuffer[4]);
+				[[fallthrough]];
+			case 4:
+				pParsedVal = atoi((const char*)pParseBuffer[3]);
+				CScriptTypeParamCustom::ExtParamsCustom[id].HasExtraParam_ = pParsedVal > 0 ? pParsedVal : 0;
+				pParsedVal = 0;
+				SAFE_RELEASE(pParseBuffer[3]);
+				[[fallthrough]];
+			case 3:
+				pParsedVal = atoi((const char*)pParseBuffer[2]);
+				CScriptTypeParamCustom::ExtParamsCustom[id].ShowIndex_ = pParsedVal > 0 ? true : false;
+				pParsedVal = 0;
+				SAFE_RELEASE(pParseBuffer[2]);
+				[[fallthrough]];
+			case 2:
+				pParsedVal = atoi((const char*)pParseBuffer[1]);
+				CScriptTypeParamCustom::ExtParamsCustom[id].LoadFrom_ = pParsedVal > 0 ? pParsedVal : 0;
+				pParsedVal = 0;
+				SAFE_RELEASE(pParseBuffer[1]);
+				[[fallthrough]];
+			case 1:
+				STDHelpers::TrimString(temp);
+				CScriptTypeParamCustom::ExtParamsCustom[id].Section_ = pParseBuffer[0];
 				SAFE_RELEASE(pParseBuffer[0]);
 				[[fallthrough]];
 			case 0:
@@ -311,7 +374,7 @@ void CScriptTypesExt::UpdateDialog()
 void CScriptTypesExt::OnCBCurrentScriptSelectChanged()
 {
 	this->CLBScriptActions.DeleteAllStrings();
-	
+
 	int index = this->CCBCurrentScript.GetCurSel();
 	if (index == CB_ERR)
 		return;
@@ -323,14 +386,15 @@ void CScriptTypesExt::OnCBCurrentScriptSelectChanged()
 	ExtCurrentScript->Set(currentID);
 	for (int i = 0; i < ExtCurrentScript->Count; ++i)
 	{
+
 		if (ExtCurrentScript->IsExtraParamEnabledAtLine(i))
 			FA2sp::Buffer.Format("[%d] : %d - (%d, %d)", i,
 				ExtCurrentScript->Actions[i].Type,
 				ExtCurrentScript->Actions[i].ParamNormal,
 				ExtCurrentScript->Actions[i].ParamExt);
 		else
-			FA2sp::Buffer.Format("[%d] : %d - %d", i, 
-				ExtCurrentScript->Actions[i].Type, 
+			FA2sp::Buffer.Format("[%d] : %d - %d", i,
+				ExtCurrentScript->Actions[i].Type,
 				ExtCurrentScript->Actions[i].Param);
 
 		this->CLBScriptActions.AddString(FA2sp::Buffer);
@@ -338,10 +402,11 @@ void CScriptTypesExt::OnCBCurrentScriptSelectChanged()
 
 	this->GetDlgItem(1010)->SetWindowText(ExtCurrentScript->Name);
 	this->CLBScriptActions.SetCurSel(LB_ERR);
+	this->LastSelectedActionIndex = 999;
 	this->CScriptTypesExt::OnLBScriptActionsSelectChanged();
 }
 
-void CScriptTypesExt::OnLBScriptActionsSelectChanged()
+void CScriptTypesExt::OnLBScriptActionsSelectChanged(bool enter)
 {
 	int index = this->CLBScriptActions.GetCurSel();
 	if (this->CCBCurrentScript.GetCurSel() == CB_ERR)
@@ -359,9 +424,50 @@ void CScriptTypesExt::OnLBScriptActionsSelectChanged()
 	STDHelpers::TrimIndex(currentID);
 
 	auto& currentAction = ExtCurrentScript->Actions[index];
-	this->CCBCurrentAction.SetCurSel(CScriptTypeAction::ExtActions[currentAction.Type].PosInComboBox);
 
+	ppmfc::CString dlgAction;
+	auto pCBAction = (ppmfc::CComboBox*)this->GetDlgItem(1064);
+	pCBAction->GetWindowText(dlgAction);
+	//if (this->LastSelectedActionIndex == index)
+	//{
+	//	
+	//	auto idx = this->CCBCurrentAction.FindString(0, dlgAction + " -");
+	//	if (idx != CB_ERR)
+	//	{
+	//		this->CCBCurrentAction.SetCurSel(idx);
+	//	}
+	//	else
+	//		this->CCBCurrentAction.SetCurSel(CScriptTypeAction::ExtActions[currentAction.Type].PosInComboBox);
+	//}
+	//else
+	//{
+	////	if (LastSelectedActionIndex < 50)
+	////	{
+	////		/*auto& lastAction = ExtCurrentScript->Actions[LastSelectedActionIndex];
+	////		lastAction.Type = atoi(dlgAction);*/
+	////		this->CLBScriptActions.SetCurSel(LastSelectedActionIndex);
+	////		this->CCBCurrentAction.SetCurSel(atoi(dlgAction));
+	////		this->CScriptTypesExt::OnCBCurrentActionSelectChanged();
+	////		this->CLBScriptActions.SetCurSel(index);
+	////	}
+	//
+
+		this->CCBCurrentAction.SetCurSel(CScriptTypeAction::ExtActions[currentAction.Type].PosInComboBox);
+	//}
+
+	this->LastSelectedActionIndex = index;
 	this->CScriptTypesExt::OnCBCurrentActionSelectChanged();
+
+	if (enter)
+	{
+		if (index + 1 < ExtCurrentScript->Count)
+		{
+			this->CLBScriptActions.SetCurSel(index + 1);
+			this->CScriptTypesExt::OnLBScriptActionsSelectChanged();
+		}
+		else
+			this->OnBNAddActionClicked();
+	}
 }
 
 void CScriptTypesExt::OnETScriptNameChanged()
@@ -387,6 +493,24 @@ void CScriptTypesExt::OnETScriptNameChanged()
 
 void CScriptTypesExt::OnCBCurrentActionEditChanged()
 {
+	
+	if (CScriptTypesExt::IsOnlyEditAction)
+	{
+		char buffer[512]{ 0 };
+		auto hCBAction = ::GetDlgItem(this->GetSafeHwnd(), 1064);
+		
+		::GetWindowText(hCBAction, buffer, 511);
+		int idx = ::SendMessage(hCBAction, CB_FINDSTRING, 0, (LPARAM)buffer);
+		if (idx != CB_ERR)
+		{
+			::SendMessage(hCBAction, CB_SETCURSEL, idx, NULL);
+			::SendMessage(hCBAction, WM_SETTEXT, 0, (LPARAM)buffer);
+			::SendMessage(hCBAction, CB_SETEDITSEL, 0, MAKELPARAM(strlen(buffer), strlen(buffer)));
+		}
+	}
+
+	CScriptTypesExt::IsOnlyEditAction = true;
+
 	int nTypeIndex = this->CCBCurrentAction.GetCurSel();
 	if (nTypeIndex == CB_ERR)
 		return;
@@ -397,6 +521,7 @@ void CScriptTypesExt::OnCBCurrentActionEditChanged()
 
 	auto& currentAction = ExtCurrentScript->Actions[nActionIndex];
 	currentAction.Type = this->RealScriptID[nTypeIndex];
+
 	this->UpdateParams(currentAction.Type);
 	if (ExtCurrentScript->IsExtraParamEnabled(currentAction.Type))
 	{
@@ -418,6 +543,7 @@ void CScriptTypesExt::OnCBCurrentActionEditChanged()
 
 void CScriptTypesExt::OnCBCurrentActionSelectChanged()
 {
+	CScriptTypesExt::IsOnlyEditAction = false;
 	this->CScriptTypesExt::OnCBCurrentActionEditChanged();
 }
 
@@ -487,7 +613,7 @@ void CScriptTypesExt::OnBNDeleteActionClicked()
 	if (this->CCBCurrentScript.GetCurSel() == CB_ERR || index == LB_ERR)
 		return;
 
-	if (MessageBox("Are you sure to delete this action?", "FA2sp", MB_YESNO) == IDYES)
+	if (MessageBox("确定要删除此脚本行为吗？", "删除行为", MB_YESNO) == IDYES)
 	{
 		ExtCurrentScript->RemoveActionAt(index);
 		ExtCurrentScript->Write();
@@ -518,7 +644,7 @@ void CScriptTypesExt::OnBNDeleteScriptClicked()
 	if (index == CB_ERR)
 		return;
 
-	if (MessageBox("Are you sure to delete this script?", "FA2sp", MB_YESNO) == IDYES)
+	if (MessageBox("确定要删除此脚本吗？", "删除脚本", MB_YESNO) == IDYES)
 	{
 		CINI::CurrentDocument->DeleteSection(this->ExtCurrentScript->ID);
 		if (auto pScripts = CINI::CurrentDocument->GetSection("ScriptTypes"))
@@ -539,7 +665,55 @@ void CScriptTypesExt::OnBNCloneScriptClicked()
 	if (!ExtCurrentScript->IsAvailable())
 		return;
 
-	ExtCurrentScript->Write(*CINI::GetAvailableIndex(&FA2sp::Buffer), ExtCurrentScript->Name + " Clone");
+	auto oldname = ExtCurrentScript->Name;
+	ppmfc::CString newName;
+	if (ExtConfigs::CloneWithOrderedID)
+	{
+		const char* splitter = " ";
+		auto splitN = STDHelpers::SplitString(oldname, splitter);
+		auto lastS = std::string(splitN.back());
+
+		if (STDHelpers::is_number(lastS))
+		{
+			int lastID = std::stoi(lastS);
+
+			for (size_t i = 0; i < splitN.size() - 1; ++i) {
+				auto sps = splitN[i];
+				newName += sps + splitter;
+			}
+			char temp_char[512];
+			sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+			newName += temp_char;
+		}
+		else
+		{
+			const char* splitter2 = "-";
+			splitN = STDHelpers::SplitString(oldname, splitter2);
+			lastS = std::string(splitN.back());
+			if (STDHelpers::is_number(lastS))
+			{
+				int lastID = std::stoi(lastS);
+
+				for (size_t i = 0; i < splitN.size() - 1; ++i) {
+					auto sps = splitN[i];
+					newName += sps + splitter2;
+				}
+				char temp_char[512];
+				sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, (lastID + 1));
+				newName += temp_char;
+			}
+			else
+			{
+				char temp_char[512];
+				sprintf(temp_char, ExtConfigs::CloneWithOrderedID_Digits, 2);
+				newName = oldname + " " + temp_char;
+			}
+		}
+	}
+	else
+		newName = oldname + " Clone";
+
+	ExtCurrentScript->Write(*CINI::GetAvailableIndex(&FA2sp::Buffer), newName);
 	ExtCurrentScript->Set(FA2sp::Buffer);
 	int index = this->CCBCurrentScript.AddString(FA2sp::Buffer + " (" + ExtCurrentScript->Name + ")");
 	CINI::GetAvailableKey(&FA2sp::Buffer, "ScriptTypes");

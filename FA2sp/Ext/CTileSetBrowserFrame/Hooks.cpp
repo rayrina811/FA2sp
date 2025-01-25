@@ -3,8 +3,13 @@
 #include "../../FA2sp.h"
 
 #include "TabPages/TriggerSort.h"
+#include "TabPages/TeamSort.h"
 
 #include "../../Helpers/Translations.h"
+#include "TabPages/ScriptSort.h"
+#include "TabPages/TaskForceSort.h"
+#include "TabPages/WaypointSort.h"
+#include "TabPages/TagSort.h"
 
 DEFINE_HOOK(4F1A40, CTileSetBrowserFrame_CreateContent, 5)
 {
@@ -23,6 +28,8 @@ DEFINE_HOOK(4F1A40, CTileSetBrowserFrame_CreateContent, 5)
     Translations::TranslateItem(&pThis->DialogBar, 6102, "DialogBar.TileManager");
     Translations::TranslateItem(&pThis->DialogBar, 1368, "DialogBar.TerrainOrGround");
     Translations::TranslateItem(&pThis->DialogBar, 1369, "DialogBar.OverlayAndSpecial");
+    Translations::TranslateItem(&pThis->DialogBar, 6250, "DialogBar.GlobalSearch");
+    Translations::TranslateItem(&pThis->DialogBar, 6251, "DialogBar.TerrainGenerator");
 
     pThis->View.Create(nullptr, nullptr, 0x50300000, rect, pTab, 1, nullptr);
     pThis->ppmfc::CFrameWnd::RecalcLayout();
@@ -59,6 +66,11 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
     pThis->View.SetScrollSizes(1, sz);
 
     TriggerSort::Instance.OnSize();
+    TeamSort::Instance.OnSize();
+    TaskforceSort::Instance.OnSize();
+    ScriptSort::Instance.OnSize();
+    WaypointSort::Instance.OnSize();
+    TagSort::Instance.OnSize();
 
     return 0x4F1B8A;
 }

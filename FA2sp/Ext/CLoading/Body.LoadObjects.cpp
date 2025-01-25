@@ -70,6 +70,9 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)
 
 void CLoadingExt::LoadObjects(ppmfc::CString ID)
 {
+	if (ID == "")
+		return;
+
     Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
 
 	// GlobalVars::CMapData->UpdateCurrentDocument();
@@ -104,8 +107,11 @@ void CLoadingExt::ClearItemTypes()
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
-	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image"))
+	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image")) {
+
 		ArtID = *ppImage;
+		ArtID.Trim();
+	}
 	else
 		ArtID = ID;
 
@@ -124,12 +130,12 @@ ppmfc::CString CLoadingExt::GetBuildingFileID(ppmfc::CString ID)
 
 	ppmfc::CString validator = ImageID + ".SHP";
 	int nMix = this->SearchFile(validator);
-	if (!CMixFile::HasFile(validator, nMix))
+	if (!CLoading::HasFile(validator, nMix))
 	{
 		SetGenericTheaterLetter(ImageID);
 		validator = ImageID + ".SHP";
 		nMix = this->SearchFile(validator);
-		if (!CMixFile::HasFile(validator, nMix))
+		if (!CLoading::HasFile(validator, nMix))
 			ImageID = backupID;
 	}
 	return ImageID;
@@ -139,7 +145,10 @@ ppmfc::CString CLoadingExt::GetInfantryFileID(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 
-	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
+	ppmfc::CString ImageID = ArtID;
+
+	if (ExtConfigs::ArtImageSwap)
+		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	if (Variables::Rules.GetBool(ID, "AlternateTheaterArt"))
 		ImageID += this->TheaterIdentifier;
@@ -155,8 +164,10 @@ ppmfc::CString CLoadingExt::GetInfantryFileID(ppmfc::CString ID)
 ppmfc::CString CLoadingExt::GetArtID(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID;
-	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image"))
+	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image")) {
 		ArtID = *ppImage;
+		ArtID.Trim();
+	}
 	else
 		ArtID = ID;
 
@@ -167,7 +178,10 @@ ppmfc::CString CLoadingExt::GetVehicleOrAircraftFileID(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 
-	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
+	ppmfc::CString ImageID = ArtID;
+
+	if (ExtConfigs::ArtImageSwap)
+		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	return ImageID;
 }
@@ -176,9 +190,11 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 {
 	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
-		ppmfc::CString SrcBldName = GetBuildingFileID(*ppPowerUpBld) + "0";
+		ppmfc::CString PowerUpBld = *ppPowerUpBld;
+		PowerUpBld.Trim();
+		ppmfc::CString SrcBldName = GetBuildingFileID(PowerUpBld) + "0";
 		if (!ImageDataMapHelper::IsImageLoaded(SrcBldName))
-			LoadBuilding(*ppPowerUpBld);
+			LoadBuilding(PowerUpBld);
 	}
 
 	LoadBuilding_Normal(ID);
@@ -195,7 +211,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 			return false;
 
 		ShapeHeader header;
@@ -214,15 +230,15 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file);
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 		{
 			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
-			if (!CMixFile::HasFile(file, nMix))
+			if (!CLoading::HasFile(file, nMix))
 			{
 				file = name + ".SHP";
 				nMix = SearchFile(file);
-				if (!CMixFile::HasFile(file, nMix))
+				if (!CLoading::HasFile(file, nMix))
 					return false;
 			}
 		}
@@ -244,17 +260,21 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*ppStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), nStartFrame);
+				ppmfc::CString str = *ppStr;
+				str.Trim();
+				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
 			}
 		}
 	};
 
 	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
-		ppmfc::CString SrcBldName = GetBuildingFileID(*ppPowerUpBld) + "0";
+		ppmfc::CString PowerUpBld = *ppPowerUpBld;
+		PowerUpBld.Trim();
+		ppmfc::CString SrcBldName = GetBuildingFileID(PowerUpBld) + "0";
 		if (!ImageDataMapHelper::IsImageLoaded(SrcBldName))
-			LoadBuilding(*ppPowerUpBld);
+			LoadBuilding(PowerUpBld);
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
@@ -270,8 +290,11 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
 		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
 
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape"))
-			loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr));
+		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+			ppmfc::CString str = *ppStr;
+			str.Trim();
+			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str));
+		}
 
 		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 		if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -426,7 +449,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 			return false;
 
 		ShapeHeader header;
@@ -445,15 +468,15 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file);
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 		{
 			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
-			if (!CMixFile::HasFile(file, nMix))
+			if (!CLoading::HasFile(file, nMix))
 			{
 				file = name + ".SHP";
 				nMix = SearchFile(file);
-				if (!CMixFile::HasFile(file, nMix))
+				if (!CLoading::HasFile(file, nMix))
 					return false;
 			}
 		}
@@ -474,18 +497,22 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		ppmfc::CString damagedAnimkey = animkey + "Damaged";
 		if (auto ppStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
+			ppmfc::CString str = *ppStr;
+			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*ppStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
 			}
 		}
 		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
+			ppmfc::CString str = *ppStr;
+			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*ppStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
 			}
 		}
 	};
@@ -503,8 +530,11 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
 		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
 
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape"))
-			loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), 1);
+		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+			ppmfc::CString str = *ppStr;
+			str.Trim();
+			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), 1);
+		}
 
 		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 		if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -659,7 +689,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 			return false;
 
 		ShapeHeader header;
@@ -678,15 +708,15 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file);
 		int nMix = SearchFile(file);
-		if (!CMixFile::HasFile(file, nMix))
+		if (!CLoading::HasFile(file, nMix))
 		{
 			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
-			if (!CMixFile::HasFile(file, nMix))
+			if (!CLoading::HasFile(file, nMix))
 			{
 				file = name + ".SHP";
 				nMix = SearchFile(file);
-				if (!CMixFile::HasFile(file, nMix))
+				if (!CLoading::HasFile(file, nMix))
 					return false;
 			}
 		}
@@ -707,18 +737,22 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		ppmfc::CString damagedAnimkey = animkey + "Damaged";
 		if (auto ppStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
+			ppmfc::CString str = *ppStr;
+			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*ppStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
 			}
 		}
 		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
+			ppmfc::CString str = *ppStr;
+			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*ppStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*ppStr, "Image", *ppStr), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
 			}
 		}
 	};
@@ -756,7 +790,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 	
 	ppmfc::CString FileName = ImageID + ".shp";
 	int nMix = this->SearchFile(FileName);
-	if (CMixFile::HasFile(FileName, nMix))
+	if (CLoading::HasFile(FileName, nMix))
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers;
@@ -781,7 +815,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID)
 	ppmfc::CString ImageID = GetTerrainOrSmudgeFileID(ID);
 	ppmfc::CString FileName = ImageID + this->GetFileExtension();
 	int nMix = this->SearchFile(FileName);
-	if (CMixFile::HasFile(FileName, nMix))
+	if (CLoading::HasFile(FileName, nMix))
 	{
 		ShapeHeader header;
 		unsigned char* FramesBuffers[1];
@@ -963,7 +997,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 		ppmfc::CString FileName = ImageID + ".shp";
 		int nMix = this->SearchFile(FileName);
-		if (CMixFile::HasFile(FileName, nMix))
+		if (CLoading::HasFile(FileName, nMix))
 		{
 			ShapeHeader header;
 			unsigned char* FramesBuffers[2];

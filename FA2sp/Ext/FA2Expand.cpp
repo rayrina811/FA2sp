@@ -62,14 +62,14 @@ void __stdcall FA2Expand::ExeRun()
     CPropertyInfantryExt::ProgramStartupInit();
     CPropertyUnitExt::ProgramStartupInit();
     CTileSetBrowserFrameExt::ProgramStartupInit();
-    CTriggerFrameExt::ProgramStartupInit();
-    CTriggerOptionExt::ProgramStartupInit();
-    CTriggerEventExt::ProgramStartupInit();
-    CTriggerActionExt::ProgramStartupInit();
-    CTaskForceExt::ProgramStartupInit();
-    CScriptTypesExt::ProgramStartupInit();
+    //CTriggerFrameExt::ProgramStartupInit();
+    //CTriggerOptionExt::ProgramStartupInit();
+    //CTriggerEventExt::ProgramStartupInit();
+    //CTriggerActionExt::ProgramStartupInit();
+    //CTaskForceExt::ProgramStartupInit();
+    //CScriptTypesExt::ProgramStartupInit();
     CSingleplayerSettingsExt::ProgramStartupInit();
-    CTeamTypesExt::ProgramStartupInit();
+    //CTeamTypesExt::ProgramStartupInit();
 }
 
 FA2Expand::FA2Expand()

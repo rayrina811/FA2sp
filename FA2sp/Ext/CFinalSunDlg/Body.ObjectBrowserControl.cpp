@@ -11,23 +11,85 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include <CTileTypeClass.h>
+#include <CLoading.h>
+#include "../CTileSetBrowserFrame/Body.h"
+#include "../CMapData/Body.h"
+#include "../../Miscs/MultiSelection.h"
+#include "../../ExtraWindow/CTileManager/CTileManager.h"
+
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
 std::set<ppmfc::CString> CViewObjectsExt::IgnoreSet;
 std::set<ppmfc::CString> CViewObjectsExt::ForceName;
+std::map<ppmfc::CString, ppmfc::CString> CViewObjectsExt::RenameString;
 std::set<ppmfc::CString> CViewObjectsExt::ExtSets[Set_Count];
-std::map<ppmfc::CString, int> CViewObjectsExt::KnownItem;
+std::map<ppmfc::CString, int[10]> CViewObjectsExt::KnownItem;
 std::map<ppmfc::CString, int> CViewObjectsExt::Owners;
+std::set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
+
 
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
 std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
 std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlg;
 std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlg;
+
+std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBF;
+std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlgF;
+std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
+std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
+std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
+
+MapCoord CViewObjectsExt::CliffConnectionCoord;
+std::vector<MapCoord> CViewObjectsExt::CliffConnectionCoordRecords;
+int CViewObjectsExt::CliffConnectionTile;
+int CViewObjectsExt::CliffConnectionHeight;
+int CViewObjectsExt::CliffConnectionHeightAdjust;
+std::vector<ConnectedTileSet> CViewObjectsExt::ConnectedTileSets;
+ConnectedTiles CViewObjectsExt::LastPlacedCT;
+std::vector<ConnectedTiles> CViewObjectsExt::LastPlacedCTRecords;
+ConnectedTiles CViewObjectsExt::ThisPlacedCT;
+int CViewObjectsExt::LastCTTile;
+int CViewObjectsExt::LastSuccessfulIndex;
+int CViewObjectsExt::NextCTHeightOffset;
+bool CViewObjectsExt::LastSuccessfulOpposite;
+bool CViewObjectsExt::IsUsingTXCliff = false;
+bool CViewObjectsExt::HeightChanged;
+bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
+std::vector<int> CViewObjectsExt::LastCTTileRecords;
+std::vector<int> CViewObjectsExt::LastHeightRecords;
+//CINI CViewObjectsExt::ConnectedTileDrawer;
+
+bool CViewObjectsExt::RockOverlays[256];
 bool CViewObjectsExt::BuildingBrushBools[14];
 bool CViewObjectsExt::InfantryBrushBools[10];
 bool CViewObjectsExt::VehicleBrushBools[11];
 bool CViewObjectsExt::AircraftBrushBools[9];
+
+bool CViewObjectsExt::BuildingBrushBoolsBF[14];
+bool CViewObjectsExt::InfantryBrushBoolsF[10];
+bool CViewObjectsExt::VehicleBrushBoolsF[11];
+bool CViewObjectsExt::AircraftBrushBoolsF[9];
+bool CViewObjectsExt::BuildingBrushBoolsBNF[14];
+
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterB;
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterA;
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterI;
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterV;
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterBN;
+std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterCT;
+
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
+int CViewObjectsExt::PlacingWall;
+int CViewObjectsExt::PlacingRandomRock;
+int CViewObjectsExt::PlacingRandomSmudge;
+int CViewObjectsExt::PlacingRandomTerrain;
+int CViewObjectsExt::PlacingRandomInfantry;
+int CViewObjectsExt::PlacingRandomVehicle;
+int CViewObjectsExt::PlacingRandomStructure;
+int CViewObjectsExt::PlacingRandomAircraft;
+bool CViewObjectsExt::PlacingRandomRandomFacing;
+bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
+
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
@@ -57,11 +119,30 @@ ppmfc::CString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneL
 
     if (ForceName.find(pRegName) != ForceName.end())
         buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
+    else if (RenameString.find(pRegName) != RenameString.end())
+        buffer = RenameString[pRegName];
     else
         buffer = CMapData::GetUIName(pRegName);
 
+    if (buffer == "MISSING")
+        buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
+
     int idx = buffer.Find('\n');
     return idx == -1 ? buffer : buffer.Mid(0, idx);
+}
+
+std::vector<int> SplitCommaIntArray(ppmfc::CString input)
+{
+    CString field;
+    std::vector<int> result;
+    int index = 0;
+
+    while (AfxExtractSubString(field, input, index, _T(',')))
+    {
+        result.push_back(STDHelpers::ParseToInt(field, -1));
+        ++index;
+    }
+    return result;
 }
 
 void CViewObjectsExt::Redraw()
@@ -83,15 +164,47 @@ void CViewObjectsExt::Redraw()
     Redraw_Tunnel();
     Redraw_PlayerLocation(); // player location is just waypoints!
     Redraw_PropertyBrush();
+    //Redraw_InfantrySubCell(); // we do not need this any more!
+    Redraw_ViewObjectInfo();
+    Redraw_MultiSelection();
+    Redraw_ConnectedTile();
 }
 
 void CViewObjectsExt::Redraw_Initialize()
 {
+    // must be here to load after tile view refresh
+    if (CTerrainGenerator::GetHandle())
+    {
+        ::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
+    }
+    if (CTileManager::GetHandle())
+    {
+        ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
+    }
+
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Rules());
+    mmh.AddINI(&CINI::CurrentDocument());
+
+    int index = 0;
+    if (auto pSection = CINI::Rules().GetSection("OverlayTypes"))
+    {
+    	for (auto& ol : pSection->GetEntities())
+    	{
+    	    if (mmh.GetString(ol.second, "Land", "") == "Rock" && index < 256)
+                CViewObjectsExt::RockOverlays[index] = true;
+            else
+                CViewObjectsExt::RockOverlays[index] = false;
+    		index++;
+    	}
+    }
+
     for (auto root : ExtNodes)
         root = NULL;
     KnownItem.clear();
     IgnoreSet.clear();
     ForceName.clear();
+    RenameString.clear();
     Owners.clear();
     this->GetTreeCtrl().DeleteAllItems();
 
@@ -128,12 +241,27 @@ void CViewObjectsExt::Redraw_Initialize()
     {
         for (auto& item : knownSection->GetEntities())
         {
-            int sideIndex = STDHelpers::ParseToInt(item.second, -1);
-            if (sideIndex >= fadata.GetKeyCount("Sides"))
-                continue;
-            if (sideIndex < -1)
-                sideIndex = -1;
-            KnownItem[item.first] = sideIndex;
+            
+            auto forceSides = SplitCommaIntArray(item.second);
+
+            for (int i = 0; i < 9; ++i) {
+                if (i < forceSides.size())
+                {
+                    int sideIndex = forceSides[i];
+                    if (sideIndex >= fadata.GetKeyCount("Sides"))
+                        sideIndex = -1;
+                    if (sideIndex < -1)
+                        sideIndex = -1;
+                    KnownItem[item.first][i] = sideIndex;
+                }
+                else
+                {
+                    KnownItem[item.first][i] = -1;
+                }
+
+            }
+
+           
         }
     }
 
@@ -145,6 +273,18 @@ void CViewObjectsExt::Redraw_Initialize()
             IgnoreSet.insert(tmp);
         }
 
+    auto theaterIg = doc.GetString("Map", "Theater");
+    if (theaterIg != "")
+	{
+		if (theaterIg == "NEWURBAN")
+			theaterIg = "UBN";
+
+        ppmfc::CString suffix = theaterIg.Mid(0, 3);
+		if (auto theater_ignores = fadata.GetSection((ppmfc::CString)("IgnoreRA2" + suffix)))
+			for (auto& item : theater_ignores->GetEntities())
+				IgnoreSet.insert(item.second);
+	}
+
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
         {
@@ -153,6 +293,32 @@ void CViewObjectsExt::Redraw_Initialize()
             ForceName.insert(tmp);
         }
 
+    if (auto forcenames = fadata.GetSection("RenameString"))
+        for (auto& item : forcenames->GetEntities())
+        {
+            ppmfc::CString tmp1 = item.first;
+            tmp1.Trim();
+            ppmfc::CString tmp2 = item.second;
+            tmp2.Trim();
+            RenameString[tmp1] = tmp2;
+        }
+    if (theaterIg != "")
+    {
+        if (theaterIg == "NEWURBAN")
+            theaterIg = "UBN";
+
+        ppmfc::CString suffix = theaterIg.Mid(0, 3);
+
+        if (auto forcenames = fadata.GetSection((ppmfc::CString)("RenameString" + suffix)))
+            for (auto& item : forcenames->GetEntities())
+            {
+                ppmfc::CString tmp1 = item.first;
+                tmp1.Trim();
+                ppmfc::CString tmp2 = item.second;
+                tmp2.Trim();
+                RenameString[tmp1] = tmp2;
+            }
+    }
 }
 
 void CViewObjectsExt::Redraw_MainList()
@@ -173,7 +339,13 @@ void CViewObjectsExt::Redraw_MainList()
     ExtNodes[Root_Tunnel] = this->InsertTranslatedString("TunnelObList", 9);
     ExtNodes[Root_PlayerLocation] = this->InsertTranslatedString("StartpointsObList", 12);
     ExtNodes[Root_PropertyBrush] = this->InsertTranslatedString("PropertyBrushObList", 14);
+    //ExtNodes[Root_InfantrySubCell] = this->InsertTranslatedString("InfantrySubCellObList", 15);
+    ExtNodes[Root_View] = this->InsertTranslatedString("ViewObjObList", 16);
+    if (ExtConfigs::EnableMultiSelection)
+    ExtNodes[Root_MultiSelection] = this->InsertTranslatedString("MultiSelectionObjObList", 17);
+    ExtNodes[Root_Cliff] = this->InsertTranslatedString("CliffObjObList", 18);
     ExtNodes[Root_Delete] = this->InsertTranslatedString("DelObjObList", 10);
+    
 }
 
 void CViewObjectsExt::Redraw_Ground()
@@ -191,11 +363,23 @@ void CViewObjectsExt::Redraw_Ground()
         suffix = theater.Mid(0, 3);
 
     this->InsertTranslatedString("GroundClearObList" + suffix, 61, hGround);
-    this->InsertTranslatedString("GroundSandObList"  + suffix, 62, hGround);
-    this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
+    if (suffix != "LUN")
+        this->InsertTranslatedString("GroundSandObList" + suffix, 62, hGround);
+    //else if (suffix == "LUN" )
+    //    this->InsertTranslatedString("GroundSandObList", 62, hGround);
+
+    if (suffix != "URB")
+        this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
     this->InsertTranslatedString("GroundGreenObList" + suffix, 65, hGround);
-    this->InsertTranslatedString("GroundPaveObList"  + suffix, 66, hGround);
-    this->InsertTranslatedString("GroundWaterObList", 64, hGround);
+    if (suffix != "UBN")
+        this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
+    //else if (suffix == "UBN")
+    //    this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
+    
+    if (suffix != "LUN")
+        this->InsertTranslatedString("GroundWaterObList", 64, hGround);
+    else if (suffix == "LUN" && ExtConfigs::LoadLunarWater)
+        this->InsertTranslatedString("GroundWaterObList", 64, hGround);
 
     if (CINI::CurrentTheater)
     {
@@ -211,7 +395,50 @@ void CViewObjectsExt::Redraw_Ground()
                 return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
             };
 
-            InsertTile(morphables.Morphable);
+            ppmfc::CString buffer;
+            buffer.Format("TileSet%04d", morphables.Morphable);
+            ppmfc::CString buffer2;
+            buffer2.Format("TileSet%04d", morphables.Ramp);
+            auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+            auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+            auto exist3 = CINI::CurrentTheater->GetString(buffer2, "FileName", "");
+            //Logger::Raw("TEST: (%s)\n", exist3);
+            if (exist && strcmp(exist2, "") != 0 && strcmp(exist3, "") != 0)
+                InsertTile(morphables.Morphable);
+            else
+                i++;
+        }
+        for (auto& morphables : TheaterInfo::CurrentInfoNonMorphable)
+        {
+            bool met = false;
+            for (auto& morphables2 : TheaterInfo::CurrentInfo)
+            {
+                if (morphables.Morphable == morphables2.Morphable)
+                    met = true;
+            }
+            if (met)
+                continue;
+            auto InsertTile = [&](int nTileset)
+                {
+                    FA2sp::Buffer.Format("TileSet%04d", nTileset);
+                    FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
+                    ppmfc::CString buffer;
+                    Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
+                    return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
+                };
+
+            ppmfc::CString buffer;
+            buffer.Format("TileSet%04d", morphables.Morphable);
+            ppmfc::CString buffer2;
+            buffer2.Format("TileSet%04d", morphables.Ramp);
+            auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+            auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+            auto exist3 = CINI::CurrentTheater->GetString(buffer2, "FileName", "");
+            //Logger::Raw("TEST: (%s)\n", exist3);
+            if (exist && strcmp(exist2, "") != 0 && strcmp(exist3, "") != 0)
+                InsertTile(morphables.Morphable);
+            else
+                i++;
         }
     }
 }
@@ -221,6 +448,10 @@ void CViewObjectsExt::Redraw_Owner()
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
 
+    auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+    ppmfc::CString translated;
+
+
     if (ExtConfigs::ObjectBrowser_SafeHouses)
     {
         if (CMapData::Instance->IsMultiOnly())
@@ -229,13 +460,48 @@ void CViewObjectsExt::Redraw_Owner()
             auto itr = section.begin();
             for (size_t i = 0, sz = section.size(); i < sz; ++i, ++itr)
                 if (strcmp(itr->second, "Neutral") == 0 || strcmp(itr->second, "Special") == 0)
-                    this->InsertString(itr->second, Const_House + i, hOwner);
+                {
+                    ppmfc::CString uiname = itr->second;
+
+                    if (!ExtConfigs::NoHouseNameTranslation)
+                    for (auto& pair : countries)
+                    {
+                        if (ExtConfigs::BetterHouseNameTranslation)
+                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                        else
+                            translated = CMapData::GetUIName(pair.second);
+
+                        uiname.Replace(pair.second, translated);
+                    }
+                    this->InsertString(uiname, Const_House + i, hOwner);
+                }
+                    
         }
         else
         {
-            auto&& section = Variables::Rules.ParseIndicies("Houses", true);
-            for (size_t i = 0, sz = section.size(); i < sz; ++i)
-                this->InsertString(section[i], Const_House + i, hOwner);
+            if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+            {
+                auto& section = pSection->GetEntities();
+                size_t i = 0;
+                for (auto& itr : section)
+                {
+                    ppmfc::CString uiname = itr.second;
+
+                    if (!ExtConfigs::NoHouseNameTranslation)
+                    for (auto& pair : countries)
+                    {
+                        if (ExtConfigs::BetterHouseNameTranslation)
+                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                        else
+                            translated = CMapData::GetUIName(pair.second);
+
+                        uiname.Replace(pair.second, translated);
+                    }
+                    this->InsertString(uiname, Const_House + i, hOwner);
+                    i++;
+                }
+                    
+            }    
         }
     }
     else
@@ -247,7 +513,22 @@ void CViewObjectsExt::Redraw_Owner()
                 auto& section = pSection->GetEntities();
                 size_t i = 0;
                 for (auto& itr : section)
-                    this->InsertString(itr.second, Const_House + i++, hOwner);
+                {
+                    ppmfc::CString uiname = itr.second;
+
+                    if (!ExtConfigs::NoHouseNameTranslation)
+                    for (auto& pair : countries)
+                    {
+                        if (ExtConfigs::BetterHouseNameTranslation)
+                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                        else
+                            translated = CMapData::GetUIName(pair.second);
+
+                        uiname.Replace(pair.second, translated);
+                    }
+                    this->InsertString(uiname, Const_House + i, hOwner);
+                    i++;
+                }
             }
         }
         else
@@ -257,14 +538,37 @@ void CViewObjectsExt::Redraw_Owner()
                 auto& section = pSection->GetEntities();
                 size_t i = 0;
                 for (auto& itr : section)
-                    this->InsertString(itr.second, Const_House + i++, hOwner);
+                {
+                    ppmfc::CString uiname = itr.second;
+
+                    if (!ExtConfigs::NoHouseNameTranslation)
+                    for (auto& pair : countries)
+                    {
+                        if (ExtConfigs::BetterHouseNameTranslation)
+                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                        else
+                            translated = CMapData::GetUIName(pair.second);
+
+                        uiname.Replace(pair.second, translated);
+                    }
+                    this->InsertString(uiname, Const_House + i, hOwner);
+                    i++;
+                }
             }
         }
     }
 }
 
+std::vector<int> GetUnique(std::vector<int> input) {
+    std::sort(input.begin(), input.end());
+    auto last = std::unique(input.begin(), input.end());
+    input.erase(last, input.end());
+    return input;
+}
+
 void CViewObjectsExt::Redraw_Infantry()
 {
+    AddOnceSet.clear();
     HTREEITEM& hInfantry = ExtNodes[Root_Infantry];
     if (hInfantry == NULL)   return;
 
@@ -287,21 +591,65 @@ void CViewObjectsExt::Redraw_Infantry()
     auto&& infantries = Variables::Rules.GetSection("InfantryTypes");
     for (auto& inf : infantries)
     {
+        if (AddOnceSet.find(inf.second) != AddOnceSet.end())
+            continue;
+        AddOnceSet.insert(inf.second);
+
         if (IgnoreSet.find(inf.second) != IgnoreSet.end())
             continue;
         int index = STDHelpers::ParseToInt(inf.first, -1);
         if (index == -1)   continue;
-        int side = GuessSide(inf.second, Set_Infantry);
-        if (subNodes.find(side) == subNodes.end())
-            side = -1;
-        this->InsertString(
-            QueryUIName(inf.second) + " (" + inf.second + ")",
-            Const_Infantry + index,
-            subNodes[side]
-        );
+
+        auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
+        if (!sides.empty())
+        {
+            if (sides.size() == 1 && sides[0] == -1)
+            {
+                this->InsertString(
+                    QueryUIName(inf.second) + " (" + inf.second + ")",
+                    Const_Infantry + index,
+                    subNodes[-1]
+                );
+            }
+            else
+            {
+                for (int side : sides) {
+                    if (subNodes.find(side) == subNodes.end())
+                        side = -1;
+                    if (side == -1) continue;
+                    this->InsertString(
+                        QueryUIName(inf.second) + " (" + inf.second + ")",
+                        Const_Infantry + index,
+                        subNodes[side]
+                    );
+                }
+            }   
+        }
+
+    }
+    
+    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomInfantryObList", -1, hInfantry);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
+    {
+        int index = RandomTechno;
+        for (auto& pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Infantry + index, hTemp);
+                index++;
+            }
+        }
     }
 
-    // Clear up
+    // Clean up
     if (ExtConfigs::ObjectBrowser_CleanUp)
     {
         for (auto& subnode : subNodes)
@@ -314,6 +662,7 @@ void CViewObjectsExt::Redraw_Infantry()
 
 void CViewObjectsExt::Redraw_Vehicle()
 {
+    AddOnceSet.clear();
     HTREEITEM& hVehicle = ExtNodes[Root_Vehicle];
     if (hVehicle == NULL)   return;
 
@@ -336,18 +685,61 @@ void CViewObjectsExt::Redraw_Vehicle()
     auto&& vehicles = Variables::Rules.GetSection("VehicleTypes");
     for (auto& veh : vehicles)
     {
+        if (AddOnceSet.find(veh.second) != AddOnceSet.end())
+            continue;
+        AddOnceSet.insert(veh.second);
+
         if (IgnoreSet.find(veh.second) != IgnoreSet.end())
             continue;
         int index = STDHelpers::ParseToInt(veh.first, -1);
         if (index == -1)   continue;
-        int side = GuessSide(veh.second, Set_Vehicle);
-        if (subNodes.find(side) == subNodes.end())
-            side = -1;
-        this->InsertString(
-            QueryUIName(veh.second) + " (" + veh.second + ")",
-            Const_Vehicle + index,
-            subNodes[side]
-        );
+
+        auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
+        if (!sides.empty())
+        {
+            if (sides.size() == 1 && sides[0] == -1)
+            {
+                this->InsertString(
+                    QueryUIName(veh.second) + " (" + veh.second + ")",
+                    Const_Vehicle + index,
+                    subNodes[-1]
+                );
+            }
+            else
+            {
+                for (int side : sides) {
+                    if (subNodes.find(side) == subNodes.end())
+                        side = -1;
+                    if (side == -1) continue;
+                    this->InsertString(
+                        QueryUIName(veh.second) + " (" + veh.second + ")",
+                        Const_Vehicle + index,
+                        subNodes[side]
+                    );
+                }
+            }   
+        }
+    }
+
+    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomVehicleObList", -1, hVehicle);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
+    {
+        int index = RandomTechno;
+        for (auto& pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Vehicle + index, hTemp);
+                index++;
+            }
+        }
     }
 
     // Clear up
@@ -363,6 +755,7 @@ void CViewObjectsExt::Redraw_Vehicle()
 
 void CViewObjectsExt::Redraw_Aircraft()
 {
+    AddOnceSet.clear();
     HTREEITEM& hAircraft = ExtNodes[Root_Aircraft];
     if (hAircraft == NULL)   return;
 
@@ -386,18 +779,61 @@ void CViewObjectsExt::Redraw_Aircraft()
     auto&& aircrafts = Variables::Rules.GetSection("AircraftTypes");
     for (auto& air : aircrafts)
     {
+        if (AddOnceSet.find(air.second) != AddOnceSet.end())
+            continue;
+        AddOnceSet.insert(air.second);
+
+
         if (IgnoreSet.find(air.second) != IgnoreSet.end())
             continue;
         int index = STDHelpers::ParseToInt(air.first, -1);
         if (index == -1)   continue;
-        int side = GuessSide(air.second, Set_Aircraft);
-        if (subNodes.find(side) == subNodes.end())
-            side = -1;
-        this->InsertString(
-            QueryUIName(air.second) + " (" + air.second + ")",
-            Const_Aircraft + index,
-            subNodes[side]
-        );
+        
+        auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
+        if (!sides.empty())
+        {
+            if (sides.size() == 1 && sides[0] == -1)
+            {
+                this->InsertString(
+                    QueryUIName(air.second) + " (" + air.second + ")",
+                    Const_Aircraft + index,
+                    subNodes[-1]
+                );
+            }
+            else
+            {
+                for (int side : sides) {
+                    if (subNodes.find(side) == subNodes.end())
+                        side = -1;
+                    if (side == -1) continue;
+                    this->InsertString(
+                        QueryUIName(air.second) + " (" + air.second + ")",
+                        Const_Aircraft + index,
+                        subNodes[side]
+                    );
+                }
+            }   
+        }
+    }
+    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
+    {
+        int index = RandomTechno;
+        for (auto& pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Aircraft + index, hTemp);
+                index++;
+            }
+        }
     }
 
     // Clear up
@@ -413,6 +849,7 @@ void CViewObjectsExt::Redraw_Aircraft()
 
 void CViewObjectsExt::Redraw_Building()
 {
+    AddOnceSet.clear();
     HTREEITEM& hBuilding = ExtNodes[Root_Building];
     if (hBuilding == NULL)   return;
 
@@ -420,6 +857,8 @@ void CViewObjectsExt::Redraw_Building()
 
     auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
+    auto& art = CINI::Art();
+    auto& doc = CINI::CurrentDocument();
 
     int i = 0;
     if (auto sides = fadata.GetSection("Sides"))
@@ -436,18 +875,99 @@ void CViewObjectsExt::Redraw_Building()
     auto&& buildings = Variables::Rules.GetSection("BuildingTypes");
     for (auto& bud : buildings)
     {
+        if (AddOnceSet.find(bud.second) != AddOnceSet.end())
+            continue;
+        AddOnceSet.insert(bud.second);
+
         if (IgnoreSet.find(bud.second) != IgnoreSet.end())
             continue;
         int index = STDHelpers::ParseToInt(bud.first, -1);
         if (index == -1)   continue;
-        int side = GuessSide(bud.second, Set_Building);
-        if (subNodes.find(side) == subNodes.end())
-            side = -1;
-        this->InsertString(
-            QueryUIName(bud.second) + " (" + bud.second + ")",
-            Const_Building + index,
-            subNodes[side]
-        );
+
+        auto sides = GetUnique(GuessSide(bud.second, Set_Building));
+        if (!sides.empty())
+        {
+            if (sides.size() == 1 && sides[0] == -1)
+            {
+                this->InsertString(
+                    QueryUIName(bud.second) + " (" + bud.second + ")",
+                    Const_Building + index,
+                    subNodes[-1]
+                );
+            }
+            else
+            {
+                for (int side : sides) {
+                    if (subNodes.find(side) == subNodes.end())
+                        side = -1;
+                    if (side == -1) continue;
+                    this->InsertString(
+                        QueryUIName(bud.second) + " (" + bud.second + ")",
+                        Const_Building + index,
+                        subNodes[side]
+                    );
+                }
+            }
+        }
+#ifdef false
+        if (ExtConfigs::ObjectBrowser_Foundation)
+        {
+            auto image = rules.GetString(bud.second, "Image", bud.second);
+            image = doc.GetString(bud.second, "Image", image);
+            std::string foundation = std::string(art.GetString(image, "Foundation", "1X1"));
+            if (foundation == "")
+                foundation = "1x1";
+            std::transform(foundation.begin(), foundation.end(), foundation.begin(), (int(*)(int))tolower);
+
+
+            if (foundation == "custom")
+            {
+                std::string x = std::string(art.GetString(image, "Foundation.X", "5"));
+                std::string y = std::string(art.GetString(image, "Foundation.Y", "5"));
+                foundation = x + "x" + y;
+            }
+
+            if (auto sides = fadata.GetSection("Sides"))
+            {
+                int k = 0;
+                for (auto& itr : sides->GetEntities())
+                {
+                    if (std::string(itr.second) == foundation + "建筑")
+                    {
+                        this->InsertString(
+                            QueryUIName(bud.second) + " (" + bud.second + ")",
+                            Const_Building + index,
+                            subNodes[k]
+                        );
+                        break;
+                    }
+                    k++;
+                }
+            }
+        }
+#endif // false
+
+    }
+
+    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomBuildingObList", -1, hBuilding);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
+    {
+        int index = RandomTechno;
+        for (auto& pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Building + index, hTemp);
+                index++;
+            }
+        }
     }
 
     // Clear up
@@ -507,6 +1027,29 @@ void CViewObjectsExt::Redraw_Terrain()
     }
 
     this->InsertTranslatedString("RndTreeObList", 50999, hTerrain);
+
+
+    HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomTreeObList", -1, hTerrain);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
+    {
+        int index = RandomTree;
+        for (auto pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Terrain + index, hTemp);
+                index++;
+            }
+        }
+    }
+
 }
 
 void CViewObjectsExt::Redraw_Smudge()
@@ -531,6 +1074,29 @@ void CViewObjectsExt::Redraw_Smudge()
             nodes.push_back(std::make_pair(this->InsertTranslatedString(translation, -1, hSmudge), contains));
         }
     }
+
+    HTREEITEM hRandomSmudge = this->InsertTranslatedString("PlaceRandomSmudgeList", -1, hSmudge);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
+    {
+        int index = random1x1crater;
+        for (auto pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Smudge + index, hRandomSmudge);
+                index++;
+            }
+        }
+    }
+
+
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
 
     auto&& smudges = Variables::Rules.ParseIndicies("SmudgeTypes", true);
@@ -551,6 +1117,7 @@ void CViewObjectsExt::Redraw_Smudge()
                 this->InsertString(smudges[i], Const_Smudge + i, hOther);
         }
     }
+
 }
 
 void CViewObjectsExt::Redraw_Overlay()
@@ -578,7 +1145,7 @@ void CViewObjectsExt::Redraw_Overlay()
     this->InsertTranslatedString("SmallConcreteBridgeObList", 60503, hTemp);
 
     // Walls
-    HTREEITEM hWalls = this->InsertTranslatedString("OthObList", -1, hOverlay);
+    HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
 
     hTemp = this->InsertTranslatedString("AllObList", -1, hOverlay);
 
@@ -590,24 +1157,68 @@ void CViewObjectsExt::Redraw_Overlay()
 
     // a rough support for tracks
     this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
+
+
     
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules());
     auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
+    int indexWall = Wall;
     for (size_t i = 0, sz = std::min<unsigned int>(overlays.size(), 255); i < sz; ++i)
     {
         CString buffer;
         buffer = QueryUIName(overlays[i]);
         buffer += " (" + overlays[i] + ")";
         if (rules.GetBool(overlays[i], "Wall"))
-            this->InsertString(
+        {
+            int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels");
+            auto thisWall = this->InsertString(
                 QueryUIName(overlays[i]),
-                Const_Overlay + i,
+                Const_Overlay + i * 5 + indexWall,
                 hWalls
             );
+            for (int s = 1; s < damageLevel + 1; s++)
+            {
+                ppmfc::CString damage;
+                damage.Format("WallDamageLevelDes%d", s);
+                this->InsertString(
+                    QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault(damage, damage),
+                    Const_Overlay + i * 5 + s + indexWall,
+                    thisWall
+                );
+            }
+            this->InsertString(
+                QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                Const_Overlay + i * 5 + 4 + indexWall,
+                thisWall);
+
+        }
+
         if (IgnoreSet.find(overlays[i]) == IgnoreSet.end())
             this->InsertString(buffer, Const_Overlay + i, hTemp);
     }
+
+    HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
+    if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
+    {
+        int index = RandomRock;
+        for (auto pKey : pSection->GetEntities())
+        {
+            if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+            {
+                bool add = true;
+                auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
+                if (banned.size() > 0)
+                    for (auto ban : banned)
+                        if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
+                            add = false;
+                if (add)
+                this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Overlay + index, hTemp2);
+                index++;
+            }
+        }
+    }
+
 }
 
 void CViewObjectsExt::Redraw_Waypoint()
@@ -638,6 +1249,10 @@ void CViewObjectsExt::Redraw_Basenode()
     this->InsertTranslatedString("CreateNodeNoDelObList", 40, hBasenode);
     this->InsertTranslatedString("CreateNodeDelObList", 41, hBasenode);
     this->InsertTranslatedString("DelNodeObList", 42, hBasenode);
+
+    this->InsertTranslatedString("NodeMoveUP", Const_BaseNode + MoveUp, hBasenode);
+    this->InsertTranslatedString("NodeMoveDown", Const_BaseNode + MoveDown, hBasenode);
+
 }
 
 void CViewObjectsExt::Redraw_Tunnel()
@@ -678,6 +1293,65 @@ void CViewObjectsExt::Redraw_PropertyBrush()
     this->InsertTranslatedString("PropertyBrushInfantry", Const_PropertyBrush + Set_Infantry, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushVehicle", Const_PropertyBrush + Set_Vehicle, hPropertyBrush);
     this->InsertTranslatedString("PropertyBrushAircraft", Const_PropertyBrush + Set_Aircraft, hPropertyBrush);
+}
+
+void CViewObjectsExt::Redraw_InfantrySubCell()
+{
+    HTREEITEM& hInfantrySubCell = ExtNodes[Root_InfantrySubCell];
+    if (hInfantrySubCell == NULL)    return;
+    this->InsertTranslatedString("InfantrySubCell3_1_2", Const_InfantrySubCell + i3_1_2, hInfantrySubCell);
+    this->InsertTranslatedString("InfantrySubCell3_4_2", Const_InfantrySubCell + i3_4_2, hInfantrySubCell);
+    this->InsertTranslatedString("InfantrySubCellChangeOrder", Const_InfantrySubCell + changeOrder, hInfantrySubCell);
+}
+
+void CViewObjectsExt::Redraw_ViewObjectInfo()
+{
+    HTREEITEM& hView = ExtNodes[Root_View];
+    if (hView == NULL)    return;
+
+    HTREEITEM hObjects = this->InsertTranslatedString("ViewObjectInfo", Const_ViewObjectInfo + ObjectTerrainType::Object, hView);
+
+    this->InsertTranslatedString("ViewInfantryInfo", Const_ViewObjectInfo + ObjectTerrainType::Infantry, hObjects);
+    this->InsertTranslatedString("ViewVehicleInfo", Const_ViewObjectInfo + ObjectTerrainType::Vehicle, hObjects);
+    this->InsertTranslatedString("ViewAircrafInfo", Const_ViewObjectInfo + ObjectTerrainType::Aircraft, hObjects);
+    this->InsertTranslatedString("ViewBuildingInfo", Const_ViewObjectInfo + ObjectTerrainType::Building, hObjects);
+    this->InsertTranslatedString("ViewBaseNodeInfo", Const_ViewObjectInfo + ObjectTerrainType::BaseNode, hObjects);
+
+    HTREEITEM hAllTerrain = this->InsertTranslatedString("ViewAllTerrainInfo", Const_ViewObjectInfo + ObjectTerrainType::AllTerrain, hView);
+
+    this->InsertTranslatedString("ViewTileInfo", Const_ViewObjectInfo + ObjectTerrainType::Tile, hAllTerrain);
+    this->InsertTranslatedString("ViewOverlayInfo", Const_ViewObjectInfo + ObjectTerrainType::Overlay, hAllTerrain);
+    this->InsertTranslatedString("ViewTerrainInfo", Const_ViewObjectInfo + ObjectTerrainType::Terrain, hAllTerrain);
+    this->InsertTranslatedString("ViewSmudgeInfo", Const_ViewObjectInfo + ObjectTerrainType::Smudge, hAllTerrain);
+    
+    this->InsertTranslatedString("ViewWaypointInfo", Const_ViewObjectInfo + ObjectTerrainType::Waypoints, hView);
+    this->InsertTranslatedString("ViewCelltagInfo", Const_ViewObjectInfo + ObjectTerrainType::Celltag, hView);
+    this->InsertTranslatedString("ViewHouseInfo", Const_ViewObjectInfo + ObjectTerrainType::House, hView);
+
+    HTREEITEM hRange = this->InsertTranslatedString("ViewRangeInfo", Const_ViewObjectInfo + AllRange, hView);
+
+    this->InsertTranslatedString("ViewWeaponRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::WeaponRange, hRange);
+    this->InsertTranslatedString("ViewSecondaryWeaponRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SecondaryWeaponRange, hRange);
+    this->InsertTranslatedString("ViewGuardRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::GuardRange, hRange);
+    this->InsertTranslatedString("ViewSightRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SightRange, hRange);
+    this->InsertTranslatedString("ViewGapRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::GapRange, hRange);
+    this->InsertTranslatedString("ViewSensorsRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::SensorsRange, hRange);
+    this->InsertTranslatedString("ViewCloakRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::CloakRange, hRange);
+    this->InsertTranslatedString("ViewPsychicRangeInfo", Const_ViewObjectInfo + ObjectTerrainType::PsychicRange, hRange);
+
+}
+
+void CViewObjectsExt::Redraw_MultiSelection()
+{
+    HTREEITEM& hMultiSelection = ExtNodes[Root_MultiSelection];
+    if (hMultiSelection == NULL)    return;
+
+    this->InsertTranslatedString("MultiSelectionAdd", Const_MultiSelection + Add, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionDelete", Const_MultiSelection + Delete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionBatchAdd", Const_MultiSelection + batchAdd, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionBatchDelete", Const_MultiSelection + batchDelete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
+
 }
 
 bool CViewObjectsExt::DoPropertyBrush_Building()
@@ -724,6 +1398,264 @@ bool CViewObjectsExt::DoPropertyBrush_Infantry()
     return this->InfantryBrushDlg->ppmfc::CDialog::DoModal() == IDOK;
 }
 
+std::vector<int> CViewObjectsExt::GetStructureSize(ppmfc::CString structure)
+{
+    std::vector<int> result;
+    MultimapHelper mmh;
+    mmh.AddINI(&CINI::Rules());
+    mmh.AddINI(&CINI::CurrentDocument());
+    auto art = &CINI::Art();
+    auto image = mmh.GetString(structure, "Image", structure);
+    std::string foundation = std::string(art->GetString(image, "Foundation", "1X1"));
+    if (foundation == "")
+        foundation = "1X1";
+    std::transform(foundation.begin(), foundation.end(), foundation.begin(), (int(*)(int))tolower);
+
+    if (foundation == "custom")
+    {
+        std::string x = std::string(art->GetString(image, "Foundation.X", "5"));
+        std::string y = std::string(art->GetString(image, "Foundation.Y", "5"));
+        foundation = x + "x" + y;
+    }
+    auto found = STDHelpers::SplitString(foundation.c_str(), "x");
+    result.push_back(atoi(found[0]));
+    result.push_back(atoi(found[1]));//这里不能反
+    return result;
+}
+
+void CViewObjectsExt::MoveBaseNode(int X, int Y)
+{
+    ppmfc::CString targetHouse;
+    int targetIndex = -1;
+    int exchangeIndex = -1;
+
+    auto& ini = CMapData::Instance->INI;
+    if (auto pSection = ini.GetSection("Houses"))
+    {
+        for (auto pair : pSection->GetEntities())
+        {
+            if (targetIndex > -1)
+                break;
+
+            int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
+            if (nodeCount > 0)
+            {
+                for (int i = 0; i < nodeCount; i++)
+                {
+                    if (targetIndex > -1)
+                        break;
+
+                    char key[10];
+                    sprintf(key, "%03d", i);
+                    auto value = ini.GetString(pair.second, key, "");
+                    if (value == "")
+                        continue;
+                    auto atoms = STDHelpers::SplitString(value);
+                    if (atoms.size() < 3)
+                        continue;
+
+                    auto size = CViewObjectsExt::GetStructureSize(atoms[0]);
+                    for (int w = 0; w < size[0]; w++)
+                    {
+                        if (targetIndex > -1)
+                            break;
+                        for (int h = 0; h < size[1]; h++)
+                        {
+                            if (atoi(atoms[1]) + w == Y && atoi(atoms[2]) + h == X)
+                            {
+                                targetIndex = i;
+                                targetHouse = pair.second;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (targetIndex == -1)
+        return;
+
+    if (CIsoView::CurrentCommand->Type == MoveUp)
+    {
+        exchangeIndex = targetIndex - 1;
+        char key[10];
+        sprintf(key, "%03d", exchangeIndex);
+        auto value = ini.GetString(targetHouse, key, "");
+        if (value == "")
+            return;
+    }
+    if (CIsoView::CurrentCommand->Type == MoveDown)
+    {
+        exchangeIndex = targetIndex + 1;
+        char key[10];
+        sprintf(key, "%03d", exchangeIndex);
+        auto value = ini.GetString(targetHouse, key, "");
+        if (value == "")
+            return;
+    }
+    char targetBuffer[10];
+    char exchangeBuffer[10];
+    sprintf(targetBuffer, "%03d", targetIndex);
+    sprintf(exchangeBuffer, "%03d", exchangeIndex);
+
+    auto targetValue = ini.GetString(targetHouse, targetBuffer, "");
+    auto exchangeValue = ini.GetString(targetHouse, exchangeBuffer, "");
+
+    ini.WriteString(targetHouse, targetBuffer, exchangeValue);
+    ini.WriteString(targetHouse, exchangeBuffer, targetValue);
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+
+void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
+{
+    int nIndex = CMapData::Instance->GetCoordIndex(X, Y);
+    auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+    CInfantryData data0;
+    CInfantryData data1;
+    CInfantryData data2;
+    std::vector<CInfantryData> datas;
+    std::vector<int> order;
+    data0.SubCell = "-1";
+    data1.SubCell = "-1";
+    data2.SubCell = "-1";
+    int infCount = 0;
+    if (CellData.Infantry[0] != -1)
+    {
+        CMapData::Instance->GetInfantryData(CellData.Infantry[0], data0);
+        CMapData::Instance->DeleteInfantryData(CellData.Infantry[0]);
+        infCount++;
+    }
+    if (CellData.Infantry[1] != -1)
+    {
+        CMapData::Instance->GetInfantryData(CellData.Infantry[1], data1);
+        CMapData::Instance->DeleteInfantryData(CellData.Infantry[1]);
+        infCount++;
+    }
+    if (CellData.Infantry[2] != -1)
+    {
+        CMapData::Instance->GetInfantryData(CellData.Infantry[2], data2);
+        CMapData::Instance->DeleteInfantryData(CellData.Infantry[2]);
+        infCount++;
+    }
+    datas.push_back(data0);
+    datas.push_back(data1);
+    datas.push_back(data2);
+
+    auto ApplyValue = [&]()
+        {
+            int i = 0;
+            for (int j = 0; j < 3; j++)
+            {
+                if (datas[j].SubCell == "-1")
+                    continue;
+                for (int k = 0; k < 3; k++)
+                {
+                    int subcell = atoi(datas[j].SubCell);
+                    if (subcell == 0)
+                        subcell = 1;
+                    if (CIsoView::CurrentCommand->Type == i3_1_2)
+                        if (subcell == 4)
+                            subcell = 1;
+                    if (CIsoView::CurrentCommand->Type == i3_4_2)
+                        if (subcell == 1)
+                            subcell = 4;
+                    if (order[k] == subcell)
+                    {
+                        datas[j].SubCell = std::to_string(order[k + 1]).c_str();
+                        CMapData::Instance->SetInfantryData(&datas[j], nullptr, nullptr, 0, -1);
+                        i++;
+                        break;
+                    }
+                }
+            }
+        };
+
+    if (CIsoView::CurrentCommand->Type == i3_1_2)
+    {
+        order.push_back(3);
+        order.push_back(1);
+        order.push_back(2);
+        order.push_back(3);
+        ApplyValue();
+    }
+
+    if (CIsoView::CurrentCommand->Type == i3_4_2)
+    {
+        order.push_back(3);
+        order.push_back(4);
+        order.push_back(2);
+        order.push_back(3);
+        ApplyValue();
+    }
+    if (CIsoView::CurrentCommand->Type == changeOrder)
+    {
+        int count = 0;
+        for (int j = 0; j < 3; j++)
+        {
+            if (datas[j].SubCell != "-1")
+                count++;
+        }
+        if (count == 1)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (datas[j].SubCell != "-1")
+                    CMapData::Instance->SetInfantryData(&datas[j], nullptr, nullptr, 0, -1);
+            }
+        }
+        else if (count == 2)
+        {
+            if (datas[0].SubCell == "-1")
+            {
+                auto temp = datas[1].SubCell;
+                datas[1].SubCell = datas[2].SubCell;
+                datas[2].SubCell = temp;
+
+                CMapData::Instance->SetInfantryData(&datas[1], nullptr, nullptr, 0, -1);
+                CMapData::Instance->SetInfantryData(&datas[2], nullptr, nullptr, 0, -1);
+            }
+            else if (datas[1].SubCell == "-1")
+            {
+                auto temp = datas[0].SubCell;
+                datas[0].SubCell = datas[2].SubCell;
+                datas[2].SubCell = temp;
+
+                CMapData::Instance->SetInfantryData(&datas[0], nullptr, nullptr, 0, -1);
+                CMapData::Instance->SetInfantryData(&datas[2], nullptr, nullptr, 0, -1);
+            }
+            else if (datas[2].SubCell == "-1")
+            {
+                auto temp = datas[0].SubCell;
+                datas[0].SubCell = datas[1].SubCell;
+                datas[1].SubCell = temp;
+
+                CMapData::Instance->SetInfantryData(&datas[0], nullptr, nullptr, 0, -1);
+                CMapData::Instance->SetInfantryData(&datas[1], nullptr, nullptr, 0, -1);
+            }
+        }
+        else if (count == 3)
+        {
+            auto temp = datas[1].SubCell;
+            datas[1].SubCell = datas[2].SubCell;
+            datas[2].SubCell = temp;
+
+            CMapData::Instance->SetInfantryData(&datas[0], nullptr, nullptr, 0, -1);
+            CMapData::Instance->SetInfantryData(&datas[1], nullptr, nullptr, 0, -1);
+            CMapData::Instance->SetInfantryData(&datas[2], nullptr, nullptr, 0, -1);
+        }
+
+    }
+
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+}
+
+
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
     int nIndex = CMapData::Instance->GetCoordIndex(X, Y);
@@ -761,7 +1693,7 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
     CMapData::Instance->GetBuildingData(nIndex, data);
     
     ApplyPropertyBrush_Building(data);
-
+    CMapDataExt::SkipUpdateBuildingInfo = true;
     CMapData::Instance->DeleteBuildingData(nIndex);
     CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
 
@@ -933,32 +1865,39 @@ int CViewObjectsExt::GuessType(const char* pRegName)
     return -1;
 }
 
-int CViewObjectsExt::GuessSide(const char* pRegName, int nType)
+std::vector<int> CViewObjectsExt::GuessSide(const char* pRegName, int nType)
 {
     auto&& knownIterator = KnownItem.find(pRegName);
+    std::vector<int> result(9, -1);
     if (knownIterator != KnownItem.end())
-        return knownIterator->second;
-
-    int result = -1;
+    {
+        for (int i = 0; i < 9; ++i) {
+            result[i] = (knownIterator->second[i]);
+        }
+        return result;
+    }
+        
     switch (nType)
     {
     case -1:
     default:
         break;
     case Set_Building:
-        result = GuessBuildingSide(pRegName);
+        result[0] = GuessBuildingSide(pRegName);
         break;
     case Set_Infantry:
-        result = GuessGenericSide(pRegName, Set_Infantry);
+        result[0] = GuessGenericSide(pRegName, Set_Infantry);
         break;
     case Set_Vehicle:
-        result = GuessGenericSide(pRegName, Set_Vehicle);
+        result[0] = GuessGenericSide(pRegName, Set_Vehicle);
         break;
     case Set_Aircraft:
-        result = GuessGenericSide(pRegName, Set_Aircraft);
+        result[0] = GuessGenericSide(pRegName, Set_Aircraft);
         break;
     }
-    KnownItem[pRegName] = result;
+    for (int i = 0; i < 9; ++i) {
+        KnownItem[pRegName][i] = result[i];
+    }
     return result;
 }
 
@@ -971,13 +1910,13 @@ int CViewObjectsExt::GuessBuildingSide(const char* pRegName)
     if (planning >= rules.GetKeyCount("Sides"))
         return -1;
     if (planning >= 0)
-        return planning;
+        return planning > ExtConfigs::ObjectBrowser_GuessMax ? -1 : planning;
     auto&& cons = STDHelpers::SplitString(rules.GetString("AI", "BuildConst"));
     int i;
     for (i = 0; i < cons.size(); ++i)
     {
         if (cons[i] == pRegName)
-            return i;
+            return i > ExtConfigs::ObjectBrowser_GuessMax ? -1 : i;
     }
     if (i >= rules.GetKeyCount("Sides"))
         return -1;
@@ -1003,15 +1942,15 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
             {
                 if (subprep == pRegName) // Avoid build myself crash
                     return -1;
-                guess = GuessSide(subprep, GuessType(subprep));
+                guess = GuessSide(subprep, GuessType(subprep))[0];
                 if (guess != -1)
-                    return guess;
+                    return guess > ExtConfigs::ObjectBrowser_GuessMax ? -1 : guess;
             }
             if (prep == pRegName) // Avoid build myself crash
                 return -1;
-            guess = GuessSide(prep, GuessType(prep));
+            guess = GuessSide(prep, GuessType(prep))[0];
             if (guess != -1)
-                return guess;
+                return guess > ExtConfigs::ObjectBrowser_GuessMax ? -1 : guess;
         }
         return -1;
     }
@@ -1023,7 +1962,7 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
         auto&& itr = Owners.find(owners[0]);
         if (itr == Owners.end())
             return -1;
-        return itr->second;
+        return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
     }
     }
 }
@@ -1038,9 +1977,38 @@ void CViewObjectsExt::OnExeTerminate()
     KnownItem.clear();
     Owners.clear();
 }
+void CViewObjectsExt::InitializeOnUpdateEngine()
+{
+    CViewObjectsExt::PlacingRandomRock = -1;
+    CViewObjectsExt::PlacingRandomSmudge = -1;
+    CViewObjectsExt::PlacingRandomTerrain = -1;
+    CViewObjectsExt::PlacingRandomInfantry = -1;
+    CViewObjectsExt::PlacingRandomVehicle = -1;
+    CViewObjectsExt::PlacingRandomStructure = -1;
+    CViewObjectsExt::PlacingRandomAircraft = -1;
+    CViewObjectsExt::PlacingWall = -1;
+    CViewObjectsExt::PlacingRandomRandomFacing = false;
+
+    CViewObjectsExt::CliffConnectionCoord.X = -1;
+    CViewObjectsExt::CliffConnectionCoord.Y = -1;
+    CViewObjectsExt::CliffConnectionHeight = -1;
+    CViewObjectsExt::LastCTTile = -1;
+    CViewObjectsExt::CliffConnectionCoordRecords.clear();
+    CViewObjectsExt::LastPlacedCT.Index = -1;
+    CViewObjectsExt::LastSuccessfulIndex = -1;
+    CViewObjectsExt::NextCTHeightOffset = 0;
+    CViewObjectsExt::HeightChanged = false;
+    CViewObjectsExt::LastPlacedCTRecords.clear();
+    CViewObjectsExt::LastCTTileRecords.clear();
+    CViewObjectsExt::LastHeightRecords.clear();
+    CViewObjectsExt::LastPlacedCT.HeightAdjust = 0;
+    CViewObjectsExt::CliffConnectionHeightAdjust = 0;
+}
 
 bool CViewObjectsExt::UpdateEngine(int nData)
 {
+    InitializeOnUpdateEngine();
+
     do
     {
         int nMorphable = nData - 67;
@@ -1058,11 +2026,190 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                     return true;
                 }
         }
+        else if (nMorphable >= 0 && nMorphable < (TheaterInfo::CurrentInfo.size() + TheaterInfo::CurrentInfoNonMorphable.size()))
+        {
+            int i;
+            for (i = 0; i < *CTileTypeClass::InstanceCount; ++i)
+                if ((*CTileTypeClass::Instance)[i].TileSet == TheaterInfo::CurrentInfoNonMorphable[nMorphable- TheaterInfo::CurrentInfo.size()].Morphable)
+                {
+                    CIsoView::CurrentCommand->Param = 0;
+                    CIsoView::CurrentCommand->Height = 0;
+                    CIsoView::CurrentCommand->Type = i;
+                    CIsoView::CurrentCommand->Command = FACurrentCommand::TileDraw;
+                    CBrushSize::UpdateBrushSize(i);
+                    return true;
+                }
+        }
     } while (false);
+
+    if (nData == 16) // view object info
+    {
+        CIsoView::CurrentCommand->Command = 0x1B; // view object info
+        CIsoView::CurrentCommand->Type = ObjectTerrainType::All;
+        return true;
+    }
     
 
     int nCode = nData / 10000;
     nData %= 10000;
+
+    if (nCode == 0) // main list
+    {
+        CIsoView::CurrentCommand->Command = 0x00;
+        CIsoView::CurrentCommand->Type = 0;
+
+    }
+    if (nCode == 1) // Infantry
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
+        {
+            int index = RandomTechno;
+            for (auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomInfantry = index - RandomTechno;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 2) // Building
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
+        {
+            int index = RandomTechno;
+            for (auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomStructure = index - RandomTechno;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 3) // Aircraft
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
+        {
+            int index = RandomTechno;
+            for (auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomAircraft = index - RandomTechno;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 4) // Vehicle
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
+        {
+            int index = RandomTechno;
+            for (auto& pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomVehicle = index - RandomTechno;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 5) // Terrain
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
+        {
+            int index = RandomTree;
+            for (auto pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomTerrain = index - RandomTree;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 6) // overlay
+    {
+        if (nData - 3000 - Wall >= 0)
+        {
+            CIsoView::CurrentCommand->Command = 0x1;
+            PlacingWall = nData - 3000 - Wall;
+            return true;
+
+        }
+        else if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
+        {
+            int index = RandomRock;
+            for (auto pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData - 3000 == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomRock = index - RandomRock;
+                        CFinalSunDlg::Instance->BrushSize.nCurSel = 0;
+                        CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
+                        CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeX = 1;
+                        CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeY = 1;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
+    if (nCode == 8) // Smudge
+    {
+        if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
+        {
+            int index = random1x1crater;
+            for (auto pKey : pSection->GetEntities())
+            {
+                if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
+                {
+                    if (nData == index)
+                    {
+                        CIsoView::CurrentCommand->Command = 0x1;
+                        CViewObjectsExt::PlacingRandomSmudge  = index - random1x1crater;
+                        return true;
+                    }
+                    index++;
+                }
+            }
+        }
+    }
 
     if (nCode == 9) // PropertyBrush
     {
@@ -1132,5 +2279,327 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         }
     }
 
+    if (nCode == 10) // InfantrySubCell
+    {
+        if (nData == i1_2_3)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i1_2_3;
+            return true;
+        }
+        if (nData == i1_3_2)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i1_3_2;
+            return true;
+        }
+        if (nData == i2_1_3)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i2_1_3;
+            return true;
+        }
+        if (nData == i2_3_1)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i2_3_1;
+            return true;
+        }
+        if (nData == i3_1_2)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i3_1_2;
+            return true;
+        }
+        if (nData == i3_2_1)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i3_2_1;
+            return true;
+        }
+        if (nData == i4_2_3)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i4_2_3;
+            return true;
+        }
+        if (nData == i4_3_2)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i4_3_2;
+            return true;
+        }
+        if (nData == i2_4_3)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i2_4_3;
+            return true;
+        }
+        if (nData == i2_3_4)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i2_3_4;
+            return true;
+        }
+        if (nData == i3_4_2)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i3_4_2;
+            return true;
+        }
+        if (nData == i3_2_4)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = i3_2_4;
+            return true;
+        }        
+        if (nData == changeOrder)
+        {
+
+            CIsoView::CurrentCommand->Command = 0x18; // InfantrySubCell
+            CIsoView::CurrentCommand->Type = changeOrder;
+            return true;
+        }
+    }
+
+    if (nCode == 11) // BaseNode
+    {
+        if (nData == MoveUp)
+        {
+            CIsoView::CurrentCommand->Command = 0x1A; // BaseNode
+            CIsoView::CurrentCommand->Type = MoveUp;
+
+            return true;
+        }
+        if (nData == MoveDown)
+        {
+            CIsoView::CurrentCommand->Command = 0x1A; // BaseNode
+            CIsoView::CurrentCommand->Type = MoveDown;
+            return true;
+        }
+    }
+    if (nCode == 12) // view object
+    {
+        if (nData == ObjectTerrainType::Infantry)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Infantry;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Vehicle)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Vehicle;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Aircraft)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Aircraft;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Building)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Building;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Object)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Object;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Tile)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Tile;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::BaseNode)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::BaseNode;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Terrain)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Terrain;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Smudge)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Smudge;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Celltag)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Celltag;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Overlay)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Overlay;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::Waypoints)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::Waypoints;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::AllTerrain)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::AllTerrain;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::House)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::House;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::WeaponRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::WeaponRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::SecondaryWeaponRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::SecondaryWeaponRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::GapRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::GapRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::SensorsRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::SensorsRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::CloakRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::CloakRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::PsychicRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::PsychicRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::GuardRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::GuardRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::SightRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::SightRange;
+
+            return true;
+        }
+        if (nData == ObjectTerrainType::AllRange)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::AllRange;
+
+            return true;
+        }
+    }
+    if (nCode == 13) // MultiSelection
+    {
+        if (nData == Add)
+        {
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = Add;
+
+            return true;
+        }
+        if (nData == Delete)
+        {
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = Delete;
+            return true;
+        }
+        if (nData == batchAdd)
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = batchAdd;
+            return true;
+        }
+        if (nData == batchDelete)
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = batchDelete;
+            return true;
+        }
+        if (nData == AllDelete)
+        {
+            CIsoView::CurrentCommand->Command = 0;
+            CIsoView::CurrentCommand->Type = 0;
+            MultiSelection::Clear2();
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return true;
+        }
+    }
+    if (nCode == 14) // Cliff
+    {
+        CIsoView::CurrentCommand->Command = 0x1E; // Cliff
+        CIsoView::CurrentCommand->Type = nData;
+        return true;
+    }
+    // 0x1F Terrain Generator
     return false;
 }

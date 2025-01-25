@@ -16,14 +16,31 @@
 // #include "../Source/CIsoView.h"
 
 #include "../FA2sp.h"
+#include "../Ext/CFinalSunDlg/Body.h"
+#include <Miscs/Miscs.h>
+#include "../Helpers/STDHelpers.h"
+#include "../Helpers/Translations.h"
 
 std::set<MapCoord> MultiSelection::SelectedCoords;
+std::set<MapCoord> MultiSelection::SelectedCoordsTemp;
+MapCoord MultiSelection::LastAddedCoord;
 bool MultiSelection::ShiftKeyIsDown = false;
+bool MultiSelection::IsPasting = false;
 BGRStruct MultiSelection::ColorHolder[0x1000];
 MapCoord MultiSelection::CurrentCoord;
+std::vector<CellDataExt> MultiSelection::CopiedCells;
+int MultiSelection::CopiedX;
+int MultiSelection::CopiedY;
+bool MultiSelection::AddBuildingOptimize = false;
+bool MultiSelection::SelectCellsChanged = false;
+std::map<int, int>  MultiSelection::CopiedCellsBuilding;
+
 
 bool MultiSelection::AddCoord(int X, int Y)
 {
+    if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+        return false;
+
     if (X == -1 || Y == -1)
         return false;
 
@@ -32,13 +49,26 @@ bool MultiSelection::AddCoord(int X, int Y)
     if (itr == SelectedCoords.end())
     {
         SelectedCoords.insert(itr, coords);
+
+        if (SelectedCoords.size() == 1)
+            SelectedCoordsTemp.clear();
+
+        auto itr2 = SelectedCoordsTemp.find(coords);
+        if (itr2 == SelectedCoordsTemp.end())
+        {
+          SelectedCoordsTemp.insert(itr, coords);
+        }
         return true;
     }
+
     return false;
 }
 
 bool MultiSelection::RemoveCoord(int X, int Y)
 {
+    if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+        return false;
+
     if (X == -1 || Y == -1)
         return false;
 
@@ -47,8 +77,14 @@ bool MultiSelection::RemoveCoord(int X, int Y)
     if (itr != SelectedCoords.end())
     {
         SelectedCoords.erase(itr);
+        auto itr2 = SelectedCoordsTemp.find(coords);
+        if (itr2 != SelectedCoordsTemp.end())
+        {
+            SelectedCoordsTemp.erase(itr2);
+        }
         return true;
     }
+
     return false;
 }
 
@@ -56,10 +92,34 @@ size_t MultiSelection::GetCount()
 {
     return SelectedCoords.size();
 }
+size_t MultiSelection::GetCount2()
+{
+    return SelectedCoordsTemp.size();
+}
 
 inline void MultiSelection::Clear()
 {
     SelectedCoords.clear();
+
+    MultiSelection::LastAddedCoord.X = -1;
+    MultiSelection::LastAddedCoord.Y = -1;
+}
+
+inline void MultiSelection::ClearT()
+{
+    SelectedCoordsTemp.clear();
+
+    MultiSelection::LastAddedCoord.X = -1;
+    MultiSelection::LastAddedCoord.Y = -1;
+}
+
+
+void MultiSelection::Clear2()
+{
+    SelectedCoords.clear();
+
+    MultiSelection::LastAddedCoord.X = -1;
+    MultiSelection::LastAddedCoord.Y = -1;
 }
 
 inline void MultiSelection::ReverseStatus(int X, int Y)
@@ -67,9 +127,17 @@ inline void MultiSelection::ReverseStatus(int X, int Y)
     MapCoord mapCoord{ X,Y };
     auto itr = SelectedCoords.find(mapCoord);
     if (itr == SelectedCoords.end())
+    {
         SelectedCoords.insert(mapCoord);
+        SelectedCoordsTemp.insert(mapCoord);
+    }
     else
+    {
         SelectedCoords.erase(itr);
+        SelectedCoordsTemp.erase(itr);
+    }
+        
+    MultiSelection::SelectCellsChanged = true;
 }
 
 inline bool MultiSelection::IsSelected(int X, int Y)
@@ -82,6 +150,9 @@ void MultiSelection::Copy()
     std::vector<MyClipboardData> data;
     for (const auto& coords : SelectedCoords)
     {
+        if (coords.X < 0 || coords.Y < 0 || coords.X > CMapData::Instance().MapWidthPlusHeight || coords.Y > CMapData::Instance().MapWidthPlusHeight)
+            continue;
+
         auto pCell = CMapData::Instance->GetCellAt(coords.X, coords.Y);
         MyClipboardData item = {};
         item.X = coords.X;
@@ -100,14 +171,14 @@ void MultiSelection::Copy()
     auto hGlobal = GlobalAlloc(GMEM_SHARE | GMEM_MOVEABLE, 12 + sizeof(MyClipboardData) * data.size());
     if (hGlobal == NULL)
     {
-        MessageBox(NULL, "Error", "Failed to allocate global memory!", MB_OK);
+        MessageBox(NULL, "Failed to allocate global memory!", "Error", MB_OK);
         return;
     }
 
     auto pBuffer = GlobalLock(hGlobal);
     if (pBuffer == nullptr)
     {
-        MessageBox(NULL, "Error", "Failed to lock hGlobal handle!", MB_OK);
+        MessageBox(NULL, "Failed to lock hGlobal handle!", "Error", MB_OK);
         return;
     }
     while (GlobalUnlock(hGlobal))
@@ -125,8 +196,10 @@ void MultiSelection::Copy()
     CloseClipboard();
 }
 
-void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length)
+void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, bool obj = false)
 {
+    if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+        return;
     std::span<MyClipboardData> cells {data, data + length};
     
     RECT bounds
@@ -148,13 +221,17 @@ void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data,
             bounds.bottom = cell.Y;
     }
 
-    const MapCoord center = { (bounds.left + bounds.right) / 2, (bounds.top + bounds.bottom) / 2 };
+
+    const MapCoord center = { (int)std::ceil(double(bounds.left + bounds.right) / 2.0), (int)std::ceil(double(bounds.top + bounds.bottom) / 2.0) };
 
     auto lowest_height = std::numeric_limits<unsigned char>::min();
     for (const auto& cell : cells)
     {
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
+
+        if (X + offset_x < 0 || Y + offset_y < 0 || X + offset_x > CMapData::Instance().MapWidthPlusHeight || Y + offset_y > CMapData::Instance().MapWidthPlusHeight)
+            continue;
 
         const auto pCell = CMapData::Instance->TryGetCellAt(X + offset_x, Y + offset_y);
         if (pCell->Height < lowest_height)
@@ -167,25 +244,35 @@ void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data,
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
 
+        if (X + offset_x < 0 || Y + offset_y < 0 || X + offset_x > CMapData::Instance().MapWidthPlusHeight || Y + offset_y > CMapData::Instance().MapWidthPlusHeight)
+            continue;
+
         auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
         if (nCellIndex < 0 || nCellIndex >= CMapData::Instance->CellDataCount)
             continue;
 
         auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
         
-        CMapData::Instance->DeleteTiberium(pCell->Overlay, pCell->OverlayData);
-        pCell->Overlay = cell.Overlay;
-        pCell->OverlayData = cell.OverlayData;
-        CMapData::Instance->AddTiberium(pCell->Overlay, pCell->OverlayData);
-        
-        pCell->TileIndex = cell.TileIndex;
-        pCell->TileIndexHiPart = cell.TileIndexHiPart;
-        pCell->TileSubIndex = cell.TileSubIndex;
-        
-        pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+        if (CIsoViewExt::PasteOverlays)
+        {
+            CMapData::Instance->DeleteTiberium(pCell->Overlay, pCell->OverlayData);
+            pCell->Overlay = cell.Overlay;
+            pCell->OverlayData = cell.OverlayData;
+            CMapData::Instance->AddTiberium(pCell->Overlay, pCell->OverlayData);
+        }
 
-        pCell->IceGrowth = cell.IceGrowth;
-        pCell->Flag = cell.Flag;
+        if (CIsoViewExt::PasteGround)
+        {
+            pCell->TileIndex = cell.TileIndex;
+            pCell->TileIndexHiPart = cell.TileIndexHiPart;
+            pCell->TileSubIndex = cell.TileSubIndex;
+
+            pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+
+            pCell->IceGrowth = cell.IceGrowth;
+            pCell->Flag = cell.Flag;
+
+        }
 
         CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
     }
@@ -199,17 +286,121 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
     GET_STACK(UINT, eFlags, STACK_OFFS(0x3D528, -0x4));
     REF_STACK(const CPoint, point, STACK_OFFS(0x3D528, -0x8));
 
-    if (CIsoView::CurrentCommand->Command == FACurrentCommand::Nothing)
+    if (CIsoView::CurrentCommand->Command == 0x1D && (eFlags & MK_LBUTTON))
     {
-        if (CIsoView::ControlKeyIsDown && (eFlags & MK_LBUTTON))
+        //if (CIsoView::ControlKeyIsDown && (eFlags & MK_LBUTTON))
         {
             auto coord = CIsoView::GetInstance()->GetCurrentMapCoord(point);
-            if (MultiSelection::ShiftKeyIsDown ?
-                MultiSelection::RemoveCoord(coord.X, coord.Y) :
-                MultiSelection::AddCoord(coord.X, coord.Y))
+            if (CIsoView::CurrentCommand->Type == 0)
+                if (MultiSelection::AddCoord(coord.X, coord.Y))
+                {
+                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                }
+            if (CIsoView::CurrentCommand->Type == 1)
+                if (MultiSelection::RemoveCoord(coord.X, coord.Y))
+                {
+                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                }
+            if (CIsoView::CurrentCommand->Type == 3)
+                if (1)
+                {
+                    //MultiSelection::AddCoord(coord.X, coord.Y);
+                    if (MultiSelection::LastAddedCoord.X > -1 &&
+                        MultiSelection::LastAddedCoord.X != coord.X &&
+                        MultiSelection::LastAddedCoord.Y != coord.Y
+                        )
+                    {
+                        int x1, x2, y1, y2;
+
+                        if (MultiSelection::LastAddedCoord.X < coord.X)
+                        {
+                            x1 = MultiSelection::LastAddedCoord.X;
+                            x2 = coord.X;
+                        }
+                        else
+                        {
+                            x1 = coord.X;
+                            x2 = MultiSelection::LastAddedCoord.X;
+                        }
+                        if (MultiSelection::LastAddedCoord.Y < coord.Y)
+                        {
+                            y1 = MultiSelection::LastAddedCoord.Y;
+                            y2 = coord.Y;
+                        }
+                        else
+                        {
+                            y1 = coord.Y;
+                            y2 = MultiSelection::LastAddedCoord.Y;
+                        }
+
+                        for (int i = x1; i <= x2; i++)
+                        {
+                            for (int j = y1; j <= y2; j++)
+                            {
+                                MultiSelection::AddCoord(i, j);
+                            }
+                        }
+
+                        MultiSelection::LastAddedCoord.X = -1;
+                        MultiSelection::LastAddedCoord.Y = -1;
+                    }
+                    else
+                        MultiSelection::LastAddedCoord = coord;
+                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                }
+            if (CIsoView::CurrentCommand->Type == 4)
+                if (1)
+                {
+                    MultiSelection::RemoveCoord(coord.X, coord.Y);
+                    if (MultiSelection::LastAddedCoord.X > -1 &&
+                        MultiSelection::LastAddedCoord.X != coord.X &&
+                        MultiSelection::LastAddedCoord.Y != coord.Y
+                        )
+                    {
+                        int x1, x2, y1, y2;
+
+                        if (MultiSelection::LastAddedCoord.X < coord.X)
+                        {
+                            x1 = MultiSelection::LastAddedCoord.X;
+                            x2 = coord.X;
+                        }
+                        else
+                        {
+                            x1 = coord.X;
+                            x2 = MultiSelection::LastAddedCoord.X;
+                        }
+                        if (MultiSelection::LastAddedCoord.Y < coord.Y)
+                        {
+                            y1 = MultiSelection::LastAddedCoord.Y;
+                            y2 = coord.Y;
+                        }
+                        else
+                        {
+                            y1 = coord.Y;
+                            y2 = MultiSelection::LastAddedCoord.Y;
+                        }
+
+                        for (int i = x1; i <= x2; i++)
+                        {
+                            for (int j = y1; j <= y2; j++)
+                            {
+                                MultiSelection::RemoveCoord(i, j);
+                            }
+                        }
+
+                        MultiSelection::LastAddedCoord.X = -1;
+                        MultiSelection::LastAddedCoord.Y = -1;
+                    }
+                    else
+                        MultiSelection::LastAddedCoord = coord;
+                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                }
+            if (CIsoView::CurrentCommand->Type == 2)
             {
+                MultiSelection::Clear();
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
+                
             return 0x456EB6;
         }
     }
@@ -227,20 +418,10 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 
     if (nChar == 'D')
     {
-        if (ExtConfigs::MultiSelectionShiftDeselect)
-        {
-            if (CIsoView::ControlKeyIsDown && MultiSelection::ShiftKeyIsDown)
-                MultiSelection::Clear();
-            else
-                CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
-        }
-        else
-        {
-            if (CIsoView::ControlKeyIsDown)
-                MultiSelection::Clear();
-            else
-                CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
-        }
+        if (CIsoView::ControlKeyIsDown)
+			MultiSelection::Clear();
+		else
+			CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
 
         pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
@@ -315,11 +496,11 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
         for (int i = 0; i < nCount; ++i)
         {
             MultiSelection::ColorHolder[i].R = 
-                (pColors[i].R + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 2;
+                (pColors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
             MultiSelection::ColorHolder[i].G = 
-                (pColors[i].G + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 2;
+                (pColors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
             MultiSelection::ColorHolder[i].B = 
-                (pColors[i].B + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 2;
+                (pColors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
 
         }
 
@@ -353,7 +534,7 @@ DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)
         }
         else
         {
-            if (CIsoView::CurrentCommand->Command != FACurrentCommand::RaiseSingleTile)
+            if (CIsoView::CurrentCommand->Command != FACurrentCommand::RaiseSingleTile && !ExtConfigs::SkipBrushSizeChangeOnTools)
             {
                 pThis->BrushSize.nCurSel = 0;
                 pThis->BrushSize.UpdateData(FALSE);
@@ -394,7 +575,7 @@ DEFINE_HOOK(433D30, CFinalSunDlg_Tools_LowerSingleTile, 5)
         }
         else
         {
-            if (CIsoView::CurrentCommand->Command != FACurrentCommand::LowerSingleTile)
+            if (CIsoView::CurrentCommand->Command != FACurrentCommand::LowerSingleTile && !ExtConfigs::SkipBrushSizeChangeOnTools)
             {
                 pThis->BrushSize.nCurSel = 0;
                 pThis->BrushSize.UpdateData(FALSE);
@@ -449,10 +630,610 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
      if (ExtConfigs::EnableMultiSelection && MultiSelection::GetCount())
          MultiSelection::Copy();
      else
+     {
+         MultiSelection::ClearT();
          CIsoView::CurrentCommand->Command = FACurrentCommand::TileCopy;
- 
+     }
+         
+
+
+
+     if (MultiSelection::GetCount())
+     {
+         auto& mapData = CMapData::Instance();
+         MultiSelection::CopiedCells.clear();
+
+         OpenClipboard(CFinalSunApp::Instance->m_pMainWnd->m_hWnd);
+         HANDLE hData = GetClipboardData(CFinalSunApp::Instance->ClipboardFormat);
+         auto ptr = GlobalLock(hData);
+
+         if (ptr)
+         {
+             if (reinterpret_cast<int*>(ptr)[0] == 0) // Multi-selection
+             {
+                 const auto length = reinterpret_cast<size_t*>(ptr)[1];
+                 const int identifier = reinterpret_cast<int*>(ptr)[2];
+                 if (identifier == CLoading::Instance->TheaterIdentifier)
+                 {
+                     const auto p = reinterpret_cast<MultiSelection::MyClipboardData*>(reinterpret_cast<char*>(ptr) + 12);
+
+                     std::span<MultiSelection::MyClipboardData> cells{ p, p + length };
+
+                     RECT bounds
+                     {
+                         std::numeric_limits<LONG>::max(),
+                         std::numeric_limits<LONG>::max(),
+                         std::numeric_limits<LONG>::min(),
+                         std::numeric_limits<LONG>::min()
+                     };
+                     for (const auto& cell : cells)
+                     {
+                         if (cell.X < bounds.left)
+                             bounds.left = cell.X;
+                         if (cell.X > bounds.right)
+                             bounds.right = cell.X;
+                         if (cell.Y < bounds.top)
+                             bounds.top = cell.Y;
+                         if (cell.Y > bounds.bottom)
+                             bounds.bottom = cell.Y;
+                     }
+
+                     MultiSelection::CopiedX = bounds.right + 1 - bounds.left;
+                     MultiSelection::CopiedY = bounds.bottom + 1 - bounds.top;
+
+                     int bi = 0;
+                     MultiSelection::CopiedCellsBuilding.clear();
+                     for (int i = 0; i < mapData.CellDataCount; i++)
+                         MultiSelection::CopiedCellsBuilding[i] = -1;
+                     if (auto pSection = CMapData::Instance->INI.GetSection("Structures"))
+                     {
+                         for (auto& pair : pSection->GetEntities())
+                         {
+                             auto atoms = STDHelpers::SplitString(pair.second);
+                             if (atoms.size() > 4)
+                             {
+                                 int x = atoi(atoms[4]);
+                                 int y = atoi(atoms[3]);
+                                 auto dwpos = y * CMapData::Instance().MapWidthPlusHeight + x;
+                                 if (dwpos < mapData.CellDataCount)
+                                 {
+                                     MultiSelection::CopiedCellsBuilding[dwpos] = bi;
+                                 }
+                             }
+                             bi++;
+                         }
+                     }
+
+                     for (int i = bounds.left; i < bounds.left + MultiSelection::CopiedX; i++)
+                     {
+                         for (int j = bounds.top; j < bounds.top + MultiSelection::CopiedY; j++)
+                         {
+                             auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
+                             if (dwpos < mapData.CellDataCount)
+                             {
+                                 CellDataExt& cellExt = CMapDataExt::CellDataExts[dwpos];
+                                 CellData& cell = mapData.CellDatas[dwpos];
+                                 cellExt.X = i;
+                                 cellExt.Y = j;
+
+                                 if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
+                                 {
+                                     CBuildingData copyObj;
+                                     mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                                     cellExt.BuildingData = copyObj;
+                                 }
+                                 for (int subpos = 0; subpos < 3; subpos++)
+                                 {
+                                     if (cell.Infantry[subpos] != -1)
+                                     {
+                                         CInfantryData copyObj;
+                                         mapData.GetInfantryData(cell.Infantry[subpos], copyObj);
+                                         cellExt.InfantryData[subpos] = copyObj;
+                                     }
+                                 }
+                                 if (cell.Unit != -1)
+                                 {
+                                     CUnitData copyObj;
+                                     mapData.GetUnitData(cell.Unit, copyObj);
+                                     cellExt.UnitData = copyObj;
+                                 }
+                                 if (cell.Aircraft != -1)
+                                 {
+                                     CAircraftData copyObj;
+                                     mapData.GetAircraftData(cell.Aircraft, copyObj);
+                                     cellExt.AircraftData = copyObj;
+                                 }
+
+                                 MultiSelection::CopiedCells.push_back(cellExt);
+                             }
+                             else
+                             {
+                                 CellDataExt& cellExt = CMapDataExt::CellDataExts[dwpos];
+                                 cellExt.X = i;
+                                 cellExt.Y = j;
+                                 MultiSelection::CopiedCells.push_back(cellExt);
+                             }
+                         }
+                     }
+                 }
+             }
+
+         }
+         GlobalUnlock(hData);
+         CloseClipboard();
+     }
+
      return 0x435F24;
  }
+DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
+{
+    GET(int, X1, EDX);
+    GET(int, Y1, EAX);
+    GET(int, X2, EDI);
+    GET(int, Y2, ESI);
+
+    if (!MultiSelection::GetCount())
+    {
+        auto& mapData = CMapData::Instance();
+        
+        MultiSelection::CopiedCells.clear();
+        MultiSelection::CopiedX = X2 - X1;
+        MultiSelection::CopiedY = Y2 - Y1;
+
+        int bi = 0;
+        MultiSelection::CopiedCellsBuilding.clear();
+        for (int i = 0; i < mapData.CellDataCount; i++)
+            MultiSelection::CopiedCellsBuilding[i] = -1;
+        if (auto pSection = CMapData::Instance->INI.GetSection("Structures"))
+        {
+            for (auto& pair : pSection->GetEntities())
+            {
+                auto atoms = STDHelpers::SplitString(pair.second);
+                if (atoms.size() > 4)
+                {
+                    int x = atoi(atoms[4]);
+                    int y = atoi(atoms[3]);
+                    auto dwpos = y * CMapData::Instance().MapWidthPlusHeight + x;
+                    if (dwpos < mapData.CellDataCount)
+                    {
+                        MultiSelection::CopiedCellsBuilding[dwpos] = bi;
+                    }
+                }
+                bi++;
+            }
+        }
+
+        for (int i = X1; i < X1 + MultiSelection::CopiedX; i++)
+        {
+            for (int j = Y1; j < Y1 + MultiSelection::CopiedY; j++)
+            {
+                auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
+                if (dwpos < mapData.CellDataCount)
+                {
+                    CellDataExt& cellExt = CMapDataExt::CellDataExts[dwpos];
+                    CellData& cell = mapData.CellDatas[dwpos];
+                    cellExt.X = i;
+                    cellExt.Y = j;
+
+                    if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
+                    {
+                        CBuildingData copyObj;
+                        mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                        cellExt.BuildingData = copyObj;
+                    }
+                    for (int subpos = 0; subpos < 3; subpos++)
+                    {
+                        if (cell.Infantry[subpos] != -1)
+                        {
+                            CInfantryData copyObj;
+                            mapData.GetInfantryData(cell.Infantry[subpos], copyObj);
+                            cellExt.InfantryData[subpos] = copyObj;
+                        }
+                    }
+                    if (cell.Unit != -1)
+                    {
+                        CUnitData copyObj;
+                        mapData.GetUnitData(cell.Unit, copyObj);
+                        cellExt.UnitData = copyObj;
+                    }
+                    if (cell.Aircraft != -1)
+                    {
+                        CAircraftData copyObj;
+                        mapData.GetAircraftData(cell.Aircraft, copyObj);
+                        cellExt.AircraftData = copyObj;
+                    }
+
+                    MultiSelection::CopiedCells.push_back(cellExt);
+                }
+                else
+                {
+                    CellDataExt& cellExt = CMapDataExt::CellDataExts[dwpos];
+                    cellExt.X = i;
+                    cellExt.Y = j;
+                    MultiSelection::CopiedCells.push_back(cellExt);
+                }
+            }
+        }
+    }
+
+
+    return 0;
+}
+DEFINE_HOOK(435F3A, CFinalSunDlg_CopyWholeMap, 5)
+{
+    if (!MultiSelection::GetCount())
+    {
+        auto& mapData = CMapData::Instance();
+
+        int bi = 0;
+        MultiSelection::CopiedCells.clear();
+        MultiSelection::CopiedX = CMapData::Instance().MapWidthPlusHeight;
+        MultiSelection::CopiedY = CMapData::Instance().MapWidthPlusHeight;
+
+        MultiSelection::CopiedCellsBuilding.clear();
+        for (int i = 0; i < mapData.CellDataCount; i++)
+            MultiSelection::CopiedCellsBuilding[i] = -1;
+        if (auto pSection = CMapData::Instance->INI.GetSection("Structures"))
+        {
+            for (auto& pair : pSection->GetEntities())
+            {
+                auto atoms = STDHelpers::SplitString(pair.second);
+                if (atoms.size() > 4)
+                {
+                    int x = atoi(atoms[4]);
+                    int y = atoi(atoms[3]);
+                    auto dwpos = y * CMapData::Instance().MapWidthPlusHeight + x;
+                    if (dwpos < mapData.CellDataCount)
+                    {
+                        MultiSelection::CopiedCellsBuilding[dwpos] = bi;
+                    }
+                }
+                bi++;
+            }
+        }
+
+
+        for (int i = 0; i < CMapData::Instance().MapWidthPlusHeight; i++)
+        {
+            for (int j = 0; j < CMapData::Instance().MapWidthPlusHeight; j++)
+            {
+                CellDataExt& cellExt = CMapDataExt::CellDataExts[i + j * CMapData::Instance().MapWidthPlusHeight];
+                CellData& cell = mapData.CellDatas[i + j * CMapData::Instance().MapWidthPlusHeight];
+                cellExt.X = i;
+                cellExt.Y = j;
+
+                auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
+                if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
+                {
+                    CBuildingData copyObj;
+                    mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                    cellExt.BuildingData = copyObj;
+                }
+                for (int subpos = 0; subpos < 3; subpos++)
+                {
+                    if (cell.Infantry[subpos] != -1)
+                    {
+                        CInfantryData copyObj;
+                        mapData.GetInfantryData(cell.Infantry[subpos], copyObj);
+                        cellExt.InfantryData[subpos] = copyObj;
+                    }
+                }
+                if (cell.Unit != -1)
+                {
+                    CUnitData copyObj;
+                    mapData.GetUnitData(cell.Unit, copyObj);
+                    cellExt.UnitData = copyObj;
+                }
+                if (cell.Aircraft != -1)
+                {
+                    CAircraftData copyObj;
+                    mapData.GetAircraftData(cell.Aircraft, copyObj);
+                    cellExt.AircraftData = copyObj;
+                }
+
+                MultiSelection::CopiedCells.push_back(cellExt);
+            }
+        }
+
+    }
+    //MultiSelection::CopiedCells.clear();
+    return 0;
+}
+
+//DEFINE_HOOK(4C3850, CMapData_Paste, 8)
+//{
+//    if (!CIsoViewExt::PasteGround)
+//        return 0x4C3C12;
+//    return 0;
+//}
+DEFINE_HOOK(4C3A43, CMapData_Paste_Overlay, 6)
+{
+    if (!CIsoViewExt::PasteOverlays)
+        return 0x4C3A75;
+    return 0;
+}
+DEFINE_HOOK(4C3A75, CMapData_Paste_Ground, 7)
+{
+    if (!CIsoViewExt::PasteGround)
+        return 0x4C3BA9;
+    return 0;
+}
+
+
+DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
+{
+    if (!MultiSelection::CopiedCells.empty())
+    {
+        auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+        MapCoord startP;
+        auto& mapData = CMapData::Instance();
+
+
+        startP.X = point.X - MultiSelection::CopiedX / 2;
+        startP.Y = point.Y - MultiSelection::CopiedY / 2;
+
+        int index = 0;
+        auto& ini = CMapData::Instance->INI;
+
+        MultiSelection::AddBuildingOptimize = true;
+
+        if (CIsoViewExt::PasteOverriding)
+        {
+            for (int i = startP.X; i < startP.X + MultiSelection::CopiedX; i++)
+            {
+                for (int j = startP.Y; j < startP.Y + MultiSelection::CopiedY; j++)
+                {
+                    auto length = CMapData::Instance().MapWidthPlusHeight;
+                    auto dwpos = j * length + i;
+                    if ( CMapData::Instance->IsCoordInMap(i, j) && dwpos < mapData.CellDataCount)
+                    {
+                        if (index >= MultiSelection::CopiedCells.size())
+                        {
+                            index++;
+                            continue;
+                        }
+                        CellDataExt cell = MultiSelection::CopiedCells[index];
+                        CellData tCell = mapData.CellDatas[dwpos];
+
+                        if (MultiSelection::GetCount2())
+                        {
+                            bool found = false;
+                            for (auto coord : MultiSelection::SelectedCoordsTemp)
+                            {
+                                if (coord.X == cell.X && coord.Y == cell.Y)
+                                {
+
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found)
+                            {
+                                index++;
+                                continue;
+                            }
+                        }
+
+
+                        if (CIsoViewExt::PasteInfantries)
+                            for (int subpos = 0; subpos < 3; subpos++)
+                                if (tCell.Infantry[subpos] != -1)
+                                    mapData.DeleteInfantryData(tCell.Infantry[subpos]);
+                        if (CIsoViewExt::PasteUnits)
+                            if (tCell.Unit != -1)
+                                mapData.DeleteUnitData(tCell.Unit);
+                        if (CIsoViewExt::PasteAircrafts)
+                            if (tCell.Aircraft != -1)
+                                mapData.DeleteAircraftData(tCell.Aircraft);
+                        if (CIsoViewExt::PasteStructures)
+                            if (tCell.Structure != -1)
+                                mapData.DeleteBuildingData(tCell.Structure);
+                        if (CIsoViewExt::PasteTerrains)
+                            if (tCell.Terrain != -1)
+                                mapData.DeleteTerrainData(tCell.Terrain);
+                        if (CIsoViewExt::PasteSmudges)
+                            if (tCell.Smudge != -1)
+                                mapData.DeleteSmudgeData(tCell.Smudge);        
+                    }
+                    index++;
+                }
+            }
+            CMapData::Instance->UpdateFieldStructureData(FALSE);
+        }
+        
+        index = 0;
+        for (int i = startP.X; i < startP.X + MultiSelection::CopiedX; i++)
+        {
+            for (int j = startP.Y; j < startP.Y + MultiSelection::CopiedY; j++)
+            {
+                auto length = CMapData::Instance().MapWidthPlusHeight;
+                auto dwpos = j * length + i;
+                if ( CMapData::Instance->IsCoordInMap(i, j) && dwpos < mapData.CellDataCount)
+                {
+                    if (index >= MultiSelection::CopiedCells.size())
+                    {
+                        index++;
+                        continue;
+                    }
+                    CellDataExt cell = MultiSelection::CopiedCells[index];
+                    CellData tCell = mapData.CellDatas[mapData.GetCoordIndex(cell.X, cell.Y)];
+
+                    if (MultiSelection::GetCount2())
+                    {
+                        bool found = false;
+                        for (auto coord : MultiSelection::SelectedCoordsTemp)
+                        {
+                            //MessageBox(NULL, std::to_string(i).c_str(), std::to_string(j).c_str(), 0);
+                            if (coord.X == cell.X && coord.Y == cell.Y)
+                            {
+
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found)
+                        {
+                            index++;
+                            continue;
+                        }
+                    }
+
+                    if (CIsoViewExt::PasteInfantries)
+                        for (int subpos = 0; subpos < 3; subpos++)
+                        {
+                            if (cell.InfantryData[subpos].House != "")
+                            {
+                                CInfantryData copyObj = cell.InfantryData[subpos];
+
+                                char bufferx[10];
+                                _itoa(i, bufferx, 10);
+                                char buffery[10];
+                                _itoa(j, buffery, 10);
+
+                                copyObj.X = bufferx;
+                                copyObj.Y = buffery;
+                                CMapData::Instance->SetInfantryData(&copyObj, NULL, NULL, 0, -1);
+                            }
+                        }
+                    if (CIsoViewExt::PasteUnits)
+                        if (cell.UnitData.House != "")
+                        {
+                            CUnitData copyObj = cell.UnitData;
+
+                            char bufferx[10];
+                            _itoa(i, bufferx, 10);
+                            char buffery[10];
+                            _itoa(j, buffery, 10);
+
+                            copyObj.X = bufferx;
+                            copyObj.Y = buffery;
+                            CMapData::Instance->SetUnitData(&copyObj, NULL, NULL, 0, "");
+                        }
+                    if (CIsoViewExt::PasteAircrafts)
+                        if (cell.AircraftData.House != "")
+                        {
+                            CAircraftData copyObj = cell.AircraftData;
+
+                            char bufferx[10];
+                            _itoa(i, bufferx, 10);
+                            char buffery[10];
+                            _itoa(j, buffery, 10);
+
+                            copyObj.X = bufferx;
+                            copyObj.Y = buffery;
+                            CMapData::Instance->SetAircraftData(&copyObj, NULL, NULL, 0, "");
+                        }
+
+                    if (CIsoViewExt::PasteStructures)
+                        if (cell.BuildingData.House != "")
+                        {
+                            CBuildingData copyObj = cell.BuildingData;
+
+                            char bufferx[10];
+                            _itoa(i, bufferx, 10);
+                            char buffery[10];
+                            _itoa(j, buffery, 10);
+
+                            copyObj.X = bufferx;
+                            copyObj.Y = buffery;
+                            CMapData::Instance->SetBuildingData(&copyObj, NULL, NULL, 0, "");
+                        }
+                    if (CIsoViewExt::PasteTerrains)
+                        if (tCell.Terrain != -1)
+                        {
+                            int id = tCell.Terrain;
+                            int type = tCell.TerrainType;
+                            ppmfc::CString name;
+                            if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
+                            {
+                                int indexT = 0;
+                                for (auto& pT : pTerrain->GetEntities())
+                                {
+                                    if (indexT == type)
+                                    {
+                                        name = pT.second;
+                                        break;
+                                    }
+
+                                    indexT++;
+                                }
+                            }
+                            CMapData::Instance->SetTerrainData(name, CMapData::Instance->GetCoordIndex(i, j));
+
+                        }
+                    if (CIsoViewExt::PasteSmudges)
+                        if (tCell.Smudge != -1)
+                        {
+                            int id = tCell.Smudge;
+                            int type = tCell.SmudgeType;
+                            ppmfc::CString name;
+                            if (auto pTerrain = CINI::Rules().GetSection("SmudgeTypes"))
+                            {
+                                int indexT = 0;
+                                for (auto& pT : pTerrain->GetEntities())
+                                {
+                                    if (indexT == type)
+                                    {
+                                        name = pT.second;
+                                        break;
+                                    }
+
+                                    indexT++;
+                                }
+                            }
+                            CSmudgeData smudge;
+                            smudge.X = j;
+                            smudge.Y = i;//opposite
+                            smudge.Flag = 0;
+                            smudge.TypeID = name;
+                            auto& Map = CMapData::Instance();
+                           //auto& fielddata_size = Map.CellDataCount;
+                           //auto& fielddata = Map.CellDatas;
+                           //auto dwPos = Map.GetCoordIndex(i, j);
+                           //
+                           //bool bFound = false;
+                           //int is;
+                           //for (is = 0; is < Map.SmudgeDatas.size(); is++)
+                           //{
+                           //    if (Map.SmudgeDatas[is].Flag) // yep, found one, replace it
+                           //    {
+                           //        Map.SmudgeDatas[is] = smudge;
+                           //        if (dwPos < fielddata_size)
+                           //        {
+                           //            fielddata[dwPos].Smudge = is;
+                           //            fielddata[dwPos].SmudgeType = Map.SmudgeTypes[smudge.TypeID];
+                           //        }
+                           //
+                           //        bFound = true;
+                           //        break;
+                           //    }
+                           //}
+                           //if (!bFound)
+                           //{
+                           //    if (dwPos < fielddata_size)
+                           //    {
+                           //        Map.SmudgeDatas.push_back(smudge);//ÐÞ²¹004CA126ºÍ004CA15D£¬16*n
+                           //        fielddata[dwPos].Smudge = Map.SmudgeDatas.size() - 1;
+                           //        fielddata[dwPos].SmudgeType = Map.SmudgeTypes[smudge.TypeID];
+                           //    }
+                           //}
+                            Map.SetSmudgeData(&smudge);
+                            Map.UpdateFieldSmudgeData(false);
+
+                        }
+
+
+
+                }
+                index++;
+            }
+        }
+        CMapData::Instance->UpdateFieldStructureData(FALSE);
+        MultiSelection::AddBuildingOptimize = false;
+    }
+    return 0;
+}
+
 
 DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 {
@@ -476,7 +1257,12 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
             if (identifier == CLoading::Instance->TheaterIdentifier)
             {
                 const auto p = reinterpret_cast<MultiSelection::MyClipboardData*>(reinterpret_cast<char*>(ptr) + 12);
-                MultiSelection::Paste(X, Y, nBaseHeight, p, length);
+                if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+                {
+
+                }
+                else
+                    MultiSelection::Paste(X, Y, nBaseHeight, p, length);
             }
             GlobalUnlock(hData);
             CloseClipboard();
@@ -496,17 +1282,158 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 
 DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
 {
+    GET(CIsoViewExt*, pThis, EDI);
+    GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
+    REF_STACK(RECT, rect, STACK_OFFS(0xD18, 0xCCC));
+    LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+    ::SetBkMode(hDC, OPAQUE);
+    ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+
+
+    if (CIsoViewExt::DrawBounds)
+    {
+        GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+
+        auto& map = CINI::CurrentDocument();
+        auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
+        auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
+
+        int mapwidth = atoi(size[2]);
+        int mapheight = atoi(size[3]);
+
+        int mpL = atoi(lSize[0]);
+        int mpT = atoi(lSize[1]);
+        int mpW = atoi(lSize[2]);
+        int mpH = atoi(lSize[3]);
+
+        int y1 = mpT + mpL - 2 + 3;
+        int x1 = mapwidth + mpT - mpL - 3 + 3;
+
+
+        int y2 = mpT + mpL + mpW - 2 + 3;
+        int x2 = mapwidth - mpL - mpW + mpT - 3 + 3;
+
+        CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+        int drawX1 = x1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+        int drawY1 = y1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+        //MessageBox(NULL, std::to_string(R->Stack<float>(STACK_OFFS(0xD18, 0xCB0))).c_str(), std::to_string(R->Stack<float>(STACK_OFFS(0xD18, 0xCB8))).c_str(), 0);
+
+        CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
+        int drawX2 = x2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+        int drawY2 = y2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+        pThis->DrawTopRealBorder(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
+
+    }
+
+    if (!MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
+    {
+        GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
+        auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+        MapCoord startP;
+        auto& mapData = CMapData::Instance();
+
+
+        startP.X = point.X - MultiSelection::CopiedX / 2;
+        startP.Y = point.Y - MultiSelection::CopiedY / 2;
+        auto length = CMapData::Instance().MapWidthPlusHeight;
+
+        int copyx = MultiSelection::CopiedX;
+        int copyy = MultiSelection::CopiedY;
+
+        //&& startP.Y > 0 && startP.X + MultiSelection::CopiedX < length && startP.Y + MultiSelection::CopiedY < length
+        while (startP.X < 0)
+        {
+            startP.X++;
+            copyx--;
+        }
+        while (startP.Y < 0)
+        {
+            startP.Y++;
+            copyy--;
+        }
+        while (startP.X + copyx > length)
+        {
+            copyx--;
+        }
+        while (startP.Y + copyy > length)
+        {
+            copyy--;
+        }
+        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+        int x = startP.X;
+        int y = startP.Y;
+        CIsoView::MapCoord2ScreenCoord(x, y);
+        int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+        int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+        pThis2->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
+
+    }
+    else if (!MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
+    {
+        GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
+        auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+        MapCoord startP;
+        auto& mapData = CMapData::Instance();
+
+        startP.X = point.X - MultiSelection::CopiedX / 2;
+        startP.Y = point.Y - MultiSelection::CopiedY / 2;
+        auto length = CMapData::Instance().MapWidthPlusHeight;
+        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+        int idx = 0;
+        for (int i = startP.X; i < startP.X + MultiSelection::CopiedX; i++)
+        {
+            for (int j = startP.Y; j < startP.Y + MultiSelection::CopiedY; j++)
+            {
+                int x = i;
+                int y = j;
+                auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
+                CellDataExt cell = MultiSelection::CopiedCells[idx];
+                if (dwpos < mapData.CellDataCount &&  CMapData::Instance->IsCoordInMap(i, j))
+                {
+                    bool found = false;
+                    for (auto coord : MultiSelection::SelectedCoordsTemp)
+                    {
+                        if (coord.X == cell.X && coord.Y == cell.Y)
+                        {
+
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found)
+                    {
+                        CIsoView::MapCoord2ScreenCoord(x, y);
+                        int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+                        int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+
+                        pThis2->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
+
+                    }
+                }
+                idx++;
+            }
+        }
+    }
+
+
+
+    int leftIndex = 0;
+
     if (CIsoViewExt::DrawMoneyOnMap)
     {
-        GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-        REF_STACK(RECT, rect, STACK_OFFS(0xD18, 0xCCC));
-
-        ::SetBkMode(hDC, OPAQUE);
-        ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
 
         ppmfc::CString buffer;
-        buffer.Format("Money on map: %d", CMapData::Instance->MoneyCount);
-        ::TextOut(hDC, rect.left + 10, rect.top + 10, buffer, buffer.GetLength());
+        buffer.Format(Translations::TranslateOrDefault("MoneyOnMap", "Credits On Map: %d"), CMapData::Instance->MoneyCount);
+        ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, buffer, buffer.GetLength());
+
 
         if (ExtConfigs::EnableMultiSelection)
         {
@@ -521,11 +1448,22 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
                     }
                 );
 
-                buffer.Format("Selected money: %d", nCount);
-                ::TextOut(hDC, rect.left + 10, rect.top + 30, buffer, buffer.GetLength());
+                buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection", "MultiSelection Enabled. Selected Credits: %d"), nCount);
+                ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, buffer, buffer.GetLength());
             }
         }
+
+
     }
+    if (CFinalSunApp::Instance().FlatToGround)
+    {
+        ppmfc::CString buffer;
+        buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
+        ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, buffer, buffer.GetLength());
+    }
+
+    SetTextAlign(hDC, TA_LEFT);
+
     
     return 0x4750B0;
 }

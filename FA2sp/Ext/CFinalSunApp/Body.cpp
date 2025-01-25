@@ -11,17 +11,23 @@
 
 #include <thread>
 
+#include <iostream>
+#include <filesystem>
+#include "../../Helpers/Translations.h"
+namespace fs = std::filesystem;
+
 #pragma warning(disable : 6262)
 
 std::vector<std::string> CFinalSunAppExt::RecentFilesExt;
+bool CFinalSunAppExt::HoldingKey = false;
 std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLinks
 {
 	std::make_pair("https://github.com/secsome/FA2sp", ""),
-	std::make_pair("https://github.com/Phobos-developers/Phobos", ""),
+	std::make_pair("https://github.com/handama/FA2sp", ""),
+	std::make_pair("https://phobos.readthedocs.io/zh-cn/latest/", ""),
 	std::make_pair("https://www.ppmforums.com/", ""),
 	std::make_pair("https://modenc.renegadeprojects.com/Main_Page", ""),
-	std::make_pair("", ""),
-	std::make_pair("", ""),
+	std::make_pair("https://ra2map.github.io/", ""),
 	std::make_pair("", "")
 };
 
@@ -38,12 +44,16 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	HDC hDC = ::GetDC(hDesktop);
 	if (::GetDeviceCaps(hDC, BITSPIXEL) <= 8)
 	{
-		::MessageBox(
-			NULL,
+
+		ppmfc::CString pMessage = Translations::TranslateOrDefault("EightBitStart",
 			"You currently only have 8 bit color mode enabled. "
 			"FinalAlert 2(tm)will not work in 8 bit color mode. "
-			"See readme.txt for further information!",
-			"Error",
+			"See readme.txt for further information!");
+
+		::MessageBox(
+			NULL,
+			pMessage,
+			Translations::TranslateOrDefault("Error", "Error"),
 			MB_OK
 		);
 		exit(0);
@@ -59,6 +69,19 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	path += "\\FAData.ini";
 	CINI::FAData->ClearAndLoad(path.c_str());
 
+	if (auto pSection = CINI::FAData().GetSection("Include"))
+	{
+		for (auto& pair : pSection->GetEntities())
+		{
+			std::string includePath;
+			includePath = CFinalSunApp::ExePath;
+			includePath += "\\" + pair.second;
+			if (fs::exists(includePath))
+				CINI::FAData->ParseINI(includePath.c_str(), 0, 0);
+		}
+	}
+
+
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 
 	path = CFinalSunApp::ExePath;
@@ -69,24 +92,57 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	CINI ini;
 	path = CFinalSunApp::ExePath;
 	path += "\\FinalAlert.ini";
+
+	bool firstRun = !fs::exists(path);
+
 	ini.ClearAndLoad(path.c_str());
-	if (
-		!ini.KeyExists("TS", "Exe") || 
-		!ini.KeyExists("FinalSun", "FileSearchLikeTS") || 
-		!ini.KeyExists("FinalSun", "Language")
+	std::string installpath = std::string(ini.GetString("TS", "Exe"));
+	installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
+
+	while (
+		!ini.KeyExists("TS", "Exe") ||
+		!ini.KeyExists("FinalSun", "FileSearchLikeTS") ||
+		!ini.KeyExists("FinalSun", "Language") ||
+		!fs::exists(installpath + "ra2.mix")
 		)
 	{
-		this->FileSearchLikeTS = TRUE;
-		*reinterpret_cast<int*>(0x7EE07C) = TRUE; // Settings::NoNeedForRestart
-		this->GetDialog()->Settings();
-		*reinterpret_cast<int*>(0x7EE07C) = FALSE;
+		ppmfc::CString pMessage = Translations::TranslateOrDefault("LoadMixError.WrongDirectory",
+			"The game directory is incorrect. Do you want to reset?");
+
+		int result = IDYES;
+		
+		if (!firstRun)
+			result = MessageBox(NULL, pMessage, Translations::TranslateOrDefault("FatalError", "Fatal Error"), MB_YESNO | MB_ICONEXCLAMATION);
+
+
+		if (result == IDYES)
+		{
+			firstRun = false;
+			this->FileSearchLikeTS = TRUE;
+			*reinterpret_cast<int*>(0x7EE07C) = TRUE;
+			this->GetDialog()->Settings();
+			*reinterpret_cast<int*>(0x7EE07C) = FALSE;
+
+		}
+		if (result == IDNO)
+		{
+			exit(EXIT_SUCCESS);
+			break;
+		}
+
+		ini.ClearAndLoad(path.c_str());
+		installpath = ini.GetString("TS", "Exe");
+		installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
+
 	}
-	else
-	{
-		this->InstallPath = ini.GetString("TS", "Exe");
-		this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
-		this->Language = ini.GetString("FinalSun", "Language");
-	}
+
+
+
+	this->InstallPath = ini.GetString("TS", "Exe");
+	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
+	this->Language = ini.GetString("FinalSun", "Language");
+
+
 
 	// HACK, Game like pls
 	this->FileSearchLikeTS = TRUE;
@@ -116,11 +172,14 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	if (this->NoTemperateGraphics && this->NoSnowGraphics)
 	{
+		ppmfc::CString pMessage = Translations::TranslateOrDefault("NoTemperateSnowGraphics",
+			"You have turned off loading of both snow and temperate terrain in 'FinalAlert.ini'. "
+			"At least one of these must be loaded. The application will now quit.");
+
 		::MessageBox(
 			NULL,
-			"You have turned off loading of both snow and temperate terrain in 'FinalAlert.ini'. "
-			"At least one of these must be loaded. The application will now quit.",
-			"Error",
+			pMessage,
+			Translations::TranslateOrDefault("Error", "Error"),
 			MB_OK);
 		exit(0xFFFFFC2A);
 	}

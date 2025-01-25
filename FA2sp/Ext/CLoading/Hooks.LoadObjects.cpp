@@ -6,9 +6,13 @@
 #include <CObjectDatas.h>
 #include <CINI.h>
 #include <Drawing.h>
-
+#include <CFinalSunApp.h>
+#include <CFinalSunDlg.h>
+#include <CMixFile.h>
+#include <CIsoView.h>
 #include "../../FA2sp.h"
-
+#include "../../Helpers/STDHelpers.h"
+#include <filesystem>
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -77,6 +81,71 @@ DEFINE_HOOK(49D2C0, CMapData_LoadMap_ClearCLoadingExtData, 5)
     CLoadingExt::ClearItemTypes();
     return 0;
 }
+#include <CInputMessageBox.h>
+#include "../../Helpers/Translations.h"
+#include "../CFinalSunDlg/Body.h"
+#include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
+{
+    GET(const char*, mapPath, EDI);
+
+    CViewObjectsExt::InitializeOnUpdateEngine();
+    CIsoView::CurrentCommand->Command = 0;
+
+    if (ExtConfigs::ReloadGameFromMapFolder)
+    {
+
+        std::string buffer = std::string(mapPath);
+        buffer = buffer.substr(0, buffer.find_last_of("\\") + 1);
+        ppmfc::CString folder = buffer.c_str();
+
+        std::string buffer2 = std::string(CFinalSunApp::FilePath);
+        std::transform(buffer.begin(), buffer.end(), buffer.begin(), (int(*)(int))tolower);
+        std::transform(buffer2.begin(), buffer2.end(), buffer2.begin(), (int(*)(int))tolower);
+
+        if (buffer != buffer2)
+        {
+            if (std::filesystem::exists(buffer + "ra2.mix"))
+            {
+                ppmfc::CString pMessage = Translations::TranslateOrDefault("LoadFromOtherGameDirectory",
+                    "You seem to have read a map from another game directory.\nClick 'OK' to reload the resources in this directory.");
+
+                auto text = MessageBox(CFinalSunDlg::Instance->m_hWnd, pMessage, "FA2sp", MB_OKCANCEL | MB_ICONEXCLAMATION);
+
+                if (text == IDOK)
+                {
+                        for (int i = 0; i < 1000; i++)
+                            CMixFile::Close(i);
+
+                        //reload all INIs
+                        CINI::Rules().Release();
+                        CINI::Art().Release();
+                        //CINI::Turtorial().Release(); what's this
+                        CINI::Sound().Release();
+                        CINI::Eva().Release();
+                        CINI::Theme().Release();
+                        CINI::Ai().Release();
+                        CINI::Temperate().Release();
+                        CINI::Snow().Release();
+                        CINI::Urban().Release();
+                        CINI::NewUrban().Release();
+                        CINI::Lunar().Release();
+                        CINI::Desert().Release();
+                        //CINI::FAData().Release();
+                        //CINI::FALanguage().Release();
+                        CINI::CurrentDocument().Release();
+
+                        strcpy_s(CFinalSunApp::FilePath, 260, folder);
+                        Logger::Raw("[Debug] CLoading::Load() Called. Reload all files from %s\n", folder);
+                        CLoading::Instance()->Load();
+                        CCsfEditor::NeedUpdate = true;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 
 DEFINE_HOOK(49D5CC, CLoading_LoadMap_CallMissingRelease, 5)
 {

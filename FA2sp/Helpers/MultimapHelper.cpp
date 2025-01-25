@@ -25,9 +25,18 @@ void MultimapHelper::AddINI(CINI* pINI)
     data.push_back(pINI);
 }
 
+void MultimapHelper::Clear()
+{
+    data.clear();
+}
+
 CINI* MultimapHelper::GetINIAt(int idx)
 {
     return data.at(idx);
+}
+std::vector<CINI*>  MultimapHelper::GetINIData()
+{
+    return data;
 }
 
 ppmfc::CString* MultimapHelper::TryGetString(ppmfc::CString pSection, ppmfc::CString pKey)
@@ -73,6 +82,14 @@ bool MultimapHelper::GetBool(ppmfc::CString pSection, ppmfc::CString pKey, bool 
     switch (toupper(static_cast<unsigned char>(*pStr)))
     {
     case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
     case 'T':
     case 'Y':
         return true;
@@ -128,7 +145,16 @@ std::vector<ppmfc::CString> MultimapHelper::ParseIndicies(ppmfc::CString pSectio
         for (size_t i = 0, sz = ret.size(); i < sz; ++i)
             ret[i] = tmp3[ret[i]];
 
-    return ret;
+    std::vector<ppmfc::CString> tmp4;
+
+    for (size_t i = 0, sz = ret.size(); i < sz; ++i)
+    {
+        if (ret[i] == "")
+            continue;
+        tmp4.push_back(ret[i]);
+    }
+
+    return tmp4;
 }
 
 std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHelper::GetSection(ppmfc::CString pSection)
@@ -153,5 +179,61 @@ std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHe
                     ret[tmp] = pair.second;
                 }
             }         
+    return ret;
+}
+
+std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHelper::GetUnorderedUnionSection(ppmfc::CString pSection)
+{
+    std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> ret;
+    ppmfc::CString tmp;
+    for (auto& pINI : data)
+        if (pINI)
+            if (auto section = pINI->GetSection(pSection))
+            {
+                for (auto& pair : section->GetEntities())
+                {
+                    if (STDHelpers::IsNoneOrEmpty(pair.first) ||
+                        STDHelpers::IsNoneOrEmpty(pair.second))
+                    {
+                        continue;
+                    }
+                    ret[pair.first] = pair.second;
+                }
+            }         
+    return ret;
+}
+
+std::vector < std::pair<ppmfc::CString, ppmfc::CString>> MultimapHelper::GetUnorderedSection(ppmfc::CString pSection)
+{
+    std::vector<std::pair<ppmfc::CString, ppmfc::CString>> ret;
+
+    for (auto& pINI : data)
+        if (pINI)
+            if (auto section = pINI->GetSection(pSection))
+            {
+                auto& entry = section->GetEntities();
+                for (std::pair<ppmfc::CString, ppmfc::CString> ol : entry)
+                {
+                    ret.push_back(ol);
+                }
+            }         
+    return ret;
+}
+
+std::map<ppmfc::CString, std::vector<ppmfc::CString>, INISectionEntriesComparator> MultimapHelper::GetSectionSplitValues(ppmfc::CString pSection, const char* pSplit = ",")
+{
+    std::map<ppmfc::CString, std::vector<ppmfc::CString>, INISectionEntriesComparator> ret;
+    ppmfc::CString tmp;
+    for (auto& pINI : data)
+        if (pINI)
+            if (auto section = pINI->GetSection(pSection))
+                for (auto& pair : section->GetEntities())
+                    if (!STDHelpers::IsNoneOrEmpty(pair.first) &&
+                        !STDHelpers::IsNoneOrEmpty(pair.second) &&
+                        pair.first != "Name")
+                    {
+	                    tmp.Format("%s", pair.first);
+	                    ret[tmp] = STDHelpers::SplitStringTrimmed(pair.second, pSplit);
+                    }
     return ret;
 }

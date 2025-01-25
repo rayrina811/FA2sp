@@ -3,6 +3,7 @@
 #include <Helpers/Macro.h>
 
 #include <CMapData.h>
+#include "../CMapData/Body.h"
 
 DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
 {
@@ -11,7 +12,11 @@ DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
 	
 	pThis->ValidateStructureOverlapping(result);
 	pThis->ValidateMissingParams(result);
-
+	pThis->ValidateRepeatingTaskforce(result);
+	pThis->ValidateValueLength(result);
+	pThis->ValidateBaseNode(result);
+	pThis->ValidateLoopTrigger(result);
+	pThis->ValidateEmptyTeamTrigger(result);
 	return 0;
 }
 

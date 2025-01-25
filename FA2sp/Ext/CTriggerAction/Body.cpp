@@ -2,8 +2,8 @@
 
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/Translations.h"
-
 #include <CINI.h>
+#include "../../ExtraWindow/CAllieEditor/CAllieEditor.h"
 
 void CTriggerActionExt::ProgramStartupInit()
 {
@@ -27,6 +27,8 @@ BOOL CTriggerActionExt::OnInitDialogExt()
 	Translations::TranslateItem(this, 1403, "TriggerActionNew");
 	Translations::TranslateItem(this, 1174, "TriggerActionDel");
 	Translations::TranslateItem(this, 50606, "TriggerActionClo");
+
+
 
 	return TRUE;
 }

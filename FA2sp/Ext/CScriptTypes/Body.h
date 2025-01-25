@@ -8,6 +8,7 @@
 // Forward Declartion
 struct CScriptTypeAction;
 struct CScriptTypeParam;
+struct CScriptTypeParamCustom;
 class CurrentScript;
 
 class NOVTABLE CScriptTypesExt : public CScriptTypes
@@ -33,7 +34,7 @@ public:
 
 	void OnCBCurrentActionEditChanged();
 	void OnCBScriptParameterEditChanged();
-	void OnLBScriptActionsSelectChanged();
+	void OnLBScriptActionsSelectChanged(bool enter = false);
 
 	// void DoDataExchange(CDataExchange* pDX);
 
@@ -61,6 +62,9 @@ public:
 
 	static CurrentScript* ExtCurrentScript;
 	static std::map<int, int> RealScriptID; // PosInComboBox - RealScriptID
+	static int LastSelectedActionIndex;
+
+	static bool IsOnlyEditAction;
 };
 
 struct CScriptTypeAction {
@@ -79,6 +83,17 @@ struct CScriptTypeParam {
 
 	ppmfc::CString Label_;
 	int Param_;
+};
+
+struct CScriptTypeParamCustom {
+	static std::map<int, CScriptTypeParamCustom> ExtParamsCustom;
+
+	ppmfc::CString Section_;
+	int LoadFrom_;
+	bool ShowIndex_;
+	int HasExtraParam_;
+	ppmfc::CString XtraSection_;
+	int LoadFrom2_;
 };
 
 class CurrentScript {

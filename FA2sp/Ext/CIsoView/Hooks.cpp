@@ -12,15 +12,35 @@
 #include "../CMapData/Body.h"
 
 #include "../../Source/CIsoView.h"
+#include "../../Helpers/Translations.h"
+#include "../CFinalSunDlg/Body.h"
+#include <Miscs/Miscs.h>
+#include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+
+struct DrawVeterancy
+{
+	int X;
+	int Y;
+	int VP;
+};
+
+std::vector<DrawVeterancy> drawVeterancies;
+LPDDSURFACEDESC2 lpDescDraw;
 
 namespace CIsoViewDrawTemp
 {
 	float ConditionYellow = 0.67f;
 }
 
+namespace CIsoViewDrawTemp
+{
+	int BuildingIndex;
+}
+
 DEFINE_HOOK(46DE00, CIsoView_Draw_InitDrawData, 7)
 {
 	CIsoViewDrawTemp::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
+	drawVeterancies.clear();
 	return 0;
 }
 
@@ -91,16 +111,43 @@ DEFINE_HOOK(459F4F, CIsoView_Draw_CopySelectionBoundColor, 6)
 	return 0;
 }
 
-DEFINE_HOOK(45AD81, CIsoView_Draw_CursorSelectionBoundColor, 5)
+//DEFINE_HOOK(45AD81, CIsoView_Draw_CursorSelectionBoundColor, 5)
+//{
+//	if (ExtConfigs::CursorSelectionBound_AutoColor)
+//	{
+//		auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+//		auto cell = CMapData::Instance().GetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+//		R->Stack<COLORREF>(0x0, CIsoViewExt::_cell_hilight_colors[cell->Height]);
+//	}
+//	else
+//		R->Stack<COLORREF>(0x0, ExtConfigs::CursorSelectionBound_Color);
+//
+//
+//		//CIsoView::GetInstance()->Draw();
+//
+//	return 0;
+//}
+
+bool skipThisDraw = false;
+DEFINE_HOOK(45AD6A, CIsoView_Draw_CursorSkip, 9)
 {
-	R->Stack<COLORREF>(0x0, ExtConfigs::CursorSelectionBound_Color);
+    skipThisDraw = true;
+	return 0;
+}
+DEFINE_HOOK(469C60, CIsoView_DrawCellOutline_CursorSkip, 7)
+{
+    if (skipThisDraw)
+    {
+        skipThisDraw = false;
+        return 0x469E6A;
+    }
 	return 0;
 }
 
 DEFINE_HOOK(45ADD0, CIsoView_Draw_CursorSelectionBoundHeightColor, 6)
 {
-	R->Stack<COLORREF>(0x8, ExtConfigs::CursorSelectionBound_HeightColor);
-	return 0;
+    R->Stack<COLORREF>(0x8, ExtConfigs::CursorSelectionBound_HeightColor);
+    return 0;
 }
 
 DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
@@ -108,31 +155,457 @@ DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
 	return CIsoViewExt::DrawOverlays ? 0 : 0x470772;
 }
 
-DEFINE_HOOK(470772, CIsoView_Draw_LayerVisible_Structures, 8)
+bool thisDraw = false;
+
+DEFINE_HOOK(470BC5, CIsoView_Draw_LayerVisible_Structures, 7)
 {
-	return CIsoViewExt::DrawStructures ? 0 : 0x4725CB;
+
+	if (CIsoViewExt::DrawStructures)
+	{
+		thisDraw = true;
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		if (celldata.Structure != -1)
+		{
+			CBuildingData data;
+			CMapData::Instance->GetBuildingData(celldata.Structure, data);
+
+			if (!CIsoViewExt::DrawStructuresFilter)
+				return 0;
+
+			if (!CViewObjectsExt::BuildingBrushDlgBF)
+				return 0;
+
+			auto vec = CViewObjectsExt::ObjectFilterB;
+			if (!vec.empty())
+				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+				{
+					thisDraw = false;
+					return 0x470E48;
+				}
+					
+
+			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+				{
+					if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
+					{
+						if (dst == src) return true;
+						else return false;
+					}
+					return true;
+				};
+			if (
+				CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
+				CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
+				CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
+				CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
+				CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
+				CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
+				CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
+				CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
+				CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
+				CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
+				CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
+				CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
+				CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
+				CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag)
+				)
+			{
+				return 0;
+			}
+				
+			else
+			{
+				thisDraw = false;
+				return 0x470E48;
+			}
+		}
+
+		return 0;
+	}
+	{
+		thisDraw = false;
+		return 0x470E48;
+	}
 }
 
 DEFINE_HOOK(4725CB, CIsoView_Draw_LayerVisible_Basenodes, 8)
 {
-	return CIsoViewExt::DrawBasenodes ? 0 : 0x472F33;
+	if (CIsoViewExt::DrawBasenodes)
+	{
+		if (!CIsoViewExt::DrawBasenodesFilter)
+			return 0;
+
+		if (!CViewObjectsExt::BuildingBrushDlgBNF)
+			return 0;
+
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		if (celldata.BaseNode.BasenodeID != -1)
+		{
+			char key[10];
+			sprintf(key, "%03d", celldata.BaseNode.BasenodeID);
+
+			auto bID = STDHelpers::SplitString(CMapData::Instance->INI.GetString(celldata.BaseNode.House, key))[0];
+			auto vec = CViewObjectsExt::ObjectFilterBN;
+			if (!vec.empty())
+				if (std::find(vec.begin(), vec.end(), bID) == vec.end())
+					return 0x472F33;
+
+			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+				{
+					if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
+					{
+						if (dst == src) return true;
+						else return false;
+					}
+					return true;
+				};
+			if (celldata.BaseNode.House)
+				if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, celldata.BaseNode.House))
+					return 0x472F33;
+		}
+		return 0;
+	}
+	return 0x472F33;
 }
 
 DEFINE_HOOK(472F33, CIsoView_Draw_LayerVisible_Units, 9)
 {
-	return CIsoViewExt::DrawUnits ? 0 : 0x47371A;
+	thisDraw = false;
+	if (CIsoViewExt::DrawUnits)
+	{
+
+		if (!CIsoViewExt::DrawUnitsFilter)
+		{
+			thisDraw = true;
+			return 0;
+		}
+			
+
+		if (!CViewObjectsExt::VehicleBrushDlgF)
+		{
+			thisDraw = true;
+			return 0;
+		}
+
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+
+		if (celldata.Unit != -1)
+		{
+			CUnitData data;
+			CMapData::Instance->GetUnitData(celldata.Unit, data);
+
+			auto vec = CViewObjectsExt::ObjectFilterV;
+			if (!vec.empty())
+				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+					return 0x47371A;
+
+			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+				{
+					if (CViewObjectsExt::VehicleBrushBoolsF[nCheckBoxIdx - 1300])
+					{
+						if (dst == src) return true;
+						else return false;
+					}
+					return true;
+				};
+			if (
+				CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
+				CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
+				CheckValue(1302, CViewObjectsExt::VehicleBrushDlgF->CString_State, data.Status) &&
+				CheckValue(1303, CViewObjectsExt::VehicleBrushDlgF->CString_Direction, data.Facing) &&
+				CheckValue(1304, CViewObjectsExt::VehicleBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+				CheckValue(1305, CViewObjectsExt::VehicleBrushDlgF->CString_Group, data.Group) &&
+				CheckValue(1306, CViewObjectsExt::VehicleBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+				CheckValue(1307, CViewObjectsExt::VehicleBrushDlgF->CString_FollowerID, data.FollowsIndex) &&
+				CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+				CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+				CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag)
+				)
+			{
+				thisDraw = true;
+				return 0;
+			}
+			else
+			{
+				thisDraw = false;
+				return 0x47371A;
+			}
+				
+		}
+		{
+			thisDraw = true;
+			return 0;
+		}
+	}
+	{
+		thisDraw = false;
+		return 0x47371A;
+	}
+}
+
+
+DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Units_Veteran, 9)
+{
+	if (thisDraw && CIsoViewExt::DrawVeterancy)
+	{
+		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		pThis->lpDDBackBufferSurface->Unlock(nullptr);
+		if (celldata.Unit != -1)
+		{
+			CUnitData data;
+			CMapData::Instance->GetUnitData(celldata.Unit, data);
+
+			int X = atoi(data.X);
+			int Y = atoi(data.Y);
+			int	VP = atoi(data.VeterancyPercentage);
+
+			CIsoView::MapCoord2ScreenCoord(X, Y);
+			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+
+			DrawVeterancy temp;
+			temp.X = X;
+			temp.Y = Y;
+			temp.VP = VP;
+			drawVeterancies.push_back(temp);
+		}
+
+		thisDraw = false;
+	}
+
+	return 0;
 }
 
 DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Aircrafts, 9)
 {
-	return CIsoViewExt::DrawAircrafts ? 0 : 0x473DA0;
-}
+	if (CIsoViewExt::DrawAircrafts)
+	{
 
+		if (!CIsoViewExt::DrawAircraftsFilter)
+		{
+			thisDraw = true;
+			return 0;
+		}
+
+		if (!CViewObjectsExt::AircraftBrushDlgF)
+		{
+			thisDraw = true;
+			return 0;
+		}
+
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+
+		if (celldata.Aircraft != -1)
+		{
+			CAircraftData data;
+			CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
+
+			auto vec = CViewObjectsExt::ObjectFilterA;
+			if (!vec.empty())
+				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+				{
+					thisDraw = false;
+					return 0x473DA0;
+				}
+
+			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+				{
+					if (CViewObjectsExt::AircraftBrushBoolsF[nCheckBoxIdx - 1300])
+					{
+						if (dst == src) return true;
+						else return false;
+					}
+					return true;
+				};
+			if (
+				CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
+				CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
+				CheckValue(1302, CViewObjectsExt::AircraftBrushDlgF->CString_Direction, data.Facing) &&
+				CheckValue(1303, CViewObjectsExt::AircraftBrushDlgF->CString_Status, data.Status) &&
+				CheckValue(1304, CViewObjectsExt::AircraftBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
+				CheckValue(1305, CViewObjectsExt::AircraftBrushDlgF->CString_Group, data.Group) &&
+				CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+				CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+				CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag)
+				)
+			{
+				thisDraw = true;
+				return 0;
+			}
+			else
+			{
+				thisDraw = false;
+				return 0x473DA0;
+			}
+		}
+		{
+			thisDraw = true;
+			return 0;
+		}
+	}
+	{
+		thisDraw = false;
+		return 0x473DA0;
+	}
+}
+DEFINE_HOOK(473DA0, CIsoView_Draw_LayerVisible_Aircrafts_Veteran, 6)
+{
+	if (thisDraw && CIsoViewExt::DrawVeterancy)
+	{
+		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		pThis->lpDDBackBufferSurface->Unlock(nullptr);
+		if (celldata.Aircraft != -1)
+		{
+			CAircraftData data;
+			CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
+
+			int X = atoi(data.X);
+			int Y = atoi(data.Y);
+			int	VP = atoi(data.VeterancyPercentage);
+
+			CIsoView::MapCoord2ScreenCoord(X, Y);
+			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+			DrawVeterancy temp;
+			temp.X = X;
+			temp.Y = Y;
+			temp.VP = VP;
+			drawVeterancies.push_back(temp);
+
+		}
+
+		thisDraw = false;
+	}
+
+	return 0;
+}
 DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 {
-	return CIsoViewExt::DrawInfantries ? 0 : 0x4741D9;
-}
+	thisDraw = false;
+	if (CIsoViewExt::DrawInfantries)
+	{
 
+		if (!CIsoViewExt::DrawInfantriesFilter)
+		{
+			thisDraw = true;
+			return 0;
+		}
+
+		if (!CViewObjectsExt::InfantryBrushDlgF)
+		{
+			thisDraw = true;
+			return 0;
+		}
+
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		GET(int, subPos, EBX)
+
+		if (celldata.Infantry[subPos] != -1)
+		{
+			CInfantryData data;
+			CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
+
+			auto vec = CViewObjectsExt::ObjectFilterI;
+			if (!vec.empty())
+				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+				{
+					thisDraw = false;
+					return 0x4741D9;
+				}
+
+			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+				{
+					if (CViewObjectsExt::InfantryBrushBoolsF[nCheckBoxIdx - 1300])
+					{
+						if (dst == src) return true;
+						else return false;
+					}
+					return true;
+				};
+			if (
+				CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
+				CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
+				CheckValue(1302, CViewObjectsExt::InfantryBrushDlgF->CString_State, data.Status) &&
+				CheckValue(1303, CViewObjectsExt::InfantryBrushDlgF->CString_Direction, data.Facing) &&
+				CheckValue(1304, CViewObjectsExt::InfantryBrushDlgF->CString_VerteranStatus, data.VeterancyPercentage) &&
+				CheckValue(1305, CViewObjectsExt::InfantryBrushDlgF->CString_Group, data.Group) &&
+				CheckValue(1306, CViewObjectsExt::InfantryBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
+				CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
+				CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
+				CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag)
+				)
+			{
+				thisDraw = true;
+				return 0;
+			}
+			else
+			{
+				thisDraw = false;
+				return 0x4741D9;
+			}
+		}
+
+
+		{
+			thisDraw = true;
+			return 0;
+		}
+	}
+	{
+		thisDraw = false;
+		return 0x4741D9;
+	}
+}
+DEFINE_HOOK(4741D9, CIsoView_Draw_LayerVisible_Infantries_Veteran, 8)
+{
+	if (thisDraw && CIsoViewExt::DrawVeterancy)
+	{
+		GET(int, subPos, EBX)
+		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		pThis->lpDDBackBufferSurface->Unlock(nullptr);
+		if (celldata.Infantry[subPos] != -1)
+		{
+			CInfantryData data;
+			CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
+
+			int X = atoi(data.X);
+			int Y = atoi(data.Y);
+			int	VP = atoi(data.VeterancyPercentage);
+			int	subcell = atoi(data.SubCell);
+
+			CIsoView::MapCoord2ScreenCoord(X, Y);
+			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+			if (subcell == 2)
+				X += 15;
+			else if (subcell == 3)
+				X -= 15;
+			else if (subcell == 4)
+				Y += 7;
+
+			DrawVeterancy temp;
+			temp.X = X - 5;
+			temp.Y = Y - 4;
+			temp.VP = VP;
+			drawVeterancies.push_back(temp);
+
+			//if (!ImageDataMapHelper::IsImageLoaded(data.TypeID + "0"))
+			//{
+			//	pThis->DrawBitmap("infantry", X + 3, Y - 5);
+			//}
+		}
+
+		thisDraw = false;
+	}
+
+	return 0;
+}
 DEFINE_HOOK(4741E7, CIsoView_Draw_LayerVisible_Terrains, 9)
 {
 	return CIsoViewExt::DrawTerrains ? 0 : 0x474563;
@@ -154,8 +627,11 @@ DEFINE_HOOK(471162, CIsoView_Draw_PowerUp1Loc_PosFix, 5)
 	auto pData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(ID, 0));
 
 	ppmfc::CString ArtID; // BldArtID
-	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image"))
-		ArtID = *ppImage;
+	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image")) {
+		ppmfc::CString str = *ppImage;
+		str.Trim();
+		ArtID = str;
+	}
 	else
 		ArtID = BldID;
 
@@ -182,8 +658,11 @@ DEFINE_HOOK(471980, CIsoView_Draw_PowerUp2Loc_PosFix, 5)
 	auto pData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(ID, 0));
 
 	ppmfc::CString ArtID; // BldArtID
-	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image"))
-		ArtID = *ppImage;
+	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image")) {
+		ppmfc::CString str = *ppImage;
+		str.Trim();
+		ArtID = str;
+	}
 	else
 		ArtID = BldID;
 
@@ -210,8 +689,11 @@ DEFINE_HOOK(4720D3, CIsoView_Draw_PowerUp3Loc_PosFix, 5)
 	auto pData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(ID, 0));
 
 	ppmfc::CString ArtID; // BldArtID
-	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image"))
-		ArtID = *ppImage;
+	if (auto ppImage = Variables::Rules.TryGetString(BldID, "Image")) {
+		ppmfc::CString str = *ppImage;
+		str.Trim();
+		ArtID = str;
+	}
 	else
 		ArtID = BldID;
 
@@ -227,10 +709,6 @@ DEFINE_HOOK(4720D3, CIsoView_Draw_PowerUp3Loc_PosFix, 5)
 	return 0x47230B;
 }
 
-namespace CIsoViewDrawTemp
-{
-	int BuildingIndex;
-}
 
 DEFINE_HOOK(470986, CIsoView_Draw_BuildingImageDataQuery_1, 8)
 {
@@ -287,7 +765,8 @@ DEFINE_HOOK(4709EE, CIsoView_Draw_ShowBuildingOutline, 6)
 	GET_STACK(int, H, STACK_OFFS(0xD18, 0xD00));
 	GET_STACK(COLORREF, dwColor, STACK_OFFS(0xD18, 0xD04));
 	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
+    lpDescDraw = lpDesc;
+	
 	const auto& DataExt = CMapDataExt::BuildingDataExts[CIsoViewDrawTemp::BuildingIndex];
 	if (DataExt.IsCustomFoundation())
 		pThis->DrawLockedLines(*DataExt.LinesToDraw, X, Y, dwColor, false, false, lpDesc);
@@ -296,6 +775,7 @@ DEFINE_HOOK(4709EE, CIsoView_Draw_ShowBuildingOutline, 6)
 
 	return 0x470A38;
 }
+
 
 DEFINE_HOOK(4727B2, CIsoView_Draw_BasenodeOutline_CustomFoundation, B)
 {
@@ -324,7 +804,7 @@ DEFINE_HOOK(47280B, CIsoView_Draw_BasenodeOutline, 6)
 		pThis->DrawLockedCellOutline(X, Y, W, H, dwColor, true, false, lpDesc);
 		pThis->DrawLockedCellOutline(X + 1, Y, W, H, dwColor, true, false, lpDesc);
 	}
-
+	
 	return 0x472884;
 }
 
@@ -339,23 +819,210 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 
 	pThis->lpDDBackBufferSurface->Unlock(nullptr);
 
+	if (CIsoViewExt::RockCells)
+	{
+		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+
+		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		auto Map = &CMapData::Instance();
+		for (int i = 0; i < Map->CellDataCount; i++)
+		{
+			auto cell = &Map->CellDatas[i];
+			int x = i % Map->MapWidthPlusHeight;
+			int y = i / Map->MapWidthPlusHeight;
+			int tileIndex = cell->TileIndex;
+			if (tileIndex == 65535)
+				tileIndex = 0;
+
+
+			if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
+			{
+				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
+				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf || CViewObjectsExt::RockOverlays[cell->Overlay])
+				{
+					CIsoView::MapCoord2ScreenCoord(x, y);
+					int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+					int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+					pThis->DrawLockedCellOutlineX(drawX, drawY, 1, 1, RGB(255, 0, 0), RGB(40, 0, 0), true, false, lpDesc);
+				}
+			}
+		}
+	}
+	if (CTerrainGenerator::RangeFirstCell.X > -1 && CTerrainGenerator::RangeSecondCell.X > -1)
+	{
+		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+		int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
+
+		if (CMapData::Instance().IsCoordInMap(X, Y))
+		{
+			int XW = abs(CTerrainGenerator::RangeSecondCell.X - CTerrainGenerator::RangeFirstCell.X) + 1;
+			int YW = abs(CTerrainGenerator::RangeSecondCell.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+			if (X > CTerrainGenerator::RangeSecondCell.X)
+				X = CTerrainGenerator::RangeSecondCell.X;
+			if (Y > CTerrainGenerator::RangeSecondCell.Y)
+				Y = CTerrainGenerator::RangeSecondCell.Y;
+
+			CIsoView::MapCoord2ScreenCoord(X, Y);
+
+			int drawX = X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			int drawY = Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+			pThis->DrawLockedCellOutline(drawX, drawY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc);
+
+		}
+	}
+	else if (CTerrainGenerator::UseMultiSelection && MultiSelection::SelectedCoords.size() > 0) 
+	{
+		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+		for (auto& mc : MultiSelection::SelectedCoords)
+		{
+			int x = mc.X;
+			int y = mc.Y;
+			CIsoView::MapCoord2ScreenCoord(x, y);
+			int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+			bool s1 = true;
+			bool s2 = true;
+			bool s3 = true;
+			bool s4 = true;
+
+			for (auto& coord : MultiSelection::SelectedCoords)
+			{
+				if (coord.X == mc.X - 1 && coord.Y == mc.Y)
+				{
+					s1 = false;
+				}
+				if (coord.X == mc.X + 1 && coord.Y == mc.Y)
+				{
+					s3 = false;
+				}
+				if (coord.X == mc.X && coord.Y == mc.Y - 1)
+				{
+					s4 = false;
+				}
+
+				if (coord.X == mc.X && coord.Y == mc.Y + 1)
+				{
+					s2 = false;
+				}
+			}
+			pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc, s1, s2, s3, s4);
+		}
+	}
+	for (auto& dv : drawVeterancies)
+	{
+		if (dv.VP >= 200)
+			pThis->DrawBitmap("elite", dv.X, dv.Y);
+		else if (dv.VP >= 100)
+			pThis->DrawBitmap("veteran", dv.X, dv.Y);
+	}
+
 	return pThis ? 0x474AEF : 0x474DB3;
 }
 
 DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 {
+	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
+
 	GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
 	REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+
+	CIsoViewExt::drawOffsetX = R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+	CIsoViewExt::drawOffsetY = R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
 	int X = R->Stack<int>(STACK_OFFS(0xD18, 0xCE4)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
 	int Y = R->Stack<int>(STACK_OFFS(0xD18, 0xCD0)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
 	// We had unlocked it already, just blt them now
 	if (CIsoViewExt::DrawCelltags && celldata.CellTag != -1)
-		pThis->DrawCelltag(X, Y);
+	{
+		if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
+		{
+			auto AllisNum = [](std::string str)
+				{
+					for (int i = 0; i < str.size(); i++)
+					{
+						int tmp = (int)str[i];
+						if (tmp >= 48 && tmp <= 57)
+						{
+							continue;
+						}
+						else
+						{
+							return false;
+						}
+					}
+					return true;
+				};
+			ppmfc::CString id = "";
+			if (CMapData::Instance().INI.SectionExists("CellTags"))
+				id = CMapData::Instance().INI.GetStringAt("CellTags", celldata.CellTag);
+
+			if (id != "")
+			{
+				for (auto name : CViewObjectsExt::ObjectFilterCT)
+				{
+					if (name == id)
+					{
+						pThis->DrawCelltag(X, Y);
+						break;
+					}
+					if (AllisNum(std::string(name)))
+					{
+						int n = atoi(name);
+						if (n < 1000000)
+						{
+							ppmfc::CString buffer;
+							buffer.Format("%08d", n + 1000000);
+							if (buffer == id)
+							{
+								pThis->DrawCelltag(X, Y);
+								break;
+							}
+						}
+					}
+					
+				}
+			}
+		}
+		else
+			pThis->DrawCelltag(X, Y);
+		
+		
+	}
+		
 	if (CIsoViewExt::DrawWaypoints && celldata.Waypoint != -1)
 		pThis->DrawWaypointFlag(X, Y);
 	if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
 		pThis->DrawTube(&celldata, X, Y);
+
+
+
+	auto cellDataExt = CMapDataExt::CellDataExt_FindCell;
+	if (cellDataExt.drawCell)
+	{
+		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
+		if (ExtConfigs::Waypoint_Background)
+		{
+			SetBkMode(hDC, OPAQUE);
+			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+		}
+		else
+			SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+
+		int x = cellDataExt.X;
+		int y = cellDataExt.Y;
+
+		CIsoView::MapCoord2ScreenCoord(x, y);
+
+		int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+		int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+		pThis->DrawBitmap("target", drawX - 20, drawY - 11);
+	}
 
 	return 0x474D64;
 }
@@ -372,25 +1039,73 @@ DEFINE_HOOK(474DB7, CIsoView_Draw_DrawCelltagAndWaypointAndTube_SkipOriginUnlock
 
 DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 {
-	if (CIsoViewExt::DrawWaypoints)
+	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
+
+	if (CIsoViewExt::DrawBaseNodeIndex)
 	{
-		GET(CIsoViewExt*, pThis, EBX);
-
-		GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-		GET_STACK(int, jMin, STACK_OFFS(0xD18, 0xC10));
-		GET_STACK(int, iMin, STACK_OFFS(0xD18, 0xCBC));
-		GET_STACK(const int, jMax, STACK_OFFS(0xD18, 0xC64));
-		GET_STACK(const int, iMax, STACK_OFFS(0xD18, 0xC18));
-
-		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
-		if (ExtConfigs::Waypoint_Background)
+		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
+		if (ExtConfigs::BaseNodeIndex_Background)
 		{
 			SetBkMode(hDC, OPAQUE);
-			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+			SetBkColor(hDC, ExtConfigs::BaseNodeIndex_Background_Color);
 		}
 		else
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
+
+		auto& ini = CMapData::Instance->INI;
+		if (auto pSection = ini.GetSection("Houses"))
+		{
+			for (auto pair : pSection->GetEntities())
+			{
+				int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
+				if (nodeCount > 0)
+				{
+					for (int i = 0; i < nodeCount; i++)
+					{
+						char key[10];
+						sprintf(key, "%03d", i);
+						auto value = ini.GetString(pair.second, key, "");
+						if (value == "")
+							continue;
+						auto atoms = STDHelpers::SplitString(value);
+						if (atoms.size() < 3)
+							continue;
+
+						int x = atoi(atoms[2]);
+						int y = atoi(atoms[1]);
+
+						CIsoView::MapCoord2ScreenCoord(x, y);
+
+						int ndrawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30;
+						int ndrawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15;
+
+						TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
+					}
+				}
+			}
+		}
+	}
+	
+
+	SetTextColor(hDC, ExtConfigs::Waypoint_Color);
+	if (ExtConfigs::Waypoint_Background)
+	{
+		SetBkMode(hDC, OPAQUE);
+		SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+	}
+	else
+		SetBkMode(hDC, TRANSPARENT);
+	SetTextAlign(hDC, TA_CENTER);
+
+	if (CIsoViewExt::DrawWaypoints)
+	{
+		GET(CIsoViewExt*, pThis, EBX);
+
+		GET_STACK(int, jMin, STACK_OFFS(0xD18, 0xC10));
+		GET_STACK(int, iMin, STACK_OFFS(0xD18, 0xCBC));
+		GET_STACK(const int, jMax, STACK_OFFS(0xD18, 0xC64));
+		GET_STACK(const int, iMax, STACK_OFFS(0xD18, 0xC18));
 
 		auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
 		for (int j = jMin; j < jMax; ++j)
@@ -408,15 +1123,18 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 				if (pCell->Waypoint != -1)
 				{
 					auto pWP = *pSection->GetKeyAt(pCell->Waypoint);
-					TextOut(hDC, drawX, drawY, pWP, strlen(pWP));
-				}
+					auto pointer = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
 
+
+					TextOut(hDC, drawX, drawY, pWP, strlen(pWP));
+
+				}
 			}
 		}
-
-		SetTextAlign(hDC, TA_LEFT);
-		SetTextColor(hDC, RGB(0, 0, 0));
 	}
+	
+	SetTextAlign(hDC, TA_LEFT);
+	SetTextColor(hDC, RGB(0, 0, 0));
 
 	return CIsoViewExt::DrawBounds ? 0 : 0x474FE0;
 }
@@ -485,3 +1203,216 @@ DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 
 	return 0x470574;
 }
+
+//DEFINE_HOOK(46A9E2, CIsoView_UpdateStatusBar_End, B)
+//{
+//	GET_STACK(int, X, 0x148);
+//	GET_STACK(int, Y, 0x14C);
+//
+//	ppmfc::CString targetHouse;
+//	ppmfc::CString targetNode;
+//	int targetIndex = -1;
+//	int exchangeIndex = -1;
+//
+//	auto& ini = CMapData::Instance->INI;
+//	if (auto pSection = ini.GetSection("Houses"))
+//	{
+//		for (auto pair : pSection->GetEntities())
+//		{
+//			if (targetIndex > -1)
+//				break;
+//
+//			int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
+//			if (nodeCount > 0)
+//			{
+//				for (int i = 0; i < nodeCount; i++)
+//				{
+//					if (targetIndex > -1)
+//						break;
+//
+//					char key[10];
+//					sprintf(key, "%03d", i);
+//					auto value = ini.GetString(pair.second, key, "");
+//					if (value == "")
+//						continue;
+//					auto atoms = STDHelpers::SplitString(value);
+//					if (atoms.size() < 3)
+//						continue;
+//
+//					auto size = CViewObjectsExt::GetStructureSize(atoms[0]);
+//					for (int w = 0; w < size[0]; w++)
+//					{
+//						if (targetIndex > -1)
+//							break;
+//						for (int h = 0; h < size[1]; h++)
+//						{
+//							if (atoi(atoms[1]) + w == Y && atoi(atoms[2]) + h == X)
+//							{
+//								targetIndex = i;
+//								targetHouse = pair.second;
+//								targetNode = value;
+//								break;
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	if (targetIndex == -1)
+//		return 0;
+//
+//	auto atoms = STDHelpers::SplitString(targetNode);
+//	Miscs::ParseHouseName(&targetHouse, targetHouse, true);
+//
+//	ppmfc::CString buffer;
+//	buffer.Format("基地节点: ID %d, %s (%s, %s)", targetIndex, CMapData::GetUIName(atoms[0]), targetHouse, atoms[0]);
+//
+//
+//
+//	CFinalSunDlg::Instance->MyViewFrame.StatusBar.SetText(buffer, 0, 0);
+//
+//	return 0x46AA0F;
+//}
+
+DEFINE_HOOK(475122, CIsoView_Draw_ScrollCursor, 5)
+{
+	ppmfc::CString newTitle = "scrollcursor.bmp";
+	R->Stack(STACK_OFFS(0xD24, 0xCDC), newTitle);
+	return 0;
+}
+DEFINE_HOOK(475119, CIsoView_Draw_ScrollCursor_Position_Y, 5)
+{
+	GET(int, y, EDX);
+
+	R->EDX(y - 12);
+	return 0;
+}
+DEFINE_HOOK(475122, CIsoView_Draw_ScrollCursor_Position_X, 5)
+{
+	GET(int, x, EDX);
+
+	R->EDX(x - 18);
+	return 0;
+}
+
+DEFINE_HOOK(457E9D, CIsoView_OnMouseMove_AutoLAT, 6)
+{
+    CMapDataExt::SmoothAll();
+    return 0x459AA8;
+}
+
+DEFINE_HOOK(46242B, CIsoView_OnLBButtonDown_AutoLAT, 6)
+{
+    CMapDataExt::SmoothAll();
+    return 0x463F19;
+}
+
+DEFINE_HOOK(45EC07, CIsoView_OnCommand_Skip_wParamCheck, 9)
+{
+	return 0x45EC10;
+}
+
+
+DEFINE_HOOK(45CDB8, CIsoView_OnMouseMove_SkipOverlayUndoRedo1, 6)
+{
+	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
+		return 0;
+	return 0x45CDCC;
+}
+DEFINE_HOOK(45CD4F, CIsoView_OnMouseMove_SkipOverlayUndoRedo2, 6)
+{
+	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
+		return 0;
+	return 0x45CD6D;
+}
+
+DEFINE_HOOK(46684D, CIsoView_OnLButtonDown_OverlayUndoRedo, 6)
+{
+	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
+		return 0;
+
+	if (CIsoView::CurrentCommand->Command == 0x1 && CIsoView::CurrentCommand->Type == 6)
+	{
+		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+	}
+
+	return 0;
+}
+
+bool IsPlacingTiles = false;
+DEFINE_HOOK(46855D, CIsoView_OnLButtonUp_OverlayUndoRedo, 5)
+{
+	IsPlacingTiles = false;
+
+	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
+		return 0;
+
+	if (CIsoView::CurrentCommand->Command == 0x1 && CIsoView::CurrentCommand->Type == 6)
+	{
+		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+		CMapData::Instance->DoUndo();
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(45B545, CIsoView_OnMouseMove_SkipPlaceTileUndoRedo_Notify, 7)
+{
+	if (!IsPlacingTiles || !ExtConfigs::UndoRedo_ShiftPlaceTile)
+		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+	IsPlacingTiles = true;
+
+	return 0;
+}
+
+DEFINE_HOOK(461A37, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo1, 7)
+{
+	if (!IsPlacingTiles || !ExtConfigs::UndoRedo_ShiftPlaceTile)
+		return 0;
+	return 0x461A5B;
+}
+
+DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
+{
+	GET_STACK(int, dwX, 0x4);
+	GET_STACK(int, dwY, 0x8);
+	GET_STACK(int, dwID, 0xC);
+	GET_STACK(byte, bSubTile, 0x10);
+
+	CIsoViewExt::FillArea(dwX, dwY, dwID, bSubTile);
+
+	return 0x46D808;
+}
+
+//DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
+//{
+//	if (!IsPlacingTiles)
+//		return 0x4616C2;
+//	return 0x4616D8;
+//}
+
+
+//LPDIRECTDRAWSURFACE7 lpDDBackBufferSurfaceZoom = nullptr;
+//DEFINE_HOOK(4750E7, CIsoView_Draw_Zoom, 5)
+//{
+//	auto pThis = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+//	auto hWnd = pThis->m_hWnd;
+//
+//	if (!lpDDBackBufferSurfaceZoom)
+//		pThis->lpDD7->DuplicateSurface(pThis->lpDDTempBufferSurface, &lpDDBackBufferSurfaceZoom);
+//
+//	RECT dr;
+//	RECT newDr;
+//	GetWindowRect(hWnd ,&dr);
+//	newDr = dr;
+//	newDr.right = newDr.right - (newDr.right - newDr.left) * 0.25f;
+//	newDr.bottom = newDr.bottom - (newDr.bottom - newDr.top) * 0.25f;	
+//
+//	lpDDBackBufferSurfaceZoom->Blt(&dr, pThis->lpDDBackBufferSurface, &newDr, DDBLT_WAIT, 0);
+//	pThis->lpDDBackBufferSurface->Blt(&dr, lpDDBackBufferSurfaceZoom, &dr, DDBLT_WAIT, 0);
+//
+//	return 0;
+//}
+

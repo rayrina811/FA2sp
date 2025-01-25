@@ -15,6 +15,154 @@
 #include "../FA2sp.h"
 
 #include "../Helpers/STDHelpers.h"
+#include <CPropertyInfantry.h>
+
+bool changedNLen = false;
+int oldNLen = 0;
+CRITICAL_SECTION cs;
+
+DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
+{
+	GET_STACK(int, nLen, 0x4);
+
+	
+	if (nLen > 0 && nLen <= 512)
+	{
+		changedNLen = true;
+		oldNLen = nLen;
+		R->Stack(0x4, 513);
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
+{
+	if (changedNLen)
+	{
+		R->ESI(oldNLen);
+		
+	}
+	changedNLen = false;
+
+	return 0;
+}
+
+
+//DEFINE_HOOK(555D9E, CString_AllocBuffer, 5)
+//{
+//
+//	return 0x555DD8;
+//}
+
+//DEFINE_HOOK(555DFE, CString_FreeData, 6)
+//{
+//	GET(ppmfc::CStringData*, pData, ECX);
+//	if ((BYTE*)pData)
+//		GameDelete((BYTE*)pData);
+//	return 0x555E45;
+//
+//	//if (pData == nullptr)
+//	//	return 0x555E45;
+//	//return 0;
+//}
+//
+//DEFINE_HOOK(536106, sub_536106, 5)
+//{
+//	GET_STACK(LPVOID, lpMem, 0x8);
+//	if (lpMem)
+//		return 0;
+//	return 0x5361EE;
+//}
+
+
+
+
+
+//DEFINE_HOOK(555D97, CString_AllocBuffer, 7)
+//{
+//
+//	return 0x555DD8;
+//}
+
+//DEFINE_HOOK(555E01, CString_FreeData, 5)
+//{
+//	return 0x555E30;
+//}
+//DEFINE_HOOK(555E38, CString_FreeData2, 5)
+//{
+//	return 0x555E3F;
+//}
+
+//DEFINE_HOOK(555E07, CString_FreeData, 5)
+//{
+//	R->EAX(1024);
+//	return 0;
+//	//return 0x555E3F;
+//}
+//DEFINE_HOOK(555E3F, CString_FreeData2, 5)
+//{
+//	GET(int, nX, EAX);
+//	MessageBox(NULL, std::to_string(nX).c_str(), "Error", MB_OK);
+//	return 0;
+//
+//}
+
+//DEFINE_HOOK_AGAIN(4641B2, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_1, 5)
+//DEFINE_HOOK(4641C5, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_1, 5)
+//{
+//	GET(int, pos, ESI);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//		return 0x46423F;
+//	return 0;
+//}
+//
+//DEFINE_HOOK_AGAIN(4642E8, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_2, 5)
+//DEFINE_HOOK(4642FB, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_2, 6)
+//{
+//	GET(int, pos, EAX);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//		return 0x46439F;
+//	return 0;
+//}
+//
+//DEFINE_HOOK_AGAIN(464C7C, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_1, 6)
+//DEFINE_HOOK(464C66, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_1, 6)
+//{
+//	GET(int, pos, EAX);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//		return 0x464CF1;
+//	return 0;
+//}
+//
+//DEFINE_HOOK_AGAIN(464DAA, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_2, 6)
+//DEFINE_HOOK(464D97, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_2, 5)
+//{
+//	GET(int, pos, EAX);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//		return 0x464E49;
+//	return 0;
+//}
+
+//DEFINE_HOOK(4655E8, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 7)
+//{
+//	GET(int, pos, EAX);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//		return 0x46561B;
+//	return 0;
+//}
+//
+//DEFINE_HOOK(465D36, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
+//{
+//	GET(int, pos, EAX);
+//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
+//	{
+//		
+//		return 0x465D60;
+//	}
+//		
+//	return 0;
+//}
 
 // FA2 will no longer automatically change the extension of map
 DEFINE_HOOK(42700A, CFinalSunDlg_SaveMap_Extension, 9)
@@ -55,16 +203,23 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 
 	ppmfc::CString color = "";
 	if (pHouse)
-		if (auto pStr = Variables::Rules.TryGetString(pHouse, "Color"))
-			color = *pStr;
+		if (auto pStr = Variables::Rules.TryGetString(pHouse, "Color")) {
+			ppmfc::CString str = *pStr;
+			str.Trim();
+			color = str;
+		}
 
 	if (pColor)
 		color = pColor;
 
 	HSVClass hsv{ 0,0,0 };
 	if (!color.IsEmpty())
-		if (auto const ppValue = CINI::Rules->TryGetString("Colors", color))
-			sscanf_s(*ppValue, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+		if (auto const ppValue = CINI::Rules->TryGetString("Colors", color)) {
+			ppmfc::CString str = *ppValue;
+			str.Trim();
+			sscanf_s(str, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+		}
+			
 
 	RGBClass rgb;
 	if (!ExtConfigs::UseRGBHouseColor)
@@ -78,14 +233,18 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 }
 
 // https://modenc.renegadeprojects.com/Cell_Spots
+
 DEFINE_HOOK(473E66, CIsoView_Draw_InfantrySubcell, B)
 {
 	GET(int, nX, EDI);
 	GET(int, nY, ESI);
 	REF_STACK(CInfantryData, infData, STACK_OFFS(0xD18, 0x78C));
 
+
 	int nSubcell;
 	sscanf_s(infData.SubCell, "%d", &nSubcell);
+
+
 	switch (nSubcell)
 	{
 	case 2:
@@ -95,7 +254,7 @@ DEFINE_HOOK(473E66, CIsoView_Draw_InfantrySubcell, B)
 		R->EDI(nX - 15);
 		break;
 	case 4:
-		R->ESI(nY - 7);
+		R->ESI(nY + 7);
 		break;
 	case 0:
 	case 1:
@@ -105,6 +264,33 @@ DEFINE_HOOK(473E66, CIsoView_Draw_InfantrySubcell, B)
 
 	return 0x473E8C;
 }
+
+DEFINE_HOOK(4A3306, CMapData_Update_InfantrySubCell, 5)//UpdateInfantry
+{
+	GET(int, spp, ECX);
+	if (spp >= 4)
+	{
+		return 0x4A335D;
+	}
+	if (spp == 3)
+	{
+		R->ECX(0);
+	}
+	return 0x4A330B;
+}
+DEFINE_HOOK(4A7C74, CMapData_Update_InfantrySubCell2, 5)//DeleteInfantry
+{
+	GET(int, pos, EAX);
+	if (pos > 0)
+		pos--;
+	if (pos == 3)
+		pos = 0;
+	R->EAX(pos);
+
+	return 0x4A7C79;
+}
+
+
 
 // Fix the bug that up&down&left&right vk doesn't update the TileSetBrowserView
 DEFINE_HOOK(422EA4, CFinalSunApp_ProcessMessageFilter_UpdateTileSetBrowserView_UpAndDown, 8)
@@ -197,3 +383,101 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
 
 	return 0;
 }
+
+DEFINE_HOOK(4FF70A, CTriggerEventsDlg_OnSelchangeParameter_FixFor23, 5)
+{
+	GET_STACK(ppmfc::CString, Code, STACK_OFFS(0xB0, 0x74));
+
+	if (atoi(Code) == 2)
+		return 0x4FF71B;
+
+	return 0x4FF71E;
+}
+
+#define RIPARIUS_BEGIN 102
+#define RIPARIUS_END 121
+#define CRUENTUS_BEGIN 27
+#define CRUENTUS_END 38
+#define VINIFERA_BEGIN 127
+#define VINIFERA_END 146
+#define ABOREUS_BEGIN 147
+#define ABOREUS_END 166
+
+// Rewrite SetOverlayAt to fix wrong credits on map bug
+// if you undo the placement of some tiberium, and then
+// move your mouse with previewed tiberium over the undo
+// area, the bug happens
+DEFINE_HOOK(4A16C0, CMapData_SetOverlayAt, 6)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(int, dwPos, 0x4);
+	GET_STACK(unsigned char, overlay, 0x8);
+
+	int x = pThis->GetXFromCoordIndex(dwPos);
+	int y = pThis->GetYFromCoordIndex(dwPos);
+	int olyPos = y + x * 512;
+
+	if (olyPos > 262144 || dwPos > pThis->CellDataCount) return 0x4A17B6;
+
+	// here is the problem
+	// auto& ovrl = pThis->Overlay[olyPos];
+	// auto& ovrld = pThis->OverlayData[olyPos];
+
+	auto& ovrl = pThis->CellDatas[dwPos].Overlay;
+	auto& ovrld = pThis->CellDatas[dwPos].OverlayData;
+
+	pThis->DeleteTiberium(ovrl, ovrld);
+
+	pThis->Overlay[olyPos] = overlay;
+	pThis->OverlayData[olyPos] = 0;
+	pThis->CellDatas[dwPos].Overlay = overlay;
+	pThis->CellDatas[dwPos].OverlayData = 0;
+
+	// auto& ovrl2 = pThis->Overlay[olyPos];
+	// auto& ovrld2 = pThis->OverlayData[olyPos];
+	auto& ovrl2 = pThis->CellDatas[dwPos].Overlay;
+	auto& ovrld2 = pThis->CellDatas[dwPos].OverlayData;
+	pThis->AddTiberium(ovrl2, ovrld2);
+
+	int i, e;
+	for (i = -1; i < 2; i++)
+		for (e = -1; e < 2; e++)
+			if (pThis->IsCoordInMap(x + i, y + e))
+				pThis->SmoothTiberium(pThis->GetCoordIndex(x + i, y + e));
+
+
+	pThis->UpdateMapPreviewAt(x, y);
+
+	return 0x4A17B6;
+}
+
+DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(int, dwPos, 0x4);
+	GET_STACK(unsigned char, overlaydata, 0x8);
+
+	int x = pThis->GetXFromCoordIndex(dwPos);
+	int y = pThis->GetYFromCoordIndex(dwPos);
+	int olyPos = y + x * 512;
+
+	if (olyPos > 262144 || dwPos > pThis->CellDataCount) return 0x4A2A88;
+
+	//auto& ovrl = pThis->Overlay[olyPos];
+	//auto& ovrld = pThis->OverlayData[olyPos];
+
+	auto& ovrl = pThis->CellDatas[dwPos].Overlay;
+	auto& ovrld = pThis->CellDatas[dwPos].OverlayData;
+
+	if (ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END) return 0x4A2A88;
+	if (ovrl >= CRUENTUS_BEGIN && ovrl <= CRUENTUS_END) return 0x4A2A88;
+	if (ovrl >= VINIFERA_BEGIN && ovrl <= VINIFERA_END) return 0x4A2A88;
+	if (ovrl >= ABOREUS_BEGIN && ovrl <= ABOREUS_END) return 0x4A2A88;
+
+	pThis->OverlayData[olyPos] = overlaydata;
+	pThis->CellDatas[dwPos].OverlayData = overlaydata;
+
+	return 0x4A2A88;
+}
+
+

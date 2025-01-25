@@ -8,6 +8,8 @@
 
 #include <Helpers/Macro.h>
 #include "../RunTime.h"
+#include "../Ext/CLoading/Body.h"
+#include "../Helpers/STDHelpers.h"
 
 namespace hooks_files_detail
 {
@@ -38,6 +40,31 @@ namespace hooks_files_detail
 	static shape_file current_shape_file;
 }
 using namespace hooks_files_detail;
+
+// no need for this, just use CLoading::HasFile()
+//DEFINE_HOOK(525670, CMixFile_HasFile, 5)
+//{
+//	GET_STACK(const char*, filename, 0x4);
+//	GET_STACK(int, nMix, 0x8);
+//
+//	auto sp = STDHelpers::SplitString(filename, ".");
+//	auto& extension = sp.back();
+//	extension.MakeUpper();
+//
+//	if (extension == "SHP")
+//	{
+//		ppmfc::CString filepath = CFinalSunApp::FilePath();
+//		filepath += filename;
+//		std::ifstream fin;
+//		fin.open(filepath, std::ios::in | std::ios::binary);
+//		if (fin.is_open())
+//		{
+//			R->EDX(true);
+//			return 0x525785;
+//		}
+//	}
+//	return 0;
+//}
 
 DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 {

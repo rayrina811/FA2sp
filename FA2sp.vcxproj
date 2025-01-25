@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -143,6 +143,12 @@
     <ClCompile Include="FA2sp\Algorithms\sha1.cpp" />
     <ClCompile Include="FA2sp\Algorithms\sha1impl.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
     <ClCompile Include="FA2sp\Ext\CAITriggerTypes\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -152,11 +158,14 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunApp\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.ObjectBrowserControl.cpp" />
+    <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Body.PlaceConnectedTiles.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.ObjectBrowserControl.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
@@ -183,22 +192,17 @@
     <ClCompile Include="FA2sp\Ext\CPropertyUnit\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CRandomTree\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CRandomTree\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Body.CurrentScript.cpp" />
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CSingleplayerSettings\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTeamTypes\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTeamTypes\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TeamSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TriggerSort.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerAction\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerAction\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerEvent\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerFrame\Hooks.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerOption\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\FA2Expand.cpp" />
-    <ClCompile Include="FA2sp\Helpers\ControlHelpers.cpp" />
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
@@ -211,20 +215,15 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
     <ClCompile Include="FA2sp\Miscs\PlaceHolder.cpp" />
+    <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp" />
     <ClCompile Include="FA2sp\Miscs\VoxelDrawer.cpp" />
     <ClCompile Include="FA2sp\Miscs\Exception.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.PreviewFix.cpp" />
     <ClCompile Include="FA2sp\Miscs\MultiSelection.cpp" />
-    <ClCompile Include="FA2sp\Miscs\TheaterInfo.cpp" />
     <ClCompile Include="FA2sp\Miscs\SaveMap.cpp" />
     <ClCompile Include="FA2sp\Miscs\Palettes.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.BugFixes.cpp" />
-    <ClCompile Include="FA2sp\Ext\CScriptTypes\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTaskforce\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTaskforce\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerFrame\Body.cpp" />
-    <ClCompile Include="FA2sp\Ext\CTriggerOption\Body.cpp" />
     <ClCompile Include="FA2sp\FA2sp.cpp" />
     <ClCompile Include="FA2sp\Algorithms\sha1x86.cpp" />
     <ClCompile Include="FA2sp\Source\CIsoView.cpp" />
@@ -234,7 +233,6 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtWaypoints.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.FileNames.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.INI.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.LoadParams.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Mix.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Performance.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Palette.cpp" />
@@ -253,6 +251,15 @@
     <ClInclude Include="FA2sp\Algorithms\sha1.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1impl.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CCheckBox.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\resource.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\resource.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
     <ClInclude Include="FA2sp\Ext\CAITriggerTypes\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
@@ -267,21 +274,17 @@
     <ClInclude Include="FA2sp\Ext\CPropertyInfantry\Body.h" />
     <ClInclude Include="FA2sp\Ext\CPropertyUnit\Body.h" />
     <ClInclude Include="FA2sp\Ext\CRandomTree\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CScriptTypes\Functional.h" />
     <ClInclude Include="FA2sp\Ext\CSingleplayerSettings\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CTeamTypes\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TeamSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TriggerSort.h" />
-    <ClInclude Include="FA2sp\Ext\CTriggerAction\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CTriggerEvent\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.h" />
     <ClInclude Include="FA2sp\Ext\FA2Expand.h" />
-    <ClInclude Include="FA2sp\Ext\CScriptTypes\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CTaskforce\Body.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CTriggerFrame\Body.h" />
-    <ClInclude Include="FA2sp\Ext\CTriggerOption\Body.h" />
     <ClInclude Include="FA2sp\FA2sp.h" />
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
-    <ClInclude Include="FA2sp\Helpers\ControlHelpers.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
     <ClInclude Include="FA2sp\Helpers\Helper.h" />
     <ClInclude Include="FA2sp\Helpers\InstructionSet.h" />
@@ -291,12 +294,12 @@
     <ClInclude Include="FA2sp\Helpers\TheaterHelpers.h" />
     <ClInclude Include="FA2sp\Helpers\Templates.hpp" />
     <ClInclude Include="FA2sp\Logger.h" />
+    <ClInclude Include="FA2sp\Miscs\TheaterInfo.h" />
     <ClInclude Include="FA2sp\Miscs\VoxelDrawer.h" />
     <ClInclude Include="FA2sp\Miscs\Exception.h" />
     <ClInclude Include="FA2sp\Miscs\MultiSelection.h" />
     <ClInclude Include="FA2sp\Miscs\Palettes.h" />
     <ClInclude Include="FA2sp\Miscs\SaveMap.h" />
-    <ClInclude Include="FA2sp\Miscs\TheaterInfo.h" />
     <ClInclude Include="FA2sp\resource.h" />
     <ClInclude Include="FA2sp\RunTime.h" />
     <ClInclude Include="FA2sp\Helpers\MutexHelper.h" />
@@ -305,9 +308,17 @@
     <ClInclude Include="FA2sp\Algorithms\sha1x86.h" />
     <ClInclude Include="FA2sp\Source\CIsoView.h" />
     <ClInclude Include="FA2sp\CncVxlRenderText.h" />
+    <ClInclude Include="FA2sp\UI\resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />
     <ResourceCompile Include="FA2sp\UI\CCreateMap2.rc" />
@@ -332,6 +343,7 @@
     <ResourceCompile Include="FA2sp\UI\CUnitDialog.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="0001-Fix-FA2pp-FAVector-T-cannot-pass-compile.patch" />
     <None Include="FA2sp\FA2sp.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

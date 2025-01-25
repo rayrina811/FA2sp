@@ -9,7 +9,7 @@
 
 #include "../CFinalSunDlg/Body.h"
 
-// FA2 Building Property window is fucked
+// FA2 Building Property window is messed up.
 DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
 {
     GET(CPropertyBuilding*, pThis, ECX);
@@ -17,8 +17,24 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
     pThis->ppmfc::CDialog::OnInitDialog();
 
     CMapData::Instance->UpdateCurrentDocument();
+    // && ExtConfigs::PlayerAtXForTechnos && !ExtConfigs::TestNotLoaded && 0
+    if (!CMapData::Instance->IsMultiOnly())
+    {
+        Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
+    }
+    else
+    {
+        if (ExtConfigs::TestNotLoaded)
+        {
+            
+        }
+        else if(ExtConfigs::PlayerAtXForTechnos)
+            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, true);
+        else
+            Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
+    }
+	
 
-    Miscs::LoadParams::Houses(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1079)), false, false, false);
     Miscs::LoadParams::Tags(reinterpret_cast<ppmfc::CComboBox*>(pThis->GetDlgItem(1083)), true);
 
     pThis->CSCStrength.SetRange(0, 256);
@@ -60,7 +76,9 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
                 {
                     if (auto const ppString = Variables::Rules.TryGetString(bld.first, "PowersUpBuilding"))
                     {
-                        if (*ppString == pThis->CString_ObjectID)
+                        ppmfc::CString str = *ppString;
+                        str.Trim();
+                        if (str == pThis->CString_ObjectID)
                             upgrades.push_back(bld.first.m_pchData);
                     }
                 }
@@ -81,3 +99,4 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
 
     return 0x41A4AE;
 }
+

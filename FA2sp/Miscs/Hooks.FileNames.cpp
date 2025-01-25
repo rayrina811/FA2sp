@@ -22,6 +22,11 @@ DEFINE_HOOK(47A3CC, FileNames_EvaIni, 7)
     return 0x47A3DF;
 }
 
+DEFINE_HOOK(47A26A, FileNames_SkipSoundXX, 6)
+{
+    return 0x47A342;
+}
+
 DEFINE_HOOK(47A342, FileNames_SoundIni, 7)
 {
     GET(CLoading*, pThis, EBP);
