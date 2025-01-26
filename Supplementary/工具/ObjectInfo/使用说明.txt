@@ -1,0 +1,14 @@
+适用于基于syringe.exe的绝大多数mod。
+
+使用方法：放入游戏根目录，设置选项-键盘-发展(Development)-Display Object Info的快捷键，游戏中按下快捷键即可切换显示状态。
+objectinfo.ini用于存储显示预设，通过按下Next Info Preset快捷键，可以快速切换显示信息。
+通过按下Dump Trigger Info快捷键，可以将当前触发信息输出至debug.log中。
+本dll并不需要ares即可运行，但输出log的功能依赖于ares。
+
+CSF信息：
+TXT_DISPLAY_OBJECT_INFO = Display Object Info
+TXT_DISPLAY_OBJECT_INFO_DESC = Display objects' information along with them.
+TXT_DISPLAY_OBJECT_INFO_NEXT = Next Info Preset
+TXT_DISPLAY_OBJECT_INFO_NEXT_DESC = Change to next display object info preset.
+TXT_DUMP_TRIGGER_INFO = Dump Trigger Info
+TXT_DUMP_TRIGGER_INFO_DESC = Dump Trigger Info to debug.log.
