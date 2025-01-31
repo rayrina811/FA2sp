@@ -85,7 +85,7 @@ POPUP "Map tools"
 	// MENUITEM "Search Waypoint\tCtrl+W",  40133
 	MENUITEM "Global Search\tCtrl+Shift+F", 40134
 	MENUITEM SEPARATOR
-	MENUITEM "Tool Scripts",  40135
+	MENUITEM "Tool Scripts\tCtrl+Alt+S",  40135
 	MENUITEM SEPARATOR
 	MENUITEM "Delete Objects",  40136
 }

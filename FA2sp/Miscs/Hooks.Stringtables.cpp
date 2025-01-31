@@ -9,6 +9,7 @@
 
 #include <map>
 #include <fstream>
+#include "../Helpers/TheaterHelpers.h"
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
@@ -30,7 +31,7 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
 
     auto uiname = std::string(mmh.GetString(pRegName, "UIName", ""));
     std::transform(uiname.begin(), uiname.end(), uiname.begin(), [](unsigned char c) { return std::tolower(c); });
-    CString ccstring = "";
+    ppmfc::CString ccstring = "";
     if (uiname != "")
         ccstring = StringtableLoader::CSFFiles_Stringtable[uiname.c_str()];
     if (ccstring == "")
@@ -42,6 +43,12 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
     if (uiname2.Find("nostr:") == 0) {
         ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
     }
+
+    ccstring = CINI::FALanguage().GetString("RenameID", pRegName, ccstring);
+    auto theater = TheaterHelpers::GetCurrentSuffix();
+    theater.MakeUpper();
+    theater = "RenameID" + theater;
+    ccstring = CINI::FALanguage().GetString(theater, pRegName, ccstring);
 
     wchar_t* m_wchar;
     int len = MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), NULL, 0);

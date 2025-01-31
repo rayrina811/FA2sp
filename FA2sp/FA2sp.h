@@ -122,6 +122,7 @@ public:
     static bool ExtraRaiseGroundTerrainSupport;
     static bool ExtendedValidationAres;
     static bool AIRepairDefaultYes;
+    static bool AISellableDefaultYes;
     static bool TriggerList_AttachedTriggers;
     static bool TagList_AttachedObjects;
     static bool SaveMaps_BetterMapPreview;

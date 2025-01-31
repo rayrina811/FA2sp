@@ -503,7 +503,10 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 		structure.Tag = "None";
 		structure.Facing = "0";
-		structure.AISellable = "1";
+		if (ExtConfigs::AISellableDefaultYes)
+			structure.AISellable = "1";
+		else
+			structure.AISellable = "0";
 		structure.AIRebuildable = "0";
 		structure.SpotLight = "0";
 		if (ExtConfigs::AIRepairDefaultYes)

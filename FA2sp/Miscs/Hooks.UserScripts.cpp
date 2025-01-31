@@ -61,6 +61,12 @@ enum UserScriptType {
     ID_SET_VARIABLE_IN_POOL,
     ID_WAYPOINT_TO_STRING,
     ID_STRING_TO_WAYPOINT,
+    ID_HIDE_TILE_AT,
+    ID_HIDE_TILE_SET,
+    ID_HIDE_TILE_INDEX,
+    ID_MULTI_SELECT_TILE_AT,
+    ID_MULTI_SELECT_TILE_SET,
+    ID_MULTI_SELECT_TILE_INDEX,
 
     ID_NEW_COUNT,
 
@@ -130,6 +136,18 @@ DEFINE_HOOK(510ED9, CUserScripts_NewFunction_SetIDNum, 8)
         IDNum = ID_WAYPOINT_TO_STRING;
     else if (name == "StringToWaypoint")
         IDNum = ID_STRING_TO_WAYPOINT;
+    else if (name == "HideTileAt")
+        IDNum = ID_HIDE_TILE_AT;
+    else if (name == "HideTileSet")
+        IDNum = ID_HIDE_TILE_SET;
+    else if (name == "HideTileIndex")
+        IDNum = ID_HIDE_TILE_INDEX;
+    else if (name == "MultiSelectTileAt")
+        IDNum = ID_MULTI_SELECT_TILE_AT;
+    else if (name == "MultiSelectTileSet")
+        IDNum = ID_MULTI_SELECT_TILE_SET;
+    else if (name == "MultiSelectTileIndex")
+        IDNum = ID_MULTI_SELECT_TILE_INDEX;
 
     if (IDNum > -1)
         R->Stack(STACK_OFFS(0xA20, 0xA00), IDNum);
@@ -819,6 +837,210 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
         auto wp = UserScriptExt::GetParam(Params, 1);
         UserScriptExt::Temps.push_back(STDHelpers::StringToWaypointStr(wp));
         UserScriptExt::EditVaribale = true;
+        break;
+    }
+    // 0: X, 1: Y, 2: mode (0 = hide, 1 = show, 2 = reverse), 3: execute
+    case ID_HIDE_TILE_AT:
+    {
+        if (UserScriptExt::ParamCount < 3) break;
+        if (UserScriptExt::ParamCount > 3) {
+            auto execute = UserScriptExt::GetParam(Params, 3);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 2));
+        int x = atoi(UserScriptExt::GetParam(Params, 0));
+        int y = atoi(UserScriptExt::GetParam(Params, 1));
+
+        if (CMapData::Instance->IsCoordInMap(x, y)) {
+            auto cell = CMapData::Instance->GetCellAt(x, y);
+            if (mode == 0) {
+                cell->Flag.IsHiddenCell = 1;
+            }
+            else if (mode == 1) {
+                cell->Flag.IsHiddenCell = 0;
+            }
+            else if (mode == 2) {
+                cell->Flag.IsHiddenCell ^= 1;
+            }
+            UserScriptExt::NeedRedraw = true;
+        }
+        break;
+    }
+    // 0: tile set, 1: mode (0 = hide, 1 = show, 2 = reverse), 2: execute
+    case ID_HIDE_TILE_SET:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 1));
+        int index = atoi(UserScriptExt::GetParam(Params, 0));
+        if (index >= 0 && index < CMapDataExt::TileSet_starts.size() - 1) {
+            for (int i = CMapDataExt::TileSet_starts[index]; i < CMapDataExt::TileSet_starts[index + 1]; i++) {
+                if (mode == 0) {
+                    (*CTileTypeClass::Instance)[i].IsHidden = 1;
+                }
+                else if (mode == 1) {
+                    (*CTileTypeClass::Instance)[i].IsHidden = 0;
+                }
+                else if (mode == 2) {
+                    (*CTileTypeClass::Instance)[i].IsHidden ^= 1;
+                }
+            }
+        }
+        UserScriptExt::NeedRedraw = true;
+        break;
+    }
+    // 0: tile index, 1: mode (0 = hide, 1 = show, 2 = reverse), 2: execute, 3: subtile = -1
+    case ID_HIDE_TILE_INDEX:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 1));
+        int index = CMapDataExt::GetSafeTileIndex(atoi(UserScriptExt::GetParam(Params, 0)));
+        int subtile = -1;
+        if (UserScriptExt::ParamCount > 3) {
+            subtile = atoi(UserScriptExt::GetParam(Params, 3));
+        }
+        if (index >= 0 && index < CMapDataExt::TileDataCount) {
+            if (subtile < 0) {
+
+                if (mode == 0) {
+                    (*CTileTypeClass::Instance)[index].IsHidden = 1;
+                }
+                else if (mode == 1) {
+                    (*CTileTypeClass::Instance)[index].IsHidden = 0;
+                }
+                else if (mode == 2) {
+                    (*CTileTypeClass::Instance)[index].IsHidden ^= 1;
+                }
+
+            }
+            else {
+                for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                    auto& cell = CMapData::Instance->CellDatas[j];
+                    if (CMapDataExt::GetSafeTileIndex(cell.TileIndex) == index && cell.TileSubIndex == subtile) {
+                        if (mode == 0) {
+                            cell.Flag.IsHiddenCell = 1;
+                        }
+                        else if (mode == 1) {
+                            cell.Flag.IsHiddenCell = 0;
+                        }
+                        else if (mode == 2) {
+                            cell.Flag.IsHiddenCell ^= 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        UserScriptExt::NeedRedraw = true;
+        break;
+    }
+    // 0: X, 1: Y, 2: mode (0 = add, 1 = remove, 2 = reverse), 3: execute
+    case ID_MULTI_SELECT_TILE_AT:
+    {
+        if (UserScriptExt::ParamCount < 3) break;
+        if (UserScriptExt::ParamCount > 3) {
+            auto execute = UserScriptExt::GetParam(Params, 3);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 2));
+        int x = atoi(UserScriptExt::GetParam(Params, 0));
+        int y = atoi(UserScriptExt::GetParam(Params, 1));
+
+        if (CMapData::Instance->IsCoordInMap(x, y)) {
+            auto cell = CMapData::Instance->GetCellAt(x, y);
+            if (mode == 0) {
+                MultiSelection::AddCoord(x, y);
+            }
+            else if (mode == 1) {
+                MultiSelection::RemoveCoord(x, y);
+            }
+            else if (mode == 2) {
+                MultiSelection::ReverseStatus(x, y);
+            }
+            UserScriptExt::NeedRedraw = true;
+        }
+        break;
+    }
+    // 0: tile set, 1: mode (0 = add, 1 = remove, 2 = reverse), 2: execute
+    case ID_MULTI_SELECT_TILE_SET:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 1));
+        int index = atoi(UserScriptExt::GetParam(Params, 0));
+        if (index >= 0 && index < CMapDataExt::TileSet_starts.size() - 1) {
+            for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                auto& cell = CMapData::Instance->CellDatas[j];
+                for (int i = CMapDataExt::TileSet_starts[index]; i < CMapDataExt::TileSet_starts[index + 1]; i++) {
+                    if (CMapDataExt::GetSafeTileIndex(cell.TileIndex) == i) {
+                        int x = CMapData::Instance->GetXFromCoordIndex(j);
+                        int y = CMapData::Instance->GetYFromCoordIndex(j);
+                        if (mode == 0) {
+                            MultiSelection::AddCoord(x, y);
+                        }
+                        else if (mode == 1) {
+                            MultiSelection::RemoveCoord(x, y);
+                        }
+                        else if (mode == 2) {
+                            MultiSelection::ReverseStatus(x, y);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        UserScriptExt::NeedRedraw = true;
+        break;
+    }
+    // 0: tile index, 1: mode (0 = add, 1 = remove, 2 = reverse), 2: execute, 3: subtile = -1
+    case ID_MULTI_SELECT_TILE_INDEX:
+    {
+        if (UserScriptExt::ParamCount < 2) break;
+        if (UserScriptExt::ParamCount > 2) {
+            auto execute = UserScriptExt::GetParam(Params, 2);
+            if (!UserScriptExt::IsValSet(execute))
+                break;
+        }
+        int subtile = -1;
+        if (UserScriptExt::ParamCount > 3) {
+            subtile = atoi(UserScriptExt::GetParam(Params, 3));
+        }
+        int mode = atoi(UserScriptExt::GetParam(Params, 1));
+        int index = CMapDataExt::GetSafeTileIndex(atoi(UserScriptExt::GetParam(Params, 0)));
+        if (index >= 0 && index < CMapDataExt::TileDataCount) {
+            for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                auto& cell = CMapData::Instance->CellDatas[j];
+                if (CMapDataExt::GetSafeTileIndex(cell.TileIndex) == index && (subtile < 0 ? true : (subtile == cell.TileSubIndex))) {
+                    int x = CMapData::Instance->GetXFromCoordIndex(j);
+                    int y = CMapData::Instance->GetYFromCoordIndex(j);
+                    if (mode == 0) {
+                        MultiSelection::AddCoord(x, y);
+                    }
+                    else if (mode == 1) {
+                        MultiSelection::RemoveCoord(x, y);
+                    }
+                    else if (mode == 2) {
+                        MultiSelection::ReverseStatus(x, y);
+                    }
+                }
+            }
+        }
+        UserScriptExt::NeedRedraw = true;
         break;
     }
     default:

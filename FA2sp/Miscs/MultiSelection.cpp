@@ -122,19 +122,17 @@ void MultiSelection::Clear2()
     MultiSelection::LastAddedCoord.Y = -1;
 }
 
-inline void MultiSelection::ReverseStatus(int X, int Y)
+void MultiSelection::ReverseStatus(int X, int Y)
 {
     MapCoord mapCoord{ X,Y };
     auto itr = SelectedCoords.find(mapCoord);
     if (itr == SelectedCoords.end())
     {
-        SelectedCoords.insert(mapCoord);
-        SelectedCoordsTemp.insert(mapCoord);
+        AddCoord(X, Y);
     }
     else
     {
-        SelectedCoords.erase(itr);
-        SelectedCoordsTemp.erase(itr);
+        RemoveCoord(X, Y);
     }
         
     MultiSelection::SelectCellsChanged = true;

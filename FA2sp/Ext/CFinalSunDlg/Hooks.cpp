@@ -495,31 +495,20 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         TreeView_SelectItem(hWnd, hParent);
 
     if (CIsoView::CurrentCommand->Command == 0x1B)
+    {
         CIsoView::CurrentCommand->Command = 0x0;
-    if (CIsoView::CurrentCommand->Command == 0x1F) {
+        CIsoView::CurrentCommand->Type = 0;
+    }   
+    else if (CIsoView::CurrentCommand->Command == 0x1F) {
         CTerrainGenerator::RangeFirstCell.X = -1;
         CTerrainGenerator::RangeFirstCell.Y = -1;
         CTerrainGenerator::RangeSecondCell.X = -1;
         CTerrainGenerator::RangeSecondCell.Y = -1;
         CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
     }
 
     return 0x45EBC5;
-}
-
-BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
-{
-    char className[256];
-    GetClassName(hwnd, className, sizeof(className));
-
-    // 检查窗口类名是否为 "#32770"，这是 MessageBox 的类名
-    if (strcmp(className, "#32770") == 0)
-    {
-        // 摧毁窗口
-        DestroyWindow(hwnd);
-        return FALSE; // 停止枚举
-    }
-    return TRUE; // 继续枚举
 }
 
 DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)

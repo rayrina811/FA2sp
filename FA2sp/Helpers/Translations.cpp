@@ -5,6 +5,7 @@
 #include <CINI.h>
 #include "../FA2sp.h"
 #include <CMapData.h>
+#include "TheaterHelpers.h"
 
 CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
@@ -39,6 +40,7 @@ void FinalAlertConfig::WriteString(const char* pSection, const char* pKey, const
 };
 
 char Translations::pLanguage[4][0x400];
+ppmfc::CString Translations::CurrentTileSet;
 bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& ret)
 {
     auto& falanguage = CINI::FALanguage();
@@ -113,14 +115,32 @@ void Translations::TranslateItem(CWnd* pWnd, const char* lpKey)
         pWnd->SetWindowText(buffer);
 }
 
+ppmfc::CString Translations::TranslateTileSet(int index)
+{
+    if (!CMapData::Instance->MapWidthPlusHeight)
+        return "MISSING";
+
+    ppmfc::CString setID;
+    setID.Format("TileSet%04d", index);
+    auto setName = CINI::CurrentTheater()->GetString(setID, "SetName", setID);
+    ppmfc::CString result = TranslateOrDefault(setName, setName);
+
+    auto theater = TheaterHelpers::GetCurrentSuffix();
+    theater.MakeUpper();
+    theater = "RenameID" + theater;
+    result = CINI::FALanguage().GetString("RenameID", setID, result);
+    result = CINI::FALanguage().GetString(theater, setID, result);
+
+    return result;
+}
+
 DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
 {
+    GET_STACK(ppmfc::CString*, pRet, 0x4);
+    REF_STACK(ppmfc::CString, src, 0x8);
+    GET_STACK(bool, IDToUIName, 0xC);
     if (ExtConfigs::NoHouseNameTranslation)
     {
-        GET_STACK(ppmfc::CString*, pRet, 0x4);
-        REF_STACK(ppmfc::CString, src, 0x8);
-        GET_STACK(bool, IDToUIName, 0xC);
-
         new(pRet) ppmfc::CString(src);
         R->EAX(pRet);
 
@@ -128,11 +148,6 @@ DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
     }
     else
     {
-        GET_STACK(ppmfc::CString*, pRet, 0x4);
-        REF_STACK(ppmfc::CString, src, 0x8);
-        GET_STACK(bool, IDToUIName, 0xC);
-
-
         auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
         ppmfc::CString translated;
 
@@ -164,6 +179,47 @@ DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
 
         return 0x43CA72;
 
+    }
+    return 0;
+}
+
+DEFINE_HOOK(4F0C3D, CTerrainDlg_Update_GetTileSet, 5)
+{
+    GET_STACK(ppmfc::CString, tileset, STACK_OFFS(0x1A4, 0x188));
+    Translations::CurrentTileSet = tileset;
+    return 0;
+}
+
+DEFINE_HOOK(4F0E1A, CTerrainDlg_Update_SetTileName, 8)
+{
+    auto theater = TheaterHelpers::GetCurrentSuffix();
+    theater.MakeUpper();
+    theater = "RenameID" + theater;
+    auto name = CINI::FALanguage().TryGetString(theater, Translations::CurrentTileSet);
+    if (!name) {
+        name = CINI::FALanguage().TryGetString("RenameID", Translations::CurrentTileSet);
+    }
+
+    if (name) {
+        R->EAX(name);
+    }
+    return 0;
+}
+
+DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
+{
+    GET(int, index, ESI);
+    auto theater = TheaterHelpers::GetCurrentSuffix();
+    theater.MakeUpper();
+    theater = "RenameID" + theater;
+    auto& ovrID = Variables::OrderedRulesIndicies["OverlayTypes"][index].second;
+    auto name = CINI::FALanguage().TryGetString(theater, ovrID);
+    if (!name) {
+        name = CINI::FALanguage().TryGetString("RenameID", ovrID);
+    }
+    
+    if (name) {
+        R->EAX(name);
     }
     return 0;
 }

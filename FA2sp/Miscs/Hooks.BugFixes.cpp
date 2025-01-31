@@ -60,7 +60,6 @@ DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
 //
 //	return 0x555DD8;
 //}
-
 //DEFINE_HOOK(555DFE, CString_FreeData, 6)
 //{
 //	GET(ppmfc::CStringData*, pData, ECX);
@@ -80,17 +79,11 @@ DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
 //		return 0;
 //	return 0x5361EE;
 //}
-
-
-
-
-
 //DEFINE_HOOK(555D97, CString_AllocBuffer, 7)
 //{
 //
 //	return 0x555DD8;
 //}
-
 //DEFINE_HOOK(555E01, CString_FreeData, 5)
 //{
 //	return 0x555E30;
@@ -99,7 +92,6 @@ DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
 //{
 //	return 0x555E3F;
 //}
-
 //DEFINE_HOOK(555E07, CString_FreeData, 5)
 //{
 //	R->EAX(1024);
@@ -485,5 +477,6 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 
 	return 0x4A2A88;
 }
+
 
 

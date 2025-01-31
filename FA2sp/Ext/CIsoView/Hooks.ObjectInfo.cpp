@@ -1204,42 +1204,34 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
 
             auto theater = CINI::CurrentTheater();
 
-            int totalIndex = -1;
-            ppmfc::CString sName = "";
             bool found = false;
-            int index;
-            int fileNameIndex;
-            for (index = 0; index < 10000; index++)
+            int tileSetIndex = -1;
+            int tileInSetIndex;
+            for (auto start : CMapDataExt::TileSet_starts) 
             {
-                sName.Format("TileSet%04d", index);
-
-                if (theater->SectionExists(sName))
+                if (start > tileIndex)
                 {
-                    totalIndex += theater->GetInteger(sName, "TilesInSet");
-                    if (totalIndex >= tileIndex)
-                    {
-                        found = true;
-                        fileNameIndex = tileIndex - totalIndex + theater->GetInteger(sName, "TilesInSet");
-                        break;
-                    }
+                    tileInSetIndex = start - tileIndex;
+                    found = true;
+                    break;
                 }
-                else break;
+                tileSetIndex++;
             }
-
 
             if (found)
             {
-                auto name = theater->GetString(sName, "SetName");
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "Tile: %s (%d)")
-                    , Translations::TranslateOrDefault(name, name), index);
+                    , Translations::TranslateTileSet(tileSetIndex), tileSetIndex);
 
                 if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
                 {
                     auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
+                    ppmfc::CString setID;
+                    setID.Format("TileSet%04d", tileSetIndex);
                     ppmfc::CString ttypes = "unknown";
                     ppmfc::CString filename;
-                    filename.Format("%s%02d", theater->GetString(sName, "FileName"), fileNameIndex);
+                    filename.Format("%s%02d", theater->GetString(setID, "FileName"), tileInSetIndex);
 
                     if (cell->Flag.AltIndex == 1)
                         filename += "a";
@@ -1316,7 +1308,7 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "Tile: %s (%d)")
-                    , "MISSING", index);
+                    , "MISSING", tileSetIndex);
             }
             ::SetBkColor(hDC, RGB(0, 255, 255));
             ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());

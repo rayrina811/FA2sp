@@ -26,6 +26,8 @@ std::set<ppmfc::CString> CViewObjectsExt::ExtSets[Set_Count];
 std::map<ppmfc::CString, int[10]> CViewObjectsExt::KnownItem;
 std::map<ppmfc::CString, int> CViewObjectsExt::Owners;
 std::set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
+int CViewObjectsExt::AddedItemCount;
+int CViewObjectsExt::RedrawCalledCount = 0;
 
 
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
@@ -94,6 +96,7 @@ bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
 {
+    AddedItemCount++;
     return this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
 }
 
@@ -168,6 +171,7 @@ void CViewObjectsExt::Redraw()
     Redraw_ViewObjectInfo();
     Redraw_MultiSelection();
     Redraw_ConnectedTile();
+    Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
 }
 
 void CViewObjectsExt::Redraw_Initialize()
@@ -181,22 +185,17 @@ void CViewObjectsExt::Redraw_Initialize()
     {
         ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
     }
-
-    MultimapHelper mmh;
-    mmh.AddINI(&CINI::Rules());
-    mmh.AddINI(&CINI::CurrentDocument());
-
+    AddedItemCount = 0;
     int index = 0;
-    if (auto pSection = CINI::Rules().GetSection("OverlayTypes"))
+    for (auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
     {
-    	for (auto& ol : pSection->GetEntities())
-    	{
-    	    if (mmh.GetString(ol.second, "Land", "") == "Rock" && index < 256)
-                CViewObjectsExt::RockOverlays[index] = true;
-            else
-                CViewObjectsExt::RockOverlays[index] = false;
-    		index++;
-    	}
+        if (CINI::Rules().GetString(ol.second, "Land", "") == "Rock" && index < 256)
+            CViewObjectsExt::RockOverlays[index] = true;
+        else if (index < 256)
+            CViewObjectsExt::RockOverlays[index] = false;
+        else
+            break;
+    	index++;
     }
 
     for (auto root : ExtNodes)
@@ -345,7 +344,6 @@ void CViewObjectsExt::Redraw_MainList()
     ExtNodes[Root_MultiSelection] = this->InsertTranslatedString("MultiSelectionObjObList", 17);
     ExtNodes[Root_Cliff] = this->InsertTranslatedString("CliffObjObList", 18);
     ExtNodes[Root_Delete] = this->InsertTranslatedString("DelObjObList", 10);
-    
 }
 
 void CViewObjectsExt::Redraw_Ground()
@@ -365,16 +363,12 @@ void CViewObjectsExt::Redraw_Ground()
     this->InsertTranslatedString("GroundClearObList" + suffix, 61, hGround);
     if (suffix != "LUN")
         this->InsertTranslatedString("GroundSandObList" + suffix, 62, hGround);
-    //else if (suffix == "LUN" )
-    //    this->InsertTranslatedString("GroundSandObList", 62, hGround);
 
     if (suffix != "URB")
         this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
     this->InsertTranslatedString("GroundGreenObList" + suffix, 65, hGround);
     if (suffix != "UBN")
         this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
-    //else if (suffix == "UBN")
-    //    this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
     
     if (suffix != "LUN")
         this->InsertTranslatedString("GroundWaterObList", 64, hGround);
@@ -603,10 +597,13 @@ void CViewObjectsExt::Redraw_Infantry()
         auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
         if (!sides.empty())
         {
+            ppmfc::CString display = QueryUIName(inf.second);
+            if (display != inf.second)
+                display += " (" + inf.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
             {
                 this->InsertString(
-                    QueryUIName(inf.second) + " (" + inf.second + ")",
+                    display,
                     Const_Infantry + index,
                     subNodes[-1]
                 );
@@ -618,7 +615,7 @@ void CViewObjectsExt::Redraw_Infantry()
                         side = -1;
                     if (side == -1) continue;
                     this->InsertString(
-                        QueryUIName(inf.second) + " (" + inf.second + ")",
+                        display,
                         Const_Infantry + index,
                         subNodes[side]
                     );
@@ -697,10 +694,13 @@ void CViewObjectsExt::Redraw_Vehicle()
         auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
         if (!sides.empty())
         {
+            ppmfc::CString display = QueryUIName(veh.second);
+            if (display != veh.second)
+                display += " (" + veh.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
             {
                 this->InsertString(
-                    QueryUIName(veh.second) + " (" + veh.second + ")",
+                    display,
                     Const_Vehicle + index,
                     subNodes[-1]
                 );
@@ -712,7 +712,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                         side = -1;
                     if (side == -1) continue;
                     this->InsertString(
-                        QueryUIName(veh.second) + " (" + veh.second + ")",
+                        display,
                         Const_Vehicle + index,
                         subNodes[side]
                     );
@@ -792,10 +792,13 @@ void CViewObjectsExt::Redraw_Aircraft()
         auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
         if (!sides.empty())
         {
+            ppmfc::CString display = QueryUIName(air.second);
+            if (display != air.second)
+                display += " (" + air.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
             {
                 this->InsertString(
-                    QueryUIName(air.second) + " (" + air.second + ")",
+                    display,
                     Const_Aircraft + index,
                     subNodes[-1]
                 );
@@ -807,7 +810,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                         side = -1;
                     if (side == -1) continue;
                     this->InsertString(
-                        QueryUIName(air.second) + " (" + air.second + ")",
+                        display,
                         Const_Aircraft + index,
                         subNodes[side]
                     );
@@ -887,10 +890,13 @@ void CViewObjectsExt::Redraw_Building()
         auto sides = GetUnique(GuessSide(bud.second, Set_Building));
         if (!sides.empty())
         {
+            ppmfc::CString display = QueryUIName(bud.second);
+            if (display != bud.second)
+                display += " (" + bud.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
             {
                 this->InsertString(
-                    QueryUIName(bud.second) + " (" + bud.second + ")",
+                    display,
                     Const_Building + index,
                     subNodes[-1]
                 );
@@ -902,7 +908,7 @@ void CViewObjectsExt::Redraw_Building()
                         side = -1;
                     if (side == -1) continue;
                     this->InsertString(
-                        QueryUIName(bud.second) + " (" + bud.second + ")",
+                        display,
                         Const_Building + index,
                         subNodes[side]
                     );
@@ -1011,7 +1017,8 @@ void CViewObjectsExt::Redraw_Terrain()
         if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
         {
             FA2sp::Buffer = QueryUIName(terrains[i]);
-            FA2sp::Buffer += " (" + terrains[i] + ")";
+            if (FA2sp::Buffer != terrains[i])
+                FA2sp::Buffer += " (" + terrains[i] + ")";
             bool bNotOther = false;
             for (const auto& node : nodes)
             {
@@ -1104,17 +1111,20 @@ void CViewObjectsExt::Redraw_Smudge()
     {
         if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
         {
+            FA2sp::Buffer = QueryUIName(smudges[i]);
+            if (FA2sp::Buffer != smudges[i])
+                FA2sp::Buffer += " (" + smudges[i] + ")";
             bool bNotOther = false;
             for (const auto& node : nodes)
             {
                 if (smudges[i].Find(node.second) >= 0)
                 {
-                    this->InsertString(smudges[i], Const_Smudge + i, node.first);
+                    this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
                     bNotOther = true;
                 }
             }
             if (!bNotOther)
-                this->InsertString(smudges[i], Const_Smudge + i, hOther);
+                this->InsertString(FA2sp::Buffer, Const_Smudge + i, hOther);
         }
     }
 
@@ -1166,9 +1176,10 @@ void CViewObjectsExt::Redraw_Overlay()
     int indexWall = Wall;
     for (size_t i = 0, sz = std::min<unsigned int>(overlays.size(), 255); i < sz; ++i)
     {
-        CString buffer;
+        ppmfc::CString buffer;
         buffer = QueryUIName(overlays[i]);
-        buffer += " (" + overlays[i] + ")";
+        if (buffer != overlays[i])
+            buffer += " (" + overlays[i] + ")";
         if (rules.GetBool(overlays[i], "Wall"))
         {
             int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels");

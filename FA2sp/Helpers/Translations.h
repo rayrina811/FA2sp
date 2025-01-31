@@ -22,6 +22,8 @@ public:
     static void TranslateItem(ppmfc::CWnd* pWnd, const char* lpKey) { TranslateItem((CWnd*)pWnd, lpKey); };
     static const char* TranslateStringVariables(int n, const char* originaltext, const char* inserttext);
     static const char* TranslateOrDefault(const char* lpLabelName, const char* lpDefault);
+    static ppmfc::CString TranslateTileSet(int index);
     static char pLanguage[4][0x400];
+    static ppmfc::CString CurrentTileSet;
 };
 

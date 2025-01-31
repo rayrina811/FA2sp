@@ -18,6 +18,9 @@ DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
     if (ExtConfigs::BrowserRedraw)
     {
+        CViewObjectsExt::RedrawCalledCount++;
+        if (CViewObjectsExt::RedrawCalledCount % 2 == 0)
+            return 0x523173;
         GET(CViewObjectsExt*, pThis, ECX);
         pThis->Redraw();
         return 0x523173;

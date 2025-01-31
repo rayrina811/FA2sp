@@ -8,14 +8,14 @@
 class MultiSelection
 {
 public:
-    inline static bool AddCoord(int X, int Y);
-    inline static bool RemoveCoord(int X, int Y);
+    static bool AddCoord(int X, int Y);
+    static bool RemoveCoord(int X, int Y);
     inline static size_t GetCount();
     inline static size_t GetCount2();
     inline static void Clear();
     inline static void ClearT();
     static void Clear2();
-    inline static void ReverseStatus(int X, int Y);
+    static void ReverseStatus(int X, int Y);
     inline static bool IsSelected(int X, int Y);
 
     struct MyClipboardData

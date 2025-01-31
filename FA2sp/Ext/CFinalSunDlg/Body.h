@@ -189,6 +189,7 @@ public:
     };
     static std::map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
+    static int RedrawCalledCount;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
@@ -198,8 +199,8 @@ private:
     static std::set<ppmfc::CString> ExtSets[Set_Count];
     static std::map<ppmfc::CString, int[10]> KnownItem;
     static std::map<ppmfc::CString, int> Owners;
-
     static std::set<ppmfc::CString> AddOnceSet;
+    static int AddedItemCount;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);

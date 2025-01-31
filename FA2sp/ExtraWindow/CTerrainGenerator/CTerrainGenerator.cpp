@@ -1406,19 +1406,26 @@ void CTerrainGenerator::OnClickSetRange()
     RangeFirstCell.Y = -1;
     RangeSecondCell.X = -1;
     RangeSecondCell.Y = -1;
+    auto pIsoView = CFinalSunDlg::Instance->MyViewFrame.pIsoView;
     if (MultiSelection::SelectedCoords.size() > 0) {
         UseMultiSelection = true;
-        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        ::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
     }
     else {
         UseMultiSelection = false;
         CIsoView::CurrentCommand->Command = 0x1F;
+        CIsoView::CurrentCommand->Type = 0;
+        CIsoView::CurrentCommand->Param = 0;
+        pIsoView->CurrentCellObjectIndex = -1;
+        pIsoView->CurrentCellObjectType = -1;
     }
 }
 
 void CTerrainGenerator::OnSetRangeDone()
 {
     CIsoView::CurrentCommand->Command = 0x0;
+    CIsoView::CurrentCommand->Type = 0;
+    CIsoView::CurrentCommand->Param = 0;
 }
 
 void CTerrainGenerator::OnClickAdd()

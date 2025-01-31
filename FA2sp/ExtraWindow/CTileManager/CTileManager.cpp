@@ -11,6 +11,11 @@ HWND CTileManager::m_hwnd;
 CTileSetBrowserFrame* CTileManager::m_parent;
 std::vector<std::pair<std::string, std::regex>> CTileManager::Nodes;
 std::vector<std::vector<int>> CTileManager::Datas;
+int CTileManager::origWndWidth;
+int CTileManager::origWndHeight;
+int CTileManager::minWndWidth;
+int CTileManager::minWndHeight;
+bool CTileManager::minSizeSet;
 
 void CTileManager::Create(CTileSetBrowserFrame* pWnd)
 {
@@ -90,7 +95,53 @@ BOOL CALLBACK CTileManager::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
     case WM_INITDIALOG:
     {
         CTileManager::Initialize(hwnd);
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        origWndWidth = rect.right - rect.left;
+        origWndHeight = rect.bottom - rect.top;
+        minSizeSet = false;
         return TRUE;
+    }
+    case WM_GETMINMAXINFO: {
+        if (!minSizeSet) {
+            int borderWidth = GetSystemMetrics(SM_CXBORDER);
+            int borderHeight = GetSystemMetrics(SM_CYBORDER);
+            int captionHeight = GetSystemMetrics(SM_CYCAPTION);
+            minWndWidth = origWndWidth + 2 * borderWidth;
+            minWndHeight = (origWndHeight + captionHeight + 2 * borderHeight) * 2 / 3;
+            minSizeSet = true;
+        }
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+        pMinMax->ptMinTrackSize.x = minWndWidth;
+        pMinMax->ptMinTrackSize.y = minWndHeight;
+        return TRUE;
+    }
+    case WM_SIZE: {
+        HWND hListBox = GetDlgItem(hwnd, 6100);
+        HWND hDetail = GetDlgItem(hwnd, 6101);
+        int newWndWidth = LOWORD(lParam);
+        int newWndHeight = HIWORD(lParam);
+
+        RECT rect;
+        GetWindowRect(hListBox, &rect);
+
+        POINT topLeft = { rect.left, rect.top };
+        ScreenToClient(hwnd, &topLeft);
+
+        int newWidth = rect.right - rect.left;
+        int newHeight = newWndHeight - 15;
+        MoveWindow(hListBox, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        GetWindowRect(hDetail, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hwnd, &topLeft);
+        newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
+        newHeight = newWndHeight - 15;
+        MoveWindow(hDetail, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        origWndWidth = newWndWidth;
+        origWndHeight = newWndHeight;
+        break;
     }
     case WM_COMMAND:
     {

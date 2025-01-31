@@ -23,6 +23,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 	int shorePieces = theater->GetInteger("General", "ShorePieces", 12);
 	int greenTiles = theater->GetInteger("General", "GreenTile", 0);
 	int waterSet = theater->GetInteger("General", "WaterSet", 21);
+	int waterBridge = theater->GetInteger("General", "WaterBridge", -1);
 	if (shorePieces < 0 || shorePieces > CMapDataExt::TileSet_starts.size()
 		|| greenTiles < 0 || greenTiles > CMapDataExt::TileSet_starts.size()
 		|| waterSet < 0 || waterSet > CMapDataExt::TileSet_starts.size())
@@ -37,8 +38,17 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 	int waterSetEnd = CMapDataExt::TileSet_starts[waterSet + 1] - 1;
 	int greenTile = CMapDataExt::TileSet_starts[greenTiles];
 	std::vector<int> SmallWaterTiles;
+	//  last two big shores and water bridges
+	std::vector<int> SpecialShores;
 	for (int i = 8; i < 13; i++)
 		SmallWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
+	for (int i = 40; i < 42; i++)
+		SpecialShores.push_back(i + tileStart);
+	if (waterBridge >= 0)
+	{
+		for (int i = 0; i < 2; i++)
+			SpecialShores.push_back(i + CMapDataExt::TileSet_starts[waterBridge]);
+	}
 
 	// a trick to avoid affecting other shorelines
 	// ignore the working shore
@@ -117,7 +127,6 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 		}
 	}
 
-	// remove broken beaches
 	for (int x = startX; x < right; x++)
 	{
 		for (int y = startY; y < bottom; y++)
@@ -130,6 +139,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			if (tileIndex == 0xFFFF)
 				tileIndex = 0;
 
+			// remove broken beaches
 			if ((tileIndex >= tileStart && tileIndex <= tileEnd) && !pThis->IsTileIntact(x, y))
 			{
 				auto ttype = pThis->GetAltLandType(tileIndex, cell->TileSubIndex);
@@ -144,6 +154,19 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 					cell->TileIndex = STDHelpers::RandomSelectInt(SmallWaterTiles);
 					cell->TileSubIndex = 0;
 					cell->Flag.AltIndex = 0;
+				}
+			}
+			// keep special shores
+			else if (std::find(SpecialShores.begin(), SpecialShores.end(), tileIndex) != SpecialShores.end() && pThis->IsTileIntact(x, y))
+			{
+				for (auto& mc : pThis->GetIntactTileCoords(x, y, true))
+				{
+					if (!pThis->IsCoordInMap(mc.X, mc.Y))
+						continue;
+					int pos = pThis->GetCoordIndex(mc.X, mc.Y);
+					auto& cellExt = pThis->CellDataExts[pos];
+
+					cellExt.ShoreProcessed = true;
 				}
 			}
 		}

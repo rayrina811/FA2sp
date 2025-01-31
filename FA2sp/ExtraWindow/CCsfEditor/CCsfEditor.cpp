@@ -157,8 +157,14 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         case Controls::Reload:
             if (CODE == BN_CLICKED)
             {
+                StringtableLoader::CSFFiles_Stringtable.clear();
+                FA2sp::TutorialTextsMap.clear();
                 StringtableLoader::LoadCSFFiles();
                 OnEditchangeSearch();
+                char tmpCsfFile[0x400];
+                strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+                strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
+                DeleteFile(tmpCsfFile);
             }
             break;
         case Controls::Apply:

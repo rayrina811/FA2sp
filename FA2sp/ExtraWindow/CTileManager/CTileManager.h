@@ -36,5 +36,10 @@ private:
     static CTileSetBrowserFrame* m_parent;
     static std::vector<std::pair<std::string, std::regex>> Nodes;
     static std::vector<std::vector<int>> Datas;
+    static int origWndWidth;
+    static int origWndHeight;
+    static int minWndWidth;
+    static int minWndHeight;
+    static bool minSizeSet;
 };
 

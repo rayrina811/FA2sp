@@ -118,6 +118,7 @@ bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
 bool ExtConfigs::ExtendedValidationAres;
 bool ExtConfigs::AIRepairDefaultYes;
+bool ExtConfigs::AISellableDefaultYes;
 bool ExtConfigs::TriggerList_AttachedTriggers;
 bool ExtConfigs::TagList_AttachedObjects;
 bool ExtConfigs::SaveMaps_BetterMapPreview;
@@ -228,6 +229,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
+	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 	
 
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
