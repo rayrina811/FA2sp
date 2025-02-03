@@ -135,6 +135,7 @@ public:
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferFixedAllocation;
     static int RangeBound_MaxRange;
+    static int SearchCombobox_MaxCount;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

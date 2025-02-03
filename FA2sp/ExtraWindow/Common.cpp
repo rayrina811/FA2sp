@@ -615,6 +615,10 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& 
 
 void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels)
 {
+    if (SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount) {
+        return;
+    }
+
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 

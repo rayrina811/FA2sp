@@ -131,6 +131,7 @@ bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferFixedAllocation;
 int ExtConfigs::RangeBound_MaxRange;
+int ExtConfigs::SearchCombobox_MaxCount;
 
 
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -232,6 +233,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 	
 
+	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 16);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile");

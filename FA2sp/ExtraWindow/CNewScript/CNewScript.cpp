@@ -446,46 +446,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
 
     if (edited && (SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionExtraParamLabels.empty()))
     {
-        if (!ActionExtraParamLabels.empty())
-        {
-            while (SendMessage(hActionExtraParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
-            for (auto& pair : ActionExtraParamLabels)
-            {
-                SendMessage(hActionExtraParam, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-            }
-            ActionExtraParamLabels.clear();
-        }
-
-        GetWindowText(hActionExtraParam, buffer, 511);
-        SendMessage(hActionExtraParam, CB_SHOWDROPDOWN, TRUE, NULL);
-
-        ExtraWindow::GetCurrentDropdown();
-
-        //SendMessage(hActionExtraParam, CB_SETCURSEL, 4, NULL);
-        std::vector<int> deletedLabels;
-        for (int idx = SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-        {
-            SendMessage(hActionExtraParam, CB_GETLBTEXT, idx, (LPARAM)buffer2);
-            bool del = false;
-            ppmfc::CString tmp(buffer2);
-            if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
-            {
-                deletedLabels.push_back(idx);
-            }
-            ActionExtraParamLabels[idx] = tmp;
-        }
-        for (int idx : deletedLabels)
-        {
-            SendMessage(hActionExtraParam, CB_DELETESTRING, idx, NULL);
-        }
-        if (strlen(buffer) == 1)
-        {
-            SetWindowText(hActionExtraParam, (LPCSTR)buffer);
-            SendMessage(hActionExtraParam, CB_SETEDITSEL, 0, MAKELPARAM(1, 1));
-        }
-
-        HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-        SetCursor(hCursor);
+        ExtraWindow::OnEditCComboBox(hActionExtraParam, ActionExtraParamLabels);
     }
 
     if (curSel >= 0 && curSel < SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL))
@@ -564,46 +525,7 @@ void CNewScript::OnSelchangeActionParam(bool edited)
 
     if (edited && (SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels.empty()))
     {
-        if (!ActionParamLabels.empty())
-        {
-            while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
-            for (auto& pair : ActionParamLabels)
-            {
-                SendMessage(hActionParam, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-            }
-            ActionParamLabels.clear();
-        }
-
-        GetWindowText(hActionParam, buffer, 511);
-        SendMessage(hActionParam, CB_SHOWDROPDOWN, TRUE, NULL);
-
-        ExtraWindow::GetCurrentDropdown();
-
-        //SendMessage(hActionParam, CB_SETCURSEL, 4, NULL);
-        std::vector<int> deletedLabels;
-        for (int idx = SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-        {
-            SendMessage(hActionParam, CB_GETLBTEXT, idx, (LPARAM)buffer2);
-            bool del = false;
-            ppmfc::CString tmp(buffer2);
-            if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
-            {
-                deletedLabels.push_back(idx);
-            }
-            ActionParamLabels[idx] = tmp;
-        }
-        for (int idx : deletedLabels)
-        {
-            SendMessage(hActionParam, CB_DELETESTRING, idx, NULL);
-        }
-        if (strlen(buffer) == 1)
-        {
-            SetWindowText(hActionParam, (LPCSTR)buffer);
-            SendMessage(hActionParam, CB_SETEDITSEL, 0, MAKELPARAM(1, 1));
-        }
-
-        HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-        SetCursor(hCursor);
+        ExtraWindow::OnEditCComboBox(hActionParam, ActionParamLabels);
     }
 
     if (curSel >= 0 && curSel < SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL))
@@ -694,45 +616,7 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
     if (edited && (SendMessage(hActionType, CB_GETCOUNT, NULL, NULL) > 0 || !ActionTypeLabels.empty()))
     {
-        if (!ActionTypeLabels.empty())
-        {
-            while (SendMessage(hActionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
-            for (auto& pair : ActionTypeLabels)
-            {
-                SendMessage(hActionType, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-            }
-            ActionTypeLabels.clear();
-        }
-
-        GetWindowText(hActionType, buffer, 511);
-        SendMessage(hActionType, CB_SHOWDROPDOWN, TRUE, NULL);
-
-        ExtraWindow::GetCurrentDropdown();
-
-        //SendMessage(hActionType, CB_SETCURSEL, 4, NULL);
-        std::vector<int> deletedLabels;
-        for (int idx = SendMessage(hActionType, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-        {
-            SendMessage(hActionType, CB_GETLBTEXT, idx, (LPARAM)buffer2);
-            bool del = false;
-            ppmfc::CString tmp(buffer2);
-            if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
-            {
-                deletedLabels.push_back(idx);
-            }
-            ActionTypeLabels[idx] = tmp;
-        }
-        for (int idx : deletedLabels)
-        {
-            SendMessage(hActionType, CB_DELETESTRING, idx, NULL);
-        }
-        if (strlen(buffer) == 1)
-        {
-            SetWindowText(hActionType, (LPCSTR)buffer);
-            SendMessage(hActionType, CB_SETEDITSEL, 0, MAKELPARAM(1, 1));
-        }
-        HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-        SetCursor(hCursor);
+        ExtraWindow::OnEditCComboBox(hActionType, ActionTypeLabels);
     }
 
     if (curSel >= 0 && curSel < SendMessage(hActionType, CB_GETCOUNT, NULL, NULL))
@@ -840,41 +724,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     if (edited && (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 || !ScriptLabels.empty()))
     {
         Autodrop = true;
-        if (!ScriptLabels.empty())
-        {
-            while (SendMessage(hSelectedScript, CB_DELETESTRING, 0, NULL) != CB_ERR);
-            for (auto& pair : ScriptLabels)
-            {
-                SendMessage(hSelectedScript, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-            }
-            ScriptLabels.clear();
-        }
-
-        GetWindowText(hSelectedScript, buffer, 511);
-        SendMessage(hSelectedScript, CB_SHOWDROPDOWN, TRUE, NULL);
-        std::vector<int> deletedLabels;
-        for (int idx = SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)
-        {
-            SendMessage(hSelectedScript, CB_GETLBTEXT, idx, (LPARAM)buffer2);
-            bool del = false;
-            ppmfc::CString tmp(buffer2);
-            if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
-            {
-                deletedLabels.push_back(idx);
-            }
-            ScriptLabels[idx] = tmp;
-        }
-        for (int idx : deletedLabels)
-        {
-            SendMessage(hSelectedScript, CB_DELETESTRING, idx, NULL);
-        }
-        if (strlen(buffer) == 1)
-        {
-            SetWindowText(hSelectedScript, (LPCSTR)buffer);
-            SendMessage(hSelectedScript, CB_SETEDITSEL, 0, MAKELPARAM(1, 1));
-        }
-        HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
-        SetCursor(hCursor);
+        ExtraWindow::OnEditCComboBox(hSelectedScript, ScriptLabels);
         return;
     }
 
