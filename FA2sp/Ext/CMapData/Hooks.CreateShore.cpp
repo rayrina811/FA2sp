@@ -114,9 +114,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			tiles_2x1.push_back(i);
 	}
 
-	for (int x = startX - 1; x < right + 1; x++)
+	for (int x = startX - 2; x < right + 2; x++)
 	{
-		for (int y = startY - 1; y < bottom + 1; y++)
+		for (int y = startY - 2; y < bottom + 2; y++)
 		{
 			if (!pThis->IsCoordInMap(x, y))
 				continue;
@@ -406,9 +406,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 		}
 	}
 	// LAT
-	for (int x = startX - 2; x < right + 2; x++)
+	for (int x = startX - 1; x < right + 1; x++)
 	{
-		for (int y = startY - 2; y < bottom + 2; y++)
+		for (int y = startY - 1; y < bottom + 1; y++)
 		{
 			if (!pThis->IsCoordInMap(x, y))
 				continue;
