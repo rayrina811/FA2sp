@@ -16,13 +16,6 @@
 #include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
 
-
-DEFINE_HOOK(424421, CFinalSunDlg_OnInitDialog_InitOreValue, 5)
-{
-    CMapDataExt::GetExtension()->InitOreValue();
-    return 0;
-}
-
 DEFINE_HOOK(4C3E20, CMapData_CalculateMoneyCount, 7)
 {
     auto pExt = CMapDataExt::GetExtension();

@@ -44,6 +44,13 @@ CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::ShoreSet12 = 0;
 int CMapDataExt::CurrentTheaterIndex;
+int CMapDataExt::PaveTile;
+int CMapDataExt::GreenTile;
+int CMapDataExt::MiscPaveTile;
+int CMapDataExt::Medians;
+int CMapDataExt::PavedRoads;
+int CMapDataExt::ShorePieces;
+int CMapDataExt::WaterBridge;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
@@ -432,10 +439,10 @@ int CMapDataExt::GetInfantryAt(int dwPos, int dwSubPos)
 
 void CMapDataExt::InitOreValue()
 {
-    OreValue[OreType::Aboreus] = CINI::Rules->GetInteger("Aboreus", "Value");
-    OreValue[OreType::Cruentus] = CINI::Rules->GetInteger("Cruentus", "Value");
-    OreValue[OreType::Riparius] = CINI::Rules->GetInteger("Riparius", "Value");
-    OreValue[OreType::Vinifera] = CINI::Rules->GetInteger("Vinifera", "Value");
+    OreValue[OreType::Aboreus] = Variables::Rules.GetInteger("Aboreus", "Value");
+    OreValue[OreType::Cruentus] = Variables::Rules.GetInteger("Cruentus", "Value");
+    OreValue[OreType::Riparius] = Variables::Rules.GetInteger("Riparius", "Value");
+    OreValue[OreType::Vinifera] = Variables::Rules.GetInteger("Vinifera", "Value");
 }
 
 void CMapDataExt::SmoothAll()
@@ -563,14 +570,6 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 	auto cellDatas = mapData.CellDatas;
 	auto& ini = CINI::CurrentTheater();
 	auto& fadata = CINI::FAData();
-
-	int PaveTile = ini->GetInteger("General", "PaveTile", -10);
-	int GreenTile = ini->GetInteger("General", "GreenTile", -10);
-	int MiscPaveTile = ini->GetInteger("General", "MiscPaveTile", -10);
-	int Medians = ini->GetInteger("General", "Medians", -10);
-	int PavedRoads = ini->GetInteger("General", "PavedRoads", -10);
-	int ShorePieces = ini->GetInteger("General", "ShorePieces", -10);
-	int WaterBridge = ini->GetInteger("General", "WaterBridge", -10);
 
 	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
 	if (cell->TileIndex == 0xFFFF) cell->TileIndex = 0;
@@ -1204,6 +1203,16 @@ void CMapDataExt::InitializeAllHdmEdition()
 	{
 		WaypointSort::Instance.LoadAllTriggers();
 	}
+
+	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
+	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
+	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
+	Medians = CINI::CurrentTheater->GetInteger("General", "Medians", -10);
+	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
+	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
+	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
+
+	CMapDataExt::GetExtension()->InitOreValue();
 
 	 CTerrainGenerator::RangeFirstCell.X = -1;
 	 CTerrainGenerator::RangeFirstCell.Y = -1;

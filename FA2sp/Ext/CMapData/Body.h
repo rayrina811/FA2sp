@@ -163,5 +163,13 @@ public:
     static int ShoreSet12;
     static int CurrentTheaterIndex;
 
+    static int PaveTile;
+    static int GreenTile;
+    static int MiscPaveTile;
+    static int Medians;
+    static int PavedRoads;
+    static int ShorePieces;
+    static int WaterBridge;
+
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };
