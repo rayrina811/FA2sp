@@ -160,7 +160,6 @@ public:
 
     static CTileTypeClass* TileData;
     static int TileDataCount;
-    static int ShoreSet12;
     static int CurrentTheaterIndex;
 
     static int PaveTile;

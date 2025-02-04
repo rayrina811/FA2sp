@@ -1204,78 +1204,6 @@ DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 	return 0x470574;
 }
 
-//DEFINE_HOOK(46A9E2, CIsoView_UpdateStatusBar_End, B)
-//{
-//	GET_STACK(int, X, 0x148);
-//	GET_STACK(int, Y, 0x14C);
-//
-//	ppmfc::CString targetHouse;
-//	ppmfc::CString targetNode;
-//	int targetIndex = -1;
-//	int exchangeIndex = -1;
-//
-//	auto& ini = CMapData::Instance->INI;
-//	if (auto pSection = ini.GetSection("Houses"))
-//	{
-//		for (auto pair : pSection->GetEntities())
-//		{
-//			if (targetIndex > -1)
-//				break;
-//
-//			int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
-//			if (nodeCount > 0)
-//			{
-//				for (int i = 0; i < nodeCount; i++)
-//				{
-//					if (targetIndex > -1)
-//						break;
-//
-//					char key[10];
-//					sprintf(key, "%03d", i);
-//					auto value = ini.GetString(pair.second, key, "");
-//					if (value == "")
-//						continue;
-//					auto atoms = STDHelpers::SplitString(value);
-//					if (atoms.size() < 3)
-//						continue;
-//
-//					auto size = CViewObjectsExt::GetStructureSize(atoms[0]);
-//					for (int w = 0; w < size[0]; w++)
-//					{
-//						if (targetIndex > -1)
-//							break;
-//						for (int h = 0; h < size[1]; h++)
-//						{
-//							if (atoi(atoms[1]) + w == Y && atoi(atoms[2]) + h == X)
-//							{
-//								targetIndex = i;
-//								targetHouse = pair.second;
-//								targetNode = value;
-//								break;
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	if (targetIndex == -1)
-//		return 0;
-//
-//	auto atoms = STDHelpers::SplitString(targetNode);
-//	Miscs::ParseHouseName(&targetHouse, targetHouse, true);
-//
-//	ppmfc::CString buffer;
-//	buffer.Format("基地节点: ID %d, %s (%s, %s)", targetIndex, CMapData::GetUIName(atoms[0]), targetHouse, atoms[0]);
-//
-//
-//
-//	CFinalSunDlg::Instance->MyViewFrame.StatusBar.SetText(buffer, 0, 0);
-//
-//	return 0x46AA0F;
-//}
-
 DEFINE_HOOK(475122, CIsoView_Draw_ScrollCursor, 5)
 {
 	ppmfc::CString newTitle = "scrollcursor.bmp";
@@ -1384,6 +1312,26 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 	CIsoViewExt::FillArea(dwX, dwY, dwID, bSubTile);
 
 	return 0x46D808;
+}
+
+
+DEFINE_HOOK(461A37, CIsoView_PlaceTile_FixUndo, 7)
+{
+	GET(CIsoView*, pIsoView, EBX);
+	GET(int, x, EDI);
+	GET(int, ym6, ECX);
+	int y = ym6 + 6;
+	if (CIsoView::CurrentCommand->Type >= CMapDataExt::TileDataCount || CIsoView::CurrentCommand->Type < 0) {
+		return 0;
+	}
+	auto tiledata = CMapDataExt::TileData[CIsoView::CurrentCommand->Type];
+
+	CMapData::Instance->SaveUndoRedoData(true,
+		x - tiledata.Height - 4,
+		y - tiledata.Width - 4,
+		x - tiledata.Height + pIsoView->BrushSizeX * tiledata.Height + 7,
+		y - tiledata.Width + pIsoView->BrushSizeY * tiledata.Width + 7);
+	return 0x461A5B;
 }
 
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)

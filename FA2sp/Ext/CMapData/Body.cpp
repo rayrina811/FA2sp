@@ -42,7 +42,6 @@ std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
 bool CMapDataExt::SkipUpdateBuildingInfo = false;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
-int CMapDataExt::ShoreSet12 = 0;
 int CMapDataExt::CurrentTheaterIndex;
 int CMapDataExt::PaveTile;
 int CMapDataExt::GreenTile;
@@ -1158,10 +1157,6 @@ void CMapDataExt::InitializeAllHdmEdition()
 			else break;
 		}
 	}
-
-	int shorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", 12);
-	int tileStart = CMapDataExt::TileSet_starts[shorePieces];
-	ShoreSet12 = tileStart + 12;
 
 	CViewObjectsExt::ConnectedTile_Initialize();
 
