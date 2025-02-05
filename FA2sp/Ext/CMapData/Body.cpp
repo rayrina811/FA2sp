@@ -249,8 +249,10 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 {
 	if (!this->IsCoordInMap(X, Y))
 		return;
-	int width = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(index)].Width;
-	int height = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(index)].Height;
+
+	index = CMapDataExt::GetSafeTileIndex(index);
+	int width = CMapDataExt::TileData[index].Width;
+	int height = CMapDataExt::TileData[index].Height;
 	int startHeight = this->GetCellAt(X, Y)->Height;
 
 	int subIdx = 0;

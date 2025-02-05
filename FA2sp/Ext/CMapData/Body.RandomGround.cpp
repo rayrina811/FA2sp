@@ -172,7 +172,7 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
         totalProbability += tile.second;
     }
     if (totalProbability < 1.0f) {
-        tiles.push_back(std::make_pair(std::vector<int>{0}, 1.0f - totalProbability));
+        tiles.push_back(std::make_pair(std::vector<int>{0xFFFF}, 1.0f - totalProbability));
     }
 
     auto tileNameHasShore = [&](int setIdx)
@@ -255,11 +255,10 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
             auto [rotatedX, rotatedY] = rotateCoordinates(x, y, randomAngle);
             float noiseValue = perlinNoise(rotatedX, rotatedY);
 
-            //float noiseValue = perlinNoise(x, y);
             std::vector<int> tileIndexes = selectTile(noiseValue, tiles);
 
             if (!override) {
-                if (tileIndexes.size() == 1 && tileIndexes[0] == 0) {
+                if (tileIndexes.size() == 1 && tileIndexes[0] == 0xFFFF) {
                     continue;
                 }
             }
