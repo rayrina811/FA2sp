@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <map>
+#include <CPalette.h>
 
 class ImageDataClass;
 class Palette;
@@ -64,6 +65,9 @@ private:
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight);
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
+
+	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
+	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
 
 	enum class ObjectType{
 		Unknown = -1,

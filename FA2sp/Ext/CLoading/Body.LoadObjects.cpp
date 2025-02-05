@@ -5,7 +5,6 @@
 #include <CMixFile.h>
 #include <CShpFile.h>
 #include <Drawing.h>
-#include <CPalette.h>
 
 #include "../../Miscs/VoxelDrawer.h"
 #include "../../Miscs/Palettes.h"
@@ -207,6 +206,12 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
 
+	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
+		PaletteName = "iso";
+	GetFullPaletteName(PaletteName);
+	auto palette = PalettesManager::LoadPalette(PaletteName);
+
 	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
@@ -225,7 +230,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file);
@@ -248,6 +253,23 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
+		if (customPal != "")
+		{
+			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			{
+				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
+				int counter = 0;
+				for (int j = 0; j < header.Height; ++j)
+				{
+					for (int i = 0; i < header.Width; ++i)
+					{
+						unsigned char& ch = pBuffer[counter];
+						ch = lookupTable[ch];
+						counter++;
+					}
+				}
+			}
+		}
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
@@ -263,7 +285,12 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 				ppmfc::CString str = *ppStr;
 				str.Trim();
 				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
+				ppmfc::CString customPal = "";
+				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+					customPal.Replace("~~~", GetTheaterSuffix());
+				}
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
 			}
 		}
 	};
@@ -296,11 +323,6 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str));
 		}
 
-		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
-		if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
-			PaletteName = "iso";
-		GetFullPaletteName(PaletteName);
-
 		ppmfc::CString DictName;
 
 		unsigned char* pBuffer;
@@ -402,7 +424,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 					DictName.Format("%s%d", ID, i);
-					SetImageData(pImage, DictName, width1, height1, PalettesManager::LoadPalette(PaletteName));
+					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
 				GameDeleteArray(pBuffer, width * height);
@@ -427,7 +449,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 
 					DictName.Format("%s%d", ID, i);
-					SetImageData(pImage, DictName, width1, height1, PalettesManager::LoadPalette(PaletteName));
+					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 				GameDelete(pBuffer);
 			}
@@ -435,7 +457,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		else // No turret
 		{
 			DictName.Format("%s%d", ID, 0);
-			SetImageData(pBuffer, DictName, width, height, PalettesManager::LoadPalette(PaletteName));
+			SetImageData(pBuffer, DictName, width, height, palette);
 		}
 	}
 }
@@ -444,6 +466,12 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
+
+	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
+		PaletteName = "iso";
+	GetFullPaletteName(PaletteName);
+	auto palette = PalettesManager::LoadPalette(PaletteName);
 
 	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
 	{
@@ -463,7 +491,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file);
@@ -486,6 +514,23 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
+		if (customPal != "")
+		{
+			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			{
+				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
+				int counter = 0;
+				for (int j = 0; j < header.Height; ++j)
+				{
+					for (int i = 0; i < header.Width; ++i)
+					{
+						unsigned char& ch = pBuffer[counter];
+						ch = lookupTable[ch];
+						counter++;
+					}
+				}
+			}
+		}
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
@@ -502,7 +547,12 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
+				ppmfc::CString customPal = "";
+				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+					customPal.Replace("~~~", GetTheaterSuffix());
+				}
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
 			}
 		}
 		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
@@ -512,7 +562,12 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
+				ppmfc::CString customPal = "";
+				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+					customPal.Replace("~~~", GetTheaterSuffix());
+				}
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
 			}
 		}
 	};
@@ -536,11 +591,6 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), 1);
 		}
 
-		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
-		if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
-			PaletteName = "iso";
-		GetFullPaletteName(PaletteName);
-
 		ppmfc::CString DictName;
 
 		unsigned char* pBuffer;
@@ -642,7 +692,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 					DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageData(pImage, DictName, width1, height1, PalettesManager::LoadPalette(PaletteName));
+					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
 				GameDeleteArray(pBuffer, width * height);
@@ -667,7 +717,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 
 					DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageData(pImage, DictName, width1, height1, PalettesManager::LoadPalette(PaletteName));
+					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 				GameDelete(pBuffer);
 			}
@@ -675,7 +725,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		else // No turret
 		{
 			DictName.Format("%s%d\233DAMAGED", ID, 0);
-			SetImageData(pBuffer, DictName, width, height, PalettesManager::LoadPalette(PaletteName));
+			SetImageData(pBuffer, DictName, width, height, palette);
 		}
 	}
 }
@@ -1265,4 +1315,42 @@ void CLoadingExt::GetFullPaletteName(ppmfc::CString& PaletteName)
 		PaletteName += "tem.pal";
 		return;
 	}
+}
+
+int CLoadingExt::ColorDistance(const ColorStruct& color1, const ColorStruct& color2)
+{
+	int diffRed = color1.red - color2.red;
+	int diffGreen = color1.green - color2.green;
+	int diffBlue = color1.blue - color2.blue;
+	return diffRed * diffRed + diffGreen * diffGreen + diffBlue * diffBlue;
+}
+
+std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* second)
+{
+	if (!first || !second) {
+		std::vector<int> lookupTable;
+		return lookupTable;
+	}
+	std::vector<int> lookupTable(256);
+
+	lookupTable[0] = 0;
+	for (int i = 1; i < 256; ++i) {
+		int minDistance = std::numeric_limits<int>::max();
+		int bestMatchIndex = 0;
+
+		for (int j = 1; j < 256; ++j) {
+			if (j >= 16 && j < 32) { // skip house colors
+				continue;
+			}
+			int distance = ColorDistance(first->GetByteColor(i), second->GetByteColor(j));
+			if (distance < minDistance) {
+				minDistance = distance;
+				bestMatchIndex = j;
+			}
+		}
+
+		lookupTable[i] = bestMatchIndex;
+	}
+
+	return lookupTable;
 }
