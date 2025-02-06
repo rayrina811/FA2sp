@@ -223,6 +223,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
@@ -252,6 +255,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 		if (customPal != "")
 		{
@@ -484,6 +490,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
@@ -513,6 +522,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 		if (customPal != "")
 		{
@@ -746,6 +758,9 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
@@ -775,6 +790,9 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
+		if (header.FrameCount / 2 <= nFrame) {
+			nFrame = 0;
+		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
