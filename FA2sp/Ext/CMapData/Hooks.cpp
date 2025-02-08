@@ -82,6 +82,8 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_InitOverlayTypeDatas, 7)
     {
         auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
         item.Rock = Variables::Rules.GetBool(id, "IsARock");
+        item.Wall = Variables::Rules.GetBool(id, "Wall");
+		item.PaletteName = CINI::Art->GetString(id, "Palette", "unit");
     }
 
     return 0;

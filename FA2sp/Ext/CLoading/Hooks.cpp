@@ -6,6 +6,8 @@
 #include <CINI.h>
 #include <Drawing.h>
 #include <string>
+#include "..\..\Miscs\Palettes.h"
+#include "..\CMapData\Body.h"
 
 DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 {
@@ -97,4 +99,27 @@ DEFINE_HOOK(4B8CFC, CMapData_CreateMap_InitMixFiles_Removal, 5)
 	};
 	reinterpret_cast<CLoadingHelper*>(CLoading::Instance())->DTOR();
 	return 0x4B8D0C;
+}
+
+DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
+{
+	GET(CLoadingExt*, pThis, EDI);
+	REF_STACK(ImageDataClass, pDrawData, STACK_OFFS(0x1C8, 0xC8));
+	GET_STACK(int, nOverlayIndex, STACK_OFFS(0x1C8, -0x8));
+
+	if (nOverlayIndex >= 0 && nOverlayIndex < 256)
+	{
+		auto const& typeData = CMapDataExt::OverlayTypeDatas[nOverlayIndex];
+
+		if (typeData.Wall)
+		{
+			auto palName = typeData.PaletteName;
+			pThis->GetFullPaletteName(palName);
+			if (auto pal = PalettesManager::LoadPalette(palName)) {
+				pDrawData.pPalette = pal;
+			}
+		}
+	}
+
+	return 0;
 }

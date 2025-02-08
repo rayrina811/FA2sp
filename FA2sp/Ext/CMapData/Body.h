@@ -32,6 +32,8 @@ struct BuildingPowers
 struct OverlayTypeData
 {
     bool Rock;
+    bool Wall;
+    ppmfc::CString PaletteName;
 };
 
 struct BuildingDataExt
