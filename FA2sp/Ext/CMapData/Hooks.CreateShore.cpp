@@ -406,24 +406,27 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 		}
 	}
 	// LAT
-	for (int x = startX - 1; x < right + 1; x++)
+	if (!CFinalSunApp::Instance->DisableAutoLat)
 	{
-		for (int y = startY - 1; y < bottom + 1; y++)
+		for (int x = startX - 1; x < right + 1; x++)
 		{
-			if (!pThis->IsCoordInMap(x, y))
-				continue;
+			for (int y = startY - 1; y < bottom + 1; y++)
+			{
+				if (!pThis->IsCoordInMap(x, y))
+					continue;
 
-			bool next = false;
-			for (int i = -1; i < 2; i++){
-				if (next) break;
-				for (int j = -1; j < 2; j++) {
+				bool next = false;
+				for (int i = -1; i < 2; i++) {
 					if (next) break;
-					if (i == j) continue;
-					int pos = pThis->GetCoordIndex(x + i, y + j);
-					auto& cellExt = pThis->CellDataExts[pos];
-					if (cellExt.ShoreLATNeeded) {
-						next = true;
-						pThis->SmoothTileAt(x, y, true);
+					for (int j = -1; j < 2; j++) {
+						if (next) break;
+						if (i == j) continue;
+						int pos = pThis->GetCoordIndex(x + i, y + j);
+						auto& cellExt = pThis->CellDataExts[pos];
+						if (cellExt.ShoreLATNeeded) {
+							next = true;
+							pThis->SmoothTileAt(x, y, true);
+						}
 					}
 				}
 			}

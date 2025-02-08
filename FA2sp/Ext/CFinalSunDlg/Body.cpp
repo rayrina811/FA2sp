@@ -216,6 +216,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	auto SetLightingStatus = [this, &hMenu](int id)
 	{
+		if (!ExtConfigs::LightingPreview)
+			return;
 		CheckMenuRadioItem(hMenu, 31000, 31003, id, MF_UNCHECKED);
 		if (CFinalSunDlgExt::CurrentLighting != id)
 		{

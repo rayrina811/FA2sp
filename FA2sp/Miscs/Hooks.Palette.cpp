@@ -68,14 +68,18 @@ DEFINE_HOOK(48C3F6, CIsoView_InitTMPs_SkipReset, 5)
 
 DEFINE_HOOK(46DEF7, CIsoView_Draw_Palette_Iso_Set, 5)
 {
-	PalettesManager::CacheAndTintCurrentIso();
-
+	if (ExtConfigs::LightingPreview) {
+		PalettesManager::CacheAndTintCurrentIso();
+	}
+	
 	return 0;
 }
 
 DEFINE_HOOK(474AE3, CIsoView_Draw_Palette_Iso_Revert, 6)
 {
-	PalettesManager::RestoreCurrentIso();
+	if (ExtConfigs::LightingPreview) {
+		PalettesManager::RestoreCurrentIso();
+	}
 
 	return 0;
 }

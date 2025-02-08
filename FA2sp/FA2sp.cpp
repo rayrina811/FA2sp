@@ -130,6 +130,7 @@ bool ExtConfigs::DPIAware;
 bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferFixedAllocation;
+bool ExtConfigs::LightingPreview;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 
@@ -242,6 +243,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
 	ExtConfigs::StringBufferFixedAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferFixedAllocation", true);
+	ExtConfigs::LightingPreview = CINI::FAData->GetBool("ExtConfigs", "LightingPreview");
 
 	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
 	{

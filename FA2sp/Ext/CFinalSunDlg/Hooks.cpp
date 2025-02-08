@@ -266,6 +266,10 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
         translateMenuItem(40119, "Menu.Online.FA2Forum");
     }
 
+    if (!ExtConfigs::LightingPreview) {
+        pMenu->RemoveMenu(6, MF_BYPOSITION);
+    }
+
     return 0x432304;
 }
 

@@ -134,6 +134,7 @@ public:
     static bool SkipBrushSizeChangeOnTools;
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferFixedAllocation;
+    static bool LightingPreview;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static ppmfc::CString CloneWithOrderedID_Digits;
