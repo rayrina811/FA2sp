@@ -216,8 +216,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
+		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
-			return false;
+			return true;
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -255,7 +256,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
 		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
@@ -483,8 +484,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
+		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
-			return false;
+			return true;
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -522,7 +524,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
 		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
@@ -751,8 +753,9 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
+		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
-			return false;
+			return true;
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -790,7 +793,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
 		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
