@@ -297,10 +297,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                             auto overlayD = cell.OverlayData;
                             if (overlay != 255)
                             {
+                                auto& radarColor = CMapDataExt::OverlayTypeDatas[overlay].RadarColor;
                                 if (overlay >= 27 && overlay <= 38) //gems
-                                    color = RGB(132, 0, 132);
+                                    color = RGB(radarColor.R, radarColor.G, radarColor.B);
                                 else if (overlay >= 102 && overlay <= 166) //ores
-                                    color = RGB(220, 217, 0);
+                                    color = RGB(radarColor.R, radarColor.G, radarColor.B);
                                 else if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
                                 { }
                                 else if (overlay == 24 || overlay == 25 || overlay == 237 || overlay == 238) //high bridge

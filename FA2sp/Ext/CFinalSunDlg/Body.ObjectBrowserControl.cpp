@@ -59,9 +59,7 @@ bool CViewObjectsExt::HeightChanged;
 bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
 std::vector<int> CViewObjectsExt::LastCTTileRecords;
 std::vector<int> CViewObjectsExt::LastHeightRecords;
-//CINI CViewObjectsExt::ConnectedTileDrawer;
 
-bool CViewObjectsExt::RockOverlays[256];
 bool CViewObjectsExt::BuildingBrushBools[14];
 bool CViewObjectsExt::InfantryBrushBools[10];
 bool CViewObjectsExt::VehicleBrushBools[11];
@@ -186,17 +184,6 @@ void CViewObjectsExt::Redraw_Initialize()
         ::SendMessage(CTileManager::GetHandle(), 114514, 0, 0);
     }
     AddedItemCount = 0;
-    int index = 0;
-    for (auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
-    {
-        if (CINI::Rules().GetString(ol.second, "Land", "") == "Rock" && index < 256)
-            CViewObjectsExt::RockOverlays[index] = true;
-        else if (index < 256)
-            CViewObjectsExt::RockOverlays[index] = false;
-        else
-            break;
-    	index++;
-    }
 
     for (auto root : ExtNodes)
         root = NULL;
@@ -629,14 +616,14 @@ void CViewObjectsExt::Redraw_Infantry()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
     {
         int index = RandomTechno;
-        for (auto& pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -725,14 +712,14 @@ void CViewObjectsExt::Redraw_Vehicle()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
     {
         int index = RandomTechno;
-        for (auto& pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -822,14 +809,14 @@ void CViewObjectsExt::Redraw_Aircraft()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
     {
         int index = RandomTechno;
-        for (auto& pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -959,14 +946,14 @@ void CViewObjectsExt::Redraw_Building()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
     {
         int index = RandomTechno;
-        for (auto& pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -1086,14 +1073,14 @@ void CViewObjectsExt::Redraw_Smudge()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
     {
         int index = random1x1crater;
-        for (auto pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -1180,6 +1167,8 @@ void CViewObjectsExt::Redraw_Overlay()
         buffer = QueryUIName(overlays[i]);
         if (buffer != overlays[i])
             buffer += " (" + overlays[i] + ")";
+        ppmfc::CString id;
+        id.Format("%03d %s", i, buffer);
         if (rules.GetBool(overlays[i], "Wall"))
         {
             int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels");
@@ -1206,21 +1195,21 @@ void CViewObjectsExt::Redraw_Overlay()
         }
 
         if (IgnoreSet.find(overlays[i]) == IgnoreSet.end())
-            this->InsertString(buffer, Const_Overlay + i, hTemp);
+            this->InsertString(id, Const_Overlay + i, hTemp);
     }
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
     {
         int index = RandomRock;
-        for (auto pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -2075,7 +2064,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
             int index = RandomTechno;
-            for (auto& pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2095,7 +2084,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
             int index = RandomTechno;
-            for (auto& pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2115,7 +2104,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
             int index = RandomTechno;
-            for (auto& pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2135,7 +2124,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
             int index = RandomTechno;
-            for (auto& pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2155,7 +2144,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
         {
             int index = RandomTree;
-            for (auto pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2182,7 +2171,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         else if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
         {
             int index = RandomRock;
-            for (auto pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {
@@ -2206,7 +2195,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
         {
             int index = random1x1crater;
-            for (auto pKey : pSection->GetEntities())
+            for (const auto& pKey : pSection->GetEntities())
             {
                 if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
                 {

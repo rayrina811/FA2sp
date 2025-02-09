@@ -107,6 +107,10 @@ DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
 	REF_STACK(ImageDataClass, pDrawData, STACK_OFFS(0x1C8, 0xC8));
 	GET_STACK(int, nOverlayIndex, STACK_OFFS(0x1C8, -0x8));
 
+	if (!CMapData::Instance->MapWidthPlusHeight) {
+		return 0;
+	}
+
 	if (nOverlayIndex >= 0 && nOverlayIndex < 256)
 	{
 		auto const& typeData = CMapDataExt::OverlayTypeDatas[nOverlayIndex];

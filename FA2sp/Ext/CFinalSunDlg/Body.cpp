@@ -227,9 +227,17 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			PalettesManager::CacheAndTintCurrentIso();
 			CLoading::Instance->FreeTMPs();
 			CLoading::Instance->InitTMPs();
+			CLoading::Instance->InitTMPs_Reset();
 			PalettesManager::RestoreCurrentIso();
 			PalettesManager::ManualReloadTMP = false;
 
+			for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+				for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+					CMapData::Instance->UpdateMapPreviewAt(i, j);
+				}
+			}
+
+			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		}
 	};

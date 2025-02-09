@@ -33,7 +33,9 @@ struct OverlayTypeData
 {
     bool Rock;
     bool Wall;
+    bool TerrainRock;
     ppmfc::CString PaletteName;
+    RGBClass RadarColor;
 };
 
 struct BuildingDataExt

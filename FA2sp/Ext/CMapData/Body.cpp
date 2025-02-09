@@ -1017,7 +1017,6 @@ void CMapDataExt::InitializeAllHdmEdition()
 	CIsoView::CurrentCommand->Command = 0;
 
 	Variables::OrderedRulesIndicies = Variables::OrderedRulesIndiciesWithoutMap;
-
 	for (auto& section : CINI::CurrentDocument->Dict) {
 		auto&& cur = CINI::CurrentDocument->ParseIndiciesData(section.first);
 		auto& Indicies = Variables::OrderedRulesIndicies[section.first];
@@ -1040,6 +1039,20 @@ void CMapDataExt::InitializeAllHdmEdition()
 				}
 			}
 		}
+	}
+
+	CMapDataExt::OverlayTypeDatas.clear();
+	for (const auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
+	{
+		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
+		item.Rock = Variables::Rules.GetBool(ol.second, "IsARock");
+		item.Wall = Variables::Rules.GetBool(ol.second, "Wall");
+		item.PaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
+		item.TerrainRock = Variables::Rules.GetString(ol.second, "Land", "") == "Rock";
+		auto colors = STDHelpers::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
+		item.RadarColor.R = atoi(colors[0]);
+		item.RadarColor.G = atoi(colors[1]);
+		item.RadarColor.B = atoi(colors[2]);
 	}
 
 	if (CNewTeamTypes::GetHandle())
@@ -1211,9 +1224,11 @@ void CMapDataExt::InitializeAllHdmEdition()
 
 	CMapDataExt::GetExtension()->InitOreValue();
 
-	 CTerrainGenerator::RangeFirstCell.X = -1;
-	 CTerrainGenerator::RangeFirstCell.Y = -1;
-	 CTerrainGenerator::RangeSecondCell.X = -1;
-	 CTerrainGenerator::RangeSecondCell.Y = -1;
-	 CTerrainGenerator::UseMultiSelection = false;
+	CTerrainGenerator::RangeFirstCell.X = -1;
+	CTerrainGenerator::RangeFirstCell.Y = -1;
+	CTerrainGenerator::RangeSecondCell.X = -1;
+	CTerrainGenerator::RangeSecondCell.Y = -1;
+	CTerrainGenerator::UseMultiSelection = false;
+
+	CMapDataExt::Instance->UpdateFieldOverlayData(false);
 }

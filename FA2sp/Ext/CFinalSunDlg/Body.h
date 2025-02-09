@@ -342,8 +342,6 @@ public:
     static std::unique_ptr<CPropertyAircraft> AircraftBrushDlgF;
     static std::unique_ptr<CPropertyBuilding> BuildingBrushDlgBNF;
 
-    static bool RockOverlays[256];
-
     void Redraw();
     bool UpdateEngine(int nData);
     static void OnExeTerminate();

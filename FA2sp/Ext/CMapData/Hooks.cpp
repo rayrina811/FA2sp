@@ -15,6 +15,7 @@
 #include "../CTileSetBrowserFrame/TabPages/WaypointSort.h"
 #include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
+#include "../../Miscs/Palettes.h"
 
 DEFINE_HOOK(4C3E20, CMapData_CalculateMoneyCount, 7)
 {
@@ -74,20 +75,20 @@ DEFINE_HOOK(4BB04A, CMapData_AddTube_IgnoreUselessNegativeOne, 7)
     return 0x4BB083;
 }
 
-DEFINE_HOOK(47AB50, CLoading_InitPics_InitOverlayTypeDatas, 7)
-{
-    CMapDataExt::OverlayTypeDatas.clear();
-
-    for (const auto& id : Variables::Rules.ParseIndicies("OverlayTypes", true))
-    {
-        auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
-        item.Rock = Variables::Rules.GetBool(id, "IsARock");
-        item.Wall = Variables::Rules.GetBool(id, "Wall");
-		item.PaletteName = CINI::Art->GetString(id, "Palette", "unit");
-    }
-
-    return 0;
-}
+//DEFINE_HOOK(47AB50, CLoading_InitPics_InitOverlayTypeDatas, 7)
+//{
+//    CMapDataExt::OverlayTypeDatas.clear();
+//
+//    for (const auto& id : Variables::Rules.ParseIndicies("OverlayTypes", true))
+//    {
+//        auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
+//        item.Rock = Variables::Rules.GetBool(id, "IsARock");
+//        item.Wall = Variables::Rules.GetBool(id, "Wall");
+//		item.PaletteName = CINI::Art->GetString(id, "Palette", "unit");
+//    }
+//
+//    return 0;
+//}
 
 
 DEFINE_HOOK(49DFB4, CMapData_LoadMap_InvalidTheater, 6)
@@ -1054,4 +1055,100 @@ DEFINE_HOOK(4C7DB9, CMapData_ResizeMap_UpdateMapDataExt, 7)
 		CMapDataExt::CellDataExts.push_back(cell);
 	}
 	return 0;
+}
+
+struct BGRColor
+{
+	unsigned char B, G, R;
+};
+DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
+{
+
+	GET_STACK(unsigned char, Overlay, STACK_OFFS(0x78, 0x20));
+	GET_STACK(BGRColor*, Color_r, STACK_OFFS(0x78, 0x68));
+	GET(BGRColor*, Color, EBP);
+	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
+	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
+		Color->B = B;
+		Color->G = G;
+		Color->R = R;
+		Color_r->B = B;
+		Color_r->G = G;
+		Color_r->R = R;
+		};
+	if (Overlay != 0xFF) 
+	{
+		const auto& color = CMapDataExt::OverlayTypeDatas[Overlay].RadarColor;
+		setColor(color.R, color.G, color.B);
+	}
+
+	return 0;
+}
+DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
+{
+	GET_STACK(BGRColor*, Color_r, STACK_OFFS(0x78, 0x68));
+	GET(BGRColor*, Color, EBP);
+	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
+	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
+		Color->B = B;
+		Color->G = G;
+		Color->R = R;
+		Color_r->B = B;
+		Color_r->G = G;
+		Color_r->R = R;
+		};
+	auto safeColorBtye = [](int x)
+		{
+			if (x > 255)
+				x = 255;
+			if (x < 0)
+				x = 0;
+			return (byte)x;
+		};
+
+	LightingStruct ret;
+	BGRColor result;
+	bool realColor = true;
+	switch (CFinalSunDlgExt::CurrentLighting)
+	{
+	case 31001:
+		ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Red", 1.0));
+		ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Green", 1.0));
+		ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Blue", 0.5));
+		ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ambient", 1.0));
+		ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ground", 0.008));
+		ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Level", 0.087));
+		break;
+	case 31002:
+		ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonRed", 1.0));
+		ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGreen", 1.0));
+		ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonBlue", 0.5));
+		ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonAmbient", 1.0));
+		ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGround", 0.008));
+		ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonLevel", 0.087));
+		break;
+	case 31003:
+		ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorRed", 1.0));
+		ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGreen", 1.0));
+		ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorBlue", 0.5));
+		ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorAmbient", 1.0));
+		ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGround", 0.008));
+		ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
+		break;
+	default:
+		result.R = safeColorBtye(Color->R + cell.Height * 2);
+		result.G = safeColorBtye(Color->G + cell.Height * 2);
+		result.B = safeColorBtye(Color->B + cell.Height * 2);
+		realColor = false;
+		break;
+	}
+	if (realColor) {
+		result.R = safeColorBtye((Color->R * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Red);
+		result.G = safeColorBtye((Color->G * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Green);
+		result.B = safeColorBtye((Color->B * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Blue);
+	}
+
+	setColor(result.R, result.G, result.B);
+
+	return CMapData::Instance->IsMultiOnly() ? 0x4A28C0 : 0x4A2968;
 }

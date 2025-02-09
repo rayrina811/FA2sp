@@ -839,7 +839,7 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 			if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
-				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf || CViewObjectsExt::RockOverlays[cell->Overlay])
+				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf || CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock)
 				{
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
@@ -1313,7 +1313,6 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 
 	return 0x46D808;
 }
-
 
 DEFINE_HOOK(461A37, CIsoView_PlaceTile_FixUndo, 7)
 {
