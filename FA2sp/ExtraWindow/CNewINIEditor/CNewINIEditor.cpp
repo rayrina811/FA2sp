@@ -153,6 +153,7 @@ void CNewINIEditor::Update(HWND& hWnd)
 {
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    int currentIndex = SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL);
 
     SendMessage(hSearchText, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
     SectionLabels.clear();
@@ -166,6 +167,7 @@ void CNewINIEditor::Update(HWND& hWnd)
         SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
     }
     UpdateOldGameObjectList();
+    OnSelchangeListbox(currentIndex);
 }
 
 void CNewINIEditor::CloseImporter(HWND& hWnd)
@@ -513,8 +515,12 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     OnSelchangeListbox();
 }
 
-void CNewINIEditor::OnSelchangeListbox(bool changeCursel)
+void CNewINIEditor::OnSelchangeListbox(int index)
 {
+    if (index >= 0)
+    {
+        SendMessage(hSectionList, LB_SETCURSEL, index, NULL);
+    }
     if (SendMessage(hSectionList, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");

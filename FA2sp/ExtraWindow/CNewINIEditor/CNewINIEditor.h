@@ -50,7 +50,7 @@ protected:
     static void InitializeImporter(HWND& hWnd);
     static void Update(HWND& hWnd);
 
-    static void OnSelchangeListbox(bool changeCursel = true);
+    static void OnSelchangeListbox(int index = -1);
     static void OnEditchangeINIEdit();
     static void OnEditchangeSearch();
     static void OnClickNewSection();
