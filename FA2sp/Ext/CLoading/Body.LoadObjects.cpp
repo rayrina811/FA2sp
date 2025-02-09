@@ -13,6 +13,7 @@
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
+std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
 
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing)
 {

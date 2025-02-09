@@ -120,9 +120,59 @@ DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
 			auto palName = typeData.PaletteName;
 			pThis->GetFullPaletteName(palName);
 			if (auto pal = PalettesManager::LoadPalette(palName)) {
-				pDrawData.pPalette = pal;
+				BGRStruct empty;
+				auto lightingPal = PalettesManager::GetPalette(pal, empty);
+				pDrawData.pPalette = lightingPal;
 			}
 		}
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic_RecordHistory, 7)
+{
+	GET_STACK(const char*, overlayID, 0x4);
+	auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), overlayID);
+	if (it == CLoadingExt::LoadedOverlays.end()) {
+		CLoadingExt::LoadedOverlays.push_back(overlayID);
+	}
+	
+	return 0;
+}
+
+DEFINE_HOOK(48E541, CLoading_InitTMPs_UpdateTileDatas, 7)
+{
+	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+	if (thisTheater == "TEMPERATE")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::Temperate().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Temperate().Count;
+	}
+	if (thisTheater == "SNOW")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::Snow().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Snow().Count;
+	}
+	if (thisTheater == "URBAN")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::Urban().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Urban().Count;
+	}
+	if (thisTheater == "NEWURBAN")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::NewUrban().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::NewUrban().Count;
+	}
+	if (thisTheater == "LUNAR")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::Lunar().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Lunar().Count;
+	}
+	if (thisTheater == "DESERT")
+	{
+		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
+		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
 	}
 
 	return 0;

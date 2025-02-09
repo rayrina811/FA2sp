@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "../Ext/CFinalSunDlg/Body.h"
+#include "../Ext/CMapData/Body.h"
 
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 
@@ -64,14 +65,14 @@ void PalettesManager::CacheCurrentIso()
     if (!PalettesManager::CurrentIso)
         PalettesManager::CurrentIso = GameCreate<Palette>();
 
-    memcpy(PalettesManager::CurrentIso, Palette::PALETTE_ISO, 768);
+    memcpy(PalettesManager::CurrentIso, Palette::PALETTE_ISO, sizeof(Palette));
 }
 
 void PalettesManager::RestoreCurrentIso()
 {
     if (PalettesManager::CurrentIso)
     {
-        memcpy(Palette::PALETTE_ISO, PalettesManager::CurrentIso, 768);
+        memcpy(Palette::PALETTE_ISO, PalettesManager::CurrentIso, sizeof(Palette));
         GameDelete(PalettesManager::CurrentIso);
         PalettesManager::CurrentIso = nullptr;
     }
@@ -86,8 +87,8 @@ void PalettesManager::CacheAndTintCurrentIso()
 {
     PalettesManager::CacheCurrentIso();
     BGRStruct empty;
-    auto pPal = PalettesManager::GetPalette(Palette::PALETTE_ISO, empty, false);
-    memcpy(Palette::PALETTE_ISO, pPal, 768);
+    auto pPal = PalettesManager::GetPalette(&CMapDataExt::Palette_ISO, empty, false);
+    memcpy(Palette::PALETTE_ISO, pPal, sizeof(Palette));
 }
 
 Palette* PalettesManager::LoadPalette(ppmfc::CString palname)

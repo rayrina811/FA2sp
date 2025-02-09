@@ -1057,24 +1057,20 @@ DEFINE_HOOK(4C7DB9, CMapData_ResizeMap_UpdateMapDataExt, 7)
 	return 0;
 }
 
-struct BGRColor
-{
-	unsigned char B, G, R;
-};
 DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 {
 
 	GET_STACK(unsigned char, Overlay, STACK_OFFS(0x78, 0x20));
-	GET_STACK(BGRColor*, Color_r, STACK_OFFS(0x78, 0x68));
-	GET(BGRColor*, Color, EBP);
+	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
+	GET(RGBTRIPLE*, Color, EBP);
 	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
 	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
-		Color->B = B;
-		Color->G = G;
-		Color->R = R;
-		Color_r->B = B;
-		Color_r->G = G;
-		Color_r->R = R;
+		Color->rgbtBlue = B;
+		Color->rgbtGreen = G;
+		Color->rgbtRed = R;
+		Color_r->rgbtBlue = B;
+		Color_r->rgbtGreen = G;
+		Color_r->rgbtRed = R;
 		};
 	if (Overlay != 0xFF) 
 	{
@@ -1086,16 +1082,16 @@ DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 }
 DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 {
-	GET_STACK(BGRColor*, Color_r, STACK_OFFS(0x78, 0x68));
-	GET(BGRColor*, Color, EBP);
+	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
+	GET(RGBTRIPLE*, Color, EBP);
 	GET_STACK(CellData, cell, STACK_OFFS(0x78, 0x4C));
 	auto setColor = [&](unsigned char R, unsigned char G, unsigned char B) {
-		Color->B = B;
-		Color->G = G;
-		Color->R = R;
-		Color_r->B = B;
-		Color_r->G = G;
-		Color_r->R = R;
+		Color->rgbtBlue = B;
+		Color->rgbtGreen = G;
+		Color->rgbtRed = R;
+		Color_r->rgbtBlue = B;
+		Color_r->rgbtGreen = G;
+		Color_r->rgbtRed = R;
 		};
 	auto safeColorBtye = [](int x)
 		{
@@ -1107,7 +1103,7 @@ DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 		};
 
 	LightingStruct ret;
-	BGRColor result;
+	RGBTRIPLE result;
 	bool realColor = true;
 	switch (CFinalSunDlgExt::CurrentLighting)
 	{
@@ -1136,19 +1132,19 @@ DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 		ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
 		break;
 	default:
-		result.R = safeColorBtye(Color->R + cell.Height * 2);
-		result.G = safeColorBtye(Color->G + cell.Height * 2);
-		result.B = safeColorBtye(Color->B + cell.Height * 2);
+		result.rgbtRed = safeColorBtye(Color->rgbtRed + cell.Height * 2);
+		result.rgbtGreen = safeColorBtye(Color->rgbtGreen + cell.Height * 2);
+		result.rgbtBlue = safeColorBtye(Color->rgbtBlue + cell.Height * 2);
 		realColor = false;
 		break;
 	}
 	if (realColor) {
-		result.R = safeColorBtye((Color->R * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Red);
-		result.G = safeColorBtye((Color->G * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Green);
-		result.B = safeColorBtye((Color->B * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Blue);
+		result.rgbtRed = safeColorBtye((Color->rgbtRed * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Red);
+		result.rgbtGreen = safeColorBtye((Color->rgbtGreen * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Green);
+		result.rgbtBlue = safeColorBtye((Color->rgbtBlue * (ret.Ambient - ret.Ground + ret.Level * cell.Height)) * ret.Blue);
 	}
 
-	setColor(result.R, result.G, result.B);
+	setColor(result.rgbtRed, result.rgbtGreen, result.rgbtBlue);
 
 	return CMapData::Instance->IsMultiOnly() ? 0x4A28C0 : 0x4A2968;
 }

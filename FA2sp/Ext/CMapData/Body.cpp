@@ -29,6 +29,8 @@
 #include "../../Helpers/Translations.h"
 #include "../CIsoView/Body.h"
 #include "../CTileSetBrowserFrame/TabPages/TagSort.h"
+#include "../../Miscs/Palettes.h"
+#include "../CLoading/Body.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -50,6 +52,7 @@ int CMapDataExt::Medians;
 int CMapDataExt::PavedRoads;
 int CMapDataExt::ShorePieces;
 int CMapDataExt::WaterBridge;
+Palette CMapDataExt::Palette_ISO;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
@@ -1122,6 +1125,21 @@ void CMapDataExt::InitializeAllHdmEdition()
 		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
 		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
 	}
+
+	CFinalSunDlgExt::CurrentLighting = 31000;
+	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
+	PalettesManager::Release();
+	GameDelete(&Palette::PALETTE_ISO);
+	ppmfc::CString theaterIg = thisTheater;
+	if (theaterIg == "NEWURBAN")
+		theaterIg = "UBN";
+	ppmfc::CString theaterSuffix = theaterIg.Mid(0, 3);
+	ppmfc::CString isoPal;
+	isoPal.Format("iso%s.pal", theaterSuffix);
+	isoPal.MakeUpper();
+	auto pal = PalettesManager::LoadPalette(isoPal);
+	memcpy(Palette::PALETTE_ISO, pal, sizeof(Palette));
+	CMapDataExt::Palette_ISO = *pal;
 
 	CMapDataExt::Tile_to_lat.clear();
 	CMapDataExt::Tile_to_lat = {

@@ -85,6 +85,7 @@ public:
 	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
 	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
+	static std::vector<ppmfc::CString> LoadedOverlays;
 private:
 	ObjectType GetItemType(ppmfc::CString ID);
 

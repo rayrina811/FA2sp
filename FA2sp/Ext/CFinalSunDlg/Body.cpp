@@ -19,6 +19,7 @@
 
 #include "../../Helpers/Translations.h"
 #include "../CTileSetBrowserFrame/Body.h"
+#include "../CLoading/Body.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -216,8 +217,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	auto SetLightingStatus = [this, &hMenu](int id)
 	{
-		if (!ExtConfigs::LightingPreview)
-			return;
 		CheckMenuRadioItem(hMenu, 31000, 31003, id, MF_UNCHECKED);
 		if (CFinalSunDlgExt::CurrentLighting != id)
 		{
@@ -227,7 +226,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			PalettesManager::CacheAndTintCurrentIso();
 			CLoading::Instance->FreeTMPs();
 			CLoading::Instance->InitTMPs();
-			CLoading::Instance->InitTMPs_Reset();
+			int oli = 0;
+			for (const auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
+			{
+				auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
+				if (it != CLoadingExt::LoadedOverlays.end()) {
+					CLoading::Instance->DrawOverlay(ol.second, oli);
+				}
+				oli++;
+			}
 			PalettesManager::RestoreCurrentIso();
 			PalettesManager::ManualReloadTMP = false;
 
@@ -239,6 +246,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			auto tmp = CIsoView::CurrentCommand->Command;
+			if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+				HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
+				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+				CIsoView::CurrentCommand->Command = tmp;
+			}
 		}
 	};
 

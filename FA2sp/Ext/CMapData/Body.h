@@ -173,6 +173,7 @@ public:
     static int PavedRoads;
     static int ShorePieces;
     static int WaterBridge;
+    static Palette Palette_ISO;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

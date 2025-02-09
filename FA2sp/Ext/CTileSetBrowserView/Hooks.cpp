@@ -23,16 +23,15 @@ DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
 DEFINE_HOOK(4F22F7, CTileSetBrowserView_OnDraw_OverlayPalette, 5)
 {
     GET(Palette*, pPalette, EAX);
-    GET_STACK(BytePalette*, pBytePalette, STACK_OFFS(0xDC, 0xBC));
-
-    if (pPalette == Palette::PALETTE_ISO || pPalette == Palette::PALETTE_THEATER || pPalette == Palette::PALETTE_UNIT)
-        return 0;
-
-    *pBytePalette = BytePalette();
+    GET_STACK(RGBTRIPLE*, pBytePalette, STACK_OFFS(0xDC, 0xBC));
 
     for (int i = 0; i < 256; i++)
     {
-        pBytePalette->Data[i] = pPalette->GetByteColor(i);
+        RGBTRIPLE ret;
+        ret.rgbtBlue = pPalette->Data[i].B;
+        ret.rgbtGreen = pPalette->Data[i].G;
+        ret.rgbtRed = pPalette->Data[i].R;
+        pBytePalette[i] = ret;
     }
 
     return 0x4F2315;
