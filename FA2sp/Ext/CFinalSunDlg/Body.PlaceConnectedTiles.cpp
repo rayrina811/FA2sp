@@ -77,7 +77,8 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                     else
                         cts.SpecialType = -1;
 
-                    for (auto t : allowedTheaters)
+                    cts.IsTXCityCliff = false;
+                    for (auto& t : allowedTheaters)
                     {
                         std::string t1 = (std::string)t;
                         std::transform(t1.begin(), t1.end(), t1.begin(), [](unsigned char c) {return std::tolower(c); });
@@ -179,6 +180,28 @@ void CViewObjectsExt::Redraw_ConnectedTile()
             if (ct.ConnectedTile.empty()) continue;
             int firstTileIndex = ct.ConnectedTile.front().TileIndices[0] + ct.StartTile;
             int lastTileIndex = ct.ConnectedTile.back().TileIndices[0] + ct.StartTile;
+
+            if (ct.Type == ConnectedTileSetTypes::CityCliff)
+            {
+                // 29 & 30 are special diagonals in TX
+                if (ct.ConnectedTile.size() > 28)
+                    lastTileIndex = ct.ConnectedTile[28].TileIndices[0] + ct.StartTile;
+                if (ct.ConnectedTile.size() > 30)
+                {
+                    int lastTileIndexTX = ct.ConnectedTile[30].TileIndices[0] + ct.StartTile;
+                    int lastTilesetTX = CMapDataExt::TileData[lastTileIndexTX].TileSet;
+                    ppmfc::CString buffer;
+                    buffer.Format("TileSet%04d", lastTilesetTX);
+
+                    auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+                    auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+                    if (exist && strcmp(exist2, "") != 0)
+                    {
+                        ct.IsTXCityCliff = true;
+                    }
+                }
+            }
+
             if (firstTileIndex > CMapDataExt::TileDataCount || lastTileIndex > CMapDataExt::TileDataCount)
                 continue;
 
@@ -413,7 +436,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     int ctIndex = CIsoView::CurrentCommand->Type;
     CurrentConnectedTileType = TreeView_ConnectedTileMap[ctIndex].Index;
     tileSet = CViewObjectsExt::ConnectedTileSets[CurrentConnectedTileType];
-    
+
     switch (tileSet.Type)
     {
     case ConnectedTileSetTypes::Cliff:
@@ -542,10 +565,16 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     facing = 7;
                     continue;
                 }
+                if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30)
+                {
+                    facing = 2;
+                    continue;
+                }
                 if (!forceFront && (forceBack
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
@@ -606,6 +635,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Index == 9
                         || CViewObjectsExt::LastPlacedCT.Index == 10
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
+                        || CViewObjectsExt::LastPlacedCT.Index == 30
                         || CViewObjectsExt::LastPlacedCT.Index == 11)
                     {
                         index = 18;
@@ -629,6 +660,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 7;
@@ -637,6 +669,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                     {
                         facing = 2;
@@ -652,6 +685,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Index == 9
                         || CViewObjectsExt::LastPlacedCT.Index == 10
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Index == 11)
                         offsetPlaceY += 1;
                     if (CViewObjectsExt::LastPlacedCT.Index == 12
@@ -672,13 +706,17 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
             else if (facing == 2)
             {
-                if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
-                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18
-                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
+                if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22)
                 {
                     facing = 1;
+                    continue;
+                }
+                if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18)
+                {
+                    facing = 0;
                     continue;
                 }
                 if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 14
@@ -700,11 +738,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     facing = 3;
                     continue;
                 }
-                if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
+                if ((CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
-                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18)
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18) && !tileSet.IsTXCityCliff)
                 {
                     facing = 1;
                     continue;
@@ -714,16 +752,17 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11
-                    || CViewObjectsExt::LastPlacedCT.Index == 12
-                    || CViewObjectsExt::LastPlacedCT.Index == 13
-                    || CViewObjectsExt::LastPlacedCT.Index == 14
-                    || CViewObjectsExt::LastPlacedCT.Index == 27
-                    || CViewObjectsExt::LastPlacedCT.Index == 28
-                    || CViewObjectsExt::LastPlacedCT.Index == 25
-                    || CViewObjectsExt::LastPlacedCT.Index == 15
-                    || CViewObjectsExt::LastPlacedCT.Index == 16))
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 14
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 25
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 15
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 16))
                 {
                     offsetPlaceX += 1;
                     offsetPlaceY += 1;
@@ -735,6 +774,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Index == 9
                         || CViewObjectsExt::LastPlacedCT.Index == 10
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
+                        || CViewObjectsExt::LastPlacedCT.Index == 30
                         || CViewObjectsExt::LastPlacedCT.Index == 11)
                         offsetPlaceX -= 1;
 
@@ -754,6 +795,29 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
+                    bool txcliff = false;
+                    if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27)
+                    {
+                        if (!tileSet.IsTXCityCliff)
+                        {
+                            facing = 1;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
+                    }
+                    if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18)
+                    {
+                        facing = 0;
+                        continue;
+                    }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1)
                     {
@@ -761,7 +825,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         continue;
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
-                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3 
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 7;
@@ -771,17 +836,46 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11)
                     {
-                        facing = 1;
-                        continue;
+                        if (!tileSet.IsTXCityCliff) 
+                        {
+                            facing = 1;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
                     }
-
 
                     offsetConnectY += 1;
                     index = 3;
                     if (distance < SmallDistance)
                         index = 4;
+
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
+                    {
+                        offsetPlaceY -= 1;
+                        index = 30;
+                    }
+
+                    if (txcliff)
+                    {
+                        index = 30;
+                    }
+
+                    if (index == 30 && ( CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 18))
+                    {
+                        offsetPlaceX -= 1;
+                        offsetPlaceY -= 1;
+                    }
+
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
                         cliffConnectionTiles.push_back(ti + tileSet.StartTile);
@@ -813,6 +907,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11))
                 {
@@ -881,6 +976,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 5;
@@ -890,6 +986,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11)
                     {
                         facing = 1;
@@ -899,6 +996,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (CViewObjectsExt::LastPlacedCT.Index == 5
                         || CViewObjectsExt::LastPlacedCT.Index == 6
                         || CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
+                        || CViewObjectsExt::LastPlacedCT.Index == 30
                         || CViewObjectsExt::LastPlacedCT.Index == 4
                         || CViewObjectsExt::LastPlacedCT.Index == 0
                         || CViewObjectsExt::LastPlacedCT.Index == 1
@@ -929,9 +1028,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     facing = 6;
                     continue;
                 }
-                if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
+                if ((CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
-                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22)
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22) && !tileSet.IsTXCityCliff)
                 {
                     facing = 5;
                     continue;
@@ -959,12 +1060,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 6
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
-                    || CViewObjectsExt::LastPlacedCT.Index == 21
-                    || CViewObjectsExt::LastPlacedCT.Index == 22
-                    || CViewObjectsExt::LastPlacedCT.Index == 28
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
                     || CViewObjectsExt::LastPlacedCT.Index == 14
                     || CViewObjectsExt::LastPlacedCT.Index == 25
                     || CViewObjectsExt::LastPlacedCT.Index == 15
@@ -997,6 +1099,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 else
                 {
+                    bool txcliff = false;
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 13
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
@@ -1008,21 +1111,40 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         facing = 3;
                         continue;
                     }
-                    if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
-                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1)
+                    if ((CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22))
                     {
-                        facing = 1;
-                        continue;
+                        if (!tileSet.IsTXCityCliff)
+                        {
+                            facing = 1;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
-                        facing = 5;
-                        continue;
+                        if (!tileSet.IsTXCityCliff)
+                        {
+                            facing = 5;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                     {
                         facing = 1;
@@ -1038,6 +1160,20 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     index = 7;
                     if (distance < SmallDistance)
                         index = 8;
+
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
+                    {
+                        offsetPlaceX -= 1;
+                        opposite = true;
+                        index = 30;
+                    }
+
+                    if (txcliff)
+                    {
+                        opposite = true;
+                        index = 30;
+                    }
+
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
                         cliffConnectionTiles.push_back(ti + tileSet.StartTile);
@@ -1131,6 +1267,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Index == 1
                         || CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         index = 18;
@@ -1163,6 +1300,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 4;
@@ -1170,6 +1308,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                     {
                         facing = 7;
@@ -1186,6 +1325,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Index == 3
                         || CViewObjectsExt::LastPlacedCT.Index == 4
+                        || CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Index == 21
                         || CViewObjectsExt::LastPlacedCT.Index == 28
                         || CViewObjectsExt::LastPlacedCT.Index == 22)
@@ -1204,6 +1344,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
             else if (facing == 6)
             {
+                bool txcliff = false;
                 if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 17)
                 {
                     facing = 0;
@@ -1211,6 +1352,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                 {
                     facing = 7;
@@ -1219,10 +1361,19 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
                 if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                 {
-                    facing = 5;
-                    continue;
+                    if (!tileSet.IsTXCityCliff) 
+                    {
+                        facing = 5;
+                        continue;
+                    }
+                    else
+                    {
+                        txcliff = true;
+                    }
+
                 }
 
                 if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
@@ -1280,13 +1431,21 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11)
                     {
-                        facing = 5;
-                        continue;
+                        if (!tileSet.IsTXCityCliff)
+                        {
+                            facing = 5;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
                     }
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 4;
@@ -1306,6 +1465,16 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     index = 3;
                     if (distance < SmallDistance)
                         index = 4;
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 ||CViewObjectsExt::LastPlacedCT.Index == 6) && distance > LargeDistance && tileSet.IsTXCityCliff)
+                    {
+                        offsetPlaceX += 1;
+                        index = 29;
+                    }
+
+                    if (txcliff)
+                    {
+                        index = 29;
+                    }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
                         cliffConnectionTiles.push_back(ti + tileSet.StartTile);
@@ -1345,6 +1514,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 }
                 if (!forceFront && (forceBack || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                    || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 6
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
@@ -1412,6 +1582,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 1;
@@ -1419,6 +1590,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     }
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                     {
                         facing = 5;
@@ -1474,8 +1646,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     continue;
                 }
 
-                if (!forceFront && (forceBack || CViewObjectsExt::LastPlacedCT.Index == 0
-                    || CViewObjectsExt::LastPlacedCT.Index == 1
+                if (!forceFront && (forceBack || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
+                    || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                     || CViewObjectsExt::LastPlacedCT.Index == 21
                     || CViewObjectsExt::LastPlacedCT.Index == 28
                     || CViewObjectsExt::LastPlacedCT.Index == 22
@@ -1525,22 +1697,35 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     }
                     if (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 29
                         || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
                         facing = 7;
                         continue;
                     }
+                    
+                    bool txcliff = false;
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                        || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4)
                     {
-                        facing = 1;
-                        continue;
+                        if (!tileSet.IsTXCityCliff)
+                        {
+                            facing = 1;
+                            continue;
+                        }
+                        else
+                        {
+                            txcliff = true;
+                        }
+
                     }
                     if (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
+                        || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                         || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9)
                     {
                         facing = 2;
@@ -1573,6 +1758,19 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     index = 7;
                     if (distance < SmallDistance)
                         index = 8;
+
+                    if ((CViewObjectsExt::LastPlacedCT.Index == 5 || CViewObjectsExt::LastPlacedCT.Index == 6) &&distance > LargeDistance && tileSet.IsTXCityCliff)
+                    {
+                        opposite = false;
+                        offsetPlaceY += 1;
+                        index = 29;
+                    }
+
+                    if (txcliff)
+                    {
+                        opposite = false;
+                        index = 29;
+                    }
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
                         cliffConnectionTiles.push_back(ti + tileSet.StartTile);
@@ -1628,12 +1826,14 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
+                || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4))
         {
             int offsetX = 0;
@@ -1733,6 +1933,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 27
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
+                || CViewObjectsExt::LastPlacedCT.Index == 29
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
@@ -1768,7 +1969,35 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
         }
-        else if ((index == 0 && !opposite || index == 1 && !opposite || index == 2 && !opposite || index == 3 && !opposite || index == 4 && !opposite || index == 21 && !opposite || index == 22 && !opposite)
+        else if ((index == 29)
+            && (CViewObjectsExt::LastPlacedCT.Index == 5
+                || CViewObjectsExt::LastPlacedCT.Index == 6))
+        {
+            int offsetX = 0;
+            int offsetY = 0;
+            int idxFix = tileSet.ConnectedTile[20].TileIndices[0] + tileSet.StartTile;
+            offsetY -= 1;
+            dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + offsetX;
+            if (opposite)
+            {
+                offsetX -= 1;
+                offsetY += 1;
+                dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
+            }
+
+            auto thisTileFix = CMapDataExt::TileData[idxFix];
+            CellData tmp = cellDatas[dwposFix];
+            tmpCellDatas.push_back(tmp);
+
+            cellDatas[dwposFix].TileIndex = idxFix;
+            cellDatas[dwposFix].TileSubIndex = 0;
+            cellDatas[dwposFix].Flag.AltIndex = STDHelpers::RandomSelectInt(fixRandom);
+            auto newHeight = CViewObjectsExt::CliffConnectionHeight + thisTileFix.TileBlockDatas[0].Height;
+            if (newHeight > 14) newHeight = 14;
+            if (newHeight < 0) newHeight = 0;
+            cellDatas[dwposFix].Height = newHeight;
+        }
+        else if ((index == 0 && !opposite || index == 1 && !opposite || index == 2 && !opposite || index == 3 && !opposite || index == 4 && !opposite || index == 21 && !opposite || index == 22 && !opposite || index == 28 && !opposite)
             && (!CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 6))
         {
@@ -1816,7 +2045,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             if (newHeight < 0) newHeight = 0;
             cellDatas[dwposFix].Height = newHeight;
         }
-        else if ((index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12 || index == 13)
+        else if ((index == 7 || index == 8 || index == 9 || index == 10 || index == 11 || index == 12 || index == 13 || index == 27)
             && (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 6))
         {
@@ -1846,6 +2075,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 offsetX -= 1;
                 offsetY -= 1;
             }
+            if (index == 27)
+            {
+                offsetY -= 1;
+            }
 
             dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + offsetX;
 
@@ -1866,7 +2099,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             cellDatas[dwposFix].Height = newHeight;
         }
 
-        if (((index == 5 || index == 6 || index == 7 && opposite || index == 8 && opposite || index == 9 && opposite || index == 10 && opposite || index == 11 && opposite)
+        if (((index == 5 || index == 6 || index == 7 && opposite || index == 8 && opposite || index == 9 && opposite || index == 10 && opposite || index == 11 && opposite || index == 30 && !opposite)
             && (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 12
@@ -1896,6 +2129,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 offsetX += 1;
                 offsetY -= 1;
+            }
+            if (index == 30)
+            {
+                offsetX += 1;
+                offsetY += 1;
             }
             if (index == 9)
             {
@@ -1941,6 +2179,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 7
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 8
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 9
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11))
         {
@@ -1994,6 +2233,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 2
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 3
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 4
+                || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 30
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 5
                 || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 6
                 || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
@@ -2010,7 +2250,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 || index == 1
                 || index == 2
                 || index == 3
-                || index == 4))
+                || index == 4)
+            || index == 30 && opposite && 
+            (CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 21
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22
+                || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28))
         {
             int offsetX = 0;
             int offsetY = 0;
@@ -2021,6 +2267,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
             if (index == 28)
             {
+                offsetY += 1;
+            }
+            if (index == 30)
+            {
+                offsetX += 1;
                 offsetY += 1;
             }
             if (index == 0)

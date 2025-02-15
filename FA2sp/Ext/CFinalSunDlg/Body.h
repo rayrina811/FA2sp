@@ -124,6 +124,7 @@ public:
     int Type;
     int SpecialType;
     bool WaterCliff;
+    bool IsTXCityCliff;
 };
 struct ConnectedTileInfo
 {
