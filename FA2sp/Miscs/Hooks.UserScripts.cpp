@@ -1059,7 +1059,10 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
 
 DEFINE_HOOK(512152, CUserScripts_ReadINI_EmptyJump, 5)
 {
-    return 0x51213B;
+    if (UserScriptExt::ParamCount > 4)
+        return 0x51213B;
+    else
+        return 0;
 }
 
 //DEFINE_HOOK_AGAIN(512152, CUserScripts_ReadINI, 5)
