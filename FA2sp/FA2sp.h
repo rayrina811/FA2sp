@@ -126,7 +126,6 @@ public:
     static bool TriggerList_AttachedTriggers;
     static bool TagList_AttachedObjects;
     static bool SaveMaps_BetterMapPreview;
-    static bool SaveMaps_BetterMapPreview_Lighting;
     static bool CursorSelectionBound_AutoColor;
     static bool FillArea_ConsiderLAT;
     static bool FillArea_ConsiderWater;

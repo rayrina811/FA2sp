@@ -25,6 +25,7 @@
 #include "../Algorithms/lzo.h"
 #include "../Helpers/Translations.h"
 #include "../Ext/CMapData/Body.h"
+#include "Palettes.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -104,7 +105,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         // Generate new preview.
         Logger::Raw("SaveMap : Generating a new map preview.\n");
 
-        if (ExtConfigs::SaveMaps_BetterMapPreview)
+        if (ExtConfigs::SaveMaps_BetterMapPreview && CMapData::Instance->IsMultiOnly())
         {
             auto safeColorBtye = [](int x)
                 {
@@ -114,17 +115,9 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                         x = 0;
                     return (byte)x;
                 };
-            auto heightExtraLight = [safeColorBtye](int rgb, int h)
+            auto heightExtraLight = [safeColorBtye](int rgb, int h, LightingStruct ret)
                 {
-                    if (ExtConfigs::SaveMaps_BetterMapPreview_Lighting)
-                    {
-                        auto pLightingAmb = CINI::CurrentDocument().GetDouble("Lighting", "Ambient", 1.0);
-                        auto pLightingGro = CINI::CurrentDocument().GetDouble("Lighting", "Ground", 0.0);
-
-                        auto level = CINI::CurrentDocument().GetDouble("Lighting", "Level", 0.016);
-                        return safeColorBtye(rgb * (pLightingAmb - pLightingGro + level * h));
-                    }
-                    return safeColorBtye(rgb + h * 2);
+                    return safeColorBtye(rgb * (ret.Ambient - ret.Ground + ret.Level * h));
                 };
             auto isSafePos = [](int x, int y)
                 {
@@ -360,30 +353,52 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                                 }
                             }
 
-                            if (ExtConfigs::SaveMaps_BetterMapPreview_Lighting)
+                            LightingStruct ret;
+                            switch (CFinalSunDlgExt::CurrentLighting)
                             {
-                                auto pLightingR = CINI::CurrentDocument().GetDouble("Lighting", "Red", 1.0);
-                                auto pLightingG = CINI::CurrentDocument().GetDouble("Lighting", "Green", 1.0);
-                                auto pLightingB = CINI::CurrentDocument().GetDouble("Lighting", "Blue", 1.0);
-
-                                color.R = safeColorBtye(heightExtraLight(color.R, cell.Height) * pLightingR);
-                                color.G = safeColorBtye(heightExtraLight(color.G, cell.Height) * pLightingG);
-                                color.B = safeColorBtye(heightExtraLight(color.B, cell.Height) * pLightingB);
+                            case 31001:
+                                ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Red", 1.0));
+                                ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Green", 1.0));
+                                ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Blue", 0.5));
+                                ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ambient", 1.0));
+                                ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Ground", 0.008));
+                                ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "Level", 0.087));
+                                break;
+                            case 31002:
+                                ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonRed", 1.0));
+                                ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGreen", 1.0));
+                                ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonBlue", 0.5));
+                                ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonAmbient", 1.0));
+                                ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonGround", 0.008));
+                                ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "IonLevel", 0.087));
+                                break;
+                            case 31003:
+                                ret.Red = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorRed", 1.0));
+                                ret.Green = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGreen", 1.0));
+                                ret.Blue = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorBlue", 0.5));
+                                ret.Ambient = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorAmbient", 1.0));
+                                ret.Ground = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorGround", 0.008));
+                                ret.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
+                                break;
+                            default:
+                                ret.Red = 1.0f;
+                                ret.Green = 1.0f;
+                                ret.Blue = 1.0f;
+                                ret.Ambient = 1.0f;
+                                ret.Ground = 0.0f;
+                                ret.Level = 0.0078125f;
+                                break;
                             }
-                            else
-                            {
-                                color.R = heightExtraLight(color.R, cell.Height);
-                                color.G = heightExtraLight(color.G, cell.Height);
-                                color.B = heightExtraLight(color.B, cell.Height);
-                            }
 
+                            color.R = safeColorBtye(heightExtraLight(color.R, cell.Height, ret) * ret.Red);
+                            color.G = safeColorBtye(heightExtraLight(color.G, cell.Height, ret) * ret.Green);
+                            color.B = safeColorBtye(heightExtraLight(color.B, cell.Height, ret) * ret.Blue);
 
                             for (auto& pl : PlayerLocations)
                             {
                                 if (pl.X - x <= 2 && pl.X - x >= -1 && pl.Y - y <= 2 && pl.Y - y >= -1)
-                                    color = RGB(220, 0, 0);
-                            }
-                                
+                                    color = RGB(240, 0, 0);
+                            }    
 
                             byte r = (byte)color.R;
                             byte g = (byte)color.G;
@@ -408,7 +423,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                             imageLocal[index2++] = image[index - 2];
                             imageLocal[index2++] = image[index - 1];
                         }
-
                     }
                 }
             }

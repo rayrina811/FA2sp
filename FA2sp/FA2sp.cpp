@@ -122,7 +122,6 @@ bool ExtConfigs::AISellableDefaultYes;
 bool ExtConfigs::TriggerList_AttachedTriggers;
 bool ExtConfigs::TagList_AttachedObjects;
 bool ExtConfigs::SaveMaps_BetterMapPreview;
-bool ExtConfigs::SaveMaps_BetterMapPreview_Lighting;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
 bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
@@ -309,7 +308,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TriggerList_AttachedTriggers = CINI::FAData->GetBool("ExtConfigs", "TriggerList.AttachedTriggers" , true);
 	ExtConfigs::TagList_AttachedObjects = CINI::FAData->GetBool("ExtConfigs", "TagList.AttachedObjects", true);
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
-	ExtConfigs::SaveMaps_BetterMapPreview_Lighting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview.Lighting");
 
 	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
 
