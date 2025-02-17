@@ -135,6 +135,8 @@ public:
     static bool StringBufferFixedAllocation;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
+    static int NewTheaterType;
+    static bool UseStrictNewTheater;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

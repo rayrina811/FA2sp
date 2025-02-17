@@ -131,6 +131,8 @@ bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferFixedAllocation;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
+int ExtConfigs::NewTheaterType;
+bool ExtConfigs::UseStrictNewTheater;
 
 
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -230,8 +232,10 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
-	
 
+
+	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
+	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 16);

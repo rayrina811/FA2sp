@@ -126,17 +126,20 @@ ppmfc::CString CLoadingExt::GetBuildingFileID(ppmfc::CString ID)
 	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	ppmfc::CString backupID = ImageID;
-	SetTheaterLetter(ImageID);
+	SetTheaterLetter(ImageID, ExtConfigs::NewTheaterType);
 
 	ppmfc::CString validator = ImageID + ".SHP";
 	int nMix = this->SearchFile(validator);
 	if (!CLoading::HasFile(validator, nMix))
 	{
 		SetGenericTheaterLetter(ImageID);
-		validator = ImageID + ".SHP";
-		nMix = this->SearchFile(validator);
-		if (!CLoading::HasFile(validator, nMix))
-			ImageID = backupID;
+		if (!ExtConfigs::UseStrictNewTheater)
+		{
+			validator = ImageID + ".SHP";
+			nMix = this->SearchFile(validator);
+			if (!CLoading::HasFile(validator, nMix))
+				ImageID = backupID;
+		}
 	}
 	return ImageID;
 }
@@ -238,7 +241,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file);
+		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
 		int nMix = SearchFile(file);
 		if (!CLoading::HasFile(file, nMix))
 		{
@@ -246,10 +249,17 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				file = name + ".SHP";
-				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!ExtConfigs::UseStrictNewTheater)
+				{
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!CLoading::HasFile(file, nMix))
+						return false;
+				}
+				else
+				{
 					return false;
+				}
 			}
 		}
 
@@ -506,7 +516,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file);
+		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
 		int nMix = SearchFile(file);
 		if (!CLoading::HasFile(file, nMix))
 		{
@@ -514,10 +524,17 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				file = name + ".SHP";
-				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!ExtConfigs::UseStrictNewTheater)
+				{
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!CLoading::HasFile(file, nMix))
+						return false;
+				}
+				else
+				{
 					return false;
+				}
 			}
 		}
 
@@ -775,7 +792,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file);
+		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
 		int nMix = SearchFile(file);
 		if (!CLoading::HasFile(file, nMix))
 		{
@@ -783,10 +800,17 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				file = name + ".SHP";
-				nMix = SearchFile(file);
-				if (!CLoading::HasFile(file, nMix))
+				if (!ExtConfigs::UseStrictNewTheater)
+				{
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!CLoading::HasFile(file, nMix))
+						return false;
+				}
+				else
+				{
 					return false;
+				}
 			}
 		}
 
