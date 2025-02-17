@@ -166,11 +166,18 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
 
     int randomAngle = STDHelpers::RandomSelectInt(0, 180);
 
+    // used tile sets
+    std::vector<int> tileindexes;
+
     // add clear tile if totalProbability < 1.0
     float totalProbability = 0.0f;
     for (const auto& tile : tiles) {
         totalProbability += tile.second;
+        for (const auto& idx : tile.first) {
+            tileindexes.push_back(idx);
+        }
     }
+
     if (totalProbability < 1.0f) {
         tiles.push_back(std::make_pair(std::vector<int>{0xFFFF}, 1.0f - totalProbability));
     }
@@ -209,40 +216,41 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
                 if (skip)
                     continue;
             }
-            auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
 
-            if (isTerrainTypeIgnored(ttype)) {
-                continue;
-            }
-            if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
-                continue;
-            }
-            auto tile = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)];
-            bool skip = false;
-            for (int m = 0; m < tile.Width; m++)
-            {
-                for (int n = 0; n < tile.Height; n++)
+            if (std::find(tileindexes.begin(), tileindexes.end(), CMapDataExt::GetSafeTileIndex(cell->TileIndex)) == tileindexes.end()) {
+                auto ttype = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].TerrainType;
+                if (isTerrainTypeIgnored(ttype)) {
+                    continue;
+                }
+                if (std::find(roadSets.begin(), roadSets.end(), CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet) != roadSets.end()) {
+                    continue;
+                }
+                auto tile = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)];
+                bool skip = false;
+                for (int m = 0; m < tile.Width; m++)
                 {
-                    int subIdx = n * tile.Width + m;
+                    for (int n = 0; n < tile.Height; n++)
+                    {
+                        int subIdx = n * tile.Width + m;
 
-                    if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[subIdx].ImageData == NULL) {
-                        continue;
-                    }
+                        if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[subIdx].ImageData == NULL) {
+                            continue;
+                        }
 
-                    auto ttype2 = CMapDataExt::GetExtension()->GetLandType(CMapDataExt::GetSafeTileIndex(cell->TileIndex), subIdx);
-                    if (isTerrainTypeIgnored(ttype2)) {
-                        skip = true;
-                        break;
+                        auto ttype2 = CMapDataExt::GetExtension()->GetLandType(CMapDataExt::GetSafeTileIndex(cell->TileIndex), subIdx);
+                        if (isTerrainTypeIgnored(ttype2)) {
+                            skip = true;
+                            break;
+                        }
                     }
                 }
+                if (skip)
+                    continue;
+
+                if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].RampType != 0) continue;
+
+                if (tileNameHasShore(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet)) continue;
             }
-            if (skip)
-                continue;
-
-
-            if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileBlockDatas[cell->TileSubIndex].RampType != 0) continue;
-
-            if (tileNameHasShore(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet)) continue;
 
             if (onlyClear) {
                 CMapDataExt::GetExtension()->PlaceTileAt(i, j, 0);
@@ -266,14 +274,19 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
             CMapDataExt::GetExtension()->PlaceTileAt(i, j, STDHelpers::RandomSelectInt(tileIndexes), 1);
         }
     }
-    CMapData::Instance->CreateShore(TopX, TopY, BottomX, BottomY);
-    for (int i = TopX - 1; i <= BottomX + 1; ++i) {
-        for (int j = TopY - 1; j <= BottomY + 1; ++j) {
-            if (!CMapData::Instance->IsCoordInMap(i, j))
-                continue;
-            CMapDataExt::SmoothTileAt(i, j, true);
+    if (!CFinalSunApp::Instance->DisableAutoShore) {
+        CMapData::Instance->CreateShore(TopX - 1, TopY - 1, BottomX + 1, BottomY + 1);
+    }
+    if (!CFinalSunApp::Instance->DisableAutoLat) {
+        for (int i = TopX - 2; i <= BottomX + 2; ++i) {
+            for (int j = TopY - 2; j <= BottomY + 2; ++j) {
+                if (!CMapData::Instance->IsCoordInMap(i, j))
+                    continue;
+                CMapDataExt::SmoothTileAt(i, j, true);
+            }
         }
     }
+
 }
 
 void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays, bool override, bool multiSelection, bool onlyClear)
