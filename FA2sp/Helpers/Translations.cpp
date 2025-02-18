@@ -6,6 +6,7 @@
 #include "../FA2sp.h"
 #include <CMapData.h>
 #include "TheaterHelpers.h"
+#include "../FA2sp.Constants.h"
 
 CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
@@ -45,36 +46,45 @@ bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& re
 {
     auto& falanguage = CINI::FALanguage();
 
-    for(const auto& language : Translations::pLanguage)
+    for (const auto& language : Translations::pLanguage)
+    {
+        if (strstr(language, "RenameID") != NULL)
+            continue;
         if (auto section = falanguage.GetSection(language))
         {
             auto itr = section->GetEntities().find(pLabelName);
             if (itr != section->GetEntities().end())
             {
-                auto buffer = itr->second;
+                ppmfc::CString buffer = itr->second;
                 buffer.Replace("\\n", "\n");
                 buffer.Replace("\\t", "\t");
+                buffer.Replace("\\r", "\r");
+                TranslateStringVariables(9, buffer, __str(PROGRAM_TITLE));
                 ret = buffer;
                 return true;
             }
         }
+    }
 
-        return false;
+    return false;
 }
 
 const char* Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
 {
     for (const auto& language : Translations::pLanguage)
     {
+        if (strstr(language, "RenameID") != NULL)
+            continue;
         if (auto section = CINI::FALanguage->GetSection(language))
         {
             auto itr = section->GetEntities().find(lpLabelName);
             if (itr != section->GetEntities().end())
             {
-                auto buffer = itr->second;
+                ppmfc::CString buffer = itr->second;
                 buffer.Replace("\\n", "\n");
                 buffer.Replace("\\t", "\t");
                 buffer.Replace("\\r", "\r");
+                TranslateStringVariables(9, buffer, __str(PROGRAM_TITLE));
                 return buffer;
             }
                 
@@ -83,6 +93,7 @@ const char* Translations::TranslateOrDefault(const char* lpLabelName, const char
 
     return lpDefault;
 }
+
 const char* Translations::TranslateStringVariables(int n, const char* originaltext, const char* inserttext)
 {
     char c[50];
@@ -99,6 +110,21 @@ const char* Translations::TranslateStringVariables(int n, const char* originalte
     orig.Replace(seekedstring, inserttext);
 
     return orig;
+}
+
+void Translations::TranslateStringVariables(int n, ppmfc::CString& text, const char* inserttext)
+{
+    char c[50];
+    _itoa(n, c, 10);
+
+    char seekedstring[50];
+    seekedstring[0] = '%';
+    seekedstring[1] = 0;
+    strcat(seekedstring, c);
+
+    if (text.Find(seekedstring) < 0) return;
+
+    text.Replace(seekedstring, inserttext);
 }
 
 void Translations::TranslateItem(CWnd* pWnd, int nSubID, const char* lpKey)
@@ -132,6 +158,18 @@ ppmfc::CString Translations::TranslateTileSet(int index)
     result = CINI::FALanguage().GetString(theater, setID, result);
 
     return result;
+}
+
+DEFINE_HOOK(43DA80, FALanguage_GetTranslationItem, 7)
+{
+    GET_STACK(ppmfc::CString*, pRet, 0x4);
+    GET_STACK(ppmfc::CString, pString, 0x8);
+
+    ppmfc::CString pResult;
+    Translations::GetTranslationItem(pString, pResult);
+    new(pRet) ppmfc::CString(pResult);
+    R->EAX(pRet);
+    return 0x43E2AE;
 }
 
 DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)

@@ -55,32 +55,6 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
     return 0;
 }
 
-DEFINE_HOOK(43E119, CFinalSunApp_ChangeTitle, 9)
-{
-    GET_STACK(char*, title, STACK_OFFS(0x104, 0xE0));
-
-    ppmfc::CString newTitle;
-    newTitle.Format("FinalAlert 2 SP: %s", __str(HDM_PRODUCT_VERSION));
-    ppmfc::CString tmp = Translations::TranslateStringVariables(9, title, newTitle);
- 
-    R->Stack(STACK_OFFS(0x104, 0xE0), tmp);
-
-    return 0x43E155;
-}
-
-DEFINE_HOOK(43DFE6, CFinalSunApp_ChangeTitle2, 9)
-{
-    GET_STACK(char*, title, STACK_OFFS(0x104, 0xEC));
-
-    ppmfc::CString newTitle;
-    newTitle.Format("FinalAlert 2 SP: %s", __str(HDM_PRODUCT_VERSION));
-    ppmfc::CString tmp = Translations::TranslateStringVariables(9, title, newTitle);
-
-    R->Stack(STACK_OFFS(0x104, 0xEC), tmp);
-
-    return 0x43E022;
-}
-
 DEFINE_HOOK(50E220, CFinalSunDlg_SelectMainExecutive, 7)
 {
     GET(ppmfc::CDialog*, pTSOptions, ECX);
