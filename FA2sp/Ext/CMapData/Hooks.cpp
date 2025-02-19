@@ -557,7 +557,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	auto pSection = m_mapfile->GetSection("Structures");
 	if (pSection)
 	{
-		//检查是否有建筑重叠
+		// check overlap
 		auto& ignoreList = CINI::FAData->GetSection("StructureOverlappingCheckIgnores")->GetEntities();
 		bool skipCheck = false;
 		for (const auto& pair : ignoreList)
@@ -675,9 +675,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 			"Structure Overlap") , MB_OK | MB_ICONEXCLAMATION);
 	}
 		
-
-		
-	
 	ppmfc::CString id = CINI::GetAvailableKey("Structures");
 	
 
@@ -687,15 +684,11 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 			id = suggestedID;
 	}
 
-	
-
 	ppmfc::CString value;
 	value = structure.House + "," + structure.TypeID + "," + structure.Health + "," + structure.Y +
 		"," + structure.X + "," + structure.Facing + "," + structure.Tag + "," + structure.AISellable + "," +
 		structure.AIRebuildable + "," + structure.PoweredOn + "," + structure.Upgrades + "," + structure.SpotLight + ","
 		+ structure.Upgrade1 + "," + structure.Upgrade2 + "," + structure.Upgrade3 + "," + structure.AIRepairable + "," + structure.Nominal;
-
-
 
 	if (!pSection)
 		pSection = m_mapfile->AddOrGetSection("Structures");
@@ -710,11 +703,34 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 		realid++;
 	}
-	
 
+	const float TOLERANCE = 0.001f;
+	const auto& ID = structure.TypeID;
+	LightingSource ls{};
+	ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
+	if (abs(ls.LightIntensity) > TOLERANCE)
+	{
+		ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
+		ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
+		ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
+		ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
+		const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+		const int Y = atoi(structure.Y);
+		const int X = atoi(structure.X);
+		const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
+
+		ls.CenterX = X + DataExt.Height / 2.0f;
+		ls.CenterY = Y + DataExt.Width / 2.0f;
+		LightingSourcePosition lsp;
+		lsp.X = X;
+		lsp.Y = Y;
+		lsp.BuildingType = ID;
+		lsp.ID = realid;
+		CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
+	}
+	
 	if (!MultiSelection::AddBuildingOptimize)
 		CMapDataExt::UpdateFieldStructureData_Optimized(realid, true);
-
 
 	return 0x4AD921;
 }
@@ -902,8 +918,6 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		}
 	}
 
-
-
 	if (overlap)
 	{
 		ini->DeleteKey("Structures", key);
@@ -921,6 +935,21 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		CMapDataExt::SkipUpdateBuildingInfo = false;
 	}
 
+	auto& lsMap = CMapDataExt::LightingSources;
+
+	LightingSourcePosition lsp;
+	lsp.X = X;
+	lsp.Y = Y;
+	lsp.BuildingType = splits[1];
+	for (auto it = lsMap.begin(); it != lsMap.end(); ) {
+		if (it->first == lsp) {
+			lsMap.erase(it);
+			break;
+		}
+		else {
+			++it;
+		}
+	}
 
 	return 0x4A98AC;
 }

@@ -73,6 +73,32 @@ struct BuildingRenderData
     ppmfc::CString PowerUp3;
 };
 
+struct LightingSource
+{
+    float CenterX;
+    float CenterY;
+    int LightVisibility;
+    float LightIntensity;
+    float LightRedTint;
+    float LightGreenTint;
+    float LightBlueTint;
+};
+
+struct LightingSourcePosition
+{
+    int X;
+    int Y;
+    ppmfc::CString BuildingType;
+    int ID;
+    bool operator==(const LightingSourcePosition& another) const
+    {
+        return
+            X == another.X &&
+            Y == another.Y &&
+            BuildingType == another.BuildingType;
+    }
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -174,6 +200,7 @@ public:
     static int ShorePieces;
     static int WaterBridge;
     static Palette Palette_ISO;
+    static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

@@ -522,8 +522,6 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
     GET(int, nCount, ECX);
 
     bool colorChanged = false;
-    const auto cell = CMapData::Instance->GetCellAt(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
-    auto& ret = LightingStruct::CurrentLighting;
     auto safeColorBtye = [](int x)
         {
             if (x > 255)
@@ -533,20 +531,38 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
             return (byte)x;
         };
 
+   
+
     switch (CFinalSunDlgExt::CurrentLighting)
     {
     case 31001:
     case 31002:
     case 31003:
+    {
+        auto& ret = LightingStruct::CurrentLighting;
+        const auto cell = CMapData::Instance->GetCellAt(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
+        const auto lamp = LightingSourceTint::ApplyLamp(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
+        float oriAmbMult = ret.Ambient - ret.Ground;
+        float newAmbMult = ret.Ambient - ret.Ground + ret.Level * cell->Height + lamp.AmbientTint;
+        newAmbMult = std::clamp(newAmbMult, 0.0f, 2.0f);
+        float newRed = ret.Red + lamp.RedTint;
+        float newGreen = ret.Green + lamp.GreenTint;
+        float newBlue = ret.Blue + lamp.BlueTint;
+        newRed = std::clamp(newRed, 0.0f, 2.0f);
+        newGreen = std::clamp(newGreen, 0.0f, 2.0f);
+        newBlue = std::clamp(newBlue, 0.0f, 2.0f);
         for (int i = 0; i < nCount; ++i)
         {
-            // divide (ret.Ambient - ret.Ground) to restore changes in LightingPalette
-            MultiSelection::ColorHolder[i].R = safeColorBtye(pColors[i].R / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
-            MultiSelection::ColorHolder[i].G = safeColorBtye(pColors[i].G / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
-            MultiSelection::ColorHolder[i].B = safeColorBtye(pColors[i].B / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
+            // divide (ret.Ambient - ret.Ground) to restore AmbientMult in LightingPalette
+            // divide ret.Color to restore ColorMult in LightingPalette
+
+            MultiSelection::ColorHolder[i].R = safeColorBtye(pColors[i].R / oriAmbMult / ret.Red * newAmbMult * newRed);
+            MultiSelection::ColorHolder[i].G = safeColorBtye(pColors[i].G / oriAmbMult / ret.Green * newAmbMult * newGreen);
+            MultiSelection::ColorHolder[i].B = safeColorBtye(pColors[i].B / oriAmbMult / ret.Blue * newAmbMult * newBlue);
         }
         colorChanged = true;
         break;
+    }
     default:
         break;
     }
@@ -1265,36 +1281,6 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                             smudge.Flag = 0;
                             smudge.TypeID = name;
                             auto& Map = CMapData::Instance();
-                           //auto& fielddata_size = Map.CellDataCount;
-                           //auto& fielddata = Map.CellDatas;
-                           //auto dwPos = Map.GetCoordIndex(i, j);
-                           //
-                           //bool bFound = false;
-                           //int is;
-                           //for (is = 0; is < Map.SmudgeDatas.size(); is++)
-                           //{
-                           //    if (Map.SmudgeDatas[is].Flag) // yep, found one, replace it
-                           //    {
-                           //        Map.SmudgeDatas[is] = smudge;
-                           //        if (dwPos < fielddata_size)
-                           //        {
-                           //            fielddata[dwPos].Smudge = is;
-                           //            fielddata[dwPos].SmudgeType = Map.SmudgeTypes[smudge.TypeID];
-                           //        }
-                           //
-                           //        bFound = true;
-                           //        break;
-                           //    }
-                           //}
-                           //if (!bFound)
-                           //{
-                           //    if (dwPos < fielddata_size)
-                           //    {
-                           //        Map.SmudgeDatas.push_back(smudge);//ÐÞ²¹004CA126ºÍ004CA15D£¬16*n
-                           //        fielddata[dwPos].Smudge = Map.SmudgeDatas.size() - 1;
-                           //        fielddata[dwPos].SmudgeType = Map.SmudgeTypes[smudge.TypeID];
-                           //    }
-                           //}
                             Map.SetSmudgeData(&smudge);
                             Map.UpdateFieldSmudgeData(false);
 

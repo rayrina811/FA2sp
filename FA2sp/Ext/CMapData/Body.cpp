@@ -53,6 +53,7 @@ int CMapDataExt::PavedRoads;
 int CMapDataExt::ShorePieces;
 int CMapDataExt::WaterBridge;
 Palette CMapDataExt::Palette_ISO;
+std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
@@ -785,7 +786,6 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 		{
 			if (i < ID)
 			{
-
 				i++;
 				continue;
 			}
@@ -884,7 +884,7 @@ std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
 	}
 	auto found = STDHelpers::SplitString(foundation.c_str(), "x");
 	result.push_back(atoi(found[1]));
-	result.push_back(atoi(found[0]));//居然是反的？
+	result.push_back(atoi(found[0]));
 	return result;
 }
 
@@ -1249,4 +1249,39 @@ void CMapDataExt::InitializeAllHdmEdition()
 	CTerrainGenerator::UseMultiSelection = false;
 
 	CMapDataExt::Instance->UpdateFieldOverlayData(false);
+
+	LightingSources.clear();
+	const float TOLERANCE = 0.001f;
+	if (CINI::CurrentDocument->SectionExists("Structures"))
+	{
+		int len = CINI::CurrentDocument->GetKeyCount("Structures");
+		for (int i = 0; i < len; i++)
+		{
+			const auto value = CINI::CurrentDocument->GetValueAt("Structures", i);
+			const auto atoms = STDHelpers::SplitString(value, 4);
+			const auto& ID = atoms[1];
+			LightingSource ls{};
+			ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
+			if (abs(ls.LightIntensity) > TOLERANCE)
+			{
+				ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
+				ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
+				ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
+				ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
+				const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+				const int Y = atoi(atoms[3]);
+				const int X = atoi(atoms[4]);
+				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
+
+				ls.CenterX = X + DataExt.Height / 2.0f;
+				ls.CenterY = Y + DataExt.Width / 2.0f;
+				LightingSourcePosition lsp;
+				lsp.X = X;
+				lsp.Y = Y;
+				lsp.BuildingType = ID;
+				lsp.ID = i;
+				LightingSources.push_back(std::make_pair(lsp, ls));
+			}
+		}
+	}
 }

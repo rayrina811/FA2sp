@@ -117,7 +117,7 @@ Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
     return nullptr;
 }
 
-Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, int height)
+Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, Object3DLocation location)
 {
     LightingStruct lighting = LightingStruct::GetCurrentLighting();
 
@@ -136,24 +136,30 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
 
     if (lighting != LightingStruct::NoLighting)
     {
-        p.AdjustLighting(lighting, height);
+        p.AdjustLighting(lighting, location);
         p.TintColors();
     }
     return p.GetPalette();
 }
 
-Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, int height, bool isopal, int extraLightType)
+Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Object3DLocation location, bool isopal, int extraLightType)
 {
     auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
     if (remap)
         p.RemapColors(color);
     else
         p.ResetColors();
+
+    bool tintRGB = true;
+    // normal lighting won't tint unit RGB
+    if (remap && !ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001)
+        tintRGB = false;
+
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
         if (!isopal)
         {
-            p.AdjustLighting(LightingStruct::CurrentLighting, height, true, extraLightType);
+            p.AdjustLighting(LightingStruct::CurrentLighting, location, tintRGB, extraLightType);
             p.TintColors();
         }
         else // isopal already tinted, so only apply level color
@@ -161,7 +167,7 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
             auto& ret = LightingStruct::CurrentLighting;
             for (int i = 0; i < 256; ++i)
             {
-                float ambLevel = ret.Ambient - ret.Ground + ret.Level * height;
+                float ambLevel = ret.Ambient - ret.Ground + ret.Level * location.Height;
                 ambLevel = std::clamp(ambLevel, 0.0f, 2.0f);
                 float amb = ret.Ambient - ret.Ground;
                 amb = std::clamp(amb, 0.0f, 2.0f);
@@ -214,27 +220,46 @@ LightingPalette::LightingPalette(Palette& originPal)
     this->ResetColors();
 }
 
-void LightingPalette::AdjustLighting(LightingStruct& lighting, int level, bool tint, int extraLightType)
+void LightingPalette::AdjustLighting(LightingStruct& lighting, Object3DLocation location, bool tint, int extraLightType)
 {
-    this->AmbientMult = lighting.Ambient - lighting.Ground + lighting.Level * level;
+    const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
+
+    this->AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
     if (extraLightType == 0)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraUnitLight", 0.2);
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
     }
     else if (extraLightType == 1)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2);
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
     }
     else if (extraLightType == 2)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2);
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
     }
 
     if (tint)
     {
-        this->RedMult = lighting.Red;
-        this->GreenMult = lighting.Green;
-        this->BlueMult = lighting.Blue;
+        if (extraLightType >= 0)
+        {
+            // lamp won't tint unit RGB
+            this->RedMult = lighting.Red;
+            this->GreenMult = lighting.Green;
+            this->BlueMult = lighting.Blue;
+        }
+        else
+        {
+            this->RedMult = lighting.Red + lamp.RedTint;
+            this->GreenMult = lighting.Green + lamp.GreenTint;
+            this->BlueMult = lighting.Blue + lamp.BlueTint;
+        }
+
+    }
+    else
+    {
+        this->RedMult = 1.0f;
+        this->GreenMult = 1.0f;
+        this->BlueMult = 1.0f;
     }
 }
 
@@ -299,4 +324,25 @@ void LightingPalette::TintColors(bool isObject)
 Palette* LightingPalette::GetPalette()
 {
     return &this->Colors;
+}
+
+LightingSourceTint LightingSourceTint::ApplyLamp(int X, int Y)
+{
+    LightingSourceTint ret{ 0.0f };
+    for (const auto& [idx, ls] : CMapDataExt::LightingSources)
+    {
+        float sqX = (X - ls.CenterX) * (X - ls.CenterX);
+        float sqY = (Y - ls.CenterY) * (Y - ls.CenterY);
+        float distance = sqrt(sqX + sqY);
+
+        if ((0 < ls.LightVisibility) && (distance < ls.LightVisibility / 256.0f)) 
+        {
+            float lsEffect = (ls.LightVisibility - 256 * distance) / ls.LightVisibility;
+            ret.AmbientTint += lsEffect * ls.LightIntensity;
+            ret.RedTint += lsEffect * ls.LightRedTint;
+            ret.BlueTint += lsEffect * ls.LightBlueTint;
+            ret.GreenTint += lsEffect * ls.LightGreenTint;
+        }
+    }
+    return ret;
 }

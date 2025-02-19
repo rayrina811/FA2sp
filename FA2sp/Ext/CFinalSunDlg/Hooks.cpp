@@ -513,6 +513,12 @@ DEFINE_HOOK(4327A1, CFinalSunDlg_QuitProgram_AfterDialog, 5)
 {
     CTerrainGenerator::ini = nullptr;
     ExtConfigs::FileWatcher = false;
+
+    auto& minimap = CFinalSunDlg::Instance->MyViewFrame.Minimap;
+    if (minimap.GetSafeHwnd()) {
+        minimap.DestroyWindow();
+    }
+    
     return 0;
 }
 

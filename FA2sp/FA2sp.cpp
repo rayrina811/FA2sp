@@ -133,6 +133,7 @@ int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
 bool ExtConfigs::UseStrictNewTheater;
+bool ExtConfigs::LightingPreview_MultUnitColor;
 
 
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -234,6 +235,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
 
+	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
