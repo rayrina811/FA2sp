@@ -725,7 +725,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		lsp.X = X;
 		lsp.Y = Y;
 		lsp.BuildingType = ID;
-		lsp.ID = realid;
 		CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
 	}
 	

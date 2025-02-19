@@ -1279,7 +1279,6 @@ void CMapDataExt::InitializeAllHdmEdition()
 				lsp.X = X;
 				lsp.Y = Y;
 				lsp.BuildingType = ID;
-				lsp.ID = i;
 				LightingSources.push_back(std::make_pair(lsp, ls));
 			}
 		}

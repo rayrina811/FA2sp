@@ -89,7 +89,6 @@ struct LightingSourcePosition
     int X;
     int Y;
     ppmfc::CString BuildingType;
-    int ID;
     bool operator==(const LightingSourcePosition& another) const
     {
         return
