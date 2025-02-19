@@ -20,6 +20,7 @@
 #include <Miscs/Miscs.h>
 #include "../Helpers/STDHelpers.h"
 #include "../Helpers/Translations.h"
+#include "Palettes.h"
 
 std::set<MapCoord> MultiSelection::SelectedCoords;
 std::set<MapCoord> MultiSelection::SelectedCoordsTemp;
@@ -517,27 +518,72 @@ DEFINE_HOOK_AGAIN(46FF71, CIsoView_Draw_MultiSelect, 7)
 DEFINE_HOOK_AGAIN(470081, CIsoView_Draw_MultiSelect, 7)
 DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
 {
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
+    GET(BGRStruct*, pColors, ESI);
+    GET(int, nCount, ECX);
+
+    bool colorChanged = false;
+    const auto cell = CMapData::Instance->GetCellAt(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
+    auto& ret = LightingStruct::CurrentLighting;
+    auto safeColorBtye = [](int x)
+        {
+            if (x > 255)
+                x = 255;
+            if (x < 0)
+                x = 0;
+            return (byte)x;
+        };
+
+    switch (CFinalSunDlgExt::CurrentLighting)
+    {
+    case 31001:
+    case 31002:
+    case 31003:
+        for (int i = 0; i < nCount; ++i)
+        {
+            // divide (ret.Ambient - ret.Ground) to restore changes in LightingPalette
+            MultiSelection::ColorHolder[i].R = safeColorBtye(pColors[i].R / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
+            MultiSelection::ColorHolder[i].G = safeColorBtye(pColors[i].G / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
+            MultiSelection::ColorHolder[i].B = safeColorBtye(pColors[i].B / (ret.Ambient - ret.Ground) * (ret.Ambient - ret.Ground + ret.Level * cell->Height));
+        }
+        colorChanged = true;
+        break;
+    default:
+        break;
+    }
+
 
     if (MultiSelection::IsSelected(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y))
     {
-        GET(BGRStruct*, pColors, ESI);
-        GET(int, nCount, ECX);
-
-        for (int i = 0; i < nCount; ++i)
+        if (colorChanged)
         {
-            MultiSelection::ColorHolder[i].R = 
-                (pColors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-            MultiSelection::ColorHolder[i].G = 
-                (pColors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-            MultiSelection::ColorHolder[i].B = 
-                (pColors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-
+            for (int i = 0; i < nCount; ++i)
+            {
+                MultiSelection::ColorHolder[i].R =
+                    (MultiSelection::ColorHolder[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
+                MultiSelection::ColorHolder[i].G =
+                    (MultiSelection::ColorHolder[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
+                MultiSelection::ColorHolder[i].B =
+                    (MultiSelection::ColorHolder[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < nCount; ++i)
+            {
+                MultiSelection::ColorHolder[i].R =
+                    (pColors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
+                MultiSelection::ColorHolder[i].G =
+                    (pColors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
+                MultiSelection::ColorHolder[i].B =
+                    (pColors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
+            }
         }
 
-        R->ESI(MultiSelection::ColorHolder);
+        colorChanged = true;
     }
+
+    if (colorChanged)
+        R->ESI(MultiSelection::ColorHolder);
 
     return 0;
 }

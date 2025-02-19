@@ -15,6 +15,7 @@ LightingStruct LightingStruct::CurrentLighting;
 
 std::map<ppmfc::CString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
+std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::ManualReloadTMP = false;
 
@@ -55,6 +56,7 @@ void PalettesManager::Release()
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
+    PalettesManager::CalculatedObjectPaletteFiles.clear();
 
     PalettesManager::RestoreCurrentIso();
 
@@ -115,7 +117,7 @@ Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
     return nullptr;
 }
 
-Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap)
+Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, int height)
 {
     LightingStruct lighting = LightingStruct::GetCurrentLighting();
 
@@ -134,8 +136,40 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
 
     if (lighting != LightingStruct::NoLighting)
     {
-        p.AdjustLighting(lighting);
+        p.AdjustLighting(lighting, height);
         p.TintColors();
+    }
+    return p.GetPalette();
+}
+
+Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, int height, bool isopal, int extraLightType)
+{
+    auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
+    if (remap)
+        p.RemapColors(color);
+    else
+        p.ResetColors();
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+    {
+        if (!isopal)
+        {
+            p.AdjustLighting(LightingStruct::CurrentLighting, height, true, extraLightType);
+            p.TintColors();
+        }
+        else // isopal already tinted, so only apply level color
+        {
+            auto& ret = LightingStruct::CurrentLighting;
+            for (int i = 0; i < 256; ++i)
+            {
+                float ambLevel = ret.Ambient - ret.Ground + ret.Level * height;
+                ambLevel = std::clamp(ambLevel, 0.0f, 2.0f);
+                float amb = ret.Ambient - ret.Ground;
+                amb = std::clamp(amb, 0.0f, 2.0f);
+                p.Colors[i].R = (unsigned char)std::min(p.Colors[i].R / amb * ambLevel, 255.0f);
+                p.Colors[i].G = (unsigned char)std::min(p.Colors[i].G / amb * ambLevel, 255.0f);
+                p.Colors[i].B = (unsigned char)std::min(p.Colors[i].B / amb * ambLevel, 255.0f);
+            }
+        }
     }
     return p.GetPalette();
 }
@@ -169,9 +203,9 @@ LightingStruct LightingStruct::GetCurrentLighting()
         CurrentLighting.Level = static_cast<float>(CINI::CurrentDocument->GetDouble("Lighting", "DominatorLevel", 0.087));
         return CurrentLighting;
     }
-
+    CurrentLighting = LightingStruct::NoLighting;
     // 31000
-    return LightingStruct::NoLighting;
+    return CurrentLighting;
 }
 
 LightingPalette::LightingPalette(Palette& originPal)
@@ -180,9 +214,22 @@ LightingPalette::LightingPalette(Palette& originPal)
     this->ResetColors();
 }
 
-void LightingPalette::AdjustLighting(LightingStruct& lighting, int level, bool tint)
+void LightingPalette::AdjustLighting(LightingStruct& lighting, int level, bool tint, int extraLightType)
 {
     this->AmbientMult = lighting.Ambient - lighting.Ground + lighting.Level * level;
+    if (extraLightType == 0)
+    {
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraUnitLight", 0.2);
+    }
+    else if (extraLightType == 1)
+    {
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2);
+    }
+    else if (extraLightType == 2)
+    {
+        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2);
+    }
+
     if (tint)
     {
         this->RedMult = lighting.Red;

@@ -56,25 +56,27 @@ class LightingPalette
 {
 private:
     Palette* OriginPalette;
+public:
     float RedMult;
     float GreenMult;
     float BlueMult;
     float AmbientMult;
     Palette Colors;
-
-public:
     LightingPalette(Palette& originPal);
-    void AdjustLighting(LightingStruct& lighting, int level = 0, bool tint = true);
+    // extraLightType : 0 = unit, 1 = inf, 2 = air
+    void AdjustLighting(LightingStruct& lighting, int level = 0, bool tint = true, int extraLightType = -1);
     void ResetColors();
     void RemapColors(BGRStruct color);
     void TintColors(bool isObject = false);
     Palette* GetPalette();
+    
 };
 
 class PalettesManager
 {
     static std::map<ppmfc::CString, Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
+    static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
     static Palette* CurrentIso;
 
 public:
@@ -90,5 +92,6 @@ public:
     static Palette* GetCurrentIso();
     static void CacheAndTintCurrentIso();
     static Palette* LoadPalette(ppmfc::CString palname);
-    static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true);
+    static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, int height = 0);
+    static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, int height, bool isopal = false, int extraLightType = -1);
 };

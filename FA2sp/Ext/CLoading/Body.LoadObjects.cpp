@@ -920,8 +920,13 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID)
 		CShpFile::LoadFrame(0, 1, &FramesBuffers[0]);
 		ppmfc::CString DictName;
 		DictName.Format("%s%d", ID, 0);
-		// DictName.Format("%s%d", ImageID, 0);
+		// use uppercase to distinguish them between real terrain
 		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
+		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::Rules.GetBool(ID, "SpawnsTiberium"))
+		{
+			PaletteName = "unitsno.pal";
+		}
+		PaletteName.MakeUpper();
 		GetFullPaletteName(PaletteName);
 		SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 	}
