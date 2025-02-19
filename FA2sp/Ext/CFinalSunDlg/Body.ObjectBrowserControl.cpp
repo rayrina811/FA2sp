@@ -1350,6 +1350,8 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionDelete", Const_MultiSelection + Delete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionBatchAdd", Const_MultiSelection + batchAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionBatchDelete", Const_MultiSelection + batchDelete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionTileSetAdd", Const_MultiSelection + TileSetAdd, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionTileSetDelete", Const_MultiSelection + TileSetDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
 
 }
@@ -2583,6 +2585,22 @@ bool CViewObjectsExt::UpdateEngine(int nData)
             MultiSelection::LastAddedCoord.Y = -1;
             CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
             CIsoView::CurrentCommand->Type = batchDelete;
+            return true;
+        }
+        if (nData == TileSetAdd)
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = TileSetAdd;
+            return true;
+        }
+        if (nData == TileSetDelete)
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = TileSetDelete;
             return true;
         }
         if (nData == AllDelete)

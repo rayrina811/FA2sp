@@ -300,102 +300,136 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
                     CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
                 }
             if (CIsoView::CurrentCommand->Type == 3)
-                if (1)
+            {
+                //MultiSelection::AddCoord(coord.X, coord.Y);
+                if (MultiSelection::LastAddedCoord.X > -1 &&
+                    MultiSelection::LastAddedCoord.X != coord.X &&
+                    MultiSelection::LastAddedCoord.Y != coord.Y
+                    )
                 {
-                    //MultiSelection::AddCoord(coord.X, coord.Y);
-                    if (MultiSelection::LastAddedCoord.X > -1 &&
-                        MultiSelection::LastAddedCoord.X != coord.X &&
-                        MultiSelection::LastAddedCoord.Y != coord.Y
-                        )
+                    int x1, x2, y1, y2;
+
+                    if (MultiSelection::LastAddedCoord.X < coord.X)
                     {
-                        int x1, x2, y1, y2;
-
-                        if (MultiSelection::LastAddedCoord.X < coord.X)
-                        {
-                            x1 = MultiSelection::LastAddedCoord.X;
-                            x2 = coord.X;
-                        }
-                        else
-                        {
-                            x1 = coord.X;
-                            x2 = MultiSelection::LastAddedCoord.X;
-                        }
-                        if (MultiSelection::LastAddedCoord.Y < coord.Y)
-                        {
-                            y1 = MultiSelection::LastAddedCoord.Y;
-                            y2 = coord.Y;
-                        }
-                        else
-                        {
-                            y1 = coord.Y;
-                            y2 = MultiSelection::LastAddedCoord.Y;
-                        }
-
-                        for (int i = x1; i <= x2; i++)
-                        {
-                            for (int j = y1; j <= y2; j++)
-                            {
-                                MultiSelection::AddCoord(i, j);
-                            }
-                        }
-
-                        MultiSelection::LastAddedCoord.X = -1;
-                        MultiSelection::LastAddedCoord.Y = -1;
+                        x1 = MultiSelection::LastAddedCoord.X;
+                        x2 = coord.X;
                     }
                     else
-                        MultiSelection::LastAddedCoord = coord;
-                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                    {
+                        x1 = coord.X;
+                        x2 = MultiSelection::LastAddedCoord.X;
+                    }
+                    if (MultiSelection::LastAddedCoord.Y < coord.Y)
+                    {
+                        y1 = MultiSelection::LastAddedCoord.Y;
+                        y2 = coord.Y;
+                    }
+                    else
+                    {
+                        y1 = coord.Y;
+                        y2 = MultiSelection::LastAddedCoord.Y;
+                    }
+
+                    for (int i = x1; i <= x2; i++)
+                    {
+                        for (int j = y1; j <= y2; j++)
+                        {
+                            MultiSelection::AddCoord(i, j);
+                        }
+                    }
+
+                    MultiSelection::LastAddedCoord.X = -1;
+                    MultiSelection::LastAddedCoord.Y = -1;
                 }
+                else
+                    MultiSelection::LastAddedCoord = coord;
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
             if (CIsoView::CurrentCommand->Type == 4)
-                if (1)
+            {
+                MultiSelection::RemoveCoord(coord.X, coord.Y);
+                if (MultiSelection::LastAddedCoord.X > -1 &&
+                    MultiSelection::LastAddedCoord.X != coord.X &&
+                    MultiSelection::LastAddedCoord.Y != coord.Y
+                    )
                 {
-                    MultiSelection::RemoveCoord(coord.X, coord.Y);
-                    if (MultiSelection::LastAddedCoord.X > -1 &&
-                        MultiSelection::LastAddedCoord.X != coord.X &&
-                        MultiSelection::LastAddedCoord.Y != coord.Y
-                        )
+                    int x1, x2, y1, y2;
+
+                    if (MultiSelection::LastAddedCoord.X < coord.X)
                     {
-                        int x1, x2, y1, y2;
-
-                        if (MultiSelection::LastAddedCoord.X < coord.X)
-                        {
-                            x1 = MultiSelection::LastAddedCoord.X;
-                            x2 = coord.X;
-                        }
-                        else
-                        {
-                            x1 = coord.X;
-                            x2 = MultiSelection::LastAddedCoord.X;
-                        }
-                        if (MultiSelection::LastAddedCoord.Y < coord.Y)
-                        {
-                            y1 = MultiSelection::LastAddedCoord.Y;
-                            y2 = coord.Y;
-                        }
-                        else
-                        {
-                            y1 = coord.Y;
-                            y2 = MultiSelection::LastAddedCoord.Y;
-                        }
-
-                        for (int i = x1; i <= x2; i++)
-                        {
-                            for (int j = y1; j <= y2; j++)
-                            {
-                                MultiSelection::RemoveCoord(i, j);
-                            }
-                        }
-
-                        MultiSelection::LastAddedCoord.X = -1;
-                        MultiSelection::LastAddedCoord.Y = -1;
+                        x1 = MultiSelection::LastAddedCoord.X;
+                        x2 = coord.X;
                     }
                     else
-                        MultiSelection::LastAddedCoord = coord;
-                    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+                    {
+                        x1 = coord.X;
+                        x2 = MultiSelection::LastAddedCoord.X;
+                    }
+                    if (MultiSelection::LastAddedCoord.Y < coord.Y)
+                    {
+                        y1 = MultiSelection::LastAddedCoord.Y;
+                        y2 = coord.Y;
+                    }
+                    else
+                    {
+                        y1 = coord.Y;
+                        y2 = MultiSelection::LastAddedCoord.Y;
+                    }
+
+                    for (int i = x1; i <= x2; i++)
+                    {
+                        for (int j = y1; j <= y2; j++)
+                        {
+                            MultiSelection::RemoveCoord(i, j);
+                        }
+                    }
+
+                    MultiSelection::LastAddedCoord.X = -1;
+                    MultiSelection::LastAddedCoord.Y = -1;
                 }
+                else
+                    MultiSelection::LastAddedCoord = coord;
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
             if (CIsoView::CurrentCommand->Type == 2)
             {
                 MultiSelection::Clear();
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+            if (CIsoView::CurrentCommand->Type == 5)
+            {
+                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
+                if (tileset >= 0 && tileset < CMapDataExt::TileSet_starts.size() - 1) {
+                    for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                        for (int i = CMapDataExt::TileSet_starts[tileset]; i < CMapDataExt::TileSet_starts[tileset + 1]; i++) {
+                            if (CMapDataExt::GetSafeTileIndex(CMapData::Instance->CellDatas[j].TileIndex) == i) {
+                                int x = CMapData::Instance->GetXFromCoordIndex(j);
+                                int y = CMapData::Instance->GetYFromCoordIndex(j);
+                                MultiSelection::AddCoord(x, y);
+                                break;
+                            }
+                        }
+                    }
+                }
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+            if (CIsoView::CurrentCommand->Type == 6)
+            {
+                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
+                if (tileset >= 0 && tileset < CMapDataExt::TileSet_starts.size() - 1) {
+                    for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                        for (int i = CMapDataExt::TileSet_starts[tileset]; i < CMapDataExt::TileSet_starts[tileset + 1]; i++) {
+                            if (CMapDataExt::GetSafeTileIndex(CMapData::Instance->CellDatas[j].TileIndex) == i) {
+                                int x = CMapData::Instance->GetXFromCoordIndex(j);
+                                int y = CMapData::Instance->GetYFromCoordIndex(j);
+                                MultiSelection::RemoveCoord(x, y);
+                                break;
+                            }
+                        }
+                    }
+                }
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
                 

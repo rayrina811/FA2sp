@@ -45,8 +45,9 @@ struct LightingStruct
             std::tie(Red, Green, Blue, Ground, Ambient, Level) <
             std::tie(another.Red, another.Green, another.Blue, another.Ground, another.Ambient, another.Level);
     }
-
+public:
     static LightingStruct GetCurrentLighting();
+    static LightingStruct CurrentLighting;
 
     static const LightingStruct NoLighting;
 };

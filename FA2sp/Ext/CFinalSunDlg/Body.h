@@ -177,7 +177,7 @@ public:
 
 
     enum {
-        Add = 0, Delete, AllDelete, batchAdd, batchDelete
+        Add = 0, Delete, AllDelete, batchAdd, batchDelete, TileSetAdd, TileSetDelete
     };
 
     enum
