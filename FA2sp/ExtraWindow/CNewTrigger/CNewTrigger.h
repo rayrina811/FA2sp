@@ -10,7 +10,7 @@
 #include "../../Helpers/STDHelpers.h"
 
 #define EVENT_PARAM_COUNT 2
-#define ACTION_PARAM_COUNT 5
+#define ACTION_PARAM_COUNT 6
 
 struct EventParams
 {
@@ -284,6 +284,7 @@ public:
         EventParameter2 = 50933,
         Actionoptions = 50934,
         Actiontype = 50940,
+        Actionframe = 50934,
         NewAction = 50937,
         DeleteAction = 50938,
         CloneAction = 50939,
@@ -299,6 +300,8 @@ public:
         ActionParameter4 = 50950,
         ActionParameter5Desc = 50951,
         ActionParameter5 = 50952,
+        ActionParameter6Desc = 50953,
+        ActionParameter6 = 50954,
         SearchReference = 1999
     };
 
@@ -343,6 +346,7 @@ protected:
     static void OnSelchangeType(bool edited = false);
     static void UpdateEventAndParam(int changedEvent = -1, bool changeCursel = true);
     static void UpdateActionAndParam(int changedAction = -1, bool changeCursel = true);
+    static void AdjustActionHeight();
 
     static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
     static void OnDropdownCComboBox(int index);
@@ -392,6 +396,7 @@ public:
     static HWND hCloneAction;
     static HWND hActionDescription;
     static HWND hActionList;
+    static HWND hActionframe;
     static HWND hSearchReference;
     static HWND hActionParameter[ACTION_PARAM_COUNT];
     static HWND hActionParameterDesc[ACTION_PARAM_COUNT];
@@ -402,6 +407,9 @@ private:
     static int SelectedTriggerIndex;
     static int SelectedEventIndex;
     static int SelectedActionIndex;
+    static int ActionParamsCount;
+    static int LastActionParamsCount;
+    static bool WindowShown;
     static ppmfc::CString CurrentTriggerID;
     static std::shared_ptr<Trigger> CurrentTrigger;
     static std::map<int, ppmfc::CString> HouseLabels;

@@ -54,6 +54,7 @@ HWND CNewTrigger::hDeleteAction;
 HWND CNewTrigger::hCloneAction;
 HWND CNewTrigger::hActionDescription;
 HWND CNewTrigger::hActionList;
+HWND CNewTrigger::hActionframe;
 HWND CNewTrigger::hSearchReference;
 HWND CNewTrigger::hActionParameter[ACTION_PARAM_COUNT];
 HWND CNewTrigger::hActionParameterDesc[ACTION_PARAM_COUNT];
@@ -64,6 +65,9 @@ int CNewTrigger::CurrentTriggerActionParam;
 int CNewTrigger::SelectedTriggerIndex;
 int CNewTrigger::SelectedEventIndex;
 int CNewTrigger::SelectedActionIndex;
+int CNewTrigger::ActionParamsCount;
+int CNewTrigger::LastActionParamsCount;
+bool CNewTrigger::WindowShown;
 ppmfc::CString CNewTrigger::CurrentTriggerID;
 std::shared_ptr<Trigger> CNewTrigger::CurrentTrigger;
 std::map<int, ppmfc::CString> CNewTrigger::TriggerLabels;
@@ -151,6 +155,7 @@ void CNewTrigger::Initialize(HWND& hWnd)
     Translate(50947, "TriggerParameter#3value");
     Translate(50949, "TriggerParameter#4value");
     Translate(50951, "TriggerParameter#5value");
+    Translate(50953, "TriggerParameter#6value");
     Translate(1999, "SearchReferenceTitle");
 
     hSelectedTrigger = GetDlgItem(hWnd, Controls::SelectedTrigger);
@@ -183,21 +188,27 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hCloneAction = GetDlgItem(hWnd, Controls::CloneAction);
     hActionDescription = GetDlgItem(hWnd, Controls::ActionDescription);
     hActionList = GetDlgItem(hWnd, Controls::ActionList);
+    hActionframe = GetDlgItem(hWnd, Controls::Actionframe);
     hActionParameter[0] = GetDlgItem(hWnd, Controls::ActionParameter1);
     hActionParameter[1] = GetDlgItem(hWnd, Controls::ActionParameter2);
     hActionParameter[2] = GetDlgItem(hWnd, Controls::ActionParameter3);
     hActionParameter[3] = GetDlgItem(hWnd, Controls::ActionParameter4);
     hActionParameter[4] = GetDlgItem(hWnd, Controls::ActionParameter5);
+    hActionParameter[5] = GetDlgItem(hWnd, Controls::ActionParameter6);
     hActionParameterDesc[0] = GetDlgItem(hWnd, Controls::ActionParameter1Desc);
     hActionParameterDesc[1] = GetDlgItem(hWnd, Controls::ActionParameter2Desc);
     hActionParameterDesc[2] = GetDlgItem(hWnd, Controls::ActionParameter3Desc);
     hActionParameterDesc[3] = GetDlgItem(hWnd, Controls::ActionParameter4Desc);
     hActionParameterDesc[4] = GetDlgItem(hWnd, Controls::ActionParameter5Desc);
+    hActionParameterDesc[5] = GetDlgItem(hWnd, Controls::ActionParameter6Desc);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
 
     SelectedTriggerIndex = -1;
     SelectedEventIndex = -1;
     SelectedActionIndex = -1;
+    LastActionParamsCount = 4;
+    ActionParamsCount = 4;
+    WindowShown = false;
 
     for (int i = 0; i < EVENT_PARAM_COUNT; ++i)
         EventParamsUsage[i] = std::make_pair(false, 0);
@@ -392,6 +403,12 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     case WM_INITDIALOG:
     {
         CNewTrigger::Initialize(hWnd);
+        return TRUE;
+    }
+    case WM_SHOWWINDOW:
+    {
+        WindowShown = true;
+        AdjustActionHeight();
         return TRUE;
     }
     case WM_COMMAND:
@@ -627,6 +644,16 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(4);
             break;
+        case Controls::ActionParameter6:
+            if (CODE == CBN_SELCHANGE)
+                OnSelchangeActionParam(5);
+            else if (CODE == CBN_EDITCHANGE)
+                OnSelchangeActionParam(5, true);
+            else if (CODE == CBN_CLOSEUP)
+                OnCloseupCComboBox(hActionParameter[5], ActionParamLabels[5]);
+            else if (CODE == CBN_DROPDOWN)
+                OnDropdownCComboBox(5);
+            break;
         default:
             break;
         }
@@ -738,6 +765,14 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
             EnableWindow(hActionParameter[i], FALSE);
         }
         SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
+
+        ActionParamsCount = 4;
+        if (WindowShown)
+        {
+            AdjustActionHeight();
+        }
+        LastActionParamsCount = ActionParamsCount;
+
         return;
     }
 
@@ -1725,6 +1760,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     if (SelectedActionIndex > CurrentTrigger->ActionCount) SelectedActionIndex = CurrentTrigger->ActionCount - 1;
     if (SelectedActionIndex < 0) SelectedActionIndex = 0;
     ActionParamUsesFloat = false;
+    ActionParamsCount = 0;
 
     ppmfc::CString buffer;
     for (int i = 0; i < ACTION_PARAM_COUNT; ++i)
@@ -1779,7 +1815,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         {
             if (paramIdx[i] > 0)
             {
-                if (usageIdx >= ACTION_PARAM_COUNT) break; // we only support 5 params
+                if (usageIdx >= ACTION_PARAM_COUNT) break;
                 ActionParamsUsage[usageIdx++] = std::make_pair(true, i);
             }
             else
@@ -1792,7 +1828,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         {
             if (paramIdx[i] > 0)
             {
-                if (usageIdx >= ACTION_PARAM_COUNT) break; // we only support 5 params
+                if (usageIdx >= ACTION_PARAM_COUNT) break;
                 ActionParamsUsage[usageIdx++] = std::make_pair(true, i);
                 if (thisAction.Param7isWP && STDHelpers::IsNumber(thisAction.Params[i]))
                     thisAction.Params[i] = "A";
@@ -1816,6 +1852,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         while (SendMessage(hActionParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
         if (ActionParamsUsage[i].first)
         {
+            ActionParamsCount++;
             EnableWindow(hActionParameter[i], TRUE);
             if (ActionParamsUsage[i].second != 6)
             {
@@ -1856,8 +1893,46 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         ExtraWindow::AdjustDropdownWidth(hActionParameter[i]);
     }
 
+    if (ActionParamsCount < 4)
+        ActionParamsCount = 4;
+
+    if (WindowShown)
+    {
+        AdjustActionHeight();
+    }
+    
+    LastActionParamsCount = ActionParamsCount;
+
     if (changedAction >= 0)
         CurrentTrigger->Save();
+}
+
+void CNewTrigger::AdjustActionHeight()
+{
+    RECT rect;
+    int heightDistance = 0;
+    GetWindowRect(hActionParameterDesc[0], &rect);
+    heightDistance = rect.top;
+    GetWindowRect(hActionParameterDesc[1], &rect);
+    heightDistance = rect.top - heightDistance;
+
+    auto adjustHeight = [&heightDistance](HWND& hWnd)
+        {
+            RECT rect;
+            GetWindowRect(hWnd, &rect);
+            POINT topLeft = { rect.left, rect.top };
+            ScreenToClient(m_hwnd, &topLeft);
+            int newWidth = rect.right - rect.left;
+            int newHeight = rect.bottom - rect.top + (ActionParamsCount - LastActionParamsCount) * heightDistance;
+            MoveWindow(hWnd, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+        };
+
+    adjustHeight(hActionList);
+    adjustHeight(hActionDescription);
+    adjustHeight(hActionframe);
+
+    GetWindowRect(m_hwnd, &rect);
+    MoveWindow(m_hwnd, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top + (ActionParamsCount - LastActionParamsCount) * heightDistance, TRUE);
 }
 
 void CNewTrigger::OnDropdownCComboBox(int index)
