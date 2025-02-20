@@ -142,7 +142,7 @@ public:
     void SetHeightAt(int X, int Y, int height);
 
     //void InitializeBuildingTypesExt(const char* ID);
-    static void InitializeAllHdmEdition();
+    static void InitializeAllHdmEdition(bool updateMinimap = true);
     static void UpdateTriggers();
     static ppmfc::CString AddTrigger(std::shared_ptr<Trigger> trigger);
     static ppmfc::CString AddTrigger(ppmfc::CString id);

@@ -1014,7 +1014,7 @@ int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
 	return 0;
 }
 
-void CMapDataExt::InitializeAllHdmEdition()
+void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 {
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
@@ -1248,7 +1248,17 @@ void CMapDataExt::InitializeAllHdmEdition()
 	CTerrainGenerator::RangeSecondCell.Y = -1;
 	CTerrainGenerator::UseMultiSelection = false;
 
-	CMapDataExt::Instance->UpdateFieldOverlayData(false);
+	if (updateMinimap)
+	{
+		// just update coords with overlays to show correct color
+		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+				if (CMapData::Instance->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFF) {
+					CMapData::Instance->UpdateMapPreviewAt(i, j);
+				}
+			}
+		}
+	}
 
 	LightingSources.clear();
 	const float TOLERANCE = 0.001f;
