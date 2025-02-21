@@ -6,6 +6,12 @@
 #include <CFinalSunDlg.h>
 #include <CIsoView.h>
 
+DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
+{
+	CFinalSunDlg::Instance->MyViewFrame.Minimap.SetWindowPos(ppmfc::CWnd::FromHandle(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+	return 0;
+}
+
 //DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 //{
 //    GET(CMinimap*, pThis, ECX);
