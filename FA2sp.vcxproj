@@ -215,7 +215,6 @@
     <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
-    <ClCompile Include="FA2sp\Ext\CAITriggerTypes\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap3A\Hooks.cpp" />
@@ -338,7 +337,6 @@
     <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
-    <ClInclude Include="FA2sp\Ext\CAITriggerTypes\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
     <ClInclude Include="FA2sp\Ext\CHouses\Body.h" />

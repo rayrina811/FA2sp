@@ -52,11 +52,11 @@
 
 void __stdcall FA2Expand::ExeRun()
 {
-    CAITriggerTypesExt::ProgramStartupInit();
+    //CAITriggerTypesExt::ProgramStartupInit();
     CFinalSunDlgExt::ProgramStartupInit();
     CHousesExt::ProgramStartupInit();
     CLightingExt::ProgramStartupInit();
-    // CIsoViewExt::ProgramStartupInit();
+    //CIsoViewExt::ProgramStartupInit();
     CPropertyAircraftExt::ProgramStartupInit();
     CPropertyBuildingExt::ProgramStartupInit();
     CPropertyInfantryExt::ProgramStartupInit();
