@@ -1,7 +1,6 @@
 #include <Helpers/Macro.h>
 #include "../RunTime.h"
 
-
 static char InfantryListBuffer[600000];
 
 #define DEFINE_REG_HELPER(to, from) \
@@ -74,13 +73,14 @@ DEFINE_HOOK(537129, ExeRun_FA2MiscFix, 9)
     // change aircraft group default to -1
     DoPush(0x4B0241, push_0x5CDE60);
 
+    const char* MapImporterFilter = "All files|*.yrm;*.mpr;*.map;*.bmp|Multi maps|*.yrm;*.mpr|Single maps|*.map|Windows bitmaps|*.bmp|";
+    RunTime::ResetStaticCharAt(0x5D026C, MapImporterFilter);
+
     // select main executive
     //const char* filter = "RA2 Mix Files|*.mix|";
     //RunTime::ResetStaticCharAt(0x5D23D8, filter);
     //const char* display = "ra2md.mix";
     //RunTime::ResetStaticCharAt(0x5CC160, display);
-
-
 
     return 0;
 }
