@@ -394,9 +394,9 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             break;
         case Controls::House:
             if (CODE == CBN_SELCHANGE)
-                OnSelchangeHouse(hWnd);
+                OnSelchangeHouse();
             else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeHouse(hWnd, true);
+                OnSelchangeHouse(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupHouse();
             break;
@@ -755,7 +755,7 @@ void CNewTeamTypes::OnCloseupTag()
 }
 
 
-void CNewTeamTypes::OnSelchangeHouse(HWND& hWnd, bool edited)
+void CNewTeamTypes::OnSelchangeHouse(bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
@@ -1270,7 +1270,6 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
     }
 }
 
-
 void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
 {
     if (SelectedTeamIndex < 0)
@@ -1287,4 +1286,18 @@ void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
 
+}
+
+void CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSelectedTeam)
+        OnSelchangeTeamtypes(true);
+    else if (hWnd == hHouse)
+        OnSelchangeHouse(true);
+    else if (hWnd == hTag)
+        OnSelchangeTag(true);
+    else if (hWnd == hTaskforce)
+        OnSelchangeTaskForce(true);
+    else if (hWnd == hScript)
+        OnSelchangeScript(true);
 }

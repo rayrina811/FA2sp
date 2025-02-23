@@ -353,6 +353,12 @@ void CCsfEditor::FilterRows(std::map<ppmfc::CString, ppmfc::CString> csfMap, con
 
 void CCsfEditor::OnEditchangeSearch()
 {
+
+    if (CurrentCSFMap.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
+    {
+        return;
+    }
+
     char buffer[512]{ 0 };
 
     GetWindowText(hSearch, buffer, 511);
@@ -365,4 +371,10 @@ void CCsfEditor::OnEditchangeSearch()
         FilterRows(CurrentCSFMap, buffer);
     }
     NeedUpdate = false;
+}
+
+void CCsfEditor::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSearch)
+        OnEditchangeSearch();
 }

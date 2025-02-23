@@ -578,6 +578,10 @@ void CNewINIEditor::OnEditchangeINIEdit()
 
 void CNewINIEditor::OnEditchangeSearch()
 {
+    if (SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) + SectionLabels.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
+    {
+        return;
+    }
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -609,7 +613,6 @@ void CNewINIEditor::OnEditchangeSearch()
     {
         SendMessage(hSectionList, LB_DELETESTRING, idx, NULL);
     }
-
 }
 
 int CNewINIEditor::FindLBTextCaseSensitive(HWND hwndCtl, const char* searchString)
@@ -822,6 +825,12 @@ bool CNewINIEditor::IsTeam(const char* lpSectionName)
         }
     }
     return false;
+}
+
+void CNewINIEditor::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSearchText)
+        OnEditchangeSearch();
 }
 
 DEFINE_HOOK(40B826, OnClickImportINI, 5)

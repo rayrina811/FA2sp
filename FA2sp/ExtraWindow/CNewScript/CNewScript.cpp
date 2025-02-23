@@ -1257,3 +1257,15 @@ void CNewScript::OnClickSearchReference(HWND& hWnd)
     }
 
 }
+
+void CNewScript::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSelectedScript)
+        OnSelchangeScript(true);
+    else if (hWnd == hActionExtraParam)
+        OnSelchangeActionExtraParam(true);
+    else if (hWnd == hActionParam)
+        OnSelchangeActionParam(true);
+    else if (hWnd == hActionType)
+        OnSelchangeActionType(true);
+}

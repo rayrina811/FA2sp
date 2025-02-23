@@ -37,6 +37,7 @@ public:
     {
         return CNewINIEditor::m_hwnd;
     }
+    static void OnEnterKeyDown(HWND& hWnd);
     static int FindLBTextCaseSensitive(HWND hwndCtl, const char* searchString);
     static bool IsGameObject(const char* lpSectionName);
     static bool IsMapPack(const char* lpSectionName);

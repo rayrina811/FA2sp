@@ -60,6 +60,7 @@ public:
     {
         return CNewTeamTypes::m_hwnd;
     }
+    static void OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeTeamtypes(bool edited = false);
     static void OnSelchangeTaskForce(bool edited = false);
     static void OnSelchangeScript(bool edited = false);
@@ -71,7 +72,7 @@ protected:
     static void OnSeldropdownTeamtypes(HWND& hWnd);
     static void OnSelchangeTransportWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeWaypoint(HWND& hWnd, bool edited = false);
-    static void OnSelchangeHouse(HWND& hWnd, bool edited = false);
+    static void OnSelchangeHouse(bool edited = false);
     static void OnSelchangeVeteranLevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeTechlevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeMindControlDecision(HWND& hWnd, bool edited = false);

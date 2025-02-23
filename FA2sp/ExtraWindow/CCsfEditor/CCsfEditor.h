@@ -20,6 +20,7 @@ public:
     {
         return CCsfEditor::m_hwnd;
     }
+    static void OnEnterKeyDown(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);

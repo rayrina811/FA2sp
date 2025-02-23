@@ -32,6 +32,7 @@ public:
 
     static RECT rectComboLBox;
     static HWND hComboLBox;
+    static bool bEnterSearch;
     static void GetCurrentDropdown();
     static bool IsClickInsideDropdown();    
     // true means click inside combobox

@@ -34,6 +34,7 @@ public:
     {
         return CNewTaskforce::m_hwnd;
     }
+    static void OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeTaskforce(bool edited = false, int specificIdx = -1);
     static void OnSelchangeUnitType(bool edited = false);
 

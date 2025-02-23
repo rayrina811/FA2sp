@@ -2023,3 +2023,34 @@ void CNewTrigger::SortTriggers(ppmfc::CString id)
         SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
     }  
 }
+
+void CNewTrigger::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSelectedTrigger)
+        OnSelchangeTrigger(true);
+    else if (hWnd == hAttachedtrigger)
+        OnSelchangeAttachedTrigger(true);
+    else if (hWnd == hHouse)
+        OnSelchangeHouse(true);
+    else if (hWnd == hEventtype)
+        OnSelchangeEventType(true);
+    else if (hWnd == hActiontype)
+        OnSelchangeActionType(true);
+    else if (hWnd == hEventParameter[0])
+        OnSelchangeEventParam(0, true);
+    else if (hWnd == hEventParameter[1])
+        OnSelchangeEventParam(1, true);
+    else if (hWnd == hActionParameter[0])
+        OnSelchangeActionParam(0, true);
+    else if (hWnd == hActionParameter[1])
+        OnSelchangeActionParam(1, true);
+    else if (hWnd == hActionParameter[2])
+        OnSelchangeActionParam(2, true);
+    else if (hWnd == hActionParameter[3])
+        OnSelchangeActionParam(3, true);
+    else if (hWnd == hActionParameter[4])
+        OnSelchangeActionParam(4, true);
+    else if (hWnd == hActionParameter[5])
+        OnSelchangeActionParam(5, true);
+
+}

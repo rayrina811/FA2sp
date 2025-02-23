@@ -260,7 +260,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     {
         CNewAITrigger::Initialize(hWnd);
         return TRUE;
-    }
+    }	
     case WM_COMMAND:
     {
         WORD ID = LOWORD(wParam);
@@ -888,4 +888,19 @@ void CNewAITrigger::SortAITriggers(ppmfc::CString id)
         SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).m_pchData);
         SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
     }
+}
+
+void CNewAITrigger::OnEnterKeyDown(HWND& hWnd)
+{
+    ExtraWindow::bEnterSearch = true;
+    if (hWnd == hSelectedAITrigger)
+        OnSelchangeAITrigger(true);
+    else if (hWnd == hTeam1)
+        OnSelchangeTeam(0, true);
+    else if (hWnd == hTeam2)
+        OnSelchangeTeam(1, true);
+    else if (hWnd == hCountry)
+        OnSelchangeCountry(true);
+    else if (hWnd == hComparisonObject)
+        OnSelchangeComparisonObject(true);
 }

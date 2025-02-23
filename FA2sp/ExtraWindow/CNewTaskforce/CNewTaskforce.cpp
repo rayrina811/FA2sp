@@ -679,3 +679,11 @@ void CNewTaskforce::OnClickSearchReference(HWND& hWnd)
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
 }
+
+void CNewTaskforce::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hSelectedTaskforce)
+        OnSelchangeTaskforce(true);
+    else if (hWnd == hUnitType)
+        OnSelchangeUnitType(true);
+}

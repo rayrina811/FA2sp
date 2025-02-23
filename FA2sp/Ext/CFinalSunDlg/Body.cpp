@@ -15,6 +15,7 @@
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
+#include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -28,7 +29,7 @@ enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 
 void CFinalSunDlgExt::ProgramStartupInit()
 {
-	// RunTime::ResetMemoryContentAt(0x5937E8, &CFinalSunDlgExt::PreTranslateMessageExt);
+	RunTime::ResetMemoryContentAt(0x5937E8, &CFinalSunDlgExt::PreTranslateMessageExt);
 	RunTime::ResetMemoryContentAt(0x5937D0, &CFinalSunDlgExt::OnCommandExt);
 }
 
@@ -1071,6 +1072,61 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	case WM_INITDIALOG:
 		;
 		///*SetWindowTheme(*this, L"DarkMode_Explorer", NULL);*/
+	case WM_KEYDOWN:
+		if (pMsg->wParam == VK_RETURN)
+		{
+			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
+			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
+			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
+			ExtraWindow::bEnterSearch = true;
+			if (hParent2 == CNewAITrigger::GetHandle()) {
+				CNewAITrigger::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
+				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
+				::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent1 == CNewINIEditor::GetHandle()) {
+				CNewINIEditor::OnEnterKeyDown(hWnd);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent1 == CCsfEditor::GetHandle()) {
+				CCsfEditor::OnEnterKeyDown(hWnd);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent2 == CNewScript::GetHandle()) {
+				CNewScript::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent2 == CNewTaskforce::GetHandle()) {
+				CNewTaskforce::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent2 == CNewTeamTypes::GetHandle()) {
+				CNewTeamTypes::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent2 == CNewTrigger::GetHandle()) {
+				CNewTrigger::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+			else if (hParent2 == CTerrainGenerator::GetHandle()) {
+				CTerrainGenerator::OnEnterKeyDown(hParent1);
+				ExtraWindow::bEnterSearch = false;
+				return TRUE;
+			}
+		}
+		break;
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

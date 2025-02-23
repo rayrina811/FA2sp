@@ -1853,3 +1853,19 @@ void CTerrainGenerator::SortPresets(const char* id)
         SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
     }
 }
+
+void CTerrainGenerator::OnEnterKeyDown(HWND& hWnd)
+{
+    if (hWnd == hPreset)
+        OnSelchangePreset(true);
+    else if (hWnd == hTileSet[0])
+        OnSelchangeTileSet(0, true);
+    else if (hWnd == hTileSet[1])
+        OnSelchangeTileSet(1, true);
+    else if (hWnd == hTileSet[2])
+        OnSelchangeTileSet(2, true);
+    else if (hWnd == hTileSet[3])
+        OnSelchangeTileSet(3, true);
+    else if (hWnd == hTileSet[4])
+        OnSelchangeTileSet(4, true);
+}

@@ -16,6 +16,7 @@ MultimapHelper& ExtraWindow::rules = Variables::Rules;
 
 RECT ExtraWindow::rectComboLBox = { 0 };
 HWND ExtraWindow::hComboLBox = NULL;
+bool ExtraWindow::bEnterSearch = false;
 
 void ExtraWindow::CenterWindowPos(HWND parent, HWND target)
 {
@@ -615,7 +616,8 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& 
 
 void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels)
 {
-    if (SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount) {
+    if (SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) + labels.size() > ExtConfigs::SearchCombobox_MaxCount && !bEnterSearch)
+    {
         return;
     }
 
@@ -643,7 +645,7 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
         SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)buffer2);
         bool del = false;
         ppmfc::CString tmp(buffer2);
-        if (!(IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
+        if (!(IsLabelMatch(buffer2, buffer) || strcmp(buffer, "")   == 0))
         {
             deletedLabels.push_back(idx);
         }
