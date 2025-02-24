@@ -117,7 +117,7 @@ Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
     return nullptr;
 }
 
-Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, Object3DLocation location)
+Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location)
 {
     LightingStruct lighting = LightingStruct::GetCurrentLighting();
 
@@ -142,7 +142,7 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
     return p.GetPalette();
 }
 
-Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Object3DLocation location, bool isopal, int extraLightType)
+Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal, int extraLightType)
 {
     auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
     if (remap)
@@ -220,7 +220,7 @@ LightingPalette::LightingPalette(Palette& originPal)
     this->ResetColors();
 }
 
-void LightingPalette::AdjustLighting(LightingStruct& lighting, Object3DLocation location, bool tint, int extraLightType)
+void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation location, bool tint, int extraLightType)
 {
     const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
 

@@ -7,6 +7,13 @@
 
 struct CellData;
 
+struct Cell3DLocation
+{
+    short X;
+    short Y;
+    short Height;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -71,6 +78,7 @@ public:
     static COLORREF _cell_hilight_colors[16];
     static int drawOffsetX;
     static int drawOffsetY;
+    static Cell3DLocation CurrentDrawCellLocation;
 
     static bool IsPressingALT;
 };

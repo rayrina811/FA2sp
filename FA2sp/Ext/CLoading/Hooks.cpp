@@ -215,3 +215,35 @@ DEFINE_HOOK(469410, CLoading_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 	return 0;
 }
+DEFINE_HOOK(48C3FB, CLoading_InitTMPs_StoreISOPal, 7)
+{
+	memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
+	//memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
+
+	return 0;
+}
+
+DEFINE_HOOK(48CBEB, CLoading_InitTMPs_CustomPalSupport, 7)
+{
+	GET_STACK(int, iTileSet, STACK_OFFS(0x59C, 0x578));
+	ppmfc::CString section;
+	section.Format("TileSet%04d", iTileSet);
+	ppmfc::CString pDefault = "iso~~~.pal";
+	pDefault.Replace("~~~", CLoading::Instance->GetTheaterSuffix());
+	auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette", pDefault);
+	if (customPal != pDefault)
+	{
+		BGRStruct empty;
+		auto pPal = PalettesManager::LoadPalette(customPal);
+		memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
+	}
+	else
+	{
+		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
+	}
+	return 0;
+}
+DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
+{
+	return 0x48E976;
+}

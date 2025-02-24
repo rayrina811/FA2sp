@@ -6,6 +6,7 @@
 #include "Palettes.h"
 
 #include "../Ext/CFinalSunDlg/Body.h"
+#include "../Ext/CIsoView/Body.h"
 
 DEFINE_HOOK(4B9F7A, CreateMap_ClearUp_Pals, 5)
 {
@@ -25,25 +26,13 @@ DEFINE_HOOK(49D2C0, LoadMap_ClearUp_Pals, 5)
 	return 0;
 }
 
-Object3DLocation CurrentObjLocation = { 0 };
-DEFINE_HOOK(46F6B4, CIsoView_Draw_CurrentCell, 6)
-{
-	GET(CellData*, pCell, ESI);
-	GET(int, X, EDI);
-	GET(int, Y, EBP);
-	CurrentObjLocation.Height = pCell->Height;
-	CurrentObjLocation.X = X;
-	CurrentObjLocation.Y = Y;
-	return 0;
-}
-
 #define REMAP_FIX_PALETTE_SET(hook_addr, hook_name, data_off, color_off, remap, isisopal, extraLightType) \
 DEFINE_HOOK(hook_addr,hook_name,7) \
 { \
 	REF_STACK(ImageDataClass, data, STACK_OFFS(0xD18, data_off)); \
 	GET_STACK(BGRStruct*, pColor, STACK_OFFS(0xD18, color_off)); \
 	if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)\
-		data.pPalette = PalettesManager::GetObjectPalette(data.pPalette, *pColor, remap, CurrentObjLocation, isisopal, extraLightType); \
+		data.pPalette = PalettesManager::GetObjectPalette(data.pPalette, *pColor, remap, CIsoViewExt::CurrentDrawCellLocation, isisopal, extraLightType); \
 	else \
 		data.pPalette = PalettesManager::GetPalette(data.pPalette, *pColor, remap);\
 	return 0; \

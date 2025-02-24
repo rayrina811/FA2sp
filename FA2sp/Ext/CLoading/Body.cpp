@@ -5,6 +5,7 @@
 #include <CINI.h>
 #include "../../Helpers/Translations.h"
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
+Palette CLoadingExt::TempISOPalette = { 0 };
 
 bool CLoadingExt::InitMixFilesFix()
 {

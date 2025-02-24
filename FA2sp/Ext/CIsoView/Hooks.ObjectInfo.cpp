@@ -1191,7 +1191,6 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             ppmfc::CString line3;
             ppmfc::CString line4;
 
-
             auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 
             int tileIndex = cell->TileIndex;
@@ -1204,111 +1203,96 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
 
             auto theater = CINI::CurrentTheater();
 
-            bool found = false;
-            int tileSetIndex = -1;
-            int tileInSetIndex;
-            for (auto start : CMapDataExt::TileSet_starts) 
+            if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
             {
-                if (start > tileIndex)
-                {
-                    tileInSetIndex = start - tileIndex;
-                    found = true;
-                    break;
-                }
-                tileSetIndex++;
-            }
 
-            if (found)
-            {
+                const auto& tileBlock = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex];
+                const auto& tile = CMapDataExt::TileData[tileIndex];
+
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "Tile: %s (%d)")
-                    , Translations::TranslateTileSet(tileSetIndex), tileSetIndex);
+                    , Translations::TranslateTileSet(tile.TileSet), tile.TileSet);
 
-                if (CMapDataExt::TileData && tileIndex < int(CTileTypeClass::InstanceCount()) && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
-                {
-                    auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
-                    ppmfc::CString setID;
-                    setID.Format("TileSet%04d", tileSetIndex);
-                    ppmfc::CString ttypes = "unknown";
-                    ppmfc::CString filename;
-                    filename.Format("%s%02d", theater->GetString(setID, "FileName"), tileInSetIndex);
+                auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
+                ppmfc::CString setID;
+                setID.Format("TileSet%04d", tile.TileSet);
+                ppmfc::CString ttypes = "unknown";
+                ppmfc::CString filename;
+                filename.Format("%s%02d", theater->GetString(setID, "FileName"), tileIndex - CMapDataExt::TileSet_starts[tile.TileSet] + 1);
 
-                    if (cell->Flag.AltIndex == 1)
-                        filename += "a";
-                    else if (cell->Flag.AltIndex == 2)
-                        filename += "b";
-                    else if (cell->Flag.AltIndex == 3)
-                        filename += "c";
-                    else if (cell->Flag.AltIndex == 4)
-                        filename += "d";
-                    else if (cell->Flag.AltIndex == 5)
-                        filename += "e";
-                    else if (cell->Flag.AltIndex == 6)
-                        filename += "f";
-                    else if (cell->Flag.AltIndex == 7)
-                        filename += "g";
+                if (cell->Flag.AltIndex == 1)
+                    filename += "a";
+                else if (cell->Flag.AltIndex == 2)
+                    filename += "b";
+                else if (cell->Flag.AltIndex == 3)
+                    filename += "c";
+                else if (cell->Flag.AltIndex == 4)
+                    filename += "d";
+                else if (cell->Flag.AltIndex == 5)
+                    filename += "e";
+                else if (cell->Flag.AltIndex == 6)
+                    filename += "f";
+                else if (cell->Flag.AltIndex == 7)
+                    filename += "g";
 
-                    if (thisTheater == "TEMPERATE")
-                        filename += ".tem";
-                    if (thisTheater == "SNOW")
-                        filename += ".sno";
-                    if (thisTheater == "URBAN")
-                        filename += ".urb";
-                    if (thisTheater == "NEWURBAN")
-                        filename += ".ubn";
-                    if (thisTheater == "LUNAR")
-                        filename += ".lun";
-                    if (thisTheater == "DESERT")
-                        filename += ".des";
+                if (thisTheater == "TEMPERATE")
+                    filename += ".tem";
+                if (thisTheater == "SNOW")
+                    filename += ".sno";
+                if (thisTheater == "URBAN")
+                    filename += ".urb";
+                if (thisTheater == "NEWURBAN")
+                    filename += ".ubn";
+                if (thisTheater == "LUNAR")
+                    filename += ".lun";
+                if (thisTheater == "DESERT")
+                    filename += ".des";
 
-                    if (ttype == 0x0)
-                        ttypes = "Clear";
-                    else if (ttype == 0xd)
-                        ttypes = "Clear";
-                    else if (ttype == 0xb)
-                        ttypes = "Road";
-                    else if (ttype == 0xc)
-                        ttypes = "Road";
-                    else if (ttype == 0x9)
-                        ttypes = "Water";
-                    else if (ttype == 0x7)
-                        ttypes = "Rock";
-                    else if (ttype == 0x8)
-                        ttypes = "Rock";
-                    else if (ttype == 0xf)
-                        ttypes = "Rock";
-                    else if (ttype == 0xa)
-                        ttypes = "Beach";
-                    else if (ttype == 0xe)
-                        ttypes = "Rough";
-                    else if (ttype == 0x1)
-                        ttypes = "Ice";
-                    else if (ttype == 0x2)
-                        ttypes = "Ice";
-                    else if (ttype == 0x3)
-                        ttypes = "Ice";
-                    else if (ttype == 0x4)
-                        ttypes = "Ice";
-                    else if (ttype == 0x6)
-                        ttypes = "Railroad";
-                    else if (ttype == 0x5)
-                        ttypes = "Tunnel";
+                if (ttype == 0x0)
+                    ttypes = "Clear";
+                else if (ttype == 0xd)
+                    ttypes = "Clear";
+                else if (ttype == 0xb)
+                    ttypes = "Road";
+                else if (ttype == 0xc)
+                    ttypes = "Road";
+                else if (ttype == 0x9)
+                    ttypes = "Water";
+                else if (ttype == 0x7)
+                    ttypes = "Rock";
+                else if (ttype == 0x8)
+                    ttypes = "Rock";
+                else if (ttype == 0xf)
+                    ttypes = "Rock";
+                else if (ttype == 0xa)
+                    ttypes = "Beach";
+                else if (ttype == 0xe)
+                    ttypes = "Rough";
+                else if (ttype == 0x1)
+                    ttypes = "Ice";
+                else if (ttype == 0x2)
+                    ttypes = "Ice";
+                else if (ttype == 0x3)
+                    ttypes = "Ice";
+                else if (ttype == 0x4)
+                    ttypes = "Ice";
+                else if (ttype == 0x6)
+                    ttypes = "Railroad";
+                else if (ttype == 0x5)
+                    ttypes = "Tunnel";
 
-                    line3.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.3",
-                        "Terrain Type: %s (0x%x)")
-                        , ttypes, ttype);
-                    line4.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.4",
-                        "Filename: %s")
-                        , filename);
-                }
-
-
+                line3.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.3",
+                    "Terrain Type: %s (0x%x)")
+                    , ttypes, ttype);
+                line4.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.4",
+                    "Filename: %s")
+                    , filename);
             }
             else
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "Tile: %s (%d)")
-                    , "MISSING", tileSetIndex);
+                    , "MISSING", tileIndex);
             }
             ::SetBkColor(hDC, RGB(0, 255, 255));
             ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
@@ -1316,8 +1300,6 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
             ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
             ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
-
-
         }
         if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
         {

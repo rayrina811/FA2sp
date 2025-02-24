@@ -86,6 +86,7 @@ public:
 	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
 	static std::vector<ppmfc::CString> LoadedOverlays;
+	static Palette TempISOPalette;
 private:
 	ObjectType GetItemType(ppmfc::CString ID);
 

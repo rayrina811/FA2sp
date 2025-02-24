@@ -72,6 +72,21 @@ int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
         return 0;
 }
 
+
+bool CMapDataExt::IsOre(unsigned char nOverlay)
+{
+	if (nOverlay >= 0x66 && nOverlay <= 0x79)
+		return true;
+    else if (nOverlay >= 0x1B && nOverlay <= 0x26)
+        return true;
+    else if (nOverlay >= 0x7F && nOverlay <= 0x92)
+        return true;
+    else if (nOverlay >= 0x93 && nOverlay <= 0xA6)
+        return true;
+
+    return false;
+}
+
 int CMapDataExt::GetOreValueAt(CellData& cell)
 {
     return GetOreValue(cell.Overlay, cell.OverlayData);

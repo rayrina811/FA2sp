@@ -3,7 +3,7 @@
 #include "../FA2sp.h"
 
 #include <CPalette.h>
-
+#include "../Ext/CIsoView/Body.h"
 #include <map>
 
 // References from ccmaps-net
@@ -15,13 +15,6 @@
 // Ground = Lighting.Ground * 1000.0 + 0.1
 // Level = Lighting.Level * 1000.0 + 0.1
 // I just choose to take a reference from ccmaps-net code - secsome
-
-struct Object3DLocation
-{
-    short X;
-    short Y;
-    short Height;
-};
 
 struct LightingSourceTint
 {
@@ -82,7 +75,7 @@ public:
     Palette Colors;
     LightingPalette(Palette& originPal);
     // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building
-    void AdjustLighting(LightingStruct& lighting, Object3DLocation location = { 0 }, bool tint = true, int objectType = -1);
+    void AdjustLighting(LightingStruct& lighting, Cell3DLocation location = { 0 }, bool tint = true, int objectType = -1);
     void ResetColors();
     void RemapColors(BGRStruct color);
     void TintColors(bool isObject = false);
@@ -110,8 +103,8 @@ public:
     static Palette* GetCurrentIso();
     static void CacheAndTintCurrentIso();
     static Palette* LoadPalette(ppmfc::CString palname);
-    static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Object3DLocation location = {0});
-    static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Object3DLocation location, bool isopal = false, int extraLightType = -1);
+    static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
+    static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
 };
 
 

@@ -28,7 +28,6 @@ MapCoord MultiSelection::LastAddedCoord;
 bool MultiSelection::ShiftKeyIsDown = false;
 bool MultiSelection::IsPasting = false;
 BGRStruct MultiSelection::ColorHolder[0x1000];
-MapCoord MultiSelection::CurrentCoord;
 std::vector<CellDataExt> MultiSelection::CopiedCells;
 int MultiSelection::CopiedX;
 int MultiSelection::CopiedY;
@@ -488,39 +487,8 @@ DEFINE_HOOK(46BC30, CIsoView_OnKeyUp, 5)
     return 0x46BC46;
 }
 
-DEFINE_HOOK(46EAFA, CIsoView_Draw_TileCurrentCoord_1, 5)
+static bool CIsoView_Draw_MultiSelect(BGRStruct* pColors, int nCount, bool isOverlay)
 {
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
-    MultiSelection::CurrentCoord.X = R->EBP();
-    MultiSelection::CurrentCoord.Y = R->EBX();
-    return 0;
-}
-
-DEFINE_HOOK(46F680, CIsoView_Draw_TileCurrentCoord_2, 5)
-{
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
-    MultiSelection::CurrentCoord.X = R->EDI();
-    MultiSelection::CurrentCoord.Y = R->EBP();
-    return 0;
-}
-
-DEFINE_HOOK_AGAIN(46F0D6, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46F1B7, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46F438, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46F55F, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46FC2F, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46FD0A, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(46FF71, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK_AGAIN(470081, CIsoView_Draw_MultiSelect, 7)
-DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
-{
-    GET(BGRStruct*, pColors, ESI);
-    GET(int, nCount, ECX);
-
     bool colorChanged = false;
     auto safeColorBtye = [](int x)
         {
@@ -531,8 +499,6 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
             return (byte)x;
         };
 
-   
-
     switch (CFinalSunDlgExt::CurrentLighting)
     {
     case 31001:
@@ -540,10 +506,19 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
     case 31003:
     {
         auto& ret = LightingStruct::CurrentLighting;
-        const auto cell = CMapData::Instance->GetCellAt(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
-        const auto lamp = LightingSourceTint::ApplyLamp(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y);
+        if (isOverlay)
+        {
+            const auto overlay = CMapData::Instance->GetOverlayAt(
+                CMapData::Instance->GetCoordIndex(
+                    CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
+            if (CMapDataExt::IsOre(overlay))
+            {
+                break;
+            }
+        }
+        const auto lamp = LightingSourceTint::ApplyLamp(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
         float oriAmbMult = ret.Ambient - ret.Ground;
-        float newAmbMult = ret.Ambient - ret.Ground + ret.Level * cell->Height + lamp.AmbientTint;
+        float newAmbMult = ret.Ambient - ret.Ground + ret.Level * CIsoViewExt::CurrentDrawCellLocation.Height + lamp.AmbientTint;
         newAmbMult = std::clamp(newAmbMult, 0.0f, 2.0f);
         float newRed = ret.Red + lamp.RedTint;
         float newGreen = ret.Green + lamp.GreenTint;
@@ -568,7 +543,7 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
     }
 
 
-    if (MultiSelection::IsSelected(MultiSelection::CurrentCoord.X, MultiSelection::CurrentCoord.Y))
+    if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))
     {
         if (colorChanged)
         {
@@ -598,7 +573,32 @@ DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect, 7)
         colorChanged = true;
     }
 
-    if (colorChanged)
+    return colorChanged;
+}
+
+DEFINE_HOOK_AGAIN(46F0D6, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK_AGAIN(46F1B7, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK_AGAIN(46F438, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK_AGAIN(46F55F, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK_AGAIN(46FC2F, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK_AGAIN(46FD0A, CIsoView_Draw_MultiSelect_Tile, 7)
+DEFINE_HOOK(46FF71, CIsoView_Draw_MultiSelect_Tile, 7)
+{
+    GET(BGRStruct*, pColors, ESI);
+    GET(int, nCount, ECX);
+
+    if (CIsoView_Draw_MultiSelect(pColors, nCount, false))
+        R->ESI(MultiSelection::ColorHolder);
+
+    return 0;
+}
+DEFINE_HOOK_AGAIN(470081, CIsoView_Draw_MultiSelect_Overlay, 7)
+DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect_Overlay, 7)
+{
+    GET(BGRStruct*, pColors, ESI);
+    GET(int, nCount, ECX);
+
+    if (CIsoView_Draw_MultiSelect(pColors, nCount, true))
         R->ESI(MultiSelection::ColorHolder);
 
     return 0;

@@ -47,7 +47,6 @@ public:
     static bool ShiftKeyIsDown;
     static bool IsPasting;
     static BGRStruct ColorHolder[0x1000];
-    static MapCoord CurrentCoord;
     static std::set<MapCoord> SelectedCoords;
     static std::set<MapCoord> SelectedCoordsTemp;
     static MapCoord LastAddedCoord;

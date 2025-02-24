@@ -52,6 +52,8 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 
+Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
+
 int CIsoViewExt::drawOffsetX;
 int CIsoViewExt::drawOffsetY;
 
