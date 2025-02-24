@@ -310,7 +310,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                     {
                         // rules
                         if (loadFrom == "1" || loadFrom == "2") {
-                            auto& indicies = loadFrom == "1" ? Variables::OrderedRulesIndiciesWithoutMap[sectionName] : Variables::OrderedRulesIndicies[sectionName];
+                            auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName);
                             int idx = 0;
                             for (auto& pair : indicies)
                             {
@@ -422,7 +422,7 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
 
     int idx = 0;
     int rIdx = 0;
-    auto& indicies = Variables::OrderedRulesIndicies["Countries"];
+    auto& indicies = Variables::GetRulesMapSection("Countries");
     for (auto& pair : indicies)
     {
         if (pair.second == "Nod" || pair.second == "GDI") {
@@ -446,7 +446,7 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
 
     auto addValueList = [&](const char* secName)
         {
-            auto& indicies = Variables::OrderedRulesIndicies[secName];
+            auto& indicies = Variables::GetRulesMapSection(secName);
             for (auto& pair : indicies)
             {
                 ppmfc::CString output;

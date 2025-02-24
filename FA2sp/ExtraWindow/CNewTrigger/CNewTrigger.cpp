@@ -281,7 +281,7 @@ void CNewTrigger::Update(HWND& hWnd)
 
     idx = 0;
     while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
-    auto& indicies = Variables::OrderedRulesIndicies["Countries"];
+    const auto& indicies = Variables::GetRulesMapSection("Countries");
     for (auto& pair : indicies)
     {
         if (pair.second == "GDI" || pair.second == "Nod")

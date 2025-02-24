@@ -1034,10 +1034,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 
-	Variables::OrderedRulesIndicies = Variables::OrderedRulesIndiciesWithoutMap;
+	Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
 	for (auto& section : CINI::CurrentDocument->Dict) {
 		auto&& cur = CINI::CurrentDocument->ParseIndiciesData(section.first);
-		auto& Indicies = Variables::OrderedRulesIndicies[section.first];
+		auto& Indicies = Variables::OrderedRulesMapIndicies[section.first];
 		for (int i = 0; i < cur.size(); i++)
 		{
 			auto& key = cur[i];
@@ -1060,7 +1060,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	}
 
 	CMapDataExt::OverlayTypeDatas.clear();
-	for (const auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
+	for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
 	{
 		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
 		item.Rock = Variables::Rules.GetBool(ol.second, "IsARock");

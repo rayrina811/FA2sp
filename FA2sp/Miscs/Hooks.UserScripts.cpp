@@ -603,16 +603,16 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             load = atoi(UserScriptExt::GetParam(Params, 4));
         }
         if (load == 1) {
-            auto& indicies = Variables::OrderedRulesIndiciesWithoutMap[section];
-            if (indicies.size() > index) {
-                UserScriptExt::Temps.push_back(indicies[index].first);
+            auto key = Variables::GetRulesKeyAt(section, index);
+            if (key != "") {
+                UserScriptExt::Temps.push_back(key);
                 UserScriptExt::EditVaribale = true;
             }
         }
         else if (load == 2) {
-            auto& indicies = Variables::OrderedRulesIndicies[section];
-            if (indicies.size() > index) {
-                UserScriptExt::Temps.push_back(indicies[index].first);
+            auto key = Variables::GetRulesMapKeyAt(section, index);
+            if (key != "") {
+                UserScriptExt::Temps.push_back(key);
                 UserScriptExt::EditVaribale = true;
             }
         }
@@ -641,16 +641,16 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             load = atoi(UserScriptExt::GetParam(Params, 4));
         }
         if (load == 1) {
-            auto& indicies = Variables::OrderedRulesIndiciesWithoutMap[section];
-            if (indicies.size() > index) {
-                UserScriptExt::Temps.push_back(indicies[index].second);
+            auto val = Variables::GetRulesValueAt(section, index);
+            if (val != "") {
+                UserScriptExt::Temps.push_back(val);
                 UserScriptExt::EditVaribale = true;
             }
         }
         else if (load == 2) {
-            auto& indicies = Variables::OrderedRulesIndicies[section];
-            if (indicies.size() > index) {
-                UserScriptExt::Temps.push_back(indicies[index].second);
+            auto val = Variables::GetRulesMapValueAt(section, index);
+            if (val != "") {
+                UserScriptExt::Temps.push_back(val);
                 UserScriptExt::EditVaribale = true;
             }
         }

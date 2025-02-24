@@ -43,7 +43,7 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 	case COMBOUINPUT_MANUAL:
 		if (!ReadValue && UseStrictOrder) {
 			if (LoadFrom == 1 || LoadFrom == 2) {
-				auto& indicies = LoadFrom == 1 ? Variables::OrderedRulesIndiciesWithoutMap[m_Section] : Variables::OrderedRulesIndicies[m_Section];
+				const auto& indicies = LoadFrom == 1 ? Variables::GetRulesSection(m_Section) : Variables::GetRulesMapSection(m_Section);
 				int idx = 0;
 				for (auto& pair : indicies)
 				{

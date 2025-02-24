@@ -138,8 +138,8 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         isRulesIni = true;
         isPartOfRulesIni = true;
         INIIncludes::RulesIncludeFiles.clear();
-        Variables::OrderedRulesIndiciesWithoutMap.clear();
         Variables::OrderedRulesIndicies.clear();
+        Variables::OrderedRulesMapIndicies.clear();
     }
     for (size_t j = 0; j < INIIncludes::RulesIncludeFiles.size(); ++j) {
         std::string name1 = toLower(INIIncludes::RulesIncludeFiles[j]);
@@ -186,7 +186,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         if (isPartOfRulesIni) {
             for (auto& section : ini.Dict) {
                 auto&& cur = ini.ParseIndiciesData(section.first);
-                auto& Indicies = Variables::OrderedRulesIndiciesWithoutMap[section.first];
+                auto& Indicies = Variables::OrderedRulesIndicies[section.first];
                 for (int i = 0; i < cur.size(); i++)
                 {
                     auto& key = cur[i];
@@ -217,7 +217,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                     }
                 }
             }
-            Variables::OrderedRulesIndicies = Variables::OrderedRulesIndiciesWithoutMap;
+            Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
         }
 
         if (auto pSection = ini.GetSection(includeSection)) {

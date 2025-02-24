@@ -149,6 +149,79 @@ public:
     static MultimapHelper Rules;
     static MultimapHelper FAData;
     static MultimapHelper Rules_FAData;
+    static std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesMapIndicies;
     static std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesIndicies;
-    static std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesIndiciesWithoutMap;
+
+    static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>>& GetRulesSection(ppmfc::CString section)
+    {
+        static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
+        auto it = OrderedRulesIndicies.find(section);
+        if (it != OrderedRulesIndicies.end())
+        {
+            return it->second;
+        }
+        return empty;
+    }
+    static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>>& GetRulesMapSection(ppmfc::CString section)
+    {
+        static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
+        auto it = OrderedRulesMapIndicies.find(section);
+        if (it != OrderedRulesMapIndicies.end())
+        {
+            return it->second;
+        }
+        return empty;
+    }
+    static ppmfc::CString GetRulesValueAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    {
+        ppmfc::CString ret = Default;
+        if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
+        {
+            const auto& pSection = OrderedRulesIndicies[section];
+            if (0 <= index && index < pSection.size())
+            {
+                ret = pSection[index].second;
+            }
+        }
+        return ret;
+    }
+    static ppmfc::CString GetRulesKeyAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    {
+        ppmfc::CString ret = Default;
+        if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
+        {
+            const auto& pSection = OrderedRulesIndicies[section];
+            if (0 <= index && index < pSection.size())
+            {
+                ret = pSection[index].first;
+            }
+        }
+        return ret;
+    }
+    static ppmfc::CString GetRulesMapValueAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    {
+        ppmfc::CString ret = Default;
+        if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
+        {
+            const auto& pSection = OrderedRulesMapIndicies[section];
+            if (0 <= index && index < pSection.size())
+            {
+                ret = pSection[index].second;
+            }
+        }
+        return ret;
+    }
+    static ppmfc::CString GetRulesMapKeyAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    {
+        ppmfc::CString ret = Default;
+        if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
+        {
+            const auto& pSection = OrderedRulesMapIndicies[section];
+            if (0 <= index && index < pSection.size())
+            {
+                ret = pSection[index].first;
+            }
+        }
+        return ret;
+    }
 };

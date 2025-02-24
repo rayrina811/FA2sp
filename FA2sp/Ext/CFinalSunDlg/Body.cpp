@@ -228,7 +228,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CLoading::Instance->FreeTMPs();
 			CLoading::Instance->InitTMPs();
 			int oli = 0;
-			for (const auto& ol : Variables::OrderedRulesIndicies["OverlayTypes"])
+			for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
 			{
 				auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
 				if (it != CLoadingExt::LoadedOverlays.end()) {

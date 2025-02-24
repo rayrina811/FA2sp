@@ -172,7 +172,7 @@ void CNewAITrigger::Update(HWND& hWnd)
     
     idx = 0;
     while (SendMessage(hCountry, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    auto& indicies = Variables::OrderedRulesIndicies["Countries"];
+    const auto& indicies = Variables::GetRulesMapSection("Countries");
     SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
     for (auto& pair : indicies)
     {
