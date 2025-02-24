@@ -1086,8 +1086,8 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                             index++;
                             continue;
                         }
-                        CellDataExt cell = MultiSelection::CopiedCells[index];
-                        CellData tCell = mapData.CellDatas[dwpos];
+                        auto& cell = MultiSelection::CopiedCells[index];
+                        auto& tCell = mapData.CellDatas[dwpos];
 
                         if (MultiSelection::GetCount2())
                         {
@@ -1149,8 +1149,8 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                         index++;
                         continue;
                     }
-                    CellDataExt cell = MultiSelection::CopiedCells[index];
-                    CellData tCell = mapData.CellDatas[mapData.GetCoordIndex(cell.X, cell.Y)];
+                    auto& cell = MultiSelection::CopiedCells[index];
+                    auto& tCell = mapData.CellDatas[mapData.GetCoordIndex(cell.X, cell.Y)];
 
                     if (MultiSelection::GetCount2())
                     {
@@ -1458,7 +1458,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
                 int x = i;
                 int y = j;
                 auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
-                CellDataExt cell = MultiSelection::CopiedCells[idx];
+                auto& cell = MultiSelection::CopiedCells[idx];
                 if (dwpos < mapData.CellDataCount &&  CMapData::Instance->IsCoordInMap(i, j))
                 {
                     bool found = false;

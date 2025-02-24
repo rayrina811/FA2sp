@@ -112,6 +112,7 @@ bool ExtConfigs::PlaceStructureOverlappingCheck;
 bool ExtConfigs::PlaceStructureResort;
 bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
+bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
 bool ExtConfigs::ArtImageSwap;
@@ -308,6 +309,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureResort = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.Resort");
 	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
+	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
 	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");

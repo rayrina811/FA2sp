@@ -218,8 +218,6 @@ DEFINE_HOOK(469410, CLoading_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 DEFINE_HOOK(48C3FB, CLoading_InitTMPs_StoreISOPal, 7)
 {
 	memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-	//memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
-
 	return 0;
 }
 
@@ -243,7 +241,78 @@ DEFINE_HOOK(48CBEB, CLoading_InitTMPs_CustomPalSupport, 7)
 	}
 	return 0;
 }
-DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
+
+static bool DrawTranspInsideTilesChanged = false;
+DEFINE_HOOK_AGAIN(46F767, CIsoView_DrawMap_DrawTranspInsideTiles, 8)
+DEFINE_HOOK(46EC1B, CIsoView_DrawMap_DrawTranspInsideTiles, 8)
 {
-	return 0x48E976;
+	GET_STACK(unsigned short, tileIndex, STACK_OFFS(0x0D18, 0xC32));
+	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
+	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
+	{
+		ppmfc::CString section;
+		section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
+		ppmfc::CString pDefault = "iso~~~.pal";
+		pDefault.Replace("~~~", CLoading::Instance->GetTheaterSuffix());
+		auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette", pDefault);
+		if (customPal != pDefault)
+		{
+			DrawTranspInsideTilesChanged = true;
+			memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
+			BGRStruct empty;
+			auto pPal = PalettesManager::LoadPalette(customPal);
+			memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
+		}
+	}
+	return 0;
 }
+
+DEFINE_HOOK_AGAIN(4700BA, CIsoView_DrawMap_DrawTranspInsideTiles_2, 7)
+DEFINE_HOOK(46F5AF, CIsoView_DrawMap_DrawTranspInsideTiles_2, 7)
+{
+	if (DrawTranspInsideTilesChanged)
+	{
+		DrawTranspInsideTilesChanged = false;
+		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
+	}
+	return 0;
+}
+
+DEFINE_HOOK(4F36A0, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
+{
+	GET_STACK(unsigned int, tileIndex, 0x4);
+	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
+	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
+	{
+		ppmfc::CString section;
+		section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
+		ppmfc::CString pDefault = "iso~~~.pal";
+		pDefault.Replace("~~~", CLoading::Instance->GetTheaterSuffix());
+		auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette", pDefault);
+		if (customPal != pDefault)
+		{
+			DrawTranspInsideTilesChanged = true;
+			memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
+			BGRStruct empty;
+			auto pPal = PalettesManager::LoadPalette(customPal);
+			memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
+		}
+	}
+	return 0;
+}
+
+DEFINE_HOOK(4F3BE2, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 5)
+{
+	if (DrawTranspInsideTilesChanged)
+	{
+		DrawTranspInsideTilesChanged = false;
+		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
+	}
+	return 0;
+}
+
+//
+//DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
+//{
+//	return 0x48E976;
+//}

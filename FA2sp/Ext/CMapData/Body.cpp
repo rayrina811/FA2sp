@@ -258,6 +258,13 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 
 void CMapDataExt::SetHeightAt(int x, int y, int height)
 {
+	if (ExtConfigs::PlaceTileSkipHide)
+	{
+		const auto cell = this->TryGetCellAt(x, y);
+		if (cell->IsHidden())
+			return;
+	}
+
 	if (height < 0) height = 0;
 	if (height > 14) height = 14;
 	if (this->IsCoordInMap(x, y))
@@ -268,6 +275,13 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 {
 	if (!this->IsCoordInMap(X, Y))
 		return;
+
+	if (ExtConfigs::PlaceTileSkipHide)
+	{
+		const auto cell = this->TryGetCellAt(X, Y);
+		if (cell->IsHidden())
+			return;
+	}
 
 	index = CMapDataExt::GetSafeTileIndex(index);
 	int width = CMapDataExt::TileData[index].Width;
@@ -583,7 +597,7 @@ void CMapDataExt::SmoothWater()
 
 void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 {
-	if (! CMapData::Instance->IsCoordInMap(X, Y))
+	if (!CMapData::Instance->IsCoordInMap(X, Y))
 		return;
 
 	auto& mapData = CMapData::Instance();
@@ -592,6 +606,9 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 	auto& fadata = CINI::FAData();
 
 	auto cell = CMapData::Instance().TryGetCellAt(X, Y);
+	if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+		return ;
+
 	if (cell->TileIndex == 0xFFFF) cell->TileIndex = 0;
 	int dwPos = X + Y * mapData.MapWidthPlusHeight;
 			

@@ -36,6 +36,8 @@ static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = f
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 		{			
 			if (!cell) return 0;
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				return 0;
 			if (IgnoreMorphable) return 1;
 			int groundClick = cell->TileIndex;
 			if (groundClick == 0xFFFF) groundClick = 0;
@@ -295,6 +297,8 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 		{			
 			if (!cell) return 0;
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				return 0;
 			if (IgnoreMorphable) return 1;
 			int groundClick = cell->TileIndex;
 			if (groundClick == 0xFFFF) groundClick = 0;
@@ -490,6 +494,8 @@ static void AdjustHeightAt(int x, int y, int offset)
 	if (CMapData::Instance->IsCoordInMap(x, y))
 	{
 		auto& cell = CMapData::Instance->CellDatas[x + y * CMapData::Instance->MapWidthPlusHeight];
+		if (ExtConfigs::PlaceTileSkipHide && cell.IsHidden())
+			return;
 		int height = cell.Height + offset;
 		if (height < 0) height = 0;
 		if (height > 14) height = 14;
@@ -513,6 +519,9 @@ static void SetHeightForSameTileSet(int x, int y, int height, std::vector<int> t
 					continue;
 
 				auto cell = CMapData::Instance->GetCellAt(thisPos);
+				if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+					continue;
+
 				int ground = cell->TileIndex;
 				if (ground == 0xFFFF) ground = 0;
 				int tileSet = CMapDataExt::TileData[ground].TileSet;
@@ -551,6 +560,8 @@ static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 					continue;
 
 				auto cell = CMapData::Instance->GetCellAt(thisPos);
+				if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+					continue;
 				int ground = cell->TileIndex;
 				if (ground == 0xFFFF) ground = 0;
 				int heightOffset = CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
@@ -627,6 +638,8 @@ static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false)
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 		{
 			if (!cell) return 0;
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				return 0;
 			if (IgnoreMorphable) return 1;
 			int groundClick = cell->TileIndex;
 			if (groundClick == 0xFFFF) groundClick = 0;
@@ -746,6 +759,8 @@ static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false)
 	int tileIndex = getTileIndex();
 	if (tileIndex != flatTile || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
 	{
+		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			return ;
 		cell->TileIndex = tileIndex;
 		cell->TileSubIndex = 0;
 		cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[tileIndex].AltTypeCount + 1);
@@ -766,6 +781,8 @@ static void FindConnectedTiles(std::map<int, bool>& process, int startX, int sta
 		if (process[pos])
 			continue;
 		auto cell = CMapData::Instance->GetCellAt(pos);
+		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+			continue;
 		int ground = cell->TileIndex;
 		if (ground == 0xFFFF) ground = 0;
 		if (CMapDataExt::TileData[ground].Morphable)

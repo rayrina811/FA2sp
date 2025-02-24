@@ -116,6 +116,7 @@ public:
     static bool PlaceStructureResort;
     static bool PlaceStructureUpgrades;
     static bool PlaceStructureUpgradeStrength;
+    static bool PlaceTileSkipHide;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
     static bool ArtImageSwap;

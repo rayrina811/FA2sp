@@ -124,6 +124,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			int pos = pThis->GetCoordIndex(x, y);
 			pThis->CellDataExts[pos].ShoreProcessed = false;
 			pThis->CellDataExts[pos].ShoreLATNeeded = false;
+
+			auto cell = pThis->GetCellAt(x, y);
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				pThis->CellDataExts[pos].ShoreProcessed = true;
 		}
 	}
 
@@ -135,6 +139,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 				continue;
 
 			auto cell = pThis->GetCellAt(x, y);
+
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				continue;
+
 			int tileIndex = cell->TileIndex;
 			if (tileIndex == 0xFFFF)
 				tileIndex = 0;
@@ -191,6 +199,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 					int pos = pThis->GetCoordIndex(x, y);
 					auto cell = pThis->GetCellAt(pos);
+
+					if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+						continue;
+
 					auto& cellExt = pThis->CellDataExts[pos];
 
 					if (cellExt.ShoreProcessed) continue;
@@ -210,6 +222,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 							int pos2 = pThis->GetCoordIndex(x + n, y + m);
 							auto cell2 = pThis->GetCellAt(pos2);
+
 							auto& cellExt2 = pThis->CellDataExts[pos2];
 							int tileIndex = cell2->TileIndex;
 							if (tileIndex == 0xFFFF)
@@ -269,6 +282,8 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 							else 
 								shoreMatch[m * h + n] = 0;
 
+							if (ExtConfigs::PlaceTileSkipHide && cell2->IsHidden())
+								shoreMatch[m * h + n] = 0;
 						}
 					}
 					if (breakCheck) continue;
@@ -307,6 +322,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 								int pos2 = pThis->GetCoordIndex(x + n, y + m);
 								auto cell2 = pThis->GetCellAt(pos2);
 
+								if (ExtConfigs::PlaceTileSkipHide && cell2->IsHidden())
+									continue;
+
 								auto& cellExt2 = pThis->CellDataExts[pos2];
 
 								cell2->TileIndex = targetBeachTile;
@@ -338,6 +356,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 			int pos = pThis->GetCoordIndex(x, y);
 			auto cell = pThis->GetCellAt(pos);
+
+			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+				continue;
+
 			auto& cellExt = pThis->CellDataExts[pos];
 			int tileIndex = cell->TileIndex;
 			if (tileIndex == 0xFFFF)
@@ -413,6 +435,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			for (int y = startY - 1; y < bottom + 1; y++)
 			{
 				if (!pThis->IsCoordInMap(x, y))
+					continue;
+
+				auto cell = pThis->GetCellAt(x, y);
+				if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 					continue;
 
 				bool next = false;
