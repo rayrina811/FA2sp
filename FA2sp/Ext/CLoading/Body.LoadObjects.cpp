@@ -9,6 +9,7 @@
 #include "../../Miscs/VoxelDrawer.h"
 #include "../../Miscs/Palettes.h"
 #include "../../FA2sp.h"
+#include "../../Algorithms/Matrix3D.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
@@ -1115,16 +1116,26 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 				if (bHasTurret)
 				{
+					int F, L, H;
+					int s_count = sscanf_s(CINI::Art->GetString(ArtID, "TurretOffset", "0,0,0"), "%d,%d,%d", &F, &L, &H);
+					if (s_count == 0) F = L = H = 0;
+					else if (s_count == 1) L = H = 0;
+					else if (s_count == 2) H = 0;
+
 					int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
 					int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
 					int turretFramesToRead[8];
 					
 					// fix from cmcc
-					turretFramesToRead[i] = nStartWalkFrame + 8 * nWalkFrames + 4 * (((i * facingCount / 8) + 1) % 8);
+					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
+					// and always has 32 facings
+					turretFramesToRead[i] = facingCount * nWalkFrames + ((1 + i) % 8) * 32 / 8;
 
 					CShpFile::LoadFrame(turretFramesToRead[i], 1, &FramesBuffers[1]);
+					Matrix3D mat(F, L, H, i);
+
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
-					UnionSHP_Add(FramesBuffers[1], header.Width, header.Height);
+					UnionSHP_Add(FramesBuffers[1], header.Width, header.Height, mat.OutputX, mat.OutputY);
 					unsigned char* outBuffer;
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);

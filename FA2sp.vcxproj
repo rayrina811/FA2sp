@@ -319,6 +319,7 @@
     <ClInclude Include="FA2sp\Algorithms\lzo1x.h" />
     <ClInclude Include="FA2sp\Algorithms\lzoconf.h" />
     <ClInclude Include="FA2sp\Algorithms\lzo_conf.h" />
+    <ClInclude Include="FA2sp\Algorithms\Matrix3D.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1.h" />
     <ClInclude Include="FA2sp\Algorithms\sha1impl.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CAllieEditor\CAllieEditor.h" />

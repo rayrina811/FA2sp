@@ -153,7 +153,7 @@ public:
         Set_Building = 0, Set_Infantry, Set_Vehicle, Set_Aircraft, Set_Count
     };
     enum{
-        RandomRock = 1000, Wall = 2000, WallEnd = 2999, AddOre , ReduceOre
+        RandomRock = 1000, Wall = 2000, WallEnd = 3999, AddOre , ReduceOre
     };
     enum{
         RandomTechno = 9950
