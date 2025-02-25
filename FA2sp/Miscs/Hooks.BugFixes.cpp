@@ -16,6 +16,7 @@
 
 #include "../Helpers/STDHelpers.h"
 #include <CPropertyInfantry.h>
+#include "../Ext/CMapData/Body.h"
 
 bool changedNLen = false;
 int oldNLen = 0;
@@ -392,15 +393,6 @@ DEFINE_HOOK(4FF70A, CTriggerEventsDlg_OnSelchangeParameter_FixFor23, 5)
 	return 0x4FF71E;
 }
 
-#define RIPARIUS_BEGIN 102
-#define RIPARIUS_END 121
-#define CRUENTUS_BEGIN 27
-#define CRUENTUS_END 38
-#define VINIFERA_BEGIN 127
-#define VINIFERA_END 146
-#define ABOREUS_BEGIN 147
-#define ABOREUS_END 166
-
 // Rewrite SetOverlayAt to fix wrong credits on map bug
 // if you undo the placement of some tiberium, and then
 // move your mouse with previewed tiberium over the undo
@@ -467,10 +459,8 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 	auto& ovrl = pThis->CellDatas[dwPos].Overlay;
 	auto& ovrld = pThis->CellDatas[dwPos].OverlayData;
 
-	if (ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END) return 0x4A2A88;
-	if (ovrl >= CRUENTUS_BEGIN && ovrl <= CRUENTUS_END) return 0x4A2A88;
-	if (ovrl >= VINIFERA_BEGIN && ovrl <= VINIFERA_END) return 0x4A2A88;
-	if (ovrl >= ABOREUS_BEGIN && ovrl <= ABOREUS_END) return 0x4A2A88;
+	if (CMapDataExt::IsOre(ovrl))
+		return 0x4A2A88;
 
 	pThis->OverlayData[olyPos] = overlaydata;
 	pThis->CellDatas[dwPos].OverlayData = overlaydata;

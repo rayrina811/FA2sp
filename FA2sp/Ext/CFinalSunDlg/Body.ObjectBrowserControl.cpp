@@ -1135,6 +1135,9 @@ void CViewObjectsExt::Redraw_Overlay()
     this->InsertTranslatedString("DrawTibObList", 60210, hTemp);
     this->InsertTranslatedString("DrawTib2ObList", 60310, hTemp);
 
+    this->InsertTranslatedString("AddOreObList", Const_Overlay + AddOre, hTemp);
+    this->InsertTranslatedString("ReduceOreObList", Const_Overlay + ReduceOre, hTemp);
+
     hTemp = this->InsertTranslatedString("BridgesObList", -1, hOverlay);
     this->InsertTranslatedString("BigBridgeObList", 60500, hTemp);
     this->InsertTranslatedString("SmallBridgeObList", 60501, hTemp);
@@ -1421,8 +1424,61 @@ std::vector<int> CViewObjectsExt::GetStructureSize(ppmfc::CString structure)
     }
     auto found = STDHelpers::SplitString(foundation.c_str(), "x");
     result.push_back(atoi(found[0]));
-    result.push_back(atoi(found[1]));//这里不能反
+    result.push_back(atoi(found[1]));
     return result;
+}
+
+void CViewObjectsExt::ModifyOre(int X, int Y)
+{
+    const int ORE_COUNT = 12;
+    auto pExt = CMapDataExt::GetExtension();
+    int pos = pExt->GetCoordIndex(X, Y);
+    auto ovr = pExt->GetOverlayAt(pos);
+    int ovrd = pExt->GetOverlayDataAt(pos);
+
+    auto getValidOreData = [ORE_COUNT](int data)
+        {
+            if (data < 0)
+                data = -1;
+            if (data >= ORE_COUNT)
+                data = ORE_COUNT - 1;
+            return data;
+        };
+    auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
+        {            
+            data = getValidOreData(data);
+            int moneyDelta = 0;
+            int olyPos = y + x * 512;
+            int pos = pExt->GetCoordIndex(x, y);
+            if (data >= 0)
+            {
+                moneyDelta = pExt->GetOreValue(ovr, data) - pExt->GetOreValue(ovr, ovrd);
+                pExt->OverlayData[olyPos] = data;
+                pExt->CellDatas[pos].OverlayData = data;
+            }
+            else
+            {
+                moneyDelta = -pExt->GetOreValue(ovr, ovrd);
+                pExt->Overlay[olyPos] = 0xFF;
+                pExt->OverlayData[olyPos] = 0;
+                pExt->CellDatas[pos].Overlay = 0xFF;
+                pExt->CellDatas[pos].OverlayData = 0;
+            }
+
+            pExt->MoneyCount += moneyDelta;
+        };
+    if (CMapDataExt::IsOre(ovr))
+    {
+        if (CIsoView::CurrentCommand->Type == 0)
+        {
+            setOreDataAt(X, Y, ovrd + 1);
+        }
+        else if (CIsoView::CurrentCommand->Type == 1)
+        {
+            setOreDataAt(X, Y, ovrd - 1);
+        }
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 }
 
 void CViewObjectsExt::MoveBaseNode(int X, int Y)
@@ -2163,12 +2219,23 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 6) // overlay
     {
-        if (nData - 3000 - Wall >= 0)
+        if (nData - 3000 >= Wall && nData - 3000 < WallEnd)
         {
             CIsoView::CurrentCommand->Command = 0x1;
             PlacingWall = nData - 3000 - Wall;
             return true;
-
+        }
+        else if (nData - 3000 == AddOre)
+        {
+            CIsoView::CurrentCommand->Command = 0x20; // Add / Reduce Ore
+            CIsoView::CurrentCommand->Type = 0;
+            return true;
+        }
+        else if (nData - 3000 == ReduceOre)
+        {
+            CIsoView::CurrentCommand->Command = 0x20; // Add / Reduce Ore
+            CIsoView::CurrentCommand->Type = 1;
+            return true;
         }
         else if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
         {

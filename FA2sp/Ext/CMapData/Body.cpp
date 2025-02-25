@@ -75,13 +75,13 @@ int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 
 bool CMapDataExt::IsOre(unsigned char nOverlay)
 {
-	if (nOverlay >= 0x66 && nOverlay <= 0x79)
+	if (nOverlay >= RIPARIUS_BEGIN && nOverlay <= RIPARIUS_END)
 		return true;
-    else if (nOverlay >= 0x1B && nOverlay <= 0x26)
+    else if (nOverlay >= CRUENTUS_BEGIN && nOverlay <= CRUENTUS_END)
         return true;
-    else if (nOverlay >= 0x7F && nOverlay <= 0x92)
+    else if (nOverlay >= VINIFERA_BEGIN && nOverlay <= VINIFERA_END)
         return true;
-    else if (nOverlay >= 0x93 && nOverlay <= 0xA6)
+    else if (nOverlay >= ABOREUS_BEGIN && nOverlay <= ABOREUS_END)
         return true;
 
     return false;

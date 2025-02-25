@@ -11,6 +11,15 @@
 
 typedef unsigned char byte;
 
+#define RIPARIUS_BEGIN 102
+#define RIPARIUS_END 121
+#define CRUENTUS_BEGIN 27
+#define CRUENTUS_END 38
+#define VINIFERA_BEGIN 127
+#define VINIFERA_END 146
+#define ABOREUS_BEGIN 147
+#define ABOREUS_END 166
+
 class FA2sp
 {
 public:

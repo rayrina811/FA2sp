@@ -153,7 +153,7 @@ public:
         Set_Building = 0, Set_Infantry, Set_Vehicle, Set_Aircraft, Set_Count
     };
     enum{
-        RandomRock = 1000, Wall = 2000
+        RandomRock = 1000, Wall = 2000, WallEnd = 2999, AddOre , ReduceOre
     };
     enum{
         RandomTechno = 9950
@@ -362,6 +362,7 @@ public:
     static void ConnectedTile_Initialize();
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
     static void MoveBaseNode(int X, int Y);
+    static void ModifyOre(int X, int Y);
     
     static bool IsIgnored(const char* pItem);
 

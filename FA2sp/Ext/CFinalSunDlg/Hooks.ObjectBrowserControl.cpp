@@ -85,6 +85,12 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             return 0x466860;
         }
     }
+    else if (CIsoView::CurrentCommand->Command == 0x20)
+    {
+        CViewObjectsExt::ModifyOre(X, Y);
+
+        return 0x466860;
+    }
 
     return 0;
 }
@@ -611,7 +617,12 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
         
         return 0x45CD6D;
     }         
+    else if (CIsoView::CurrentCommand->Command == 0x20)
+    {
+        CViewObjectsExt::ModifyOre(X, Y);
 
+        return 0x45CD6D;
+    }
 
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }
