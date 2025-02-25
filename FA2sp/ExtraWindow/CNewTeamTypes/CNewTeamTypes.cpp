@@ -1288,7 +1288,7 @@ void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
 
 }
 
-void CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)
+bool CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSelectedTeam)
         OnSelchangeTeamtypes(true);
@@ -1300,4 +1300,7 @@ void CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)
         OnSelchangeTaskForce(true);
     else if (hWnd == hScript)
         OnSelchangeScript(true);
+    else
+        return false;
+    return true;
 }

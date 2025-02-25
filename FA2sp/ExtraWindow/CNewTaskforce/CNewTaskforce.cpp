@@ -680,10 +680,13 @@ void CNewTaskforce::OnClickSearchReference(HWND& hWnd)
     }
 }
 
-void CNewTaskforce::OnEnterKeyDown(HWND& hWnd)
+bool CNewTaskforce::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSelectedTaskforce)
         OnSelchangeTaskforce(true);
     else if (hWnd == hUnitType)
         OnSelchangeUnitType(true);
+    else
+        return false;
+    return true;
 }

@@ -233,7 +233,7 @@ public:
     {
         return CTerrainGenerator::m_hwnd;
     }
-    static void OnEnterKeyDown(HWND& hWnd);
+    static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSetRangeDone();
 
 protected:

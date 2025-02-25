@@ -60,7 +60,7 @@ public:
     {
         return CNewTeamTypes::m_hwnd;
     }
-    static void OnEnterKeyDown(HWND& hWnd);
+    static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeTeamtypes(bool edited = false);
     static void OnSelchangeTaskForce(bool edited = false);
     static void OnSelchangeScript(bool edited = false);

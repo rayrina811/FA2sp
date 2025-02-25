@@ -2024,7 +2024,7 @@ void CNewTrigger::SortTriggers(ppmfc::CString id)
     }  
 }
 
-void CNewTrigger::OnEnterKeyDown(HWND& hWnd)
+bool CNewTrigger::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSelectedTrigger)
         OnSelchangeTrigger(true);
@@ -2052,5 +2052,8 @@ void CNewTrigger::OnEnterKeyDown(HWND& hWnd)
         OnSelchangeActionParam(4, true);
     else if (hWnd == hActionParameter[5])
         OnSelchangeActionParam(5, true);
+    else
+        return false;
+    return true;
 
 }

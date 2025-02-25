@@ -373,8 +373,11 @@ void CCsfEditor::OnEditchangeSearch()
     NeedUpdate = false;
 }
 
-void CCsfEditor::OnEnterKeyDown(HWND& hWnd)
+bool CCsfEditor::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSearch)
         OnEditchangeSearch();
+    else
+        return false;
+    return true;
 }

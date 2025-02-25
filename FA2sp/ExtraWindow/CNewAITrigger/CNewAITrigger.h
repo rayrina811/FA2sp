@@ -205,7 +205,7 @@ public:
     {
         return CNewAITrigger::m_hwnd;
     }
-    static void OnEnterKeyDown(HWND& hWnd);
+    static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeAITrigger(bool edited = false, int specificIdx = -1);
 
 protected:

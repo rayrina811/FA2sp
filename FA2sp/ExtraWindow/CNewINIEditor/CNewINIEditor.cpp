@@ -827,10 +827,13 @@ bool CNewINIEditor::IsTeam(const char* lpSectionName)
     return false;
 }
 
-void CNewINIEditor::OnEnterKeyDown(HWND& hWnd)
+bool CNewINIEditor::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSearchText)
         OnEditchangeSearch();
+    else
+        return false;
+    return true;
 }
 
 DEFINE_HOOK(40B826, OnClickImportINI, 5)

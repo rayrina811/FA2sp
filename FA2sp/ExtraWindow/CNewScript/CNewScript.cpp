@@ -1258,7 +1258,7 @@ void CNewScript::OnClickSearchReference(HWND& hWnd)
 
 }
 
-void CNewScript::OnEnterKeyDown(HWND& hWnd)
+bool CNewScript::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hSelectedScript)
         OnSelchangeScript(true);
@@ -1268,4 +1268,7 @@ void CNewScript::OnEnterKeyDown(HWND& hWnd)
         OnSelchangeActionParam(true);
     else if (hWnd == hActionType)
         OnSelchangeActionType(true);
+    else
+        return false;
+    return true;
 }

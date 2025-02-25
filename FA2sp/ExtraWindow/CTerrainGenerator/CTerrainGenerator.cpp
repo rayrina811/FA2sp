@@ -1854,7 +1854,7 @@ void CTerrainGenerator::SortPresets(const char* id)
     }
 }
 
-void CTerrainGenerator::OnEnterKeyDown(HWND& hWnd)
+bool CTerrainGenerator::OnEnterKeyDown(HWND& hWnd)
 {
     if (hWnd == hPreset)
         OnSelchangePreset(true);
@@ -1868,4 +1868,7 @@ void CTerrainGenerator::OnEnterKeyDown(HWND& hWnd)
         OnSelchangeTileSet(3, true);
     else if (hWnd == hTileSet[4])
         OnSelchangeTileSet(4, true);
+    else
+        return false;
+    return true;
 }

@@ -41,7 +41,7 @@ public:
     {
         return CNewScript::m_hwnd;
     }
-    static void OnEnterKeyDown(HWND& hWnd);
+    static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeScript(bool edited = false, int specificIdx = -1);
     static void OnSelchangeActionType(bool edited = false);
     static void OnSelchangeActionParam(bool edited = false);

@@ -890,9 +890,8 @@ void CNewAITrigger::SortAITriggers(ppmfc::CString id)
     }
 }
 
-void CNewAITrigger::OnEnterKeyDown(HWND& hWnd)
+bool CNewAITrigger::OnEnterKeyDown(HWND& hWnd)
 {
-    ExtraWindow::bEnterSearch = true;
     if (hWnd == hSelectedAITrigger)
         OnSelchangeAITrigger(true);
     else if (hWnd == hTeam1)
@@ -903,4 +902,7 @@ void CNewAITrigger::OnEnterKeyDown(HWND& hWnd)
         OnSelchangeCountry(true);
     else if (hWnd == hComparisonObject)
         OnSelchangeComparisonObject(true);
+    else
+        return false;
+    return true;
 }

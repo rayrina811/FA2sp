@@ -1069,9 +1069,9 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 {
 	switch (pMsg->message)
 	{
-	case WM_INITDIALOG:
-		;
-		///*SetWindowTheme(*this, L"DarkMode_Explorer", NULL);*/
+	//case WM_INITDIALOG:
+	//	;
+	//  SetWindowTheme(*this, L"DarkMode_Explorer", NULL);
 	case WM_KEYDOWN:
 		if (pMsg->wParam == VK_RETURN)
 		{
@@ -1080,9 +1080,10 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
 			ExtraWindow::bEnterSearch = true;
 			if (hParent2 == CNewAITrigger::GetHandle()) {
-				CNewAITrigger::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewAITrigger::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
@@ -1091,40 +1092,48 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				return TRUE;
 			}
 			else if (hParent1 == CNewINIEditor::GetHandle()) {
-				CNewINIEditor::OnEnterKeyDown(hWnd);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent1 == CCsfEditor::GetHandle()) {
-				CCsfEditor::OnEnterKeyDown(hWnd);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CCsfEditor::OnEnterKeyDown(hWnd)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent2 == CNewScript::GetHandle()) {
-				CNewScript::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewScript::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent2 == CNewTaskforce::GetHandle()) {
-				CNewTaskforce::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewTaskforce::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent2 == CNewTeamTypes::GetHandle()) {
-				CNewTeamTypes::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewTeamTypes::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent2 == CNewTrigger::GetHandle()) {
-				CNewTrigger::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CNewTrigger::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
 			else if (hParent2 == CTerrainGenerator::GetHandle()) {
-				CTerrainGenerator::OnEnterKeyDown(hParent1);
-				ExtraWindow::bEnterSearch = false;
-				return TRUE;
+				if (CTerrainGenerator::OnEnterKeyDown(hParent1)) {
+					ExtraWindow::bEnterSearch = false;
+					return TRUE;
+				}
 			}
+			ExtraWindow::bEnterSearch = false;
 		}
 		break;
 	}

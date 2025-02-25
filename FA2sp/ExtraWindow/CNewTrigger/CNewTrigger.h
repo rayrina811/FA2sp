@@ -313,7 +313,7 @@ public:
     {
         return CNewTrigger::m_hwnd;
     }
-    static void OnEnterKeyDown(HWND& hWnd);
+    static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeTrigger(bool edited = false, int eventListCur = 0, int actionListCur = 0);
     static void OnSelchangeAttachedTrigger(bool edited = false);
     static void OnSelchangeEventType(bool edited = false);
