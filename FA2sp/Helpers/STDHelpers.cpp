@@ -243,6 +243,13 @@ void STDHelpers::TrimString(ppmfc::CString& str)
     str.TrimRight();
 }
 
+ppmfc::CString STDHelpers::GetTrimString(ppmfc::CString str)
+{
+    str.TrimLeft();
+    str.TrimRight();
+    return str;
+}
+
 void STDHelpers::TrimIndex(ppmfc::CString& str)
 {
     TrimString(str);

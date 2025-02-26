@@ -21,6 +21,7 @@
 #include "../../Helpers/Translations.h"
 #include "../CTileSetBrowserFrame/Body.h"
 #include "../CLoading/Body.h"
+#include "../../ExtraWindow/CSelectAutoShore/CSelectAutoShore.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -584,7 +585,41 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		{
 			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
 		}
-
+	}
+	if (wmID == 40157)
+	{
+		const ppmfc::CString title = Translations::TranslateOrDefault(
+			"Error", "Error"
+		);
+		const ppmfc::CString message = Translations::TranslateOrDefault(
+			"SelectAutoShoreNotFound", "This theater does not have available shore options."
+		);
+		bool found = false;
+		if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
+		{
+			for (const auto& type : pSection->GetEntities())
+			{
+				auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+				if (STDHelpers::SplitString(type.second)[0] == thisTheater)
+				{
+					found = true;
+				}
+			}
+		}
+		if (found)
+		{
+			CSelectAutoShore dlg;
+			dlg.DoModal();
+			if (dlg.m_Combo != "" && !dlg.Groups.empty())
+			{
+				CMapDataExt::AutoShore_ShoreTileSet = dlg.Groups[atoi(dlg.m_Combo)].first;
+				CMapDataExt::AutoShore_GreenTileSet = dlg.Groups[atoi(dlg.m_Combo)].second;
+			}
+		}
+		else
+		{
+			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+		}
 	}
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{

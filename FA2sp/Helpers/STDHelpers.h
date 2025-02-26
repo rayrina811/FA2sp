@@ -27,6 +27,7 @@ public:
     static bool IsNullOrWhitespace(const char* pSource);
     static bool IsNoneOrEmpty(const char* pSource);
     static void TrimString(ppmfc::CString& str);
+    static ppmfc::CString GetTrimString(ppmfc::CString str);
     static void TrimIndex(ppmfc::CString& str);
     static void TrimSemicolon(ppmfc::CString& str);
     static void TrimIndexElse(ppmfc::CString& str);

@@ -52,6 +52,10 @@ int CMapDataExt::Medians;
 int CMapDataExt::PavedRoads;
 int CMapDataExt::ShorePieces;
 int CMapDataExt::WaterBridge;
+int CMapDataExt::AutoShore_ShoreTileSet;
+int CMapDataExt::AutoShore_GreenTileSet;
+std::vector<int> CMapDataExt::ShoreTileSets;
+std::map<int, bool> CMapDataExt::SoftTileSets;
 Palette CMapDataExt::Palette_ISO;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
@@ -379,6 +383,32 @@ std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriInt
 		return ret;
 	}
 	return ret;
+}
+
+LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex == 0xFFFF)
+		tileIndex = 0;
+
+	if (TileData[tileIndex].TileSet != ShorePieces && TileData[tileIndex].TileSet == AutoShore_ShoreTileSet)
+	{
+		int relativeIdx = tileIndex - TileSet_starts[TileData[tileIndex].TileSet];
+		ppmfc::CString key;
+		key.Format("%d_%d", relativeIdx, TileSubIndex);
+		if (CINI::FAData->KeyExists("ShoreTerrainRA2", key))
+		{
+			if (CINI::FAData->GetInteger("ShoreTerrainRA2", key) >= 0)
+			{
+				return LandType::Water;
+			}
+			else
+			{
+				return LandType::Rough;
+			}
+		}
+	}
+
+	return TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
 }
 
 
@@ -1046,6 +1076,18 @@ int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
 	return 0;
 }
 
+bool CMapDataExt::IsValidTileSet(int tileset) 
+{
+	ppmfc::CString buffer;
+	buffer.Format("TileSet%04d", tileset);
+
+	auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+	auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+	if (!exist || strcmp(exist2, "") == 0)
+		return false;
+	return true;
+}
+
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 {
 	CIsoView::CurrentCommand->Type = 0;
@@ -1214,7 +1256,20 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		}
 	}
 
+	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
+	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
+	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
+	Medians = CINI::CurrentTheater->GetInteger("General", "Medians", -10);
+	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
+	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
+	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
+
+	AutoShore_ShoreTileSet = ShorePieces;
+	AutoShore_GreenTileSet = GreenTile;
+
 	CMapDataExt::TileSet_starts.clear();
+	CMapDataExt::ShoreTileSets.clear();
+	CMapDataExt::SoftTileSets.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -1229,8 +1284,80 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 			{
 				totalIndex += theater->GetInteger(sName, "TilesInSet");
 				CMapDataExt::TileSet_starts.push_back(totalIndex);
+
+				auto setName = theater->GetString(sName, "SetName");
+				setName.MakeLower();
+				if (setName.Find("shore") != -1)
+					ShoreTileSets.push_back(index);
 			}
 			else break;
+		}
+		ppmfc::CString theaterSoft = "SoftTileSets";
+		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				int tileSet = CINI::CurrentTheater->GetInteger("General", STDHelpers::GetTrimString(key), -1);
+				if (atoi(value) > 0)
+				{
+					SoftTileSets[tileSet] = true;
+				}
+				else
+				{
+					SoftTileSets[tileSet] = false;
+				}
+			}
+		}
+		theaterSoft += theaterSuffix;
+		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				int tileSet = atoi(STDHelpers::GetTrimString(key));
+				if (atoi(value) > 0)
+				{
+					SoftTileSets[tileSet] = true;
+				}
+				else
+				{
+					SoftTileSets[tileSet] = false;
+				}
+			}
+		}
+	}
+	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
+	{
+		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
+		for (const auto& type : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(type.second, 3);
+			if (atoms[0] == thisTheater)
+			{
+				int shore = -1;
+				int green = -1;
+				if (!STDHelpers::IsNumber(atoms[2]))
+				{
+					shore = CINI::CurrentTheater->GetInteger("General", atoms[2], -1);
+				}
+				else
+				{
+					shore = atoi(atoms[2]);
+				}
+				if (!STDHelpers::IsNumber(atoms[3]))
+				{
+					green = CINI::CurrentTheater->GetInteger("General", atoms[3], -1);
+				}
+				else
+				{
+					green = atoi(atoms[3]);
+				}
+				if (shore >= 0 && CMapDataExt::IsValidTileSet(shore))
+				{
+					AutoShore_ShoreTileSet = shore;
+					AutoShore_GreenTileSet = green;
+					break;
+				}
+			}
 		}
 	}
 
@@ -1274,14 +1401,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	{
 		WaypointSort::Instance.LoadAllTriggers();
 	}
-
-	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
-	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
-	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
-	Medians = CINI::CurrentTheater->GetInteger("General", "Medians", -10);
-	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
-	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
-	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
 
 	CMapDataExt::GetExtension()->InitOreValue();
 

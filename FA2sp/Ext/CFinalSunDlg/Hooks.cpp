@@ -199,6 +199,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40104, "Menu.Options.DisableAutoShore");
     translateMenuItem(40105, "Menu.Options.DisableAutoLAT");
     translateMenuItem(40120, "Menu.Options.DisableSlopeCorrection");
+    translateMenuItem(40157, "Menu.Options.SelectAutoShoreType");
 
     translateMenuItem(57670, "Menu.Help.Manual");
     translateMenuItem(40006, "Menu.Help.Info");

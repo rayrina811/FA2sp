@@ -125,13 +125,7 @@ public:
 
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
-    inline LandType GetAltLandType(int tileIndex, int TileSubIndex)
-    {
-        if (tileIndex == 0xFFFF)
-            tileIndex = 0;
-
-        return CMapDataExt::TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
-    }
+    LandType GetAltLandType(int tileIndex, int TileSubIndex);
     inline LandType GetLandType(int tileIndex, int TileSubIndex)
     {
         if (tileIndex == 0xFFFF)
@@ -177,6 +171,8 @@ public:
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
+    static bool IsValidTileSet(int tileset);
+
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;
     static std::vector<int> deletedKeys;
@@ -201,6 +197,11 @@ public:
     static int WaterBridge;
     static Palette Palette_ISO;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
+
+    static int AutoShore_ShoreTileSet;
+    static int AutoShore_GreenTileSet;
+    static std::vector<int> ShoreTileSets;
+    static std::map<int, bool> SoftTileSets; // soft = affected by shore logic
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

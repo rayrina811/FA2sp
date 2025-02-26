@@ -214,6 +214,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\Common.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.cpp" />
     <ClCompile Include="FA2sp\Ext\CChangeMapSize\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CCreateMap2\Hooks.cpp" />
@@ -337,6 +338,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
     <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunApp\Body.h" />
     <ClInclude Include="FA2sp\Ext\CFinalSunDlg\Body.h" />
@@ -401,6 +403,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CSearhReference\CSearhReference.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CTerrainGenerator\CTerrainGenerator.rc" />
     <ResourceCompile Include="FA2sp\UI\CAircraftDialog.rc" />
     <ResourceCompile Include="FA2sp\UI\CAITriggerTypes.rc" />

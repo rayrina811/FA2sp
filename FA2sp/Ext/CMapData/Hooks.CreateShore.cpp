@@ -20,13 +20,13 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 	auto cellDatas = pThis->CellDatas;
 	auto& theater = CINI::CurrentTheater();
 
-	int shorePieces = theater->GetInteger("General", "ShorePieces", 12);
-	int greenTiles = theater->GetInteger("General", "GreenTile", 0);
-	int waterSet = theater->GetInteger("General", "WaterSet", 21);
-	int waterBridge = theater->GetInteger("General", "WaterBridge", -1);
-	if (shorePieces < 0 || shorePieces > CMapDataExt::TileSet_starts.size()
-		|| greenTiles < 0 || greenTiles > CMapDataExt::TileSet_starts.size()
-		|| waterSet < 0 || waterSet > CMapDataExt::TileSet_starts.size())
+	int shorePieces = pThis->AutoShore_ShoreTileSet;
+	int greenTiles = pThis->AutoShore_GreenTileSet;
+	int waterSet = pThis->WaterSet;
+	int waterBridge = pThis->WaterBridge;
+	if (shorePieces < 0 || shorePieces >(int)CMapDataExt::TileSet_starts.size()
+		|| greenTiles > (int)CMapDataExt::TileSet_starts.size()
+		|| waterSet < 0 || waterSet >(int)CMapDataExt::TileSet_starts.size())
 		return 0x4C2FC5;
 
 	int tileStart = CMapDataExt::TileSet_starts[shorePieces];
@@ -36,7 +36,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 	int waterSetStart = CMapDataExt::TileSet_starts[waterSet];
 	int waterSetEnd = CMapDataExt::TileSet_starts[waterSet + 1] - 1;
-	int greenTile = CMapDataExt::TileSet_starts[greenTiles];
+	int greenTile = -1;
+	if (greenTiles >= 0)
+		greenTile = CMapDataExt::TileSet_starts[greenTiles];
 	std::vector<int> SmallWaterTiles;
 	//  last two big shores and water bridges
 	std::vector<int> SpecialShores;
@@ -50,18 +52,71 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			SpecialShores.push_back(i + CMapDataExt::TileSet_starts[waterBridge]);
 	}
 
+	std::map<int, std::map<int, bool>> hackedShores;
+	if (CMapDataExt::AutoShore_ShoreTileSet != CMapDataExt::ShorePieces)
+	{
+		if (auto pSection = CINI::FAData->GetSection("ShoreTerrainRA2"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				auto atoms = STDHelpers::SplitString(key, 1, "_");
+				int tileIdx = atoi(atoms[0]) + tileStart;
+				int tileSubIdx = atoi(atoms[1]);
+				hackedShores[tileIdx][tileSubIdx] = atoi(value) > 0 ? true : false;
+			}
+		}
+	}
+
+
 	// a trick to avoid affecting other shorelines
 	// ignore the working shore
 	auto tileNameHasShore = [&](int setIdx)
 		{
 			if (setIdx == shorePieces)
 				return false;
-			ppmfc::CString secName;
-			secName.Format("TileSet%04d", setIdx);
-			auto setName = theater->GetString(secName, "SetName");
-			setName.MakeLower();
-			if (setName.Find("shore") != -1)
+			auto& ret = CMapDataExt::ShoreTileSets;
+			if (std::find(ret.begin(), ret.end(), setIdx) != ret.end())
 				return true;
+			return false;
+		};
+
+	auto getAltLandType = [&](int tileIndex, int TileSubIndex)
+		{
+			if (tileIndex == 0xFFFF)
+				tileIndex = 0;
+
+			if (hackedShores.find(tileIndex) != hackedShores.end())
+			{
+				auto& tiles = hackedShores[tileIndex];
+				if (tiles.find(TileSubIndex) != tiles.end())
+				{
+					if (tiles[TileSubIndex])
+					{
+						return LandType::Water;
+					}
+					else
+					{
+						return LandType::Rough;
+					}
+				}
+			}
+			return CMapDataExt::TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
+		};
+
+	auto tileIsClear = [&](int tileIdx, int tileSubIdx)
+		{
+			if (tileIdx == 0xFFFF)
+				tileIdx = 0;
+			auto ttype = getAltLandType(tileIdx, tileSubIdx);
+			if (ttype == LandType::Water)
+				return false;
+			auto& ret = CMapDataExt::SoftTileSets;
+			if (ret.find(CMapDataExt::TileData[tileIdx].TileSet) != ret.end())
+				return ret[CMapDataExt::TileData[tileIdx].TileSet];
+
+			if (ttype == LandType::Clear13)
+				return true;
+
 			return false;
 		};
 
@@ -95,7 +150,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 				for (int n = 0; n < 2; n++)
 				{
 					int subTileidx = n * 2 + m;
-					auto ttype = pThis->GetAltLandType(i, subTileidx);
+					auto ttype = getAltLandType(i, subTileidx);
 					if (ttype == LandType::Water)
 						beachCount++;
 				}
@@ -150,12 +205,13 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			// remove broken beaches
 			if ((tileIndex >= tileStart && tileIndex <= tileEnd) && !pThis->IsTileIntact(x, y))
 			{
-				auto ttype = pThis->GetAltLandType(tileIndex, cell->TileSubIndex);
-				if (ttype == LandType::Clear13)
+				auto ttype = getAltLandType(tileIndex, cell->TileSubIndex);
+				if (tileIsClear(tileIndex, cell->TileSubIndex))
 				{
-					cell->TileIndex = greenTile;
+					int replaceTile = greenTile >= 0 ? greenTile : 0;
+					cell->TileIndex = replaceTile;
 					cell->TileSubIndex = 0;
-					cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[greenTile].AltTypeCount + 1);
+					cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[replaceTile].AltTypeCount + 1);
 				}
 				else if (ttype == LandType::Water)
 				{
@@ -251,9 +307,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 							if (cellExt2.ShoreProcessed)
 								breakCheck = true;
 
-							auto ttype = pThis->GetAltLandType(tileIndex, cell2->TileSubIndex);
+							auto ttype = getAltLandType(tileIndex, cell2->TileSubIndex);
 
-							if (ttype == LandType::Clear13)
+							if (tileIsClear(tileIndex, cell2->TileSubIndex))
 							{
 								auto tile = CMapDataExt::TileData[tileIndex];
 								bool skip = false;
@@ -264,7 +320,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 									{
 										int subIdx = n * tile.Width + m;
 
-										auto ttype2 = pThis->GetAltLandType(tileIndex, subIdx);
+										auto ttype2 = getAltLandType(tileIndex, subIdx);
 										if (ttype2 == LandType::Cliff)
 											skip = true;
 									}
@@ -295,9 +351,9 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 							for (int n = 0; n < h; n++)
 							{
 								int subTileidx = n * w + m;
-								auto ttype = pThis->GetAltLandType(index, subTileidx);
+								auto ttype = getAltLandType(index, subTileidx);
 								int thisType = -1;
-								if (ttype == LandType::Clear13)
+								if (tileIsClear(index, subTileidx))
 									thisType = 1;
 								if (ttype == LandType::Water)
 									thisType = 2;
@@ -369,10 +425,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 				continue;
 
 			auto tile = CMapDataExt::TileData[tileIndex];
-			auto ttype = pThis->GetAltLandType(tileIndex, cell->TileSubIndex);
+			auto ttype = getAltLandType(tileIndex, cell->TileSubIndex);
 
 			if ((tileIndex < tileStart || tileIndex > tileEnd)
-				&& ttype == LandType::Clear13)
+				&& tileIsClear(tileIndex, cell->TileSubIndex))
 			{
 				bool skip = false;
 				// check cliffs with beachs
@@ -386,7 +442,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 							continue;
 						}
 
-						auto ttype2 = pThis->GetAltLandType(tileIndex, subIdx);
+						auto ttype2 = getAltLandType(tileIndex, subIdx);
 						if (ttype2 == LandType::Cliff)
 							skip = true;
 					}
@@ -411,14 +467,17 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 						int tileIndex2 = cell2->TileIndex;
 						if (tileIndex2 == 0xFFFF)
 							tileIndex2 = 0;
-						auto ttype2 = pThis->GetAltLandType(tileIndex2, cell2->TileSubIndex);
+						auto ttype2 = getAltLandType(tileIndex2, cell2->TileSubIndex);
 						if (tileIndex2 >= tileStart && tileIndex2 <= tileEnd
-							&& ttype2 == LandType::Clear13
+							&& tileIsClear(tileIndex2, cell2->TileSubIndex)
 							&& cellExt2.ShoreProcessed)
 						{
-							cell->TileIndex = greenTile;
-							cell->TileSubIndex = 0;
-							cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[greenTile].AltTypeCount + 1);
+							if (greenTile >= 0)
+							{
+								cell->TileIndex = greenTile;
+								cell->TileSubIndex = 0;
+								cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[greenTile].AltTypeCount + 1);
+							}
 							cellExt.ShoreLATNeeded = true;
 							break;
 						}
@@ -427,6 +486,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			}
 		}
 	}
+
 	// LAT
 	if (!CFinalSunApp::Instance->DisableAutoLat)
 	{

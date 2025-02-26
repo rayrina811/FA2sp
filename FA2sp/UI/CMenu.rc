@@ -100,6 +100,7 @@ POPUP "Options"
 	MENUITEM "Disable AutoShore\tCtrl+A",  40104
 	MENUITEM "Disable AutoLat\tCtrl+L",  40105
     // MENUITEM "Disable Slope Correction",  40120
+	MENUITEM "Select AutoShore Type",  40157
 }
 
 POPUP "Layers"
