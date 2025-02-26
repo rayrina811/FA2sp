@@ -1082,12 +1082,23 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
 		item.Rock = Variables::Rules.GetBool(ol.second, "IsARock");
 		item.Wall = Variables::Rules.GetBool(ol.second, "Wall");
-		item.PaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
+		item.WallPaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
 		item.TerrainRock = Variables::Rules.GetString(ol.second, "Land", "") == "Rock";
 		auto colors = STDHelpers::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
 		item.RadarColor.R = atoi(colors[0]);
 		item.RadarColor.G = atoi(colors[1]);
 		item.RadarColor.B = atoi(colors[2]);
+	}
+	while (CMapDataExt::OverlayTypeDatas.size() < 256)
+	{
+		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
+		item.Rock = false;
+		item.Wall = false;
+		item.WallPaletteName = "";
+		item.TerrainRock = false;
+		item.RadarColor.R = 0;
+		item.RadarColor.G = 0;
+		item.RadarColor.B = 0;
 	}
 
 	if (CNewTeamTypes::GetHandle())

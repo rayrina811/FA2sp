@@ -118,7 +118,7 @@ DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
 
 		if (typeData.Wall)
 		{
-			auto palName = typeData.PaletteName;
+			auto palName = typeData.WallPaletteName;
 			pThis->GetFullPaletteName(palName);
 			if (auto pal = PalettesManager::LoadPalette(palName)) {
 				BGRStruct empty;

@@ -34,7 +34,7 @@ struct OverlayTypeData
     bool Rock;
     bool Wall;
     bool TerrainRock;
-    ppmfc::CString PaletteName;
+    ppmfc::CString WallPaletteName;
     RGBClass RadarColor;
 };
 
