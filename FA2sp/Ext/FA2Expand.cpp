@@ -49,6 +49,7 @@
 #include "CUpdateProgress/Body.h"
 #include "CFinalSunDlg/Body.h"
 #include "CIsoView/Body.h"
+#include "CCreateMap3B/Body.h"
 
 void __stdcall FA2Expand::ExeRun()
 {
@@ -56,6 +57,7 @@ void __stdcall FA2Expand::ExeRun()
     CFinalSunDlgExt::ProgramStartupInit();
     CHousesExt::ProgramStartupInit();
     CLightingExt::ProgramStartupInit();
+    CCreateMap3BExt::ProgramStartupInit();
     //CIsoViewExt::ProgramStartupInit();
     CPropertyAircraftExt::ProgramStartupInit();
     CPropertyBuildingExt::ProgramStartupInit();

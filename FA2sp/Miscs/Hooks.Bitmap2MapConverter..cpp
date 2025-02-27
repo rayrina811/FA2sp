@@ -42,7 +42,7 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 	int i;
 	int e;
 	int theater = 0;
-	mapdata->CreateMap(bm.bmWidth, bm.bmHeight, "TEMPERATE", 0);
+	mapdata->CreateMap(bm.bmWidth, bm.bmHeight, CMapDataExt::BitmapImporterTheater, 0);
 
 	CMapDataExt::InitializeAllHdmEdition(false);
 
@@ -50,10 +50,14 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 	int isosize = bm.bmWidth + bm.bmHeight;
 
 	int waterSet = CINI::CurrentTheater->GetInteger("General", "WaterSet");
+	if (CMapDataExt::BitmapImporterTheater == "LUNAR")
+		waterSet = CINI::CurrentTheater->GetInteger("General", "PaveTile");
 	int sandset = CINI::CurrentTheater->GetInteger("General", "GreenTile");
 	int greenset = CINI::CurrentTheater->GetInteger("General", "RoughTile");
 
 	int water_start = CMapDataExt::TileSet_starts[waterSet] + 8; // to 12
+	if (CMapDataExt::BitmapImporterTheater == "LUNAR")
+		water_start = CMapDataExt::TileSet_starts[waterSet];
 	int sand_start = CMapDataExt::TileSet_starts[sandset];
 	int green_start = CMapDataExt::TileSet_starts[greenset];
 
@@ -98,8 +102,16 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 					}
 					if (b > g && b > r)
 					{
-						int p = rand() * 4 / RAND_MAX;
-						fd->TileIndex = water_start + p;
+						if (CMapDataExt::BitmapImporterTheater != "LUNAR")
+						{
+							int p = rand() * 4 / RAND_MAX;
+							fd->TileIndex = water_start + p;
+						}
+						else
+						{
+							fd->TileIndex = water_start;
+						}
+
 						fd->TileSubIndex = 0;
 					}
 					if (g > b + 25 && r > b + 25 && g > 120 && r > 120)

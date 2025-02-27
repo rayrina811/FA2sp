@@ -240,6 +240,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Ext\CCreateMap3B\Body.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -602,6 +605,9 @@
     <ClCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CCreateMap3B\Body.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -710,6 +716,9 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CSelectAutoShore\CSelectAutoShore.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\UI\CCreateMap3B.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

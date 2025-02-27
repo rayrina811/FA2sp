@@ -11,9 +11,12 @@ public:
 	static CCreateMap3B* Instance;
 
 	//hook function to replace in virtual function map
-	BOOL PreTranslateMessageExt(MSG* pMsg);
+	BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
+	BOOL OnInitDialogExt();
+	void TheaterSelectProc(WORD nCode, LPARAM lParam);
 
 	static void ProgramStartupInit();
+	static ppmfc::CMenu* TheaterMenu;
 
 	CCreateMap3BExt() {};
 	~CCreateMap3BExt() {};

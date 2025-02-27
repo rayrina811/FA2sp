@@ -202,6 +202,7 @@ public:
     static int AutoShore_GreenTileSet;
     static std::vector<int> ShoreTileSets;
     static std::map<int, bool> SoftTileSets; // soft = affected by shore logic
+    static ppmfc::CString BitmapImporterTheater;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

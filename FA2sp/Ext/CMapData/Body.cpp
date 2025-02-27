@@ -56,6 +56,7 @@ int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 std::vector<int> CMapDataExt::ShoreTileSets;
 std::map<int, bool> CMapDataExt::SoftTileSets;
+ppmfc::CString CMapDataExt::BitmapImporterTheater;
 Palette CMapDataExt::Palette_ISO;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
