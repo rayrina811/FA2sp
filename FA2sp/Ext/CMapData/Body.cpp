@@ -880,10 +880,13 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 					{
 						const int x = X + dx;
 						const int y = Y + dy;
-						auto pCell = CMapData::Instance->GetCellAt(x, y);
-						pCell->Structure = i;
-						pCell->TypeListIndex = BuildingIndex;
-						CMapData::Instance->UpdateMapPreviewAt(x, y);
+						if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+						{
+							auto pCell = CMapData::Instance->GetCellAt(x, y);
+							pCell->Structure = i;
+							pCell->TypeListIndex = BuildingIndex;
+							CMapData::Instance->UpdateMapPreviewAt(x, y);
+						}
 					}
 				}
 			}
@@ -893,14 +896,15 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 				{
 					const int x = X + block.Y;
 					const int y = Y + block.X;
-					auto pCell = CMapData::Instance->GetCellAt(x, y);
-					pCell->Structure = i;
-					pCell->TypeListIndex = BuildingIndex;
-					CMapData::Instance->UpdateMapPreviewAt(x, y);
+					if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+					{
+						auto pCell = CMapData::Instance->GetCellAt(x, y);
+						pCell->Structure = i;
+						pCell->TypeListIndex = BuildingIndex;
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
+					}
 				}
 			}
-
-
 			i++;
 		}
 

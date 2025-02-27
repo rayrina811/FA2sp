@@ -182,10 +182,13 @@ DEFINE_HOOK(4A5089, CMapData_UpdateMapFieldData_Structures_CustomFoundation, 6)
 			{
 				const int x = X + dx;
 				const int y = Y + dy;
-				auto pCell = CMapData::Instance->GetCellAt(x, y);
-				pCell->Structure = R->BX();
-				pCell->TypeListIndex = BuildingIndex;
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+				if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+				{
+					auto pCell = CMapData::Instance->GetCellAt(x, y);
+					pCell->Structure = R->BX();
+					pCell->TypeListIndex = BuildingIndex;
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
+				}
 			}
 		}
 	}
@@ -195,10 +198,13 @@ DEFINE_HOOK(4A5089, CMapData_UpdateMapFieldData_Structures_CustomFoundation, 6)
 		{
 			const int x = X + block.Y;
 			const int y = Y + block.X;
-			auto pCell = CMapData::Instance->GetCellAt(x, y);
-			pCell->Structure = R->BX();
-			pCell->TypeListIndex = BuildingIndex;
-			CMapData::Instance->UpdateMapPreviewAt(x, y);
+			if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+			{
+				auto pCell = CMapData::Instance->GetCellAt(x, y);
+				pCell->Structure = R->BX();
+				pCell->TypeListIndex = BuildingIndex;
+				CMapData::Instance->UpdateMapPreviewAt(x, y);
+			}
 		}
 	}
 
