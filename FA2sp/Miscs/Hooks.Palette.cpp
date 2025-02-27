@@ -26,6 +26,14 @@ DEFINE_HOOK(49D2C0, LoadMap_ClearUp_Pals, 5)
 	return 0;
 }
 
+DEFINE_HOOK(46DE00, CIsoView_Draw_ClearUp_Pals, 7)
+{
+	PalettesManager::CalculatedObjectPaletteFiles.clear();
+
+	return 0;
+}
+
+
 #define REMAP_FIX_PALETTE_SET(hook_addr, hook_name, data_off, color_off, remap, isisopal, extraLightType) \
 DEFINE_HOOK(hook_addr,hook_name,7) \
 { \

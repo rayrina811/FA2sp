@@ -87,7 +87,6 @@ class PalettesManager
 {
     static std::map<ppmfc::CString, Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
-    static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
     static Palette* CurrentIso;
 
 public:
@@ -99,6 +98,7 @@ public:
     static void RestoreCurrentIso();
 
     static bool ManualReloadTMP;
+    static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
 
     static Palette* GetCurrentIso();
     static void CacheAndTintCurrentIso();
