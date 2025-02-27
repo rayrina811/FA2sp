@@ -688,18 +688,27 @@ bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
         std::string prefixB = (*itB)[1].str();
         if (prefixA != prefixB) return prefixA < prefixB;
 
+        int numA = INT_MAX;
+        int numB = INT_MAX;
         try {
-            int numA = std::stoi((*itA)[2].str());
-            int numB = std::stoi((*itB)[2].str());
-            if (numA != numB) return numA < numB;
+            numA = std::stoi((*itA)[2].str());
         }
         catch (const std::out_of_range& e)
         {
+        }
+        try {
+            numB = std::stoi((*itB)[2].str());
+        }
+        catch (const std::out_of_range& e)
+        {
+        }
+        if (numA != numB) return numA < numB;
+
+        if (numA == INT_MAX) {
             std::string suffixA = (*itA)[2].str();
             std::string suffixB = (*itB)[2].str();
             if (suffixA != suffixB) return suffixA < suffixB;
         }
-
         ++itA;
         ++itB;
     }
@@ -850,15 +859,26 @@ ppmfc::CString ExtraWindow::GetCloneName(ppmfc::CString oriName)
         }
 
         if (pos == input.size()) {
-            newName = input.c_str();
             return newName + " 02";
         }
 
         std::string prefix = input.substr(0, pos);
         std::string numberStr = input.substr(pos);
 
-        int number = std::stoi(numberStr);
-        ++number;
+        int number = INT_MAX;
+        try {
+            number = std::stoi(numberStr);
+        }
+        catch (const std::out_of_range& e) {
+
+        }
+        if (number < INT_MAX) {
+            ++number;
+        }
+        else {
+            return newName + " 02";
+        }
+        
         std::string newNumberStr = std::to_string(number);
         while (newNumberStr.size() < numberStr.size()) {
             newNumberStr = "0" + newNumberStr;
