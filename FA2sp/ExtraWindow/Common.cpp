@@ -686,12 +686,19 @@ bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
 
         std::string prefixA = (*itA)[1].str();
         std::string prefixB = (*itB)[1].str();
-        int numA = std::stoi((*itA)[2].str());
-        int numB = std::stoi((*itB)[2].str());
-
         if (prefixA != prefixB) return prefixA < prefixB;
 
-        if (numA != numB) return numA < numB;
+        try {
+            int numA = std::stoi((*itA)[2].str());
+            int numB = std::stoi((*itB)[2].str());
+            if (numA != numB) return numA < numB;
+        }
+        catch (const std::out_of_range& e)
+        {
+            std::string suffixA = (*itA)[2].str();
+            std::string suffixB = (*itB)[2].str();
+            if (suffixA != suffixB) return suffixA < suffixB;
+        }
 
         ++itA;
         ++itB;
