@@ -1338,7 +1338,7 @@ DEFINE_HOOK(46EAFA, CIsoView_Draw_TileCurrentCoord_1, 5)
 {
 	CIsoViewExt::CurrentDrawCellLocation.X = R->EBP();
 	CIsoViewExt::CurrentDrawCellLocation.Y = R->EBX();
-	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->GetCellAt(R->EBP(), R->EBX())->Height;
+	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(R->EBP(), R->EBX())->Height;
 	return 0;
 }
 

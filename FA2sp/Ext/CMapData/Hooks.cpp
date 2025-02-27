@@ -806,10 +806,13 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 			{
 				const int x = X + dx;
 				const int y = Y + dy;
-				auto pCell = CMapData::Instance->GetCellAt(x, y);
-				pCell->Structure = -1;
-				pCell->TypeListIndex = -1;
-				CMapData::Instance->UpdateMapPreviewAt(x, y);
+				if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+				{
+					auto pCell = CMapData::Instance->GetCellAt(x, y);
+					pCell->Structure = -1;
+					pCell->TypeListIndex = -1;
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
+				}
 			}
 		}
 	}
@@ -819,10 +822,13 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		{
 			const int x = X + block.Y;
 			const int y = Y + block.X;
-			auto pCell = CMapData::Instance->GetCellAt(x, y);
-			pCell->Structure = -1;
-			pCell->TypeListIndex = -1;
-			CMapData::Instance->UpdateMapPreviewAt(x, y);
+			if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+			{
+				auto pCell = CMapData::Instance->GetCellAt(x, y);
+				pCell->Structure = -1;
+				pCell->TypeListIndex = -1;
+				CMapData::Instance->UpdateMapPreviewAt(x, y);
+			}
 		}
 	}
 

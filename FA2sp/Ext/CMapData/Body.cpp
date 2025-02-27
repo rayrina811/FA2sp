@@ -927,6 +927,40 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 					idx++;
 				}
 			}
+
+		LightingSources.clear();
+		const float TOLERANCE = 0.001f;
+		if (CINI::CurrentDocument->SectionExists("Structures"))
+		{
+			int len = CINI::CurrentDocument->GetKeyCount("Structures");
+			for (int i = 0; i < len; i++)
+			{
+				const auto value = CINI::CurrentDocument->GetValueAt("Structures", i);
+				const auto atoms = STDHelpers::SplitString(value, 4);
+				const auto& ID = atoms[1];
+				LightingSource ls{};
+				ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
+				if (abs(ls.LightIntensity) > TOLERANCE)
+				{
+					ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
+					ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
+					ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
+					ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
+					const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+					const int Y = atoi(atoms[3]);
+					const int X = atoi(atoms[4]);
+					const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
+
+					ls.CenterX = X + DataExt.Height / 2.0f;
+					ls.CenterY = Y + DataExt.Width / 2.0f;
+					LightingSourcePosition lsp;
+					lsp.X = X;
+					lsp.Y = Y;
+					lsp.BuildingType = ID;
+					LightingSources.push_back(std::make_pair(lsp, ls));
+				}
+			}
+		}
 	}
 }
 
@@ -1423,40 +1457,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 				if (CMapData::Instance->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFF) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
-			}
-		}
-	}
-
-	LightingSources.clear();
-	const float TOLERANCE = 0.001f;
-	if (CINI::CurrentDocument->SectionExists("Structures"))
-	{
-		int len = CINI::CurrentDocument->GetKeyCount("Structures");
-		for (int i = 0; i < len; i++)
-		{
-			const auto value = CINI::CurrentDocument->GetValueAt("Structures", i);
-			const auto atoms = STDHelpers::SplitString(value, 4);
-			const auto& ID = atoms[1];
-			LightingSource ls{};
-			ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
-			if (abs(ls.LightIntensity) > TOLERANCE)
-			{
-				ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
-				ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
-				ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
-				ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
-				const int Index = CMapData::Instance->GetBuildingTypeID(ID);
-				const int Y = atoi(atoms[3]);
-				const int X = atoi(atoms[4]);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
-
-				ls.CenterX = X + DataExt.Height / 2.0f;
-				ls.CenterY = Y + DataExt.Width / 2.0f;
-				LightingSourcePosition lsp;
-				lsp.X = X;
-				lsp.Y = Y;
-				lsp.BuildingType = ID;
-				LightingSources.push_back(std::make_pair(lsp, ls));
 			}
 		}
 	}
