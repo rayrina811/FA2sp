@@ -1159,6 +1159,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		}
 	}
 
+	int ovrIdx = 0;
 	CMapDataExt::OverlayTypeDatas.clear();
 	for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
 	{
@@ -1167,10 +1168,32 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		item.Wall = Variables::Rules.GetBool(ol.second, "Wall");
 		item.WallPaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
 		item.TerrainRock = Variables::Rules.GetString(ol.second, "Land", "") == "Rock";
-		auto colors = STDHelpers::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
+		std::vector<ppmfc::CString> colors; 
+
+		if (RIPARIUS_BEGIN <= ovrIdx && ovrIdx <= RIPARIUS_END && Variables::Rules.KeyExists("Riparius", "MinimapColor"))
+		{
+			colors = STDHelpers::SplitString(Variables::Rules.GetString("Riparius", "MinimapColor", "0,0,0"), 2);
+		}
+		else if (CRUENTUS_BEGIN <= ovrIdx && ovrIdx <= CRUENTUS_END && Variables::Rules.KeyExists("Cruentus", "MinimapColor"))
+		{
+			colors = STDHelpers::SplitString(Variables::Rules.GetString("Cruentus", "MinimapColor", "0,0,0"), 2);
+		}
+		else if (VINIFERA_BEGIN <= ovrIdx && ovrIdx <= VINIFERA_END && Variables::Rules.KeyExists("Vinifera", "MinimapColor"))
+		{
+			colors = STDHelpers::SplitString(Variables::Rules.GetString("Vinifera", "MinimapColor", "0,0,0"), 2);
+		}
+		else if (ABOREUS_BEGIN <= ovrIdx && ovrIdx <= ABOREUS_END && Variables::Rules.KeyExists("Aboreus", "MinimapColor"))
+		{
+			colors = STDHelpers::SplitString(Variables::Rules.GetString("Aboreus", "MinimapColor", "0,0,0"), 2);
+		}
+		else
+		{
+			colors = STDHelpers::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
+		}
 		item.RadarColor.R = atoi(colors[0]);
 		item.RadarColor.G = atoi(colors[1]);
 		item.RadarColor.B = atoi(colors[2]);
+		ovrIdx++;
 	}
 	while (CMapDataExt::OverlayTypeDatas.size() < 256)
 	{

@@ -50,6 +50,16 @@ ppmfc::CString* MultimapHelper::TryGetString(ppmfc::CString pSection, ppmfc::CSt
     return nullptr;
 }
 
+bool MultimapHelper::KeyExists(ppmfc::CString pSection, ppmfc::CString pKey)
+{
+    for (auto ritr = data.rbegin(); ritr != data.rend(); ++ritr)
+    {
+        if ((*ritr)->KeyExists(pSection, pKey))
+            return true;
+    }
+    return false;
+}
+
 ppmfc::CString MultimapHelper::GetString(ppmfc::CString pSection, ppmfc::CString pKey, ppmfc::CString pDefault)
 {
     auto const pResult = TryGetString(pSection, pKey);

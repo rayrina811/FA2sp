@@ -18,6 +18,7 @@ public:
     std::vector<CINI*> GetINIData();
 
     ppmfc::CString* TryGetString(ppmfc::CString pSection, ppmfc::CString pKey);
+    bool KeyExists(ppmfc::CString pSection, ppmfc::CString pKey);
     int GetInteger(ppmfc::CString pSection, ppmfc::CString pKey, int nDefault = 0);
     float GetSingle(ppmfc::CString pSection, ppmfc::CString pKey, float nDefault = 0.0f);
     ppmfc::CString GetString(ppmfc::CString pSection, ppmfc::CString pKey, ppmfc::CString pDefault = "");
