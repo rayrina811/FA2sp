@@ -86,6 +86,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
 
 #include "../CFinalSunApp/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../Miscs/MultiSelection.h"
 
 DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
 {
@@ -486,6 +487,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
     if (hParent)
         TreeView_SelectItem(hWnd, hParent);
+
+    if (!MultiSelection::CopiedCells.empty())
+    {
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
 
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {

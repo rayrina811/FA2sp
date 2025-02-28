@@ -640,11 +640,7 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
      {
          MultiSelection::ClearT();
          CIsoView::CurrentCommand->Command = FACurrentCommand::TileCopy;
-     }
-         
-
-
-
+     }  
      if (MultiSelection::GetCount())
      {
          auto& mapData = CMapData::Instance();
@@ -774,13 +770,12 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
  }
 DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
 {
-    GET(int, X1, EDX);
-    GET(int, Y1, EAX);
-    GET(int, X2, EDI);
-    GET(int, Y2, ESI);
-
     if (!MultiSelection::GetCount())
     {
+        GET(int, X1, EDX);
+        GET(int, Y1, EAX);
+        GET(int, X2, EDI);
+        GET(int, Y2, ESI);
         auto& mapData = CMapData::Instance();
         
         MultiSelection::CopiedCells.clear();
@@ -862,7 +857,6 @@ DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
             }
         }
     }
-
 
     return 0;
 }
@@ -953,6 +947,19 @@ DEFINE_HOOK(435F3A, CFinalSunDlg_CopyWholeMap, 5)
 //        return 0x4C3C12;
 //    return 0;
 //}
+DEFINE_HOOK(4C3B6B, CMapData_Paste_ChangeAltImage, 9)
+{
+    GET(int, pos, ESI);
+    GET(int, tileIndex, ECX);
+    if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileSet == CMapDataExt::BridgeSet
+        || CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileSet == CMapDataExt::WoodBridgeSet)
+    {
+        pos = pos >> 6;
+        auto cell = CMapData::Instance->GetCellAt(pos);
+        cell->Flag.AltIndex = 0;
+    }
+    return 0;
+}
 DEFINE_HOOK(4C3A43, CMapData_Paste_Overlay, 6)
 {
     if (!CIsoViewExt::PasteOverlays)
@@ -965,7 +972,6 @@ DEFINE_HOOK(4C3A75, CMapData_Paste_Ground, 7)
         return 0x4C3BA9;
     return 0;
 }
-
 
 DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
 {

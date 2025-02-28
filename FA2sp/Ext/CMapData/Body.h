@@ -195,6 +195,8 @@ public:
     static int PavedRoads;
     static int ShorePieces;
     static int WaterBridge;
+    static int BridgeSet;
+    static int WoodBridgeSet;
     static Palette Palette_ISO;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
 

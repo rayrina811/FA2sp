@@ -52,6 +52,8 @@ int CMapDataExt::Medians;
 int CMapDataExt::PavedRoads;
 int CMapDataExt::ShorePieces;
 int CMapDataExt::WaterBridge;
+int CMapDataExt::BridgeSet;
+int CMapDataExt::WoodBridgeSet;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 std::vector<int> CMapDataExt::ShoreTileSets;
@@ -1302,6 +1304,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	PavedRoads = CINI::CurrentTheater->GetInteger("General", "PavedRoads", -10);
 	ShorePieces = CINI::CurrentTheater->GetInteger("General", "ShorePieces", -10);
 	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
+	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
+	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
 
 	AutoShore_ShoreTileSet = ShorePieces;
 	AutoShore_GreenTileSet = GreenTile;

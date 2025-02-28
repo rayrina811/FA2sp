@@ -1028,7 +1028,7 @@ DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
 	GET_STACK(DWORD, dwID, STACK_OFFS(0x3D528, 0x3D450));
 
 	if (dwID < *CTileTypeClass::InstanceCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CINI::CurrentTheater()->GetInteger("General", "WoodBridgeSet"))
+		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x4577F7;
 
 	return 0x4576CC;
@@ -1040,7 +1040,7 @@ DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
 	GET(DWORD, dwID6, EDI);
 	int dwID = dwID6 >> 6;
 	if (dwID < *CTileTypeClass::InstanceCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CINI::CurrentTheater()->GetInteger("General", "WoodBridgeSet"))
+		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x461DEE;
 
 	return 0x461CE1;
@@ -1051,7 +1051,7 @@ DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 
 	int dwID = dwID6 >> 6;
 	if (dwID < *CTileTypeClass::InstanceCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CINI::CurrentTheater()->GetInteger("General", "WoodBridgeSet"))
+		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
 			return 0x4B4B7E;
 
 	return 0x4B499C;
