@@ -25,6 +25,7 @@ DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
 	GET(int, hMix, ESI);
 	GET(CLoadingExt*, pThis, ECX);
 	GET_STACK(const char*, lpBuffer, STACK_OFFS(0x1C4, 0x1B4));
+	GET_STACK(const char*, artID, STACK_OFFS(0x1C4, 0x1AC));
 	if (hMix != NULL) 
 		return 0x48FE68;
 	ppmfc::CString filename = lpBuffer;
@@ -33,14 +34,33 @@ DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
 		hMix = 1919810;
 	bool findFile = false;
 	findFile = pThis->HasFile(filename);
-	if (!findFile)
+
+	if (CINI::Art->GetBool(artID, "NewTheater") && strlen(artID) >= 2)
 	{
-		filename.SetAt(1, 'G');
-		hMix = pThis->SearchFile(filename);
-		if (hMix == NULL)
-			hMix = 1919810;
-		findFile = pThis->HasFile(filename);
+		auto searchNewTheater = [&](char t)
+			{
+				if (!findFile)
+				{
+					filename.SetAt(1, t);
+					hMix = pThis->SearchFile(filename);
+					if (hMix == NULL)
+						hMix = 1919810;
+					findFile = pThis->HasFile(filename);
+				}
+			};
+		searchNewTheater('G');
+		searchNewTheater(artID[1]);
+		if (!ExtConfigs::UseStrictNewTheater)
+		{
+			searchNewTheater('T');
+			searchNewTheater('A');
+			searchNewTheater('U');
+			searchNewTheater('N');
+			searchNewTheater('L');
+			searchNewTheater('D');
+		}
 	}
+	
 	if (findFile)
 	{
 		R->ESI(hMix);
@@ -50,13 +70,6 @@ DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
 
 	return 0x48FDA8;
 }
-DEFINE_HOOK(4900D3, CLoading_LoadOverlayGraphic_ReadGameFolder, 8)
-{
-	GET(int, hMix, ESI);
-	if (hMix != NULL) return 0x4900DB;
-	return 0x49073F;
-}
-
 
 DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 {
