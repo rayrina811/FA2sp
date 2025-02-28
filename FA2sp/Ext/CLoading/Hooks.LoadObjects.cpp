@@ -13,6 +13,7 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/STDHelpers.h"
 #include <filesystem>
+#include <fstream>
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -146,7 +147,6 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     return 0;
 }
 
-
 DEFINE_HOOK(49D5CC, CLoading_LoadMap_CallMissingRelease, 5)
 {
     GET(CLoading*, pThis, ESI);
@@ -174,4 +174,40 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
     }
 
     return 0x491FF1;
+}
+
+DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
+{
+    GET(LPCSTR, lpFilename, ESI);
+    GET(unsigned int, nMix, EDI);
+    GET(BOOL, oriResult, EAX);
+
+    ppmfc::CString filepath = CFinalSunApp::FilePath();
+    filepath += lpFilename;
+    std::ifstream fin;
+    fin.open(filepath, std::ios::in | std::ios::binary);
+    if (fin.is_open())
+    {
+        fin.close();
+        R->EDI(0);
+        return 0x48E5CD;
+    }
+
+    if (oriResult)
+    {
+        return 0x48E5CD;
+    }
+
+    return 0x48EDC8;
+}
+DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
+{
+    GET_STACK(LPCSTR, lpFilename, STACK_OFFS(0x20, -0x4));
+    DWORD dwSize;
+    if (auto pBuffer = (unsigned char*)CLoading::Instance->ReadWholeFile(lpFilename, &dwSize))
+    {
+        CLoading::Instance->CurrentTMP->open(pBuffer, dwSize);
+        return 0x525B77;
+    }
+    return 0;
 }
