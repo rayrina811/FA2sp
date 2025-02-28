@@ -363,6 +363,7 @@ public:
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
     static void MoveBaseNode(int X, int Y);
     static void ModifyOre(int X, int Y);
+    static void BatchAddMultiSelection(int X, int Y, bool add);
     
     static bool IsIgnored(const char* pItem);
 

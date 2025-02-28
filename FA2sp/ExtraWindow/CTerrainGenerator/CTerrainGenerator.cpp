@@ -1408,8 +1408,8 @@ void CTerrainGenerator::OnClickSetRange()
     RangeSecondCell.Y = -1;
     auto pIsoView = CFinalSunDlg::Instance->MyViewFrame.pIsoView;
     if (MultiSelection::SelectedCoords.size() > 0) {
-        UseMultiSelection = true;
-        ::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        //UseMultiSelection = true;
+        //::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
     }
     else {
         UseMultiSelection = false;
@@ -1510,8 +1510,9 @@ void CTerrainGenerator::OnClickDelete(HWND& hWnd)
 void CTerrainGenerator::OnClickApply(bool onlyClear)
 {
     if (!CurrentPreset) return;
+    if (!MultiSelection::SelectedCoords.empty()) UseMultiSelection = true;
+
     if ((RangeFirstCell.X < 0 || RangeSecondCell.X < 0) && !UseMultiSelection) return;
-    if (MultiSelection::SelectedCoords.empty() && UseMultiSelection) return;
     int x1, x2, y1, y2;
     if (RangeFirstCell.X < RangeSecondCell.X) {
         x1 = RangeFirstCell.X;

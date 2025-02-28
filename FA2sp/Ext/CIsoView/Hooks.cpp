@@ -852,64 +852,35 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 	}
 	if (CTerrainGenerator::RangeFirstCell.X > -1 && CTerrainGenerator::RangeSecondCell.X > -1)
 	{
-		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-		int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
-
-		if (CMapData::Instance().IsCoordInMap(X, Y))
+		if (MultiSelection::SelectedCoords.empty())
 		{
-			int XW = abs(CTerrainGenerator::RangeSecondCell.X - CTerrainGenerator::RangeFirstCell.X) + 1;
-			int YW = abs(CTerrainGenerator::RangeSecondCell.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
-			if (X > CTerrainGenerator::RangeSecondCell.X)
-				X = CTerrainGenerator::RangeSecondCell.X;
-			if (Y > CTerrainGenerator::RangeSecondCell.Y)
-				Y = CTerrainGenerator::RangeSecondCell.Y;
+			LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+			int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
 
-			CIsoView::MapCoord2ScreenCoord(X, Y);
-
-			int drawX = X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-			int drawY = Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-			pThis->DrawLockedCellOutline(drawX, drawY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc);
-
-		}
-	}
-	else if (CTerrainGenerator::UseMultiSelection && MultiSelection::SelectedCoords.size() > 0) 
-	{
-		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-		for (auto& mc : MultiSelection::SelectedCoords)
-		{
-			int x = mc.X;
-			int y = mc.Y;
-			CIsoView::MapCoord2ScreenCoord(x, y);
-			int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-			int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-			bool s1 = true;
-			bool s2 = true;
-			bool s3 = true;
-			bool s4 = true;
-
-			for (auto& coord : MultiSelection::SelectedCoords)
+			if (CMapData::Instance().IsCoordInMap(X, Y))
 			{
-				if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-				{
-					s1 = false;
-				}
-				if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-				{
-					s3 = false;
-				}
-				if (coord.X == mc.X && coord.Y == mc.Y - 1)
-				{
-					s4 = false;
-				}
+				int XW = abs(CTerrainGenerator::RangeSecondCell.X - CTerrainGenerator::RangeFirstCell.X) + 1;
+				int YW = abs(CTerrainGenerator::RangeSecondCell.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+				if (X > CTerrainGenerator::RangeSecondCell.X)
+					X = CTerrainGenerator::RangeSecondCell.X;
+				if (Y > CTerrainGenerator::RangeSecondCell.Y)
+					Y = CTerrainGenerator::RangeSecondCell.Y;
 
-				if (coord.X == mc.X && coord.Y == mc.Y + 1)
-				{
-					s2 = false;
-				}
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+
+				int drawX = X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				int drawY = Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+				pThis->DrawLockedCellOutline(drawX, drawY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc);
+
 			}
-			pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc, s1, s2, s3, s4);
+		}
+		else
+		{
+			CTerrainGenerator::RangeFirstCell.X = -1;
+			CTerrainGenerator::RangeFirstCell.Y = -1;
+			CTerrainGenerator::RangeSecondCell.X = -1;
+			CTerrainGenerator::RangeSecondCell.Y = -1;
 		}
 	}
 	for (auto& dv : drawVeterancies)

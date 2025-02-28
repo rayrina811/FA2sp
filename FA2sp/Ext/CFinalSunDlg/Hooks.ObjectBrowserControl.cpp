@@ -42,59 +42,6 @@ DEFINE_HOOK(51AF40, CViewObjects_OnSelectChanged, 7)
         0;
 }
 
-DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
-{
-    GET(const int, X, EDI);
-    GET(const int, Y, ESI);
-
-    if (CIsoView::CurrentCommand->Command == 0x17)
-    {
-        CViewObjectsExt::ApplyPropertyBrush(X, Y);
-
-        return 0x466860;
-    }    
-    else if (CIsoView::CurrentCommand->Command == 0x18)
-    {
-        CViewObjectsExt::ApplyInfantrySubCell(X, Y);
-
-        return 0x466860;
-    }          
-    else if (CIsoView::CurrentCommand->Command == 0x1A)
-    {
-        CViewObjectsExt::MoveBaseNode(X, Y);
-
-        return 0x466860;
-    } 
-    else if (CIsoView::CurrentCommand->Command == 0x1E)
-    {
-        CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(X, Y);
-
-        return 0x466860;
-    }
-    else if (CIsoView::CurrentCommand->Command == 0x1F)
-    {
-        if (CTerrainGenerator::RangeFirstCell.X < 0) {
-            CTerrainGenerator::RangeFirstCell.X = X;
-            CTerrainGenerator::RangeFirstCell.Y = Y;
-            return 0x466860;
-        }
-        else if (CTerrainGenerator::RangeSecondCell.X < 0) {
-            CTerrainGenerator::RangeSecondCell.X = X;
-            CTerrainGenerator::RangeSecondCell.Y = Y;
-            CTerrainGenerator::OnSetRangeDone();
-            return 0x466860;
-        }
-    }
-    else if (CIsoView::CurrentCommand->Command == 0x20)
-    {
-        CViewObjectsExt::ModifyOre(X, Y);
-
-        return 0x466860;
-    }
-
-    return 0;
-}
-
 int infantryLoop = 0;
 // skip to use our own method;
 DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
@@ -594,6 +541,71 @@ DEFINE_HOOK(4347B8, CFinalSunDlg_OnEditUndo, 6)
 }
 
 
+DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
+{
+    GET(const int, X, EDI);
+    GET(const int, Y, ESI);
+
+    if (CIsoView::CurrentCommand->Command == 0x17)
+    {
+        CViewObjectsExt::ApplyPropertyBrush(X, Y);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x18)
+    {
+        CViewObjectsExt::ApplyInfantrySubCell(X, Y);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1A)
+    {
+        CViewObjectsExt::MoveBaseNode(X, Y);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1E)
+    {
+        CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(X, Y);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1F)
+    {
+        if (CTerrainGenerator::RangeFirstCell.X < 0) {
+            CTerrainGenerator::RangeFirstCell.X = X;
+            CTerrainGenerator::RangeFirstCell.Y = Y;
+            return 0x466860;
+        }
+        else if (CTerrainGenerator::RangeSecondCell.X < 0) {
+            CTerrainGenerator::RangeSecondCell.X = X;
+            CTerrainGenerator::RangeSecondCell.Y = Y;
+            CTerrainGenerator::OnSetRangeDone();
+            return 0x466860;
+        }
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x20)
+    {
+        CViewObjectsExt::ModifyOre(X, Y);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 3)
+    {
+        CViewObjectsExt::BatchAddMultiSelection(X, Y, true);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 4)
+    {
+        CViewObjectsExt::BatchAddMultiSelection(X, Y, false);
+
+        return 0x466860;
+    }
+
+    return 0;
+}
+
 DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
 {
     GET(const int, X, EDI);
@@ -620,6 +632,18 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     else if (CIsoView::CurrentCommand->Command == 0x20)
     {
         CViewObjectsExt::ModifyOre(X, Y);
+
+        return 0x45CD6D;
+    }         
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 3)
+    {
+        CViewObjectsExt::BatchAddMultiSelection(X, Y, true);
+
+        return 0x45CD6D;
+    }        
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 4)
+    {
+        CViewObjectsExt::BatchAddMultiSelection(X, Y, false);
 
         return 0x45CD6D;
     }

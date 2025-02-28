@@ -1428,6 +1428,101 @@ std::vector<int> CViewObjectsExt::GetStructureSize(ppmfc::CString structure)
     return result;
 }
 
+void CViewObjectsExt::BatchAddMultiSelection(int X, int Y, bool add)
+{
+    if (add)
+    {
+        if (MultiSelection::LastAddedCoord.X > -1 &&
+            MultiSelection::LastAddedCoord.X != X &&
+            MultiSelection::LastAddedCoord.Y != Y
+            )
+        {
+            int x1, x2, y1, y2;
+
+            if (MultiSelection::LastAddedCoord.X < X)
+            {
+                x1 = MultiSelection::LastAddedCoord.X;
+                x2 = X;
+            }
+            else
+            {
+                x1 = X;
+                x2 = MultiSelection::LastAddedCoord.X;
+            }
+            if (MultiSelection::LastAddedCoord.Y < Y)
+            {
+                y1 = MultiSelection::LastAddedCoord.Y;
+                y2 = Y;
+            }
+            else
+            {
+                y1 = Y;
+                y2 = MultiSelection::LastAddedCoord.Y;
+            }
+
+            for (int i = x1; i <= x2; i++)
+            {
+                for (int j = y1; j <= y2; j++)
+                {
+                    MultiSelection::AddCoord(i, j);
+                }
+            }
+
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+        }
+        else
+            MultiSelection::LastAddedCoord = { X,Y };
+    }
+    else
+    {
+        MultiSelection::RemoveCoord(X, Y);
+        if (MultiSelection::LastAddedCoord.X > -1 &&
+            MultiSelection::LastAddedCoord.X != X &&
+            MultiSelection::LastAddedCoord.Y != Y
+            )
+        {
+            int x1, x2, y1, y2;
+
+            if (MultiSelection::LastAddedCoord.X < X)
+            {
+                x1 = MultiSelection::LastAddedCoord.X;
+                x2 = X;
+            }
+            else
+            {
+                x1 = X;
+                x2 = MultiSelection::LastAddedCoord.X;
+            }
+            if (MultiSelection::LastAddedCoord.Y < Y)
+            {
+                y1 = MultiSelection::LastAddedCoord.Y;
+                y2 = Y;
+            }
+            else
+            {
+                y1 = Y;
+                y2 = MultiSelection::LastAddedCoord.Y;
+            }
+
+            for (int i = x1; i <= x2; i++)
+            {
+                for (int j = y1; j <= y2; j++)
+                {
+                    MultiSelection::RemoveCoord(i, j);
+                }
+            }
+
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+        }
+        else
+            MultiSelection::LastAddedCoord = { X,Y };
+        
+    }
+    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
 void CViewObjectsExt::ModifyOre(int X, int Y)
 {
     const int ORE_COUNT = 12;
