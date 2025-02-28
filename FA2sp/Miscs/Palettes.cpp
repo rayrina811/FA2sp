@@ -338,10 +338,27 @@ LightingSourceTint LightingSourceTint::ApplyLamp(int X, int Y)
         if ((0 < ls.LightVisibility) && (distance < ls.LightVisibility / 256.0f)) 
         {
             float lsEffect = (ls.LightVisibility - 256 * distance) / ls.LightVisibility;
-            ret.AmbientTint += lsEffect * ls.LightIntensity;
-            ret.RedTint += lsEffect * ls.LightRedTint;
-            ret.BlueTint += lsEffect * ls.LightBlueTint;
-            ret.GreenTint += lsEffect * ls.LightGreenTint;
+            switch (CFinalSunDlgExt::CurrentLighting)
+            {
+                // color doesn't apply in superweapons
+            case 31002:
+            case 31003:
+            {
+                float maxTint = 0.0f;
+                if (ls.LightRedTint > maxTint) maxTint = ls.LightRedTint;
+                if (ls.LightBlueTint > maxTint) maxTint = ls.LightBlueTint;
+                if (ls.LightGreenTint > maxTint) maxTint = ls.LightGreenTint;
+                ret.AmbientTint += lsEffect * (maxTint * 0.5 + ls.LightIntensity);
+                break;
+            }
+            default:
+                ret.AmbientTint += lsEffect * ls.LightIntensity;
+                ret.RedTint += lsEffect * ls.LightRedTint;
+                ret.BlueTint += lsEffect * ls.LightBlueTint;
+                ret.GreenTint += lsEffect * ls.LightGreenTint;
+                break;
+            }
+
         }
     }
     return ret;
