@@ -44,7 +44,7 @@ HWND CNewAITrigger::hHard;
 HWND CNewAITrigger::hBaseDefense;
 HWND CNewAITrigger::hSkrimish;
 
-int CNewAITrigger::SelectedAITriggerIndex;
+int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
 std::map<int, ppmfc::CString> CNewAITrigger::AITriggerLabels;
 std::map<int, ppmfc::CString> CNewAITrigger::TeamLabels[2];
@@ -139,8 +139,6 @@ void CNewAITrigger::Initialize(HWND& hWnd)
     hHard = GetDlgItem(hWnd, Controls::Hard);
     hBaseDefense = GetDlgItem(hWnd, Controls::BaseDefense);
     hSkrimish = GetDlgItem(hWnd, Controls::Skrimish);
-
-    SelectedAITriggerIndex = -1;
 
     Update(hWnd);
 }

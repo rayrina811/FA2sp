@@ -39,7 +39,7 @@ HWND CNewTaskforce::hNumber;
 HWND CNewTaskforce::hUnitType;
 HWND CNewTaskforce::hSearchReference;
 
-int CNewTaskforce::SelectedTaskForceIndex;
+int CNewTaskforce::SelectedTaskForceIndex = -1;
 ppmfc::CString CNewTaskforce::CurrentTaskForceID;
 std::map<int, ppmfc::CString> CNewTaskforce::TaskForceLabels;
 std::map<int, ppmfc::CString> CNewTaskforce::UnitTypeLabels;

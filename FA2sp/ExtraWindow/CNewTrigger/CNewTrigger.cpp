@@ -62,9 +62,9 @@ int CNewTrigger::CurrentCSFActionParam;
 int CNewTrigger::CurrentTriggerActionParam;
 
 
-int CNewTrigger::SelectedTriggerIndex;
-int CNewTrigger::SelectedEventIndex;
-int CNewTrigger::SelectedActionIndex;
+int CNewTrigger::SelectedTriggerIndex = -1;
+int CNewTrigger::SelectedEventIndex = -1;
+int CNewTrigger::SelectedActionIndex = -1;
 int CNewTrigger::ActionParamsCount;
 int CNewTrigger::LastActionParamsCount;
 bool CNewTrigger::WindowShown;
@@ -203,9 +203,6 @@ void CNewTrigger::Initialize(HWND& hWnd)
     hActionParameterDesc[5] = GetDlgItem(hWnd, Controls::ActionParameter6Desc);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
 
-    SelectedTriggerIndex = -1;
-    SelectedEventIndex = -1;
-    SelectedActionIndex = -1;
     LastActionParamsCount = 4;
     ActionParamsCount = 4;
     WindowShown = false;

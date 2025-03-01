@@ -45,7 +45,7 @@ HWND CNewScript::hActionExtraParamDes;
 HWND CNewScript::hInsert;
 HWND CNewScript::hSearchReference;
 
-int CNewScript::SelectedScriptIndex;
+int CNewScript::SelectedScriptIndex = -1;
 ppmfc::CString CNewScript::CurrentScriptID;
 std::map<int, ppmfc::CString> CNewScript::ScriptLabels;
 std::map<int, ppmfc::CString> CNewScript::ActionTypeLabels;
@@ -130,7 +130,6 @@ void CNewScript::Initialize(HWND& hWnd)
     hInsert = GetDlgItem(hWnd, Controls::Insert);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
     bInsert = false;
-    SelectedScriptIndex = -1;
 
     ExtraWindow::SetEditControlFontSize(hDescription, 1.3f);
     int tabstops[2] = { 80, 100 };

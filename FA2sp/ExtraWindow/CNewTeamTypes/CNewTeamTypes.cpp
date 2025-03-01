@@ -62,7 +62,7 @@ HWND CNewTeamTypes::hCheckBoxIsBaseDefense;
 HWND CNewTeamTypes::hCheckBoxOnlyTargetHouseEnemy;
 HWND CNewTeamTypes::hSearchReference;
 
-int CNewTeamTypes::SelectedTeamIndex = 0;
+int CNewTeamTypes::SelectedTeamIndex = -1;
 ppmfc::CString CNewTeamTypes::CurrentTeamID;
 std::map<int, ppmfc::CString> CNewTeamTypes::TaskForceLabels;
 std::map<int, ppmfc::CString> CNewTeamTypes::TeamLabels;
