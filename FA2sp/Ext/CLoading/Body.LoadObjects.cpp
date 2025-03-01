@@ -352,8 +352,6 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		{
 			if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
 			{
-				int turzadjust = Variables::Rules.GetInteger(ID, "TurretAnimZAdjust"); // no idea why apply it but it worked
-
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				ppmfc::CString BarlName = ID + "barl";
 
@@ -377,7 +375,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 						for (int i = 0; i < 8; ++i)
 						{
 							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i], turzadjust);
+							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
 							if (!result)
 								break;
 						}
@@ -393,7 +391,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 						for (int i = 0; i < 8; ++i)
 						{
 							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i], pBarlImages[i] ? 0 : turzadjust);
+							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
 							if (!result)
 								break;
 						}
@@ -634,8 +632,6 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		{
 			if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
 			{
-				int turzadjust = Variables::Rules.GetInteger(ID, "TurretAnimZAdjust"); // no idea why apply it but it worked
-
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				ppmfc::CString BarlName = ID + "barl";
 
@@ -659,7 +655,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 						for (int i = 0; i < 8; ++i)
 						{
 							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i], turzadjust);
+							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
 							if (!result)
 								break;
 						}
@@ -675,7 +671,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 						for (int i = 0; i < 8; ++i)
 						{
 							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i], pBarlImages[i] ? 0 : turzadjust);
+							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
 							if (!result)
 								break;
 						}
