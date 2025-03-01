@@ -176,6 +176,29 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
     return 0x491FF1;
 }
 
+DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
+{
+    GET(int, nMIx, EAX);
+    GET_STACK(const char*, lpFilename, STACK_OFFS(0x59C, 0x588));
+
+    if (nMIx)
+        return 0x48DC52;
+
+    ppmfc::CString filepath = CFinalSunApp::FilePath();
+    filepath += lpFilename;
+    std::ifstream fin;
+    fin.open(filepath, std::ios::in | std::ios::binary);
+    if (fin.is_open())
+    {
+        return 0x48DC52;
+    }
+
+    if (CINI::CurrentTheater == &CINI::Urban)
+        return 0x48DBC0;
+
+    return 0x48DC03;
+}
+
 DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
 {
     GET(LPCSTR, lpFilename, ESI);
@@ -200,6 +223,7 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
 
     return 0x48EDC8;
 }
+
 DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
 {
     GET_STACK(LPCSTR, lpFilename, STACK_OFFS(0x20, -0x4));

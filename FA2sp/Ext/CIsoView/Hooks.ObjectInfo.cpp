@@ -1287,19 +1287,26 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
                 line4.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.4",
                     "Filename: %s")
                     , filename);
+
+                ::SetBkColor(hDC, RGB(0, 255, 255));
+                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
             }
             else
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.2",
                     "Tile: %s (%d)")
                     , "MISSING", tileIndex);
+
+                ::SetBkColor(hDC, RGB(0, 255, 255));
+                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
             }
-            ::SetBkColor(hDC, RGB(0, 255, 255));
-            ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
-            ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-            ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-            ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-            ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
+
         }
         if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
         {
