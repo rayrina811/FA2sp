@@ -147,6 +147,7 @@ public:
     static int SearchCombobox_MaxCount;
     static int NewTheaterType;
     static bool UseStrictNewTheater;
+    static int ShadowDisplaySetting;
     static bool LightingPreview_MultUnitColor;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;

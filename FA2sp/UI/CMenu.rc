@@ -126,6 +126,7 @@ POPUP "Layers"
 	MENUITEM "Bounds\tAlt+4",  30012
 	MENUITEM "Veterancy\tAlt+6",  30021
 	MENUITEM "Rock Cells\tAlt+5",  30014
+	MENUITEM "Shadows\tAlt+7",  30022
 	MENUITEM SEPARATOR
 	MENUITEM "Structures Filter",  30015
 	MENUITEM "Infantries Filter",  30016

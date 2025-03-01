@@ -63,6 +63,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(30021, CIsoViewExt::DrawVeterancy);
     SetItemCheckStatus(30013, CIsoViewExt::DrawBaseNodeIndex);
     SetItemCheckStatus(30014, CIsoViewExt::RockCells);
+    SetItemCheckStatus(30022, CIsoViewExt::DrawShadows);
 
     SetItemCheckStatus(34001, CIsoViewExt::PasteGround);
     SetItemCheckStatus(34002, CIsoViewExt::PasteOverlays);
@@ -222,6 +223,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(30012, "Menu.Display.Bounds");
     translateMenuItem(30013, "Menu.Display.BasenodeIndex");
     translateMenuItem(30014, "Menu.Display.RockCells");
+    translateMenuItem(30022, "Menu.Display.Shadows");
 
     translateMenuItem(30015, "Menu.Display.StructuresFilter");
     translateMenuItem(30016, "Menu.Display.InfantriesFilter");
@@ -259,6 +261,14 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(34008, "Menu.Paste.Smudges");
     translateMenuItem(34050, "Menu.Paste.All");
     translateMenuItem(34051, "Menu.Paste.Overriding");
+
+
+    if (ExtConfigs::ShadowDisplaySetting == 0) {
+        CMenu* pSubMenu = pMenu->GetSubMenu(5);
+        if (pSubMenu != nullptr) {
+            pSubMenu->DeleteMenu(30022, MF_BYCOMMAND);
+        }
+    }
 
     return 0x432304;
 }

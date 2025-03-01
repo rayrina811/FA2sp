@@ -26,7 +26,7 @@ public:
 	void LoadObjects(ppmfc::CString pRegName);
 	
 	// except buildings
-	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing);
+	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing, bool bShadow = false);
 	// only buildings
 	enum
 	{
@@ -34,10 +34,14 @@ public:
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
 	};
-	static ppmfc::CString GetBuildingImageName(ppmfc::CString ID, int nFacing, int state);
+	static ppmfc::CString GetBuildingImageName(ppmfc::CString ID, int nFacing, int state, bool bShadow = false);
 	
 	static void ClearItemTypes();
 	void GetFullPaletteName(ppmfc::CString& PaletteName);
+	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
+	static void LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
+	static void LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+
 private:
 	static ppmfc::CString* __cdecl GetDictName(ppmfc::CString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
 	static ppmfc::CString GetDictName(ppmfc::CString ID, int nFacing)
@@ -50,7 +54,7 @@ private:
 	void LoadBuilding(ppmfc::CString ID);
 	void LoadBuilding_Normal(ppmfc::CString ID);
 	void LoadBuilding_Rubble(ppmfc::CString ID);
-	void LoadBuilding_Damaged(ppmfc::CString ID);
+	void LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble = false);
 
 	void LoadInfantry(ppmfc::CString ID);
 	void LoadTerrainOrSmudge(ppmfc::CString ID);
@@ -59,8 +63,8 @@ private:
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
-	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false);
-	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp = false);
+	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false, bool bShadow = false);
+	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp = false, bool bShadow = false);
 	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height);
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight);
 	
@@ -102,6 +106,7 @@ private:
 	};
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
+	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
 	static std::map<ppmfc::CString, ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 };

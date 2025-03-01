@@ -326,6 +326,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	case 30021:
 		SetLayerStatus(30021, CIsoViewExt::DrawVeterancy);
 		return TRUE;
+	case 30022:
+		SetLayerStatus(30022, CIsoViewExt::DrawShadows);
+		return TRUE;
 	case 30050:
 		SetMenuStatusTrue(30000, CIsoViewExt::DrawStructures);
 		SetMenuStatusTrue(30001, CIsoViewExt::DrawInfantries);
@@ -342,6 +345,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(30012, CIsoViewExt::DrawBounds);
 		SetMenuStatusTrue(30013, CIsoViewExt::DrawBaseNodeIndex);
 		SetMenuStatusTrue(30021, CIsoViewExt::DrawVeterancy);
+		SetMenuStatusFalse(30022, CIsoViewExt::DrawShadows);
 		SetMenuStatusFalse(30014, CIsoViewExt::RockCells);
 		SetMenuStatusFalse(30015, CIsoViewExt::DrawStructuresFilter);
 		SetMenuStatusFalse(30016, CIsoViewExt::DrawInfantriesFilter);

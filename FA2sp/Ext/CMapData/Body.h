@@ -198,6 +198,8 @@ public:
     static int BridgeSet;
     static int WoodBridgeSet;
     static Palette Palette_ISO;
+    static Palette Palette_Shadow;
+    static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
 
     static int AutoShore_ShoreTileSet;
@@ -205,6 +207,7 @@ public:
     static std::vector<int> ShoreTileSets;
     static std::map<int, bool> SoftTileSets; // soft = affected by shore logic
     static ppmfc::CString BitmapImporterTheater;
+    static float ConditionYellow;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

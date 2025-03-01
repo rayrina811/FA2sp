@@ -56,10 +56,13 @@ int CMapDataExt::BridgeSet;
 int CMapDataExt::WoodBridgeSet;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
+float CMapDataExt::ConditionYellow = 0.67f;
 std::vector<int> CMapDataExt::ShoreTileSets;
 std::map<int, bool> CMapDataExt::SoftTileSets;
 ppmfc::CString CMapDataExt::BitmapImporterTheater;
 Palette CMapDataExt::Palette_ISO;
+Palette CMapDataExt::Palette_Shadow;
+Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
@@ -1289,6 +1292,26 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	auto pal = PalettesManager::LoadPalette(isoPal);
 	memcpy(Palette::PALETTE_ISO, pal, sizeof(Palette));
 	CMapDataExt::Palette_ISO = *pal;
+
+	Palette_Shadow.Data[0].R = 255;
+	Palette_Shadow.Data[0].G = 255;
+	Palette_Shadow.Data[0].B = 255;
+	Palette_Shadow.Data[0].Zero = 0;
+	for (int i = 1; i < 256; i++)
+	{
+		Palette_Shadow.Data[i].R = 0;
+		Palette_Shadow.Data[i].G = 0;
+		Palette_Shadow.Data[i].B = 0;
+		Palette_Shadow.Data[i].Zero = 0;
+	}
+
+	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
+	const char* InsigniaElite = "FA2spInsigniaElite";
+	const char* DefaultInsigniaFile = "pips.shp";
+	const char* PaletteName = "palette.pal";
+	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
+	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
+
 
 	CMapDataExt::Tile_to_lat.clear();
 	CMapDataExt::Tile_to_lat = {

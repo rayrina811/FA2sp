@@ -14,6 +14,13 @@ struct Cell3DLocation
     short Height;
 };
 
+struct DDBoundary
+{
+    unsigned dwWidth{};
+    unsigned dwHeight{};
+    long dpitch{};
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -38,6 +45,9 @@ public:
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
     static void FillArea(int X, int Y, int ID, int Subtile);
+    static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
+    static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
+    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -53,6 +63,7 @@ public:
     static bool DrawTubes;
     static bool DrawBounds;
     static bool DrawVeterancy;
+    static bool DrawShadows;
     static bool DrawBaseNodeIndex;
     static bool RockCells;
 

@@ -16,6 +16,9 @@
 #include "../CFinalSunDlg/Body.h"
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../Miscs/Palettes.h"
+#include <CShpFile.h>
+#include <CMixFile.h>
 
 struct DrawVeterancy
 {
@@ -29,17 +32,12 @@ LPDDSURFACEDESC2 lpDescDraw;
 
 namespace CIsoViewDrawTemp
 {
-	float ConditionYellow = 0.67f;
-}
-
-namespace CIsoViewDrawTemp
-{
 	int BuildingIndex;
 }
 
 DEFINE_HOOK(46DE00, CIsoView_Draw_InitDrawData, 7)
 {
-	CIsoViewDrawTemp::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
+	CMapDataExt::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
 	drawVeterancies.clear();
 	return 0;
 }
@@ -723,7 +721,7 @@ DEFINE_HOOK(470986, CIsoView_Draw_BuildingImageDataQuery_1, 8)
 	int status = CLoadingExt::GBIN_NORMAL;
 	if (HP == 0)
 		status = CLoadingExt::GBIN_RUBBLE;
-	else if (static_cast<int>((CIsoViewDrawTemp::ConditionYellow + 0.001f) * 256) > HP)
+	else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 		status = CLoadingExt::GBIN_DAMAGED;
 
 	const auto& imageName = CLoadingExt::GetBuildingImageName(data.ID, nFacing, status);
@@ -747,7 +745,7 @@ DEFINE_HOOK(470AE3, CIsoView_Draw_BuildingImageDataQuery_2, 7)
 	int status = CLoadingExt::GBIN_NORMAL;
 	if (HP == 0)
 		status = CLoadingExt::GBIN_RUBBLE;
-	else if (static_cast<int>((CIsoViewDrawTemp::ConditionYellow + 0.001f) * 256) > HP)
+	else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 		status = CLoadingExt::GBIN_DAMAGED;
 
 	const auto& imageName = CLoadingExt::GetBuildingImageName(data.ID, nFacing, status);
@@ -816,14 +814,12 @@ DEFINE_HOOK(4748DC, CIsoView_Draw_SkipCelltagAndWaypointDrawing, 9)
 DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 {
 	GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
 	pThis->lpDDBackBufferSurface->Unlock(nullptr);
 
 	if (CIsoViewExt::RockCells)
 	{
-		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
-
 		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 		auto Map = &CMapData::Instance();
 		for (int i = 0; i < Map->CellDataCount; i++)
@@ -854,7 +850,6 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 	{
 		if (MultiSelection::SelectedCoords.empty())
 		{
-			LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 			int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
 
 			if (CMapData::Instance().IsCoordInMap(X, Y))
@@ -883,12 +878,17 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 			CTerrainGenerator::RangeSecondCell.Y = -1;
 		}
 	}
+	
+	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
+	const char* InsigniaElite = "FA2spInsigniaElite";
+	auto veteran = ImageDataMapHelper::GetImageDataFromMap(InsigniaVeteran);
+	auto elite = ImageDataMapHelper::GetImageDataFromMap(InsigniaElite);
 	for (auto& dv : drawVeterancies)
 	{
 		if (dv.VP >= 200)
-			pThis->DrawBitmap("elite", dv.X, dv.Y);
+			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X + 2, dv.Y + 13, elite);
 		else if (dv.VP >= 100)
-			pThis->DrawBitmap("veteran", dv.X, dv.Y);
+			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X + 2, dv.Y + 13, veteran);
 	}
 
 	return pThis ? 0x474AEF : 0x474DB3;

@@ -10,36 +10,60 @@
 #include "../../Miscs/Palettes.h"
 #include "../../FA2sp.h"
 #include "../../Algorithms/Matrix3D.h"
+#include "../CMapData/Body.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
+std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
 
-ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing)
+ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow)
 {
-	ID.Format("%s%d", ID, nFacing);
+	if (bShadow)
+		ID.Format("%s%d\233SHADOW", ID, nFacing);
+	else
+		ID.Format("%s%d", ID, nFacing);
 	return ID;
 }
 
-ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing, int state)
+ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing, int state, bool bShadow)
 {
 	if (state == GBIN_DAMAGED)
 	{
-		ID.Format("%s%d\233DAMAGED", ID, nFacing);
+		if (bShadow)
+			ID.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+		else
+			ID.Format("%s%d\233DAMAGED", ID, nFacing);
 	}
 	else if (state == GBIN_RUBBLE)
 	{
-		if (Variables::Rules.GetBool(ID, "LeaveRubble"))
-			ID.Format("%s0\233RUBBLE", ID);
-		else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-			ID.Format("%s%d\233DAMAGED", ID, nFacing);
-		else // hide rubble
-			ID = "\233\144\241"; // invalid string to get it empty
+		if (bShadow)
+		{
+			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
+				ID.Format("%s0\233RUBBLESHADOW", ID);
+			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
+				ID.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+			else // hide rubble
+				ID = "\233\144\241"; // invalid string to get it empty
+		}
+		else
+		{
+			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
+				ID.Format("%s0\233RUBBLE", ID);
+			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
+				ID.Format("%s%d\233DAMAGED", ID, nFacing);
+			else // hide rubble
+				ID = "\233\144\241"; // invalid string to get it empty
+		}
+
 	}
 	else // GBIN_NORMAL
 	{
-		ID.Format("%s%d", ID, nFacing);
+		if (bShadow)
+			ID.Format("%s%d\233SHADOW", ID, nFacing);
+		else
+			ID.Format("%s%d", ID, nFacing);
 	}
 	return ID;
 }
@@ -217,7 +241,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
@@ -233,13 +257,18 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			nFrame = 0;
 		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
-
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
 
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
@@ -292,6 +321,12 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
+
 		return true;
 	};
 
@@ -309,7 +344,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(str, "Shadow", true));
 			}
 		}
 	};
@@ -324,7 +359,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame))
+	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
 	{
 		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
 		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
@@ -348,6 +383,12 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		int width, height;
 		UnionSHP_GetAndClear(pBuffer, &width, &height);
 
+		ppmfc::CString DictNameShadow;
+		unsigned char* pBufferShadow{ 0 };
+		int widthShadow, heightShadow;
+		if (ExtConfigs::ShadowDisplaySetting != 0)
+			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
+
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
 		{
 			if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
@@ -444,22 +485,36 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
+				if (ExtConfigs::ShadowDisplaySetting != 0)
+				{
+					DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+				}
+
 				GameDeleteArray(pBuffer, width * height);
 			}
 			else //SHP anim
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
+				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::ShadowDisplaySetting != 0;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 					UnionSHP_Add(pTempBuf, width, height);
 
+					if (shadow)
+					{
+						auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
+						memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
+						UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
+					}
+
 					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
 					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 4, deltaX, deltaY);
+						nStartFrame + i * 4, deltaX, deltaY, "", shadow);
 
 					unsigned char* pImage;
 					int width1, height1;
@@ -467,19 +522,35 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 					DictName.Format("%s%d", ID, i);
 					SetImageData(pImage, DictName, width1, height1, palette);
+
+					if (shadow)
+					{
+						ppmfc::CString DictNameShadow;
+						unsigned char* pImageShadow;
+						int width1Shadow, height1Shadow;
+						UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
+						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+						SetImageData(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+					}
 				}
 				GameDelete(pBuffer);
+				GameDelete(pBufferShadow);
 			}
 		}
 		else // No turret
 		{
 			DictName.Format("%s%d", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
+			if (ExtConfigs::ShadowDisplaySetting != 0)
+			{
+				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+			}
 		}
 	}
 }
 
-void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
+void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
@@ -490,7 +561,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
@@ -509,10 +580,16 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
+
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "") -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
@@ -565,6 +642,12 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
+
 		return true;
 	};
 
@@ -583,7 +666,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
+				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(str, "Shadow", true));
 			}
 		}
 		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
@@ -604,7 +687,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 	};
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame))
+	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
 	{
 		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
 		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
@@ -627,6 +710,12 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 		unsigned char* pBuffer;
 		int width, height;
 		UnionSHP_GetAndClear(pBuffer, &width, &height);
+
+		ppmfc::CString DictNameShadow;
+		unsigned char* pBufferShadow{ 0 };
+		int widthShadow, heightShadow;
+		if (ExtConfigs::ShadowDisplaySetting != 0)
+			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
 		{
@@ -720,8 +809,20 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 					int width1, height1;
 
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
-					DictName.Format("%s%d\233DAMAGED", ID, i);
+					if (loadAsRubble)
+						DictName.Format("%s%d\233RUBBLE", ID, i);
+					else
+						DictName.Format("%s%d\233DAMAGED", ID, i);
 					SetImageData(pImage, DictName, width1, height1, palette);
+				}
+
+				if (ExtConfigs::ShadowDisplaySetting != 0)
+				{
+					if (loadAsRubble)
+						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+					else
+						DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
+					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 				}
 
 				GameDeleteArray(pBuffer, width * height);
@@ -730,31 +831,68 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID)
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
+				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::ShadowDisplaySetting != 0;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 					UnionSHP_Add(pTempBuf, width, height);
 
+					if (shadow)
+					{
+						auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
+						memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
+						UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
+					}
+
 					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
 					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
 					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 4, deltaX, deltaY);
+						nStartFrame + i * 4, deltaX, deltaY, "", shadow);
 
 					unsigned char* pImage;
 					int width1, height1;
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 
-					DictName.Format("%s%d\233DAMAGED", ID, i);
+					if (loadAsRubble)
+						DictName.Format("%s%d\233RUBBLE", ID, i);
+					else
+						DictName.Format("%s%d\233DAMAGED", ID, i);
 					SetImageData(pImage, DictName, width1, height1, palette);
+
+					if (shadow)
+					{
+						ppmfc::CString DictNameShadow;
+						unsigned char* pImageShadow;
+						int width1Shadow, height1Shadow;
+						UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
+						if (loadAsRubble)
+							DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, i);
+						else
+							DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, i);
+						SetImageData(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+					}
 				}
 				GameDelete(pBuffer);
+				GameDelete(pBufferShadow);
 			}
 		}
 		else // No turret
 		{
-			DictName.Format("%s%d\233DAMAGED", ID, 0);
+			if (loadAsRubble)
+				DictName.Format("%s%d\233RUBBLE", ID, 0);
+			else
+				DictName.Format("%s%d\233DAMAGED", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
+
+			if (ExtConfigs::ShadowDisplaySetting != 0)
+			{
+				if (loadAsRubble)
+					DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+				else
+					DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
+				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+			}
 		}
 	}
 }
@@ -763,8 +901,11 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	ppmfc::CString PaletteName = "iso";
+	GetFullPaletteName(PaletteName);
+	auto pal = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		int nMix = SearchFile(file);
@@ -777,16 +918,22 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		CMixFile::LoadSHP(file, nMix);
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount / 2 <= nFrame) {
-			nFrame = 0;
+			return false;
 		}
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
+
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		ppmfc::CString file = name + ".SHP";
 		SetTheaterLetter(file, ExtConfigs::NewTheaterType);
@@ -821,6 +968,12 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		CShpFile::LoadFrame(nFrame, 1, &pBuffer);
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+
+		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		{
+			CShpFile::LoadFrame(nFrame + header.FrameCount / 2, 1, &pBuffer);
+			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
+		}
 
 		return true;
 	};
@@ -853,17 +1006,28 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	if (Variables::Rules.GetBool(ID, "LeaveRubble"))
 	{
 		int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 3;
-		if (loadBuildingFrameShape(ImageID, nBldStartFrame))
+		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
 		{
-			ppmfc::CString PaletteName = "iso";
-			GetFullPaletteName(PaletteName);
-
 			unsigned char* pBuffer;
 			int width, height;
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
 			ppmfc::CString DictName = ID + "0\233RUBBLE";
-			SetImageData(pBuffer, DictName, width, height, PalettesManager::LoadPalette(PaletteName));
+			SetImageData(pBuffer, DictName, width, height, pal);
+
+			if (ExtConfigs::ShadowDisplaySetting != 0)
+			{
+				ppmfc::CString DictNameShadow;
+				unsigned char* pBufferShadow{ 0 };
+				int widthShadow, heightShadow;
+				UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
+				DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+			}
+		}
+		else
+		{
+			LoadBuilding_Damaged(ID, true);
 		}
 	}
 }
@@ -1235,28 +1399,31 @@ void CLoadingExt::ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsig
 	GameDeleteArray(pIn, InWidth * InHeight);
 }
 
-void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX, int DeltaY, bool UseTemp)
+void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX, int DeltaY, bool UseTemp, bool bShadow)
 {
-	UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY });
+	if (bShadow)
+		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY });
+	else
+		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY });
 }
 
-void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp)
+void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp, bool bShadow)
 {
 	// never calls it when UnionSHP_Data is empty
-
-	if (UnionSHP_Data[UseTemp].size() == 1)
+	auto& data = bShadow ? UnionSHPShadow_Data : UnionSHP_Data;
+	if (data[UseTemp].size() == 1)
 	{
-		pOutBuffer = UnionSHP_Data[UseTemp][0].pBuffer;
-		*OutWidth = UnionSHP_Data[UseTemp][0].Width;
-		*OutHeight = UnionSHP_Data[UseTemp][0].Height;
-		UnionSHP_Data[UseTemp].clear();
+		pOutBuffer = data[UseTemp][0].pBuffer;
+		*OutWidth = data[UseTemp][0].Width;
+		*OutHeight = data[UseTemp][0].Height;
+		data[UseTemp].clear();
 		return;
 	}
 
 	// For each shp, we make their center at the same point, this will give us proper result.
 	int W = 0, H = 0;
 
-	for (auto& data : UnionSHP_Data[UseTemp])
+	for (auto& data : data[UseTemp])
 	{
 		if (W < data.Width + 2 * abs(data.DeltaX)) W = data.Width + 2 * abs(data.DeltaX);
 		if (H < data.Height + 2 * abs(data.DeltaY)) H = data.Height + 2 * abs(data.DeltaY);
@@ -1271,7 +1438,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 	int ImageCenterY = H / 2;
 
 	// Image[X][Y] <=> pOutBuffer[Y * W + X];
-	for (auto& data : UnionSHP_Data[UseTemp])
+	for (auto& data : data[UseTemp])
 	{
 		int nStartX = ImageCenterX - data.Width / 2 + data.DeltaX;
 		int nStartY = ImageCenterY - data.Height / 2 + data.DeltaY;
@@ -1284,7 +1451,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 		GameDeleteArray(data.pBuffer, data.Width * data.Height);
 	}
 
-	UnionSHP_Data[UseTemp].clear();
+	data[UseTemp].clear();
 }
 
 void CLoadingExt::VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height)
@@ -1411,4 +1578,147 @@ std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* se
 	}
 
 	return lookupTable;
+}
+
+void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	loadingExt->GetFullPaletteName(PalName);
+	if (auto pal = PalettesManager::LoadPalette(PalName))
+	{
+		int nMix = loadingExt->SearchFile(FileName);
+		if (loadingExt->HasFile(FileName, nMix))
+		{
+			ShapeHeader header;
+			unsigned char* FramesBuffers;
+			CMixFile::LoadSHP(FileName, nMix);
+			CShpFile::GetSHPHeader(&header);
+			CShpFile::LoadFrame(nFrame, 1, &FramesBuffers);
+			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pal);
+		}
+	}
+}
+
+void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	loadingExt->GetFullPaletteName(PalName);
+	if (auto pal = PalettesManager::LoadPalette(PalName))
+	{
+		int nMix = loadingExt->SearchFile(FileName);
+		if (loadingExt->HasFile(FileName, nMix))
+		{
+			ShapeHeader header;
+			unsigned char* FramesBuffers;
+			CMixFile::LoadSHP(FileName, nMix);
+			CShpFile::GetSHPHeader(&header);
+			CShpFile::LoadFrame(nFrame, 1, &FramesBuffers);
+
+			CBitmap bitmap;
+			if (bitmap.CreateBitmap(header.Width, header.Height, 1, 32, NULL))
+			{
+				CDC memDC;
+				memDC.CreateCompatibleDC(NULL);
+				CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+
+				LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
+				pLogPalette->palVersion = 0x300;
+				pLogPalette->palNumEntries = 256;
+
+				for (int i = 0; i < 256; i++)
+				{
+					pLogPalette->palPalEntry[i].peRed = pal->Data[i].R;
+					pLogPalette->palPalEntry[i].peGreen = pal->Data[i].G;
+					pLogPalette->palPalEntry[i].peBlue = pal->Data[i].B;
+					pLogPalette->palPalEntry[i].peFlags = pal->Data[i].Zero;
+				}
+				CPalette paletteObj;
+				paletteObj.CreatePalette(pLogPalette);
+				free(pLogPalette);
+				CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
+				memDC.RealizePalette();
+				for (int y = 0; y < header.Height; y++)
+				{
+					for (int x = 0; x < header.Width; x++)
+					{
+						memDC.SetPixel(x, y, PALETTEINDEX(FramesBuffers[y * header.Width + x]));
+					}
+				}
+				memDC.SelectPalette(pOldPalette, FALSE);
+				memDC.SelectObject(pOldBitmap);
+
+				auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+				pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
+
+				DDSURFACEDESC2 desc;
+				memset(&desc, 0, sizeof(DDSURFACEDESC2));
+				desc.dwSize = sizeof(DDSURFACEDESC2);
+				desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+				pData->lpSurface->GetSurfaceDesc(&desc);
+				pData->ValidHeight = desc.dwHeight;
+				pData->ValidWidth = desc.dwWidth;
+				pData->FullWidth = desc.dwWidth;
+				pData->FullHeight = desc.dwHeight;
+				pData->Flag = ImageDataFlag::SurfaceData;
+
+				CIsoView::SetColorKey(pData->lpSurface, -1);
+			}	
+		}
+	}
+}
+
+void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	CBitmap bitmap;
+	if (bitmap.CreateBitmap(Width, Height, 1, 32, NULL))
+	{
+		CDC memDC;
+		memDC.CreateCompatibleDC(NULL);
+		CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
+
+		LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
+		pLogPalette->palVersion = 0x300;
+		pLogPalette->palNumEntries = 256;
+
+		for (int i = 0; i < 256; i++)
+		{
+			pLogPalette->palPalEntry[i].peRed = pPal->Data[i].R;
+			pLogPalette->palPalEntry[i].peGreen = pPal->Data[i].G;
+			pLogPalette->palPalEntry[i].peBlue = pPal->Data[i].B;
+			pLogPalette->palPalEntry[i].peFlags = pPal->Data[i].Zero;
+		}
+		CPalette paletteObj;
+		paletteObj.CreatePalette(pLogPalette);
+		free(pLogPalette);
+		CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
+		memDC.RealizePalette();
+		for (int y = 0; y < Height; y++)
+		{
+			for (int x = 0; x < Width; x++)
+			{
+				memDC.SetPixel(x, y, PALETTEINDEX(pBuffer[y * Width + x]));
+			}
+		}
+		memDC.SelectPalette(pOldPalette, FALSE);
+		memDC.SelectObject(pOldBitmap);
+
+		auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+		auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+		pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
+
+		DDSURFACEDESC2 desc;
+		memset(&desc, 0, sizeof(DDSURFACEDESC2));
+		desc.dwSize = sizeof(DDSURFACEDESC2);
+		desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+		pData->lpSurface->GetSurfaceDesc(&desc);
+		pData->ValidHeight = desc.dwHeight;
+		pData->ValidWidth = desc.dwWidth;
+		pData->FullWidth = desc.dwWidth;
+		pData->FullHeight = desc.dwHeight;
+		pData->Flag = ImageDataFlag::SurfaceData;
+
+		CIsoView::SetColorKey(pData->lpSurface, -1);
+	}	
 }

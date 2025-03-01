@@ -284,6 +284,7 @@
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.FA2MiscFix.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.Shadow.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.UserScripts.cpp" />

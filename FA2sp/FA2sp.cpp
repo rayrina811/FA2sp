@@ -134,6 +134,7 @@ int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
 bool ExtConfigs::UseStrictNewTheater;
+int ExtConfigs::ShadowDisplaySetting;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 
 
@@ -238,6 +239,11 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
+	ExtConfigs::ShadowDisplaySetting = CINI::FAData->GetInteger("ExtConfigs", "ShadowDisplaySetting", 2);
+	if (ExtConfigs::ShadowDisplaySetting >= 2)
+		CIsoViewExt::DrawShadows = true;
+	else
+		CIsoViewExt::DrawShadows = false;
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	if (ExtConfigs::SearchCombobox_MaxCount < 0)

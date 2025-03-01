@@ -29,6 +29,7 @@ bool CIsoViewExt::DrawSmudges = true;
 bool CIsoViewExt::DrawTubes = true;
 bool CIsoViewExt::DrawBounds = true;
 bool CIsoViewExt::DrawVeterancy = true;
+bool CIsoViewExt::DrawShadows = false;
 bool CIsoViewExt::DrawBaseNodeIndex = true;
 bool CIsoViewExt::RockCells = false;
 
@@ -1771,6 +1772,295 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
         }
     }
     CMapDataExt::GetExtension()->PlaceTileAt(X, Y, ID, Subtile);
+}
+
+IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap)
+{
+    BITMAP bm;
+    GetObject(bitmap, sizeof(bm), &bm);
+
+    DDSURFACEDESC2 desc = { 0 };
+    ZeroMemory(&desc, sizeof(desc));
+    desc.dwSize = sizeof(desc);
+    desc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+    desc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
+    desc.dwWidth = bm.bmWidth;
+    desc.dwHeight = bm.bmHeight;
+
+    IDirectDrawSurface7* pSurface = nullptr;
+    if (pDD->CreateSurface(&desc, &pSurface, nullptr) != DD_OK)
+        return nullptr;
+
+    pSurface->Restore();
+
+    CDC bitmapDC;
+    if (!bitmapDC.CreateCompatibleDC(nullptr)) {
+        pSurface->Release();
+        return nullptr;
+    }
+    bitmapDC.SelectObject(bitmap);
+
+    HDC hSurfaceDC = nullptr;
+    if (pSurface->GetDC(&hSurfaceDC) != DD_OK) {
+        pSurface->Release();
+        return nullptr;
+    }
+
+    CDC surfaceDC;
+    surfaceDC.Attach(hSurfaceDC);
+
+    auto success = surfaceDC.BitBlt(0, 0, bm.bmWidth, bm.bmHeight, &bitmapDC, 0, 0, SRCCOPY);
+    surfaceDC.Detach();
+    pSurface->ReleaseDC(hSurfaceDC);
+
+    return pSurface;
+}
+
+void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha)
+{
+    auto pThis = CIsoView::GetInstance();
+    if (pic == NULL) return;
+
+    x += 1;
+    y += 1;
+    y -= 30;
+
+    RECT r;
+    pThis->GetWindowRect(&r);
+
+    if (width == -1 || height == -1)
+    {
+        DDSURFACEDESC2 ddsd;
+        memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+        ddsd.dwSize = sizeof(DDSURFACEDESC2);
+        ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+        pic->GetSurfaceDesc(&ddsd);
+        width = ddsd.dwWidth;
+        height = ddsd.dwHeight;
+    }
+
+    if (x + width < 0 || y + height < 0) return;
+    if (x > r.right || y > r.bottom) return;
+
+    RECT blrect;
+    RECT srcRect = { 0, 0, width, height };
+    blrect.left = x;
+    blrect.top = y;
+    blrect.right = x + width;
+    blrect.bottom = y + height;
+
+    if (blrect.left < 0)
+    {
+        srcRect.left = -blrect.left;
+        blrect.left = 0;
+    }
+    if (blrect.top < 0)
+    {
+        srcRect.top = -blrect.top;
+        blrect.top = 0;
+    }
+    if (blrect.right > r.right)
+    {
+        srcRect.right = width - (blrect.right - r.right);
+        blrect.right = r.right;
+    }
+    if (blrect.bottom > r.bottom)
+    {
+        srcRect.bottom = height - (blrect.bottom - r.bottom);
+        blrect.bottom = r.bottom;
+    }
+
+    DDSURFACEDESC2 destDesc, srcDesc;
+    memset(&destDesc, 0, sizeof(DDSURFACEDESC2));
+    destDesc.dwSize = sizeof(DDSURFACEDESC2);
+    memset(&srcDesc, 0, sizeof(DDSURFACEDESC2));
+    srcDesc.dwSize = sizeof(DDSURFACEDESC2);
+
+    if (pThis->lpDDBackBufferSurface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
+        return;
+
+    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
+    {
+        pThis->lpDDBackBufferSurface->Unlock(NULL);
+        return;
+    }
+
+    DDCOLORKEY colorKey;
+    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK)
+    {
+        pic->Unlock(NULL);
+        pThis->lpDDBackBufferSurface->Unlock(NULL);
+        return;
+    }
+
+    DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
+    DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
+
+    BYTE* destPixels = (BYTE*)destDesc.lpSurface;
+    BYTE* srcPixels = (BYTE*)srcDesc.lpSurface;
+    int destPitch = destDesc.lPitch;
+    int srcPitch = srcDesc.lPitch;
+
+    int maxDestY = destDesc.dwHeight;
+    int maxDestX = destDesc.dwWidth;
+    int maxSrcY = srcDesc.dwHeight;
+    int maxSrcX = srcDesc.dwWidth;
+
+    for (int j = 0; j < srcRect.bottom - srcRect.top; ++j)
+    {
+        if (y + j < 0 || y + j >= maxDestY) continue; 
+        for (int i = 0; i < srcRect.right - srcRect.left; ++i)
+        {
+            if (x + i < 0 || x + i >= maxDestX) continue;
+
+            int destIndex = (y + j) * destPitch + (x + i) * 4;
+            int srcIndex = j * srcPitch + i * 4;
+
+            if (srcIndex < 0 || srcIndex >= maxSrcY * srcPitch || destIndex < 0 || destIndex >= maxDestY * destPitch)
+                continue;
+
+            DWORD srcColor = *(DWORD*)(srcPixels + srcIndex);
+            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh)
+                continue; 
+
+            BYTE srcR = srcPixels[srcIndex + 2];
+            BYTE srcG = srcPixels[srcIndex + 1];
+            BYTE srcB = srcPixels[srcIndex];
+
+            BYTE destR = destPixels[destIndex + 2];
+            BYTE destG = destPixels[destIndex + 1];
+            BYTE destB = destPixels[destIndex];
+
+            destPixels[destIndex + 2] = (srcR * alpha + destR * (255 - alpha)) / 255;
+            destPixels[destIndex + 1] = (srcG * alpha + destG * (255 - alpha)) / 255;
+            destPixels[destIndex] = (srcB * alpha + destB * (255 - alpha)) / 255;
+        }
+    }
+    pic->Unlock(NULL);
+    pThis->lpDDBackBufferSurface->Unlock(NULL);
+}
+
+void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha)
+{
+    if (alpha == 0) return;
+    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
+    auto dst = lpDesc->lpSurface;
+    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+    auto pThis = CIsoView::GetInstance();
+    RECT r;
+    pThis->GetWindowRect(&r);
+    x += 31;
+    y -= 29;
+    int bpp = 4;
+
+    if (newPal == NULL) {
+        newPal = pd->pPalette;
+    }
+
+    BYTE* src = (BYTE*)pd->pImageBuffer;
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
+
+    if (src == NULL || dst == NULL) {
+        return;
+    }
+
+    if (x + swidth < r.left || y + sheight < r.top) {
+        return;
+    }
+    if (x >= r.right || y >= r.bottom) {
+        return;
+    }
+
+    RECT blrect;
+    RECT srcRect;
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+        //blrect.left=1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+        //blrect.top=1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > r.right) {
+        srcRect.right = swidth - ((x + swidth) - r.right);
+        blrect.right = r.right;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > r.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - r.bottom);
+        blrect.bottom = r.bottom;
+    }
+
+    int i, e;
+
+    //// calculate a palette for given color for values 0x10 to 0x1f - we might move this outside
+    //const int houseColorMin = 0x10;
+    //const int houseColorMax = 0x1f;
+    //const int houseColorRelMax = houseColorMax - houseColorMin;
+    //int houseColors[houseColorRelMax + 1] = { 0 };
+    //CalculateHouseColorPalette(houseColors, newPal, color);
+    //const BYTE* const pLighting = (bpp == 4 && pd->lighting && !pd->lighting->empty()) ? pd->lighting->data() : nullptr;
+    //
+    //auto getHouseColor = std::function([](BYTE idx, BYTE houseColorMinIdx) -> int {
+    //    return idx - houseColorMinIdx;
+    //    });
+    //
+    //if (g_data["Debug"].GetBool("RenderPlainHouseColor")) {
+    //    getHouseColor = [](BYTE idx, BYTE houseColorMinIdx) -> int {
+    //        return 0;
+    //        };
+    //}
+
+    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+
+    for (e = srcRect.top; e < srcRect.bottom; e++) {
+        int left = pd->pPixelValidRanges[e].First;
+        int right = pd->pPixelValidRanges[e].Last;
+
+        if (left < srcRect.left) {
+            left = srcRect.left;
+        }
+        if (right >= srcRect.right) {
+            right = srcRect.right - 1;
+        }
+
+        for (i = left; i <= right; i++) {
+            if (blrect.left + i < 0) {
+                continue;
+            }
+
+            const int spos = i + e * swidth;
+            BYTE val = src[spos];
+
+            if (val) {
+                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
+
+                if (dest >= dst) {
+                    BGRStruct c = newPal->Data[val];
+                    if (dest + bpp < surfaceEnd) {
+                        if (alpha < 255)
+                        {
+                            BGRStruct oriColor;
+                            memcpy(&oriColor, dest, bpp);
+                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
+                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
+                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
+                        }
+                        memcpy(dest, &c, bpp);
+                    }
+                }
+            }
+        }
+    }
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)
