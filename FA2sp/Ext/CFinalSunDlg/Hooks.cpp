@@ -494,9 +494,12 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
 {
     auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
     HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+    HTREEITEM hDelete = TreeView_GetLastVisible(hWnd);
     HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
     if (hParent)
         TreeView_SelectItem(hWnd, hParent);
+    if (hSelectedItem == hDelete)
+        TreeView_SelectItem(hWnd, TVGN_ROOT);
 
     if (!MultiSelection::CopiedCells.empty())
     {
