@@ -230,6 +230,14 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	LoadBuilding_Normal(ID);
 	LoadBuilding_Damaged(ID);
 	LoadBuilding_Rubble(ID);
+
+	if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+	{
+		ppmfc::CString AIFile = *pAIFile;
+		AIFile.Trim();
+		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+			LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+	}
 }
 
 void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
@@ -1074,6 +1082,14 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 			}
 		}
+
+		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		{
+			ppmfc::CString AIFile = *pAIFile;
+			AIFile.Trim();
+			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+				LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+		}
 	}
 }
 
@@ -1109,6 +1125,14 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
 			SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+		}
+
+		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		{
+			ppmfc::CString AIFile = *pAIFile;
+			AIFile.Trim();
+			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+				LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
 		}
 	}
 }
@@ -1379,6 +1403,14 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				}
 			}
 		}
+	}
+
+	if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+	{
+		ppmfc::CString AIFile = *pAIFile;
+		AIFile.Trim();
+		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+			LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
 	}
 }
 

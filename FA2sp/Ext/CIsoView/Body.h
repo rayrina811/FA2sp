@@ -29,6 +29,13 @@ struct DrawBuildings
     short buildingIndex;
 };
 
+struct DrawVeterancies
+{
+    int X;
+    int Y;
+    int VP;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -60,6 +67,8 @@ public:
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
+    static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -105,6 +114,11 @@ public:
 
     static std::map<MapCoord, int> WaypointsToDraw;
     static std::map<MapCoord, DrawBuildings> BuildingsToDraw;
+    static std::vector<short> VisibleStructures;
+    static std::vector<short> VisibleInfantries;
+    static std::vector<short> VisibleUnits;
+    static std::vector<short> VisibleAircrafts;
+    static std::vector<DrawVeterancies> DrawVeterancies;
 
     static bool IsPressingALT;
 };

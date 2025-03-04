@@ -1529,7 +1529,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		}
 	}
 
-	CIsoViewExt::BuildingsToDraw.clear();
 	if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
 	{
 		int i = 0;

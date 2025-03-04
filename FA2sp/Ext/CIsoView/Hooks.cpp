@@ -20,26 +20,11 @@
 #include <CShpFile.h>
 #include <CMixFile.h>
 
-struct DrawVeterancy
-{
-	int X;
-	int Y;
-	int VP;
-};
-
-std::vector<DrawVeterancy> drawVeterancies;
-LPDDSURFACEDESC2 lpDescDraw;
+std::vector<DrawVeterancies> CIsoViewExt::DrawVeterancies;
 
 namespace CIsoViewDrawTemp
 {
 	int BuildingIndex;
-}
-
-DEFINE_HOOK(46DE00, CIsoView_Draw_InitDrawData, 7)
-{
-	CMapDataExt::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
-	drawVeterancies.clear();
-	return 0;
 }
 
 /*
@@ -109,29 +94,13 @@ DEFINE_HOOK(459F4F, CIsoView_Draw_CopySelectionBoundColor, 6)
 	return 0;
 }
 
-//DEFINE_HOOK(45AD81, CIsoView_Draw_CursorSelectionBoundColor, 5)
-//{
-//	if (ExtConfigs::CursorSelectionBound_AutoColor)
-//	{
-//		auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-//		auto cell = CMapData::Instance().GetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
-//		R->Stack<COLORREF>(0x0, CIsoViewExt::_cell_hilight_colors[cell->Height]);
-//	}
-//	else
-//		R->Stack<COLORREF>(0x0, ExtConfigs::CursorSelectionBound_Color);
-//
-//
-//		//CIsoView::GetInstance()->Draw();
-//
-//	return 0;
-//}
-
 bool skipThisDraw = false;
 DEFINE_HOOK(45AD6A, CIsoView_Draw_CursorSkip, 9)
 {
     skipThisDraw = true;
 	return 0;
 }
+
 DEFINE_HOOK(469C60, CIsoView_DrawCellOutline_CursorSkip, 7)
 {
     if (skipThisDraw)
@@ -153,78 +122,76 @@ DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
 	return CIsoViewExt::DrawOverlays ? 0 : 0x470772;
 }
 
-bool thisDraw = false;
-
-DEFINE_HOOK(470BC5, CIsoView_Draw_LayerVisible_Structures, 7)
-{
-
-	if (CIsoViewExt::DrawStructures)
-	{
-		thisDraw = true;
-		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		if (celldata.Structure != -1)
-		{
-			CBuildingData data;
-			CMapData::Instance->GetBuildingData(celldata.Structure, data);
-
-			if (!CIsoViewExt::DrawStructuresFilter)
-				return 0;
-
-			if (!CViewObjectsExt::BuildingBrushDlgBF)
-				return 0;
-
-			auto vec = CViewObjectsExt::ObjectFilterB;
-			if (!vec.empty())
-				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
-				{
-					thisDraw = false;
-					return 0x470E48;
-				}
-					
-
-			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
-				{
-					if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
-					{
-						if (dst == src) return true;
-						else return false;
-					}
-					return true;
-				};
-			if (
-				CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
-				CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
-				CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
-				CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
-				CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
-				CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
-				CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
-				CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
-				CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
-				CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
-				CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
-				CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
-				CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
-				CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag)
-				)
-			{
-				return 0;
-			}
-				
-			else
-			{
-				thisDraw = false;
-				return 0x470E48;
-			}
-		}
-
-		return 0;
-	}
-	{
-		thisDraw = false;
-		return 0x470E48;
-	}
-}
+//DEFINE_HOOK(470BC5, CIsoView_Draw_LayerVisible_Structures, 7)
+//{
+//
+//	if (CIsoViewExt::DrawStructures)
+//	{
+//		thisDraw = true;
+//		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+//		if (celldata.Structure != -1)
+//		{
+//			CBuildingData data;
+//			CMapData::Instance->GetBuildingData(celldata.Structure, data);
+//
+//			if (!CIsoViewExt::DrawStructuresFilter)
+//				return 0;
+//
+//			if (!CViewObjectsExt::BuildingBrushDlgBF)
+//				return 0;
+//
+//			auto vec = CViewObjectsExt::ObjectFilterB;
+//			if (!vec.empty())
+//				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+//				{
+//					thisDraw = false;
+//					return 0x470E48;
+//				}
+//					
+//
+//			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+//				{
+//					if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
+//					{
+//						if (dst == src) return true;
+//						else return false;
+//					}
+//					return true;
+//				};
+//			if (
+//				CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
+//				CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
+//				CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
+//				CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
+//				CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
+//				CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
+//				CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
+//				CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
+//				CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
+//				CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
+//				CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
+//				CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
+//				CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
+//				CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag)
+//				)
+//			{
+//				return 0;
+//			}
+//				
+//			else
+//			{
+//				thisDraw = false;
+//				return 0x470E48;
+//			}
+//		}
+//
+//		return 0;
+//	}
+//	{
+//		thisDraw = false;
+//		return 0x470E48;
+//	}
+//}
 
 DEFINE_HOOK(4725CB, CIsoView_Draw_LayerVisible_Basenodes, 8)
 {
@@ -268,352 +235,126 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_LayerVisible_Basenodes, 8)
 
 DEFINE_HOOK(472F33, CIsoView_Draw_LayerVisible_Units, 9)
 {
-	thisDraw = false;
 	if (CIsoViewExt::DrawUnits)
 	{
-
-		if (!CIsoViewExt::DrawUnitsFilter)
-		{
-			thisDraw = true;
-			return 0;
-		}
-			
-
-		if (!CViewObjectsExt::VehicleBrushDlgF)
-		{
-			thisDraw = true;
-			return 0;
-		}
-
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-
 		if (celldata.Unit != -1)
 		{
-			CUnitData data;
-			CMapData::Instance->GetUnitData(celldata.Unit, data);
-
-			auto vec = CViewObjectsExt::ObjectFilterV;
-			if (!vec.empty())
-				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
-					return 0x47371A;
-
-			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
-				{
-					if (CViewObjectsExt::VehicleBrushBoolsF[nCheckBoxIdx - 1300])
-					{
-						if (dst == src) return true;
-						else return false;
-					}
-					return true;
-				};
-			if (
-				CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
-				CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
-				CheckValue(1302, CViewObjectsExt::VehicleBrushDlgF->CString_State, data.Status) &&
-				CheckValue(1303, CViewObjectsExt::VehicleBrushDlgF->CString_Direction, data.Facing) &&
-				CheckValue(1304, CViewObjectsExt::VehicleBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
-				CheckValue(1305, CViewObjectsExt::VehicleBrushDlgF->CString_Group, data.Group) &&
-				CheckValue(1306, CViewObjectsExt::VehicleBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
-				CheckValue(1307, CViewObjectsExt::VehicleBrushDlgF->CString_FollowerID, data.FollowsIndex) &&
-				CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-				CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-				CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag)
-				)
+			const auto& filter = CIsoViewExt::VisibleUnits;
+			if (!CIsoViewExt::DrawUnitsFilter
+				|| std::find(filter.begin(), filter.end(), celldata.Unit) != filter.end())
 			{
-				thisDraw = true;
+				CUnitData data;
+				CMapData::Instance->GetUnitData(celldata.Unit, data);
+
+				int X = atoi(data.X);
+				int Y = atoi(data.Y);
+				int	VP = atoi(data.VeterancyPercentage);
+
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+				X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+				DrawVeterancies temp;
+				temp.X = X;
+				temp.Y = Y;
+				temp.VP = VP;
+				CIsoViewExt::DrawVeterancies.push_back(temp);
 				return 0;
 			}
-			else
-			{
-				thisDraw = false;
-				return 0x47371A;
-			}
-				
-		}
-		{
-			thisDraw = true;
-			return 0;
 		}
 	}
-	{
-		thisDraw = false;
-		return 0x47371A;
-	}
+	return 0x47371A;
 }
 
-
-DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Units_Veteran, 9)
-{
-	if (thisDraw && CIsoViewExt::DrawVeterancy)
-	{
-		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		pThis->lpDDBackBufferSurface->Unlock(nullptr);
-		if (celldata.Unit != -1)
-		{
-			CUnitData data;
-			CMapData::Instance->GetUnitData(celldata.Unit, data);
-
-			int X = atoi(data.X);
-			int Y = atoi(data.Y);
-			int	VP = atoi(data.VeterancyPercentage);
-
-			CIsoView::MapCoord2ScreenCoord(X, Y);
-			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-
-			DrawVeterancy temp;
-			temp.X = X;
-			temp.Y = Y;
-			temp.VP = VP;
-			drawVeterancies.push_back(temp);
-		}
-
-		thisDraw = false;
-	}
-
-	return 0;
-}
 
 DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Aircrafts, 9)
 {
 	if (CIsoViewExt::DrawAircrafts)
 	{
-
-		if (!CIsoViewExt::DrawAircraftsFilter)
-		{
-			thisDraw = true;
-			return 0;
-		}
-
-		if (!CViewObjectsExt::AircraftBrushDlgF)
-		{
-			thisDraw = true;
-			return 0;
-		}
-
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-
 		if (celldata.Aircraft != -1)
 		{
-			CAircraftData data;
-			CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
-
-			auto vec = CViewObjectsExt::ObjectFilterA;
-			if (!vec.empty())
-				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
-				{
-					thisDraw = false;
-					return 0x473DA0;
-				}
-
-			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
-				{
-					if (CViewObjectsExt::AircraftBrushBoolsF[nCheckBoxIdx - 1300])
-					{
-						if (dst == src) return true;
-						else return false;
-					}
-					return true;
-				};
-			if (
-				CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
-				CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
-				CheckValue(1302, CViewObjectsExt::AircraftBrushDlgF->CString_Direction, data.Facing) &&
-				CheckValue(1303, CViewObjectsExt::AircraftBrushDlgF->CString_Status, data.Status) &&
-				CheckValue(1304, CViewObjectsExt::AircraftBrushDlgF->CString_VeteranLevel, data.VeterancyPercentage) &&
-				CheckValue(1305, CViewObjectsExt::AircraftBrushDlgF->CString_Group, data.Group) &&
-				CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-				CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-				CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag)
-				)
+			const auto& filter = CIsoViewExt::VisibleAircrafts;
+			if (!CIsoViewExt::DrawAircraftsFilter
+				|| std::find(filter.begin(), filter.end(), celldata.Aircraft) != filter.end())
 			{
-				thisDraw = true;
+				CAircraftData data;
+				CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
+
+				int X = atoi(data.X);
+				int Y = atoi(data.Y);
+				int	VP = atoi(data.VeterancyPercentage);
+
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+				X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+				DrawVeterancies temp;
+				temp.X = X;
+				temp.Y = Y;
+				temp.VP = VP;
+				CIsoViewExt::DrawVeterancies.push_back(temp);
 				return 0;
 			}
-			else
-			{
-				thisDraw = false;
-				return 0x473DA0;
-			}
-		}
-		{
-			thisDraw = true;
-			return 0;
 		}
 	}
-	{
-		thisDraw = false;
-		return 0x473DA0;
-	}
+	return 0x473DA0;
 }
-DEFINE_HOOK(473DA0, CIsoView_Draw_LayerVisible_Aircrafts_Veteran, 6)
-{
-	if (thisDraw && CIsoViewExt::DrawVeterancy)
-	{
-		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		pThis->lpDDBackBufferSurface->Unlock(nullptr);
-		if (celldata.Aircraft != -1)
-		{
-			CAircraftData data;
-			CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
 
-			int X = atoi(data.X);
-			int Y = atoi(data.Y);
-			int	VP = atoi(data.VeterancyPercentage);
-
-			CIsoView::MapCoord2ScreenCoord(X, Y);
-			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-			DrawVeterancy temp;
-			temp.X = X;
-			temp.Y = Y;
-			temp.VP = VP;
-			drawVeterancies.push_back(temp);
-
-		}
-
-		thisDraw = false;
-	}
-
-	return 0;
-}
 DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 {
-	thisDraw = false;
 	if (CIsoViewExt::DrawInfantries)
 	{
-
-		if (!CIsoViewExt::DrawInfantriesFilter)
-		{
-			thisDraw = true;
-			return 0;
-		}
-
-		if (!CViewObjectsExt::InfantryBrushDlgF)
-		{
-			thisDraw = true;
-			return 0;
-		}
-
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		GET(int, subPos, EBX)
-
+		GET(int, subPos, EBX);
 		if (celldata.Infantry[subPos] != -1)
 		{
-			CInfantryData data;
-			CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
-
-			auto vec = CViewObjectsExt::ObjectFilterI;
-			if (!vec.empty())
-				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
-				{
-					thisDraw = false;
-					return 0x4741D9;
-				}
-
-			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
-				{
-					if (CViewObjectsExt::InfantryBrushBoolsF[nCheckBoxIdx - 1300])
-					{
-						if (dst == src) return true;
-						else return false;
-					}
-					return true;
-				};
-			if (
-				CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
-				CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
-				CheckValue(1302, CViewObjectsExt::InfantryBrushDlgF->CString_State, data.Status) &&
-				CheckValue(1303, CViewObjectsExt::InfantryBrushDlgF->CString_Direction, data.Facing) &&
-				CheckValue(1304, CViewObjectsExt::InfantryBrushDlgF->CString_VerteranStatus, data.VeterancyPercentage) &&
-				CheckValue(1305, CViewObjectsExt::InfantryBrushDlgF->CString_Group, data.Group) &&
-				CheckValue(1306, CViewObjectsExt::InfantryBrushDlgF->CString_OnBridge, data.IsAboveGround) &&
-				CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
-				CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
-				CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag)
-				)
+			const auto& filter = CIsoViewExt::VisibleInfantries;
+			if (!CIsoViewExt::DrawInfantriesFilter
+				|| std::find(filter.begin(), filter.end(), celldata.Infantry[subPos]) != filter.end())
 			{
-				thisDraw = true;
+				CInfantryData data;
+				CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
+
+				int X = atoi(data.X);
+				int Y = atoi(data.Y);
+				int	VP = atoi(data.VeterancyPercentage);
+
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+				X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+				if (subPos == 2)
+					X += 15;
+				else if (subPos == 3)
+					X -= 15;
+				else if (subPos == 4)
+					Y += 7;
+
+				DrawVeterancies temp;
+				temp.X = X - 5;
+				temp.Y = Y - 4;
+				temp.VP = VP;
+				CIsoViewExt::DrawVeterancies.push_back(temp);
 				return 0;
 			}
-			else
-			{
-				thisDraw = false;
-				return 0x4741D9;
-			}
-		}
-
-
-		{
-			thisDraw = true;
-			return 0;
 		}
 	}
-	{
-		thisDraw = false;
-		return 0x4741D9;
-	}
+	return 0x4741D9;
 }
-DEFINE_HOOK(4741D9, CIsoView_Draw_LayerVisible_Infantries_Veteran, 8)
-{
-	if (thisDraw && CIsoViewExt::DrawVeterancy)
-	{
-		GET(int, subPos, EBX)
-		GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		pThis->lpDDBackBufferSurface->Unlock(nullptr);
-		if (celldata.Infantry[subPos] != -1)
-		{
-			CInfantryData data;
-			CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
 
-			int X = atoi(data.X);
-			int Y = atoi(data.Y);
-			int	VP = atoi(data.VeterancyPercentage);
-			int	subcell = atoi(data.SubCell);
-
-			CIsoView::MapCoord2ScreenCoord(X, Y);
-			X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-			Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-			if (subcell == 2)
-				X += 15;
-			else if (subcell == 3)
-				X -= 15;
-			else if (subcell == 4)
-				Y += 7;
-
-			DrawVeterancy temp;
-			temp.X = X - 5;
-			temp.Y = Y - 4;
-			temp.VP = VP;
-			drawVeterancies.push_back(temp);
-
-			//if (!ImageDataMapHelper::IsImageLoaded(data.TypeID + "0"))
-			//{
-			//	pThis->DrawBitmap("infantry", X + 3, Y - 5);
-			//}
-		}
-
-		thisDraw = false;
-	}
-
-	return 0;
-}
 DEFINE_HOOK(4741E7, CIsoView_Draw_LayerVisible_Terrains, 9)
 {
 	return CIsoViewExt::DrawTerrains ? 0 : 0x474563;
 }
 
-DEFINE_HOOK(474563, CIsoView_Draw_LayerVisible_Smudges, 9)
-{
-	return CIsoViewExt::DrawSmudges ? 0 : 0x4748DC;
-}
+//DEFINE_HOOK(474563, CIsoView_Draw_LayerVisible_Smudges, 9)
+//{
+//	return CIsoViewExt::DrawSmudges ? 0 : 0x4748DC;
+//}
 
+/*
 DEFINE_HOOK(471162, CIsoView_Draw_PowerUp1Loc_PosFix, 5)
 {
 	REF_STACK(const ppmfc::CString, ID, STACK_OFFS(0xD18, 0xBFC));
@@ -773,7 +514,7 @@ DEFINE_HOOK(4709EE, CIsoView_Draw_ShowBuildingOutline, 6)
 
 	return 0x470A38;
 }
-
+*/
 
 DEFINE_HOOK(4727B2, CIsoView_Draw_BasenodeOutline_CustomFoundation, B)
 {
@@ -883,7 +624,7 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 	const char* InsigniaElite = "FA2spInsigniaElite";
 	auto veteran = ImageDataMapHelper::GetImageDataFromMap(InsigniaVeteran);
 	auto elite = ImageDataMapHelper::GetImageDataFromMap(InsigniaElite);
-	for (auto& dv : drawVeterancies)
+	for (auto& dv : CIsoViewExt::DrawVeterancies)
 	{
 		if (dv.VP >= 200)
 			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite);
@@ -1006,7 +747,6 @@ DEFINE_HOOK(45EC07, CIsoView_OnCommand_Skip_wParamCheck, 9)
 {
 	return 0x45EC10;
 }
-
 
 DEFINE_HOOK(45CDB8, CIsoView_OnMouseMove_SkipOverlayUndoRedo1, 6)
 {
@@ -1138,13 +878,6 @@ DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
 	const auto cell = CMapData::Instance->TryGetCellAt(X, Y);
 	return cell->IsHidden() ? 0x457D11 : 0;
 }
-
-DEFINE_HOOK(46DE00, CIsoView_Draw_ClearUp, 7)
-{
-	PalettesManager::CalculatedObjectPaletteFiles.clear();
-	return 0;
-}
-
 
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
 //{

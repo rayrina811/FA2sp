@@ -2171,6 +2171,100 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 }
 
+void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd)
+{
+    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
+
+    x += 31;
+    y -= 29;
+    int bpp = 4;
+
+    BYTE* src = (BYTE*)pd->pImageBuffer;
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
+
+    if (src == NULL || dst == NULL) {
+        return;
+    }
+
+    if (x + swidth < window.left || y + sheight < window.top) {
+        return;
+    }
+    if (x >= window.right || y >= window.bottom) {
+        return;
+    }
+
+    RECT blrect;
+    RECT srcRect;
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+        //blrect.left=1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+        //blrect.top=1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
+    }
+
+    int i, e;
+
+
+    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+
+    for (e = srcRect.top; e < srcRect.bottom; e++) {
+        int left = pd->pPixelValidRanges[e].First;
+        int right = pd->pPixelValidRanges[e].Last;
+
+        if (left < srcRect.left) {
+            left = srcRect.left;
+        }
+        if (right >= srcRect.right) {
+            right = srcRect.right - 1;
+        }
+
+        for (i = left; i <= right; i++) {
+            if (blrect.left + i < 0) {
+                continue;
+            }
+
+            const int spos = i + e * swidth;
+            BYTE val = src[spos];
+
+            if (val && val != 127) {
+                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
+
+                if (dest >= dst) {
+                    BGRStruct c;
+                    if (dest + bpp < surfaceEnd) {
+                        BGRStruct oriColor;
+                        memcpy(&oriColor, dest, bpp);
+                        c.B = std::min(oriColor.B * val * 2 / 256, 255);
+                        c.G = std::min(oriColor.G * val * 2 / 256, 255);
+                        c.R = std::min(oriColor.R * val * 2 / 256, 255);
+                        memcpy(dest, &c, bpp);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
 {  
     auto pThis = CIsoView::GetInstance();
