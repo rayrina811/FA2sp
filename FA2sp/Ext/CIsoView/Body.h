@@ -21,6 +21,14 @@ struct DDBoundary
     long dpitch{};
 };
 
+struct DrawBuildings
+{
+    short index;
+    short x;
+    short y;
+    short buildingIndex;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -47,7 +55,11 @@ public:
     static void FillArea(int X, int Y, int ID, int Subtile);
     static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
     static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
-    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255);
+    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
+    static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
+    static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -87,9 +99,12 @@ public:
     static bool AutoPropertyBrush[4];
 
     static COLORREF _cell_hilight_colors[16];
-    static int drawOffsetX;
-    static int drawOffsetY;
+    static float drawOffsetX;
+    static float drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
+
+    static std::map<MapCoord, int> WaypointsToDraw;
+    static std::map<MapCoord, DrawBuildings> BuildingsToDraw;
 
     static bool IsPressingALT;
 };

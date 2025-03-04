@@ -98,6 +98,45 @@ struct LightingSourcePosition
     }
 };
 
+struct CellDataExt
+{
+    short X;
+    short Y;
+
+    // for preview
+    bool AroundPlayerLocation = false;
+    bool AroundHighBridge = false;
+
+    // for locate cell
+    bool drawCell = false;
+
+    // for copy paste
+    CBuildingData BuildingData;
+    CAircraftData AircraftData;
+    CInfantryData InfantryData[3];
+    CUnitData UnitData;
+    ppmfc::CString TerrainData;
+    ppmfc::CString SmudgeData;
+
+    // for smooth water
+    bool IsWater = false;
+    bool Processed = false;
+
+    // for raise ground
+    bool Adjusted = false;
+    bool CreateSlope = false;
+
+    // for create shore
+    bool ShoreProcessed = false;
+    bool ShoreLATNeeded = false;
+
+    // for terrain generation
+    bool AddRandomTile = false;
+
+    // for drawmap
+    short Structure = -1;
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -208,6 +247,7 @@ public:
     static std::map<int, bool> SoftTileSets; // soft = affected by shore logic
     static ppmfc::CString BitmapImporterTheater;
     static float ConditionYellow;
+    static std::map<int, bool> TileSetCumstomPalette;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
 };

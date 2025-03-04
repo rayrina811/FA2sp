@@ -886,117 +886,12 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 	for (auto& dv : drawVeterancies)
 	{
 		if (dv.VP >= 200)
-			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X + 2, dv.Y + 13, elite);
+			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite);
 		else if (dv.VP >= 100)
-			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X + 2, dv.Y + 13, veteran);
+			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran);
 	}
 
 	return pThis ? 0x474AEF : 0x474DB3;
-}
-
-DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
-{
-	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-
-	GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-	REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-
-	CIsoViewExt::drawOffsetX = R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-	CIsoViewExt::drawOffsetY = R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-	int X = R->Stack<int>(STACK_OFFS(0xD18, 0xCE4)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-	int Y = R->Stack<int>(STACK_OFFS(0xD18, 0xCD0)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-	// We had unlocked it already, just blt them now
-	if (CIsoViewExt::DrawCelltags && celldata.CellTag != -1)
-	{
-		if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
-		{
-			auto AllisNum = [](std::string str)
-				{
-					for (int i = 0; i < str.size(); i++)
-					{
-						int tmp = (int)str[i];
-						if (tmp >= 48 && tmp <= 57)
-						{
-							continue;
-						}
-						else
-						{
-							return false;
-						}
-					}
-					return true;
-				};
-			ppmfc::CString id = "";
-			if (CMapData::Instance().INI.SectionExists("CellTags"))
-				id = CMapData::Instance().INI.GetStringAt("CellTags", celldata.CellTag);
-
-			if (id != "")
-			{
-				for (auto name : CViewObjectsExt::ObjectFilterCT)
-				{
-					if (name == id)
-					{
-						pThis->DrawCelltag(X, Y);
-						break;
-					}
-					if (AllisNum(std::string(name)))
-					{
-						int n = atoi(name);
-						if (n < 1000000)
-						{
-							ppmfc::CString buffer;
-							buffer.Format("%08d", n + 1000000);
-							if (buffer == id)
-							{
-								pThis->DrawCelltag(X, Y);
-								break;
-							}
-						}
-					}
-					
-				}
-			}
-		}
-		else
-			pThis->DrawCelltag(X, Y);
-		
-		
-	}
-		
-	if (CIsoViewExt::DrawWaypoints && celldata.Waypoint != -1)
-		pThis->DrawWaypointFlag(X, Y);
-	if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
-		pThis->DrawTube(&celldata, X, Y);
-
-
-
-	auto cellDataExt = CMapDataExt::CellDataExt_FindCell;
-	if (cellDataExt.drawCell)
-	{
-		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
-		if (ExtConfigs::Waypoint_Background)
-		{
-			SetBkMode(hDC, OPAQUE);
-			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
-		}
-		else
-			SetBkMode(hDC, TRANSPARENT);
-		SetTextAlign(hDC, TA_CENTER);
-
-		int x = cellDataExt.X;
-		int y = cellDataExt.Y;
-
-		CIsoView::MapCoord2ScreenCoord(x, y);
-
-		int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-		int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-		pThis->DrawBitmap("target", drawX - 20, drawY - 11);
-	}
-
-	return 0x474D64;
 }
 
 DEFINE_HOOK(474DB7, CIsoView_Draw_DrawCelltagAndWaypointAndTube_SkipOriginUnlock, 6)
@@ -1007,108 +902,6 @@ DEFINE_HOOK(474DB7, CIsoView_Draw_DrawCelltagAndWaypointAndTube_SkipOriginUnlock
 	R->EBP(&pThis->lpDDBackBufferSurface);
 
 	return 0x474DCE;
-}
-
-DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
-{
-	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-
-	if (CIsoViewExt::DrawBaseNodeIndex)
-	{
-		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
-		if (ExtConfigs::BaseNodeIndex_Background)
-		{
-			SetBkMode(hDC, OPAQUE);
-			SetBkColor(hDC, ExtConfigs::BaseNodeIndex_Background_Color);
-		}
-		else
-			SetBkMode(hDC, TRANSPARENT);
-		SetTextAlign(hDC, TA_CENTER);
-
-		auto& ini = CMapData::Instance->INI;
-		if (auto pSection = ini.GetSection("Houses"))
-		{
-			for (auto pair : pSection->GetEntities())
-			{
-				int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
-				if (nodeCount > 0)
-				{
-					for (int i = 0; i < nodeCount; i++)
-					{
-						char key[10];
-						sprintf(key, "%03d", i);
-						auto value = ini.GetString(pair.second, key, "");
-						if (value == "")
-							continue;
-						auto atoms = STDHelpers::SplitString(value);
-						if (atoms.size() < 3)
-							continue;
-
-						int x = atoi(atoms[2]);
-						int y = atoi(atoms[1]);
-
-						CIsoView::MapCoord2ScreenCoord(x, y);
-
-						int ndrawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30;
-						int ndrawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15;
-
-						TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
-					}
-				}
-			}
-		}
-	}
-	
-
-	SetTextColor(hDC, ExtConfigs::Waypoint_Color);
-	if (ExtConfigs::Waypoint_Background)
-	{
-		SetBkMode(hDC, OPAQUE);
-		SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
-	}
-	else
-		SetBkMode(hDC, TRANSPARENT);
-	SetTextAlign(hDC, TA_CENTER);
-
-	if (CIsoViewExt::DrawWaypoints)
-	{
-		GET(CIsoViewExt*, pThis, EBX);
-
-		GET_STACK(int, jMin, STACK_OFFS(0xD18, 0xC10));
-		GET_STACK(int, iMin, STACK_OFFS(0xD18, 0xCBC));
-		GET_STACK(const int, jMax, STACK_OFFS(0xD18, 0xC64));
-		GET_STACK(const int, iMax, STACK_OFFS(0xD18, 0xC18));
-
-		auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
-		for (int j = jMin; j < jMax; ++j)
-		{
-			for (int i = iMin; i < iMax; ++i)
-			{
-				int X = j, Y = i;
-
-				CIsoView::MapCoord2ScreenCoord(X, Y);
-				auto pCell = CMapData::Instance->TryGetCellAt(j, i);
-
-				int drawX = X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
-				int drawY = Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
-
-				if (pCell->Waypoint != -1)
-				{
-					auto pWP = *pSection->GetKeyAt(pCell->Waypoint);
-					auto pointer = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-
-
-					TextOut(hDC, drawX, drawY, pWP, strlen(pWP));
-
-				}
-			}
-		}
-	}
-	
-	SetTextAlign(hDC, TA_LEFT);
-	SetTextColor(hDC, RGB(0, 0, 0));
-
-	return CIsoViewExt::DrawBounds ? 0 : 0x474FE0;
 }
 
 DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
@@ -1346,6 +1139,11 @@ DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
 	return cell->IsHidden() ? 0x457D11 : 0;
 }
 
+DEFINE_HOOK(46DE00, CIsoView_Draw_ClearUp, 7)
+{
+	PalettesManager::CalculatedObjectPaletteFiles.clear();
+	return 0;
+}
 
 
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)

@@ -2,7 +2,7 @@
 
 #include <CLoading.h>
 #include "../FA2Expand.h"
-
+#include <CShpFile.h>
 #include <vector>
 #include <map>
 #include <CPalette.h>
@@ -41,6 +41,8 @@ public:
 	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
 	static void LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
 	static void LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
+	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 
 private:
 	static ppmfc::CString* __cdecl GetDictName(ppmfc::CString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
@@ -57,16 +59,15 @@ private:
 	void LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble = false);
 
 	void LoadInfantry(ppmfc::CString ID);
-	void LoadTerrainOrSmudge(ppmfc::CString ID);
+	void LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain);
 	void LoadVehicleOrAircraft(ppmfc::CString ID);
 
-	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
 	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false, bool bShadow = false);
 	void UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth, int* OutHeight, bool UseTemp = false, bool bShadow = false);
-	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height);
-	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight);
+	void VXL_Add(unsigned char* pCache, int X, int Y, int Width, int Height, bool shadow = false);
+	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 
@@ -84,7 +85,7 @@ private:
 	};
 
 public:
-	ppmfc::CString GetArtID(ppmfc::CString ID);
+	static ppmfc::CString GetArtID(ppmfc::CString ID);
 	ppmfc::CString GetVehicleOrAircraftFileID(ppmfc::CString ID);
 	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
 	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
@@ -109,4 +110,5 @@ private:
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
 	static std::map<ppmfc::CString, ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
+	static unsigned char VXL_Shadow_Data[0x10000];
 };

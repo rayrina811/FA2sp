@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CMapData.h>
+#include "..\Ext\CMapData\Body.h"
 
 #include <set>
 #include <concepts>

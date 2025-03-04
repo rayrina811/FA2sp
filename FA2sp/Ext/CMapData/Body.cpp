@@ -57,6 +57,7 @@ int CMapDataExt::WoodBridgeSet;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 float CMapDataExt::ConditionYellow = 0.67f;
+std::map<int, bool> CMapDataExt::TileSetCumstomPalette;
 std::vector<int> CMapDataExt::ShoreTileSets;
 std::map<int, bool> CMapDataExt::SoftTileSets;
 ppmfc::CString CMapDataExt::BitmapImporterTheater;
@@ -822,8 +823,6 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 			}
 		}
 	}
-
-
 }
 
 void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CString oldStructure)
@@ -835,21 +834,19 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 	auto m_mapfile = Map->GetMapDocument();
 
 	int i = 0;
-	for (i = 0; i < Map->MapWidthPlusHeight * Map->MapWidthPlusHeight; i++)
+	for (i = 0; i < fielddata_size; i++)
 	{
 		if (fielddata[i].Structure >= ID)
 		{
 			fielddata[i].Structure = -1;
 			fielddata[i].TypeListIndex = -1;
+			CellDataExts[i].Structure = -1;
 		}
 
 	}
-
-	if (m_mapfile->SectionExists("Structures"))
+	if (auto sec = m_mapfile->GetSection("Structures"))
 	{
-		auto sec = m_mapfile->GetSection("Structures");
 		i = 0;
-		//CMapDataExt::BuildingRenderDatasFix.clear();
 		for (auto& data : sec->GetEntities())
 		{
 			if (i < ID)
@@ -885,10 +882,12 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 					{
 						const int x = X + dx;
 						const int y = Y + dy;
-						if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+						int coord = CMapData::Instance->GetCoordIndex(x, y);
+						if (coord < CMapData::Instance->CellDataCount)
 						{
-							auto pCell = CMapData::Instance->GetCellAt(x, y);
+							auto pCell = CMapData::Instance->GetCellAt(coord);
 							pCell->Structure = i;
+							CellDataExts[coord].Structure = i;
 							pCell->TypeListIndex = BuildingIndex;
 							CMapData::Instance->UpdateMapPreviewAt(x, y);
 						}
@@ -901,12 +900,26 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 				{
 					const int x = X + block.Y;
 					const int y = Y + block.X;
-					if (CMapData::Instance->GetCoordIndex(x, y) < CMapData::Instance->CellDataCount)
+					int coord = CMapData::Instance->GetCoordIndex(x, y);
+					if (coord < CMapData::Instance->CellDataCount)
 					{
-						auto pCell = CMapData::Instance->GetCellAt(x, y);
+						auto pCell = CMapData::Instance->GetCellAt(coord);
 						pCell->Structure = i;
 						pCell->TypeListIndex = BuildingIndex;
 						CMapData::Instance->UpdateMapPreviewAt(x, y);
+					}
+				}
+				for (int dy = 0; dy < DataExt.Width; ++dy)
+				{
+					for (int dx = 0; dx < DataExt.Height; ++dx)
+					{
+						const int x = X + dx;
+						const int y = Y + dy;
+						int coord = CMapData::Instance->GetCoordIndex(x, y);
+						if (coord < CMapData::Instance->CellDataCount)
+						{
+							CellDataExts[coord].Structure = i;
+						}
 					}
 				}
 			}
@@ -1359,6 +1372,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	CMapDataExt::TileSet_starts.clear();
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
+	CMapDataExt::TileSetCumstomPalette.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -1378,6 +1392,15 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 				setName.MakeLower();
 				if (setName.Find("shore") != -1)
 					ShoreTileSets.push_back(index);
+
+				if (theater->KeyExists(sName, "CustomPalette"))
+				{
+					CMapDataExt::TileSetCumstomPalette[index] = true;
+				}
+				else
+				{
+					CMapDataExt::TileSetCumstomPalette[index] = false;
+				}
 			}
 			else break;
 		}
@@ -1453,13 +1476,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	CViewObjectsExt::ConnectedTile_Initialize();
 
 	CMapDataExt::CellDataExts.clear();
-	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
-	{
-		CellDataExt cell;
-		cell.Adjusted = false;
-		cell.CreateSlope = false;
-		CMapDataExt::CellDataExts.push_back(cell);
-	}
+	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+
 	// already done in UpdateTriggers()
 	//if (TriggerSort::Instance.IsVisible())
 	//{
@@ -1508,6 +1526,35 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
 			}
+		}
+	}
+
+	CIsoViewExt::BuildingsToDraw.clear();
+	if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
+	{
+		int i = 0;
+		for (auto& data : pSection->GetEntities())
+		{
+			auto& value = data.second;
+			const auto& splits = STDHelpers::SplitString(value);
+			int X = atoi(splits[4]);
+			int Y = atoi(splits[3]);
+			const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
+			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+			for (int dy = 0; dy < DataExt.Width; ++dy)
+			{
+				for (int dx = 0; dx < DataExt.Height; ++dx)
+				{
+					const int x = X + dx;
+					const int y = Y + dy;
+					int coord = CMapData::Instance->GetCoordIndex(x, y);
+					if (coord < CMapData::Instance->CellDataCount)
+					{
+						CellDataExts[coord].Structure = i;
+					}
+				}
+			}
+			i++;
 		}
 	}
 }

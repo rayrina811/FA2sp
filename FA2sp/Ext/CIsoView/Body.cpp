@@ -14,6 +14,7 @@
 #include "../CMapData/Body.h"
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/MultiSelection.h"
+#include "../../Miscs/Palettes.h"
 
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
@@ -55,8 +56,8 @@ bool CIsoViewExt::IsPressingALT = false;
 
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 
-int CIsoViewExt::drawOffsetX;
-int CIsoViewExt::drawOffsetY;
+float CIsoViewExt::drawOffsetX;
+float CIsoViewExt::drawOffsetY;
 
 COLORREF CIsoViewExt::_cell_hilight_colors[16] = {
 RGB(255, 255, 255),	// level 0
@@ -1940,16 +1941,12 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     pThis->lpDDBackBufferSurface->Unlock(NULL);
 }
 
-void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha)
+void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
 {
     if (alpha == 0) return;
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-    auto dst = lpDesc->lpSurface;
-    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
 
-    auto pThis = CIsoView::GetInstance();
-    RECT r;
-    pThis->GetWindowRect(&r);
     x += 31;
     y -= 29;
     int bpp = 4;
@@ -1966,10 +1963,10 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
         return;
     }
 
-    if (x + swidth < r.left || y + sheight < r.top) {
+    if (x + swidth < window.left || y + sheight < window.top) {
         return;
     }
-    if (x >= r.right || y >= r.bottom) {
+    if (x >= window.right || y >= window.bottom) {
         return;
     }
 
@@ -1990,35 +1987,27 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
         //blrect.top=1;
     }
     blrect.right = (x + swidth);
-    if (x + swidth > r.right) {
-        srcRect.right = swidth - ((x + swidth) - r.right);
-        blrect.right = r.right;
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
     }
     blrect.bottom = (y + sheight);
-    if (y + sheight > r.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - r.bottom);
-        blrect.bottom = r.bottom;
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
     }
 
     int i, e;
 
-    //// calculate a palette for given color for values 0x10 to 0x1f - we might move this outside
-    //const int houseColorMin = 0x10;
-    //const int houseColorMax = 0x1f;
-    //const int houseColorRelMax = houseColorMax - houseColorMin;
-    //int houseColors[houseColorRelMax + 1] = { 0 };
-    //CalculateHouseColorPalette(houseColors, newPal, color);
-    //const BYTE* const pLighting = (bpp == 4 && pd->lighting && !pd->lighting->empty()) ? pd->lighting->data() : nullptr;
-    //
-    //auto getHouseColor = std::function([](BYTE idx, BYTE houseColorMinIdx) -> int {
-    //    return idx - houseColorMinIdx;
-    //    });
-    //
-    //if (g_data["Debug"].GetBool("RenderPlainHouseColor")) {
-    //    getHouseColor = [](BYTE idx, BYTE houseColorMinIdx) -> int {
-    //        return 0;
-    //        };
-    //}
+    if (houseColor > -1)
+    {
+        BGRStruct color;
+        auto pRGB = (ColorStruct*)&houseColor;
+        color.R = pRGB->red;
+        color.G = pRGB->green;
+        color.B = pRGB->blue;
+        newPal = PalettesManager::GetPalette(newPal, color, true);
+    }
 
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
 
@@ -2061,6 +2050,134 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
             }
         }
     }
+}
+
+void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
+{
+    if (alpha == 0) return;
+    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
+
+    x += 31;
+    y -= 29;
+    int bpp = 4;
+
+    if (newPal == NULL) {
+        newPal = pd->pPalette;
+    }
+
+    BYTE* src = (BYTE*)pd->pImageBuffer;
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
+
+    if (src == NULL || dst == NULL) {
+        return;
+    }
+
+    if (x + swidth < window.left || y + sheight < window.top) {
+        return;
+    }
+    if (x >= window.right || y >= window.bottom) {
+        return;
+    }
+
+    RECT blrect;
+    RECT srcRect;
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+        //blrect.left=1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+        //blrect.top=1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
+    }
+
+    int i, e;
+
+    if (houseColor > -1)
+    {
+        BGRStruct color;
+        auto pRGB = (ColorStruct*)&houseColor;
+        color.R = pRGB->red;
+        color.G = pRGB->green;
+        color.B = pRGB->blue;
+        if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+        {
+            newPal = PalettesManager::GetPalette(newPal, color, true);
+        }
+        else
+        {
+            newPal = PalettesManager::GetObjectPalette(newPal, color, true,
+                CIsoViewExt::CurrentDrawCellLocation, false, 3);
+        }
+    }
+
+    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+
+    for (e = srcRect.top; e < srcRect.bottom; e++) {
+        int left = pd->pPixelValidRanges[e].First;
+        int right = pd->pPixelValidRanges[e].Last;
+
+        if (left < srcRect.left) {
+            left = srcRect.left;
+        }
+        if (right >= srcRect.right) {
+            right = srcRect.right - 1;
+        }
+
+        for (i = left; i <= right; i++) {
+            if (blrect.left + i < 0) {
+                continue;
+            }
+
+            const int spos = i + e * swidth;
+            BYTE val = src[spos];
+
+            if (val) {
+                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
+
+                if (dest >= dst) {
+                    BGRStruct c = newPal->Data[val];
+                    if (dest + bpp < surfaceEnd) {
+                        if (alpha < 255)
+                        {
+                            BGRStruct oriColor;
+                            memcpy(&oriColor, dest, bpp);
+                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
+                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
+                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
+                        }
+                        memcpy(dest, &c, bpp);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
+{  
+    auto pThis = CIsoView::GetInstance();
+    RECT window;
+    pThis->GetWindowRect(&window);
+    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+    CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

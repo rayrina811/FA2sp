@@ -52,19 +52,25 @@ bool VoxelDrawer::LoadHVAFile(ppmfc::CString name)
 }
 
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, int& width,
-    int& height, int& x, int& y, const int F, const int L, const int H)
+    int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow)
 {
     const unsigned int nIndex = nFacing * 4;
     CncImgPrepareVXLCache(nIndex, F, L, H);
-    CncImgGetImageFrame(nIndex, &width, &height, &x, &y);
+    if (Shadow)
+        CncImgGetShadowImageFrame(nIndex, &width, &height, &x, &y);
+    else
+        CncImgGetImageFrame(nIndex, &width, &height, &x, &y);
     if (width < 0 || height < 0)
         return false;
+    if (Shadow)
+        return CncImgGetShadowImageData(nIndex, &pBuffer);
     return CncImgGetImageData(nIndex, &pBuffer);
 }
 
-bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, VoxelRectangle& rect, const int F, const int L, const int H)
+bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, VoxelRectangle& rect,
+    const int F, const int L, const int H, bool Shadow)
 {
-    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H);
+    return GetImageData(nFacing, pBuffer, rect.W, rect.H, rect.X, rect.Y, F, L, H, Shadow);
 }
 
 bool VoxelDrawer::IsVPLLoaded()

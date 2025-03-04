@@ -608,7 +608,7 @@
     <ClCompile Include="FA2sp\Ext\CCreateMap3B\Body.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\Hooks.Shadow.cpp">
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

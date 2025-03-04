@@ -14,6 +14,10 @@
 #include "../../Helpers/STDHelpers.h"
 #include <filesystem>
 #include <fstream>
+#include "../../Helpers/Translations.h"
+#include "../CFinalSunDlg/Body.h"
+#include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+#include "../CMapData/Body.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -82,10 +86,7 @@ DEFINE_HOOK(49D2C0, CMapData_LoadMap_ClearCLoadingExtData, 5)
     CLoadingExt::ClearItemTypes();
     return 0;
 }
-#include <CInputMessageBox.h>
-#include "../../Helpers/Translations.h"
-#include "../CFinalSunDlg/Body.h"
-#include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+
 DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 {
     GET(const char*, mapPath, EDI);
@@ -233,5 +234,35 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
         CLoading::Instance->CurrentTMP->open(pBuffer, dwSize);
         return 0x525B77;
     }
+    return 0;
+}
+
+static const char* LoadingOverlayID;
+DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic_RecordHistory, 7)
+{
+    GET_STACK(const char*, overlayID, 0x4);
+    LoadingOverlayID = overlayID;
+    auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), overlayID);
+    if (it == CLoadingExt::LoadedOverlays.end()) {
+        CLoadingExt::LoadedOverlays.push_back(overlayID);
+    }
+
+    return 0;
+}
+
+DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
+{
+    ShapeHeader header;
+    CShpFile::GetSHPHeader(&header);
+    auto loadingExt = (CLoadingExt*)CLoading::Instance();
+    for (int i = 0; i < header.FrameCount / 2; i++)
+    {
+        ppmfc::CString DictNameShadow;
+        unsigned char* pBufferShadow[1];
+        DictNameShadow.Format("%s%d\233OVERLAYSHADOW", LoadingOverlayID, i);
+        CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow[0], header);
+        loadingExt->SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+    }
+
     return 0;
 }

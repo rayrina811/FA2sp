@@ -1,0 +1,618 @@
+#include <Helpers/Macro.h>
+#include <Drawing.h>
+#include <CPalette.h>
+#include <CLoading.h>
+#include "../../Miscs/Palettes.h"
+#include "../CFinalSunDlg/Body.h"
+#include "../CIsoView/Body.h"
+#include "../CLoading/Body.h"
+#include "../CMapData/Body.h"
+
+static int Left, Right, Top, Bottom;
+static RECT window;
+static MapCoord VisibleCoordTL;
+static MapCoord VisibleCoordBR;
+std::map<MapCoord, int> CIsoViewExt::WaypointsToDraw;
+std::map<MapCoord, DrawBuildings> CIsoViewExt::BuildingsToDraw;
+static int HorizontalLoopIndex;
+#define EXTRA_BORDER 5
+#define EXTRA_BORDER_BOTTOM 10
+
+inline static bool IsCoordInWindow(int X, int Y)
+{
+	return
+		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
+		X + Y < VisibleCoordBR.X + VisibleCoordBR.Y + EXTRA_BORDER_BOTTOM &&
+		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
+		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
+}
+
+DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
+{
+	Left = R->Stack<int>(STACK_OFFS(0xD18, 0xC10));
+	Right = R->Stack<int>(STACK_OFFS(0xD18, 0xC64));
+	Top = R->Stack<int>(STACK_OFFS(0xD18, 0xCBC));
+	Bottom = R->Stack<int>(STACK_OFFS(0xD18, 0xC18));
+	auto pThis = CIsoView::GetInstance();
+	pThis->GetWindowRect(&window);
+	VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
+	VisibleCoordTL.Y = window.top + pThis->ViewPosition.y;
+	VisibleCoordBR.X = window.right + pThis->ViewPosition.x;
+	VisibleCoordBR.Y = window.bottom + pThis->ViewPosition.y;
+	pThis->ScreenCoord2MapCoord_Flat(VisibleCoordTL.X, VisibleCoordTL.Y);
+	pThis->ScreenCoord2MapCoord_Flat(VisibleCoordBR.X, VisibleCoordBR.Y);
+	if (VisibleCoordBR.X < 0 || VisibleCoordBR.Y < 0)
+	{
+		VisibleCoordBR.X = CMapData::Instance->Size.Width;
+		VisibleCoordBR.Y = CMapData::Instance->MapWidthPlusHeight + 1;
+	}
+	if (VisibleCoordTL.X < 0 || VisibleCoordTL.Y < 0)
+	{
+		VisibleCoordTL.X = CMapData::Instance->Size.Width;
+		VisibleCoordTL.Y = 0;
+	}
+
+	HorizontalLoopIndex = VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER;
+	return 0;
+}
+
+DEFINE_HOOK(46F604, CIsoView_Draw_Loop2_HorizontalLoop_1, 8)
+{
+	R->EBP(VisibleCoordTL.Y - EXTRA_BORDER);
+	R->EDI(HorizontalLoopIndex - (VisibleCoordTL.Y - EXTRA_BORDER));
+	if (Top >= Bottom)
+		return 0x474ACF;
+
+	return 0x46F612;
+}
+
+DEFINE_HOOK(474AC2, CIsoView_Draw_Loop2_HorizontalLoop_2, 7)
+{
+	GET(int, X, EDI);
+	GET(int, Y, EBP);
+	Y++;
+	X--;
+	while (!IsCoordInWindow(X, Y))
+	{
+		Y++;
+		X--;
+		if (X <= 0)
+		{
+			R->EBP(Y);
+			R->EDI(X);
+			R->Stack(STACK_OFFS(0xD18, 0xCA4), Y);
+			return 0x474ACF;
+		}
+	}
+	R->EBP(Y);
+	R->EDI(X);
+	R->Stack(STACK_OFFS(0xD18, 0xCA4), Y);
+	R->Stack(STACK_OFFS(0xD18, 0xCA8), X);
+	return 0x46F612;
+}
+
+DEFINE_HOOK(474ACF, CIsoView_Draw_Loop2_HorizontalLoop_3, 7)
+{
+	HorizontalLoopIndex++;
+	R->Stack(STACK_OFFS(0xD18, 0xCA8), R->EDI());
+	if (HorizontalLoopIndex >= VisibleCoordBR.X + VisibleCoordBR.Y + EXTRA_BORDER_BOTTOM)
+		return 0x474AE3;
+
+	return 0x46F604;
+}
+
+DEFINE_HOOK(46EAEF, CIsoView_Draw_Optimize_1, 5)
+{
+	GET(int, X, EBP);
+	GET(int, Y, EBX);
+
+	if (!IsCoordInWindow(X, Y))
+		return 0x46F5AF;
+
+	return 0;
+}
+
+DEFINE_HOOK(46F680, CIsoView_Draw_Optimize_2, 5)
+{
+	GET(int, X, EDI);
+	GET(int, Y, EBP);
+
+	if (!IsCoordInWindow(X, Y))
+		return 0x474AC2;
+
+	return 0;
+}
+
+DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
+{
+	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
+
+	GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
+	REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+
+	CIsoViewExt::drawOffsetX = R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+	CIsoViewExt::drawOffsetY = R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+	int X = R->Stack<int>(STACK_OFFS(0xD18, 0xCE4)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+	int Y = R->Stack<int>(STACK_OFFS(0xD18, 0xCD0)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+	if (IsCoordInWindow(R->Stack<int>(STACK_OFFS(0xD18, 0xCA8)), R->Stack<int>(STACK_OFFS(0xD18, 0xCA4))))
+	{
+		// We had unlocked it already, just blt them now
+		if (CIsoViewExt::DrawCelltags && celldata.CellTag != -1)
+		{
+			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty())
+			{
+				ppmfc::CString id = "";
+				if (CMapData::Instance().INI.SectionExists("CellTags"))
+					id = CMapData::Instance().INI.GetStringAt("CellTags", celldata.CellTag);
+
+				if (id != "")
+				{
+					for (auto name : CViewObjectsExt::ObjectFilterCT)
+					{
+						if (name == id)
+						{
+							pThis->DrawCelltag(X, Y);
+							break;
+						}
+						if (STDHelpers::IsNumber(name))
+						{
+							int n = atoi(name);
+							if (n < 1000000)
+							{
+								ppmfc::CString buffer;
+								buffer.Format("%08d", n + 1000000);
+								if (buffer == id)
+								{
+									pThis->DrawCelltag(X, Y);
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+			else
+				pThis->DrawCelltag(X, Y);
+		}
+
+		if (CIsoViewExt::DrawWaypoints && celldata.Waypoint != -1)
+			pThis->DrawWaypointFlag(X, Y);
+		if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
+			pThis->DrawTube(&celldata, X, Y);
+	}
+
+	auto& cellDataExt = CMapDataExt::CellDataExt_FindCell;
+	if (cellDataExt.drawCell)
+	{
+		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
+		if (ExtConfigs::Waypoint_Background)
+		{
+			SetBkMode(hDC, OPAQUE);
+			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+		}
+		else
+			SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+
+		int x = cellDataExt.X;
+		int y = cellDataExt.Y;
+
+		CIsoView::MapCoord2ScreenCoord(x, y);
+
+		int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+		int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+
+		pThis->DrawBitmap("target", drawX - 20, drawY - 11);
+	}
+
+	return 0x474D64;
+}
+
+DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
+{
+	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
+
+	if (CIsoViewExt::DrawBaseNodeIndex)
+	{
+		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
+		if (ExtConfigs::BaseNodeIndex_Background)
+		{
+			SetBkMode(hDC, OPAQUE);
+			SetBkColor(hDC, ExtConfigs::BaseNodeIndex_Background_Color);
+		}
+		else
+			SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+
+		auto& ini = CMapData::Instance->INI;
+		if (auto pSection = ini.GetSection("Houses"))
+		{
+			for (auto& pair : pSection->GetEntities())
+			{
+				int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
+				if (nodeCount > 0)
+				{
+					for (int i = 0; i < nodeCount; i++)
+					{
+						char key[10];
+						sprintf(key, "%03d", i);
+						auto value = ini.GetString(pair.second, key, "");
+						if (value == "")
+							continue;
+						auto atoms = STDHelpers::SplitString(value);
+						if (atoms.size() < 3)
+							continue;
+
+						int x = atoi(atoms[2]);
+						int y = atoi(atoms[1]);
+
+						if (IsCoordInWindow(x, y))
+						{
+							CIsoView::MapCoord2ScreenCoord(x, y);
+
+							int ndrawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30;
+							int ndrawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15;
+
+							TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (CIsoViewExt::DrawWaypoints)
+	{	
+		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
+		if (ExtConfigs::Waypoint_Background)
+		{
+			SetBkMode(hDC, OPAQUE);
+			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
+		}
+		else
+			SetBkMode(hDC, TRANSPARENT);
+		SetTextAlign(hDC, TA_CENTER);
+		
+
+		for (const auto& [coord, index] : CIsoViewExt::WaypointsToDraw)
+		{
+			MapCoord mc = coord;
+			if (IsCoordInWindow(mc.X, mc.Y))
+			{
+				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+				int drawX = mc.X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
+				int drawY = mc.Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
+				ppmfc::CString text;
+				text.Format("%d", index);
+				TextOut(hDC, drawX, drawY, text, strlen(text));
+			}
+		}
+	}
+
+	SetTextAlign(hDC, TA_LEFT);
+	SetTextColor(hDC, RGB(0, 0, 0));
+
+	return CIsoViewExt::DrawBounds ? 0 : 0x474FE0;
+}
+
+DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
+{
+	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+
+	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::ShadowDisplaySetting != 0;
+
+	const unsigned char Transparency = 128;
+	auto pThis = CIsoView::GetInstance();
+	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+	CIsoViewExt::WaypointsToDraw.clear();
+	CIsoViewExt::BuildingsToDraw.clear();
+
+	int X, Y;
+	for (X = Left; X < Right; X++)
+	{
+		for (Y = Top; Y < Bottom; Y++)
+		{
+			if (!CMapData::Instance->IsCoordInMap(X, Y))
+				continue;
+
+			int pos = CMapData::Instance->GetCoordIndex(X, Y);
+			auto cell = CMapData::Instance->GetCellAt(pos);
+			int x = X;
+			int y = Y;
+			if (shadow)
+			{
+				CIsoView::MapCoord2ScreenCoord(x, y);
+				x -= DrawOffsetX;
+				y -= DrawOffsetY;
+			}
+
+			if (!IsCoordInWindow(X, Y))
+				continue;
+
+			if (cell->Waypoint != -1)
+			{
+				CIsoViewExt::WaypointsToDraw[{X, Y}] = cell->Waypoint;
+			}
+			if (CMapDataExt::CellDataExts[pos].Structure != -1 && CIsoViewExt::DrawStructures)
+			{
+				const auto& objRender =  CMapDataExt::BuildingRenderDatasFix[CMapDataExt::CellDataExts[pos].Structure];
+				if (objRender.X == X && objRender.Y == Y)
+				{
+					MapCoord objCenter;
+					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
+					const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+					objCenter.X = X + DataExt.Height / 2;
+					objCenter.Y = Y + DataExt.Width / 2;
+					if (!CMapData::Instance->IsCoordInMap(objCenter.X, objCenter.Y))
+					{
+						objCenter.X = X;
+						objCenter.Y = Y;
+					}
+					CIsoViewExt::BuildingsToDraw[objCenter] = { CMapDataExt::CellDataExts[pos].Structure , (short)X, (short)Y, (short)BuildingIndex };
+
+					if (shadow)
+					{
+						int nFacing = 0;
+						if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
+							nFacing = 7 - (objRender.Facing / 32) % 8;
+
+						const int HP = objRender.Strength;
+						int status = CLoadingExt::GBIN_NORMAL;
+						if (HP == 0)
+							status = CLoadingExt::GBIN_RUBBLE;
+						else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+							status = CLoadingExt::GBIN_DAMAGED;
+						const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
+						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+						if (!pData || !pData->pImageBuffer)
+						{
+							CLoading::Instance->LoadObjects(objRender.ID);
+						}
+
+						if (pData && pData->pImageBuffer)
+						{
+							int x1 = x;
+							int y1 = y;
+							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+						}
+					}
+				}	
+			}
+			for (int i = 0; i < 3 && shadow; i++)
+			{
+				if (cell->Infantry[i] != -1 && CIsoViewExt::DrawInfantries)
+				{
+					CInfantryData obj;
+					CMapData::Instance->GetInfantryData(cell->Infantry[i], obj);
+					int nFacing = 7 - (atoi(obj.Facing) / 32) % 8;
+
+					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true);
+					auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+					if (pData && pData->pImageBuffer)
+					{
+						int x1 = x;
+						int y1 = y;
+						switch (atoi(obj.SubCell))
+						{
+						case 2:
+							x1 += 15;
+							y1 += 14;
+							break;
+						case 3:
+							x1 -= 15;
+							y1 += 14;
+							break;
+						case 4:
+							y1 += 22;
+							break;
+						default:
+							y1 += 15;
+							break;
+						}
+						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+					}
+				}
+			}
+			if (shadow && cell->Unit != -1 && CIsoViewExt::DrawUnits)
+			{
+				CUnitData obj;
+				CMapData::Instance->GetUnitData(cell->Unit, obj);
+
+				int nFacing = (atoi(obj.Facing) / 32) % 8;
+
+				const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true);
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+				if (pData && pData->pImageBuffer)
+				{
+					int x1 = x;
+					int y1 = y;
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, Transparency);
+				}	
+			}
+			if (shadow && cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
+			{
+				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
+				const auto& imageName = CLoadingExt::GetImageName(obj, 0, true);
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+				if (pData && pData->pImageBuffer)
+				{
+					int x1 = x;
+					int y1 = y;
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 12, pData, NULL, Transparency);
+				}
+			}
+			if (shadow && cell->Overlay != 0xFF && CIsoViewExt::DrawOverlays)
+			{
+				auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
+				ppmfc::CString imageName;
+				imageName.Format("%s%d\233OVERLAYSHADOW", obj, cell->OverlayData);
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+				if (pData && pData->pImageBuffer)
+				{
+					int x1 = x;
+					int y1 = y;
+					if (cell->Overlay == 0xA7)
+						y1 -= 45;
+					else if (
+						cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
+						cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
+						cell->Overlay != 0xED && cell->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+						)
+					{
+						if (cell->Overlay >= 0x27 && cell->Overlay <= 0x36) // Tracks
+							y1 += 15;
+						else if (cell->Overlay >= 0x4A && cell->Overlay <= 0x65) // LOBRDG 1-28
+							y1 += 15;
+						else if (cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+							y1 += 15;
+						else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
+						{
+							if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock)
+								y1 += 15;
+						}
+					}
+					else
+					{
+						if (cell->OverlayData >= 0x9 && cell->OverlayData <= 0x11)
+							y1 -= 16;
+						else
+							y1 -= 1;
+					}
+
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+				}
+			}
+		}
+	}
+
+
+	return 0;
+}
+
+DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
+{
+	GET_STACK(int, X, STACK_OFFS(0xD18, 0xCA8));
+	GET_STACK(int, Y, STACK_OFFS(0xD18, 0xCA4));
+	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+	auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+	auto result = CIsoViewExt::BuildingsToDraw.find({ X,Y });
+	if (result != CIsoViewExt::BuildingsToDraw.end() && CIsoViewExt::DrawStructures)
+	{
+		int pos = CMapData::Instance->GetCoordIndex(X, Y);
+		const auto& draw = CIsoViewExt::BuildingsToDraw[{ X, Y }];
+		const auto& objRender = CMapDataExt::BuildingRenderDatasFix[draw.index];
+		int x = draw.x;
+		int y = draw.y;
+		CIsoView::MapCoord2ScreenCoord(x, y);
+		x -= DrawOffsetX;
+		y -= DrawOffsetY;
+
+		if (CFinalSunApp::Instance->ShowBuildingCells)
+		{
+			const auto& DataExt = CMapDataExt::BuildingDataExts[draw.buildingIndex];
+			if (DataExt.IsCustomFoundation())
+				pThis->DrawLockedLines(*DataExt.LinesToDraw, x, y, objRender.HouseColor, false, false, lpDesc);
+			else
+				pThis->DrawLockedCellOutline(x, y, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, lpDesc);
+		}
+
+		int nFacing = 0;
+		if (Variables::Rules.GetBool(objRender.ID, "Turret"))
+			nFacing = 7 - (objRender.Facing / 32) % 8;
+
+		const int HP = objRender.Strength;
+		int status = CLoadingExt::GBIN_NORMAL;
+		if (HP == 0)
+			status = CLoadingExt::GBIN_RUBBLE;
+		else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+			status = CLoadingExt::GBIN_DAMAGED;
+		const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
+		auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+		if (!pData || !pData->pImageBuffer)
+		{
+			CLoading::Instance->LoadObjects(objRender.ID);
+		}
+
+		if (pData && pData->pImageBuffer)
+		{
+			CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+				x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, objRender.HouseColor);
+
+			for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
+			{
+				const auto& upg = upgrade == 0 ? objRender.PowerUp1 : (upgrade == 1 ? objRender.PowerUp2 : objRender.PowerUp3);
+				const auto& upgXX = upgrade == 0 ? "PowerUp1LocXX" : (upgrade == 1 ? "PowerUp2LocXX" : "PowerUp3LocXX");
+				const auto& upgYY = upgrade == 0 ? "PowerUp1LocYY" : (upgrade == 1 ? "PowerUp2LocYY" : "PowerUp3LocYY");
+				if (upg.GetLength() == 0)
+					continue;
+
+				auto pUpgData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(upg, 0));
+				if (!pUpgData || !pUpgData->pImageBuffer)
+				{
+					CLoading::Instance->LoadObjects(upg);
+				}
+				if (pUpgData && pUpgData->pImageBuffer)
+				{
+					auto ArtID = CLoadingExt::GetArtID(objRender.ID);
+
+					int x1 = x;
+					int y1 = y;
+					x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
+					y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+						x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, 255, objRender.HouseColor);
+				}
+			}
+		}	
+
+
+		CIsoViewExt::BuildingsToDraw.erase(result);
+	}
+
+	return 0x4725CB;
+}
+
+DEFINE_HOOK(470772, CIsoView_Draw_SmudgeBeforeBuilding, 8)
+{
+	GET_STACK(int, Smudge, STACK_OFFS(0xD18, 0xC4C));
+	Smudge = LOWORD(Smudge);
+	if (Smudge != 0xFFFF)
+	{
+		return 0x474572;
+	}
+	return 0;
+}
+
+DEFINE_HOOK(4748C4, CIsoView_Draw_SmudgeBeforeBuilding_back, 7)
+{
+	return 0x47077A;
+}
+
+DEFINE_HOOK(474563, CIsoView_Draw_SkipOriSmudge, 9)
+{
+	return 0x4748DC;
+}
+
+DEFINE_HOOK(474650, CIsoView_Draw_SkipOriSmudge_StatusBar, 5)
+{
+	return 0x47465C;
+}
