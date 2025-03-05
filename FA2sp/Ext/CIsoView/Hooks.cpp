@@ -287,17 +287,19 @@ DEFINE_HOOK(4741D9, CIsoView_Draw_Infantry_DrawSequence, 8)
 
 DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 {
+	GET(int, subPos, EBX);
 	if (infantryLoopStart)
 	{
-		R->EBX(3);
-		R->Stack(STACK_OFFS(0xD18, 0xCE8), 3);
+		R->EBX(2);
+		R->Stack(STACK_OFFS(0xD18, 0xCE8), 2);
+		subPos = 2;
 		infantryLoopStart = false;
 	}
 
 	if (CIsoViewExt::DrawInfantries)
 	{
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		GET(int, subPos, EBX);
+
 		if (celldata.Infantry[subPos] != -1)
 		{
 			const auto& filter = CIsoViewExt::VisibleInfantries;
@@ -315,11 +317,12 @@ DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 				X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
 				Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-				if (subPos == 2)
+				int subCell = atoi(data.SubCell);
+				if (subCell == 2)
 					X += 15;
-				else if (subPos == 3)
+				else if (subCell == 3)
 					X -= 15;
-				else if (subPos == 4)
+				else if (subCell == 4)
 					Y += 7;
 
 				DrawVeterancies temp;

@@ -987,7 +987,7 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 				{
 					CLoading::Instance->LoadObjects(ID);
 				}
-				if (CFinalSunApp::Instance->ShowBuildingCells)
+				if (CFinalSunApp::Instance->ShowBuildingCells || celldata.Structure != -1)
 				{
 					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(ID);
 					const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
