@@ -146,6 +146,7 @@ public:
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static int NewTheaterType;
+    static float LightingSource[3];
     static bool UseStrictNewTheater;
     static bool InGameDisplay_Shadow;
     static bool InGameDisplay_Deploy;

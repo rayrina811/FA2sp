@@ -6,6 +6,7 @@ void VoxelDrawer::Initalize()
 {
     CncImgCreate();
     CncImgSetMaxFacing(32);
+    CncImgSetLightingSource(ExtConfigs::LightingSource[0], ExtConfigs::LightingSource[1], ExtConfigs::LightingSource[2]);
 }
 
 void VoxelDrawer::Finalize()

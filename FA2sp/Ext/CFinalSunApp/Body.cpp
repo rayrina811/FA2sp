@@ -14,6 +14,7 @@
 #include <iostream>
 #include <filesystem>
 #include "../../Helpers/Translations.h"
+#include "../../Miscs/VoxelDrawer.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -83,6 +84,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
+	VoxelDrawer::Initalize();
 
 	path = CFinalSunApp::ExePath;
 	path += "\\FALanguage.ini";

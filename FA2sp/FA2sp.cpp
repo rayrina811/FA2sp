@@ -133,6 +133,7 @@ bool ExtConfigs::INIEditor_IgnoreTeams;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
+float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
 bool ExtConfigs::InGameDisplay_Shadow;
 bool ExtConfigs::InGameDisplay_Deploy;
@@ -332,6 +333,11 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
 
+	auto ls = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "LightingSource", "0.05,1,0.2"), 2);
+	ExtConfigs::LightingSource[0] = atof(ls[0]);
+	ExtConfigs::LightingSource[1] = atof(ls[1]);
+	ExtConfigs::LightingSource[2] = atof(ls[2]);
+
 
 	ExtConfigs::InitializeMap = false;
 
@@ -382,7 +388,6 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	
 	FA2Expand::ExeRun();
-	VoxelDrawer::Initalize();
 
 #ifdef ENABLE_VISUAL_STYLE
 
