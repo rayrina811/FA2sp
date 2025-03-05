@@ -239,7 +239,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
-	ExtConfigs::ShadowDisplaySetting = CINI::FAData->GetInteger("ExtConfigs", "ShadowDisplaySetting", 2);
+	ExtConfigs::ShadowDisplaySetting = CINI::FAData->GetInteger("ExtConfigs", "InGameDisplay.ShadowSetting", 2);
 	if (ExtConfigs::ShadowDisplaySetting >= 2)
 		CIsoViewExt::DrawShadows = true;
 	else

@@ -26,7 +26,7 @@ public:
 	void LoadObjects(ppmfc::CString pRegName);
 	
 	// except buildings
-	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing, bool bShadow = false);
+	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
 	// only buildings
 	enum
 	{
@@ -92,6 +92,7 @@ public:
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
 	static std::vector<ppmfc::CString> LoadedOverlays;
 	static Palette TempISOPalette;
+	static std::vector<ppmfc::CString> SwimableInfantries;
 private:
 	ObjectType GetItemType(ppmfc::CString ID);
 

@@ -18,10 +18,10 @@ unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
 
-ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow)
+ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
-	if (bShadow)
-		ID.Format("%s%d\233SHADOW", ID, nFacing);
+	if (bShadow || bDeploy || bWater)
+		ID.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ID.Format("%s%d", ID, nFacing);
 	return ID;
@@ -114,6 +114,20 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 		LoadTerrainOrSmudge(ID, false);
 		break;
 	case CLoadingExt::ObjectType::Vehicle:
+	{
+		LoadVehicleOrAircraft(ID);
+		auto unloadingClass = Variables::Rules.GetString(ID, "UnloadingClass", ID);
+		auto waterImage = Variables::Rules.GetString(ID, "WaterImage", ID);
+		if (unloadingClass != ID)
+		{
+			LoadVehicleOrAircraft(unloadingClass);
+		}
+		if (waterImage != ID)
+		{
+			LoadVehicleOrAircraft(waterImage);
+		}
+		break;
+	}
 	case CLoadingExt::ObjectType::Aircraft:
 		LoadVehicleOrAircraft(ID);
 		break;
@@ -236,7 +250,7 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 		ppmfc::CString AIFile = *pAIFile;
 		AIFile.Trim();
 		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-			LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+			LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
 	}
 }
 
@@ -1048,12 +1062,19 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 	ppmfc::CString ImageID = GetInfantryFileID(ID);
 
 	ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
+	bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
+	bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer" 
+		&& CINI::Art->KeyExists(sequenceName, "Swim");
 	ppmfc::CString frames = CINI::Art->GetString(sequenceName, "Guard", "0,1,1");
 	int framesToRead[8];
 	int frameStart, frameStep;
 	sscanf_s(frames, "%d,%d,%d", &frameStart, &framesToRead[0], &frameStep);
 	for (int i = 0; i < 8; ++i)
 		framesToRead[i] = frameStart + i * frameStep;
+
+	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	GetFullPaletteName(PaletteName);
+	auto pal = PalettesManager::LoadPalette(PaletteName);
 	
 	ppmfc::CString FileName = ImageID + ".shp";
 	int nMix = this->SearchFile(FileName);
@@ -1069,9 +1090,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			ppmfc::CString DictName;
 			DictName.Format("%s%d", ID, i);
 			// DictName.Format("%s%d", ImageID, i);
-			ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
-			GetFullPaletteName(PaletteName);
-			SetImageData(FramesBuffers, DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
+			SetImageData(FramesBuffers, DictName, header.Width, header.Height, pal);
 
 			if (ExtConfigs::ShadowDisplaySetting != 0)
 			{
@@ -1083,12 +1102,67 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			}
 		}
 
+		if (deployable)
+		{
+			ppmfc::CString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
+			int framesToReadDeploy[8];
+			int frameStartDeploy, frameStepDeploy;
+			sscanf_s(framesDeploy, "%d,%d,%d", &frameStartDeploy, &framesToReadDeploy[0], &frameStepDeploy);
+			for (int i = 0; i < 8; ++i)
+				framesToReadDeploy[i] = frameStartDeploy + i * frameStepDeploy;
+			unsigned char* FramesBuffersDeploy;
+			for (int i = 0; i < 8; ++i)
+			{
+				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
+				ppmfc::CString DictNameDeploy;
+				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
+				SetImageData(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
+
+				if (ExtConfigs::ShadowDisplaySetting != 0)
+				{
+					ppmfc::CString DictNameShadow;
+					unsigned char* pBufferShadow{ 0 };
+					DictNameShadow.Format("%s%d\233DEPLOYSHADOW", ID, i);
+					CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
+					SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+				}
+			}
+		}
+		
+		if (waterable)
+		{
+			ppmfc::CString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
+			int framesToReadWater[8];
+			int frameStartWater, frameStepWater;
+			sscanf_s(framesWater, "%d,%d,%d", &frameStartWater, &framesToReadWater[0], &frameStepWater);
+			for (int i = 0; i < 8; ++i)
+				framesToReadWater[i] = frameStartWater + i * frameStepWater;
+			unsigned char* FramesBuffersWater;
+			for (int i = 0; i < 8; ++i)
+			{
+				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
+				ppmfc::CString DictNameWater;
+				DictNameWater.Format("%s%d\233WATER", ID, i);
+				SetImageData(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
+
+				if (ExtConfigs::ShadowDisplaySetting != 0)
+				{
+					ppmfc::CString DictNameShadow;
+					unsigned char* pBufferShadow{ 0 };
+					DictNameShadow.Format("%s%d\233WATERSHADOW", ID, i);
+					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
+					SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+					SwimableInfantries.push_back(ID);
+				}
+			}
+		}
+
 		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
 		{
 			ppmfc::CString AIFile = *pAIFile;
 			AIFile.Trim();
 			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-				LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
 		}
 	}
 }
@@ -1132,7 +1206,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 			ppmfc::CString AIFile = *pAIFile;
 			AIFile.Trim();
 			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-				LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
 		}
 	}
 }
@@ -1410,7 +1484,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		ppmfc::CString AIFile = *pAIFile;
 		AIFile.Trim();
 		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-			LoadShp(AIFile, AIFile + ".shp", "anim.pal", 0);
+			LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
 	}
 }
 

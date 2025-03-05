@@ -302,8 +302,35 @@ DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Aircrafts, 9)
 	return 0x473DA0;
 }
 
+bool infantryLoopStart = false;
+DEFINE_HOOK(473DA0, CIsoView_Draw_Infantry_FirstLoop, 6)
+{
+	infantryLoopStart = true;
+	return 0;
+}
+
+// change drawing sequence from 0~2 to 2~0
+DEFINE_HOOK(4741D9, CIsoView_Draw_Infantry_DrawSequence, 8)
+{
+	GET(int, pos, EBX);
+	R->EBX(pos - 1);
+	R->Stack(STACK_OFFS(0xD18, 0xCE8), pos - 1);
+
+	if (pos - 1 < 0)
+		return 0x4741E7;
+
+	return 0x473DAA;
+}
+
 DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 {
+	if (infantryLoopStart)
+	{
+		R->EBX(3);
+		R->Stack(STACK_OFFS(0xD18, 0xCE8), 3);
+		infantryLoopStart = false;
+	}
+
 	if (CIsoViewExt::DrawInfantries)
 	{
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));

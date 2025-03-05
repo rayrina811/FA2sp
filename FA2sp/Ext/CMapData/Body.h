@@ -165,7 +165,7 @@ public:
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
     LandType GetAltLandType(int tileIndex, int TileSubIndex);
-    inline LandType GetLandType(int tileIndex, int TileSubIndex)
+    static inline LandType GetLandType(int tileIndex, int TileSubIndex)
     {
         if (tileIndex == 0xFFFF)
             tileIndex = 0;

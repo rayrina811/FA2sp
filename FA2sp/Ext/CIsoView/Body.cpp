@@ -31,6 +31,7 @@ bool CIsoViewExt::DrawTubes = true;
 bool CIsoViewExt::DrawBounds = true;
 bool CIsoViewExt::DrawVeterancy = true;
 bool CIsoViewExt::DrawShadows = false;
+bool CIsoViewExt::DrawAlphaImages = false;
 bool CIsoViewExt::DrawBaseNodeIndex = true;
 bool CIsoViewExt::RockCells = false;
 

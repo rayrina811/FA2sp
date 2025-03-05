@@ -1556,4 +1556,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 			i++;
 		}
 	}
+	CLoadingExt::SwimableInfantries.clear();
 }
