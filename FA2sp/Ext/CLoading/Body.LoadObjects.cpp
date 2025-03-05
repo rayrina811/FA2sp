@@ -116,15 +116,21 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 	case CLoadingExt::ObjectType::Vehicle:
 	{
 		LoadVehicleOrAircraft(ID);
-		auto unloadingClass = Variables::Rules.GetString(ID, "UnloadingClass", ID);
-		auto waterImage = Variables::Rules.GetString(ID, "WaterImage", ID);
-		if (unloadingClass != ID)
+		if (ExtConfigs::InGameDisplay_Deploy)
 		{
-			LoadVehicleOrAircraft(unloadingClass);
+			auto unloadingClass = Variables::Rules.GetString(ID, "UnloadingClass", ID);
+			if (unloadingClass != ID)
+			{
+				LoadVehicleOrAircraft(unloadingClass);
+			}
 		}
-		if (waterImage != ID)
+		if (ExtConfigs::InGameDisplay_Water)
 		{
-			LoadVehicleOrAircraft(waterImage);
+			auto waterImage = Variables::Rules.GetString(ID, "WaterImage", ID);
+			if (waterImage != ID)
+			{
+				LoadVehicleOrAircraft(waterImage);
+			}
 		}
 		break;
 	}
@@ -245,12 +251,15 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	LoadBuilding_Damaged(ID);
 	LoadBuilding_Rubble(ID);
 
-	if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+	if (ExtConfigs::InGameDisplay_AlphaImage)
 	{
-		ppmfc::CString AIFile = *pAIFile;
-		AIFile.Trim();
-		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-			LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		{
+			ppmfc::CString AIFile = *pAIFile;
+			AIFile.Trim();
+			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+		}
 	}
 }
 
@@ -283,7 +292,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -345,7 +354,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -410,7 +419,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		ppmfc::CString DictNameShadow;
 		unsigned char* pBufferShadow{ 0 };
 		int widthShadow, heightShadow;
-		if (ExtConfigs::ShadowDisplaySetting != 0)
+		if (ExtConfigs::InGameDisplay_Shadow)
 			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
@@ -509,7 +518,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
-				if (ExtConfigs::ShadowDisplaySetting != 0)
+				if (ExtConfigs::InGameDisplay_Shadow)
 				{
 					DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
@@ -521,7 +530,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::ShadowDisplaySetting != 0;
+				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -565,7 +574,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		{
 			DictName.Format("%s%d", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
-			if (ExtConfigs::ShadowDisplaySetting != 0)
+			if (ExtConfigs::InGameDisplay_Shadow)
 			{
 				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
@@ -604,7 +613,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -666,7 +675,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -738,7 +747,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		ppmfc::CString DictNameShadow;
 		unsigned char* pBufferShadow{ 0 };
 		int widthShadow, heightShadow;
-		if (ExtConfigs::ShadowDisplaySetting != 0)
+		if (ExtConfigs::InGameDisplay_Shadow)
 			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
@@ -840,7 +849,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
-				if (ExtConfigs::ShadowDisplaySetting != 0)
+				if (ExtConfigs::InGameDisplay_Shadow)
 				{
 					if (loadAsRubble)
 						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
@@ -855,7 +864,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::ShadowDisplaySetting != 0;
+				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -909,7 +918,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				DictName.Format("%s%d\233DAMAGED", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
 
-			if (ExtConfigs::ShadowDisplaySetting != 0)
+			if (ExtConfigs::InGameDisplay_Shadow)
 			{
 				if (loadAsRubble)
 					DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
@@ -948,7 +957,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -993,7 +1002,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
 
-		if (shadow && ExtConfigs::ShadowDisplaySetting != 0)
+		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			CLoadingExt::LoadSHPFrameSafe(nFrame + header.FrameCount / 2, 1, &pBuffer, header);
 			UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, true);
@@ -1039,7 +1048,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			ppmfc::CString DictName = ID + "0\233RUBBLE";
 			SetImageData(pBuffer, DictName, width, height, pal);
 
-			if (ExtConfigs::ShadowDisplaySetting != 0)
+			if (ExtConfigs::InGameDisplay_Shadow)
 			{
 				ppmfc::CString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
@@ -1092,7 +1101,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			// DictName.Format("%s%d", ImageID, i);
 			SetImageData(FramesBuffers, DictName, header.Width, header.Height, pal);
 
-			if (ExtConfigs::ShadowDisplaySetting != 0)
+			if (ExtConfigs::InGameDisplay_Shadow)
 			{
 				ppmfc::CString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
@@ -1102,7 +1111,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			}
 		}
 
-		if (deployable)
+		if (ExtConfigs::InGameDisplay_Deploy && deployable)
 		{
 			ppmfc::CString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
 			int framesToReadDeploy[8];
@@ -1118,7 +1127,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
 				SetImageData(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
-				if (ExtConfigs::ShadowDisplaySetting != 0)
+				if (ExtConfigs::InGameDisplay_Shadow)
 				{
 					ppmfc::CString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
@@ -1129,7 +1138,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			}
 		}
 		
-		if (waterable)
+		if (ExtConfigs::InGameDisplay_Water && waterable)
 		{
 			ppmfc::CString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
 			int framesToReadWater[8];
@@ -1145,7 +1154,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				DictNameWater.Format("%s%d\233WATER", ID, i);
 				SetImageData(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
 
-				if (ExtConfigs::ShadowDisplaySetting != 0)
+				if (ExtConfigs::InGameDisplay_Shadow)
 				{
 					ppmfc::CString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
@@ -1157,13 +1166,13 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			}
 		}
 
-		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
-		{
-			ppmfc::CString AIFile = *pAIFile;
-			AIFile.Trim();
-			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
-		}
+		//if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		//{
+		//	ppmfc::CString AIFile = *pAIFile;
+		//	AIFile.Trim();
+		//	if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+		//		LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+		//}
 	}
 }
 
@@ -1192,7 +1201,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		GetFullPaletteName(PaletteName);
 		SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
-		if (ExtConfigs::ShadowDisplaySetting != 0 && terrain)
+		if (ExtConfigs::InGameDisplay_Shadow && terrain)
 		{
 			ppmfc::CString DictNameShadow;
 			unsigned char* pBufferShadow[1];
@@ -1201,12 +1210,15 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 			SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 		}
 
-		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		if (ExtConfigs::InGameDisplay_AlphaImage && terrain)
 		{
-			ppmfc::CString AIFile = *pAIFile;
-			AIFile.Trim();
-			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+			if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+			{
+				ppmfc::CString AIFile = *pAIFile;
+				AIFile.Trim();
+				if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+					LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+			}
 		}
 	}
 }
@@ -1233,13 +1245,13 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		pImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		pTurretImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		pBarrelImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-		if (ExtConfigs::ShadowDisplaySetting != 0)
+		if (ExtConfigs::InGameDisplay_Shadow)
 			pShadowImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		std::vector<VoxelRectangle> rect, turretrect, barrelrect, shadowrect;
 		rect.resize(ExtConfigs::MaxVoxelFacing);
 		turretrect.resize(ExtConfigs::MaxVoxelFacing);
 		barrelrect.resize(ExtConfigs::MaxVoxelFacing);
-		if (ExtConfigs::ShadowDisplaySetting != 0)
+		if (ExtConfigs::InGameDisplay_Shadow)
 			shadowrect.resize(ExtConfigs::MaxVoxelFacing);
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
@@ -1250,7 +1262,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				{
 					// (i+6) % 8 to fix the facing
 					bool result = false;
-					if (ExtConfigs::ShadowDisplaySetting != 0)
+					if (ExtConfigs::InGameDisplay_Shadow)
 					{
 						result = VoxelDrawer::GetImageData((i + 6) % 8, pImage[i], rect[i])
 							&& VoxelDrawer::GetImageData((i + 6) % 8, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
@@ -1364,7 +1376,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				SetImageData(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 			}
 		}
-		if (ExtConfigs::ShadowDisplaySetting != 0)
+		if (ExtConfigs::InGameDisplay_Shadow)
 			for (int i = 0; i < 8; ++i)
 			{
 				ppmfc::CString DictShadowName;
@@ -1449,7 +1461,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 					
 					SetImageData(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 
-					if (ExtConfigs::ShadowDisplaySetting != 0 && bHasShadow)
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						ppmfc::CString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
@@ -1467,7 +1479,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				else
 				{
 					SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
-					if (ExtConfigs::ShadowDisplaySetting != 0 && bHasShadow)
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						ppmfc::CString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
@@ -1479,13 +1491,13 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		}
 	}
 
-	if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
-	{
-		ppmfc::CString AIFile = *pAIFile;
-		AIFile.Trim();
-		if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-			LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
-	}
+	//if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+	//{
+	//	ppmfc::CString AIFile = *pAIFile;
+	//	AIFile.Trim();
+	//	if (!ImageDataMapHelper::IsImageLoaded(AIFile))
+	//		LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+	//}
 }
 
 void CLoadingExt::SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)

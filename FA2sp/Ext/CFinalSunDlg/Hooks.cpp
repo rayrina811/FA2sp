@@ -64,6 +64,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(30013, CIsoViewExt::DrawBaseNodeIndex);
     SetItemCheckStatus(30014, CIsoViewExt::RockCells);
     SetItemCheckStatus(30022, CIsoViewExt::DrawShadows);
+    SetItemCheckStatus(30023, CIsoViewExt::DrawAlphaImages);
 
     SetItemCheckStatus(34001, CIsoViewExt::PasteGround);
     SetItemCheckStatus(34002, CIsoViewExt::PasteOverlays);
@@ -224,6 +225,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(30013, "Menu.Display.BasenodeIndex");
     translateMenuItem(30014, "Menu.Display.RockCells");
     translateMenuItem(30022, "Menu.Display.Shadows");
+    translateMenuItem(30023, "Menu.Display.AlphaImages");
 
     translateMenuItem(30015, "Menu.Display.StructuresFilter");
     translateMenuItem(30016, "Menu.Display.InfantriesFilter");
@@ -263,10 +265,16 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(34051, "Menu.Paste.Overriding");
 
 
-    if (ExtConfigs::ShadowDisplaySetting == 0) {
+    if (!ExtConfigs::InGameDisplay_Shadow) {
         CMenu* pSubMenu = pMenu->GetSubMenu(5);
         if (pSubMenu != nullptr) {
             pSubMenu->DeleteMenu(30022, MF_BYCOMMAND);
+        }
+    }
+    if (!ExtConfigs::InGameDisplay_AlphaImage) {
+        CMenu* pSubMenu = pMenu->GetSubMenu(5);
+        if (pSubMenu != nullptr) {
+            pSubMenu->DeleteMenu(30023, MF_BYCOMMAND);
         }
     }
 

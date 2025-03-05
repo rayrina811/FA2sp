@@ -348,8 +348,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(30012, CIsoViewExt::DrawBounds);
 		SetMenuStatusTrue(30013, CIsoViewExt::DrawBaseNodeIndex);
 		SetMenuStatusTrue(30021, CIsoViewExt::DrawVeterancy);
-		SetMenuStatusFalse(30022, CIsoViewExt::DrawShadows);
-		SetMenuStatusFalse(30023, CIsoViewExt::DrawAlphaImages);
+		SetMenuStatusTrue(30022, CIsoViewExt::DrawShadows);
+		SetMenuStatusTrue(30023, CIsoViewExt::DrawAlphaImages);
 		SetMenuStatusFalse(30014, CIsoViewExt::RockCells);
 		SetMenuStatusFalse(30015, CIsoViewExt::DrawStructuresFilter);
 		SetMenuStatusFalse(30016, CIsoViewExt::DrawInfantriesFilter);

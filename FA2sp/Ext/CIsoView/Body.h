@@ -85,6 +85,7 @@ public:
     static bool DrawBounds;
     static bool DrawVeterancy;
     static bool DrawShadows;
+    static bool DrawAlphaImages;
     static bool DrawBaseNodeIndex;
     static bool RockCells;
 

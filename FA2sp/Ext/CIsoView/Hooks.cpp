@@ -122,116 +122,79 @@ DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
 	return CIsoViewExt::DrawOverlays ? 0 : 0x470772;
 }
 
-//DEFINE_HOOK(470BC5, CIsoView_Draw_LayerVisible_Structures, 7)
-//{
-//
-//	if (CIsoViewExt::DrawStructures)
-//	{
-//		thisDraw = true;
-//		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-//		if (celldata.Structure != -1)
-//		{
-//			CBuildingData data;
-//			CMapData::Instance->GetBuildingData(celldata.Structure, data);
-//
-//			if (!CIsoViewExt::DrawStructuresFilter)
-//				return 0;
-//
-//			if (!CViewObjectsExt::BuildingBrushDlgBF)
-//				return 0;
-//
-//			auto vec = CViewObjectsExt::ObjectFilterB;
-//			if (!vec.empty())
-//				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
-//				{
-//					thisDraw = false;
-//					return 0x470E48;
-//				}
-//					
-//
-//			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
-//				{
-//					if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
-//					{
-//						if (dst == src) return true;
-//						else return false;
-//					}
-//					return true;
-//				};
-//			if (
-//				CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
-//				CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
-//				CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
-//				CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
-//				CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
-//				CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
-//				CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
-//				CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
-//				CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
-//				CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
-//				CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
-//				CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
-//				CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
-//				CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag)
-//				)
-//			{
-//				return 0;
-//			}
-//				
-//			else
-//			{
-//				thisDraw = false;
-//				return 0x470E48;
-//			}
-//		}
-//
-//		return 0;
-//	}
-//	{
-//		thisDraw = false;
-//		return 0x470E48;
-//	}
-//}
-
-DEFINE_HOOK(4725CB, CIsoView_Draw_LayerVisible_Basenodes, 8)
+/*
+DEFINE_HOOK(470BC5, CIsoView_Draw_LayerVisible_Structures, 7)
 {
-	if (CIsoViewExt::DrawBasenodes)
+
+	if (CIsoViewExt::DrawStructures)
 	{
-		if (!CIsoViewExt::DrawBasenodesFilter)
-			return 0;
-
-		if (!CViewObjectsExt::BuildingBrushDlgBNF)
-			return 0;
-
+		thisDraw = true;
 		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		if (celldata.BaseNode.BasenodeID != -1)
+		if (celldata.Structure != -1)
 		{
-			char key[10];
-			sprintf(key, "%03d", celldata.BaseNode.BasenodeID);
+			CBuildingData data;
+			CMapData::Instance->GetBuildingData(celldata.Structure, data);
 
-			auto bID = STDHelpers::SplitString(CMapData::Instance->INI.GetString(celldata.BaseNode.House, key))[0];
-			auto vec = CViewObjectsExt::ObjectFilterBN;
+			if (!CIsoViewExt::DrawStructuresFilter)
+				return 0;
+
+			if (!CViewObjectsExt::BuildingBrushDlgBF)
+				return 0;
+
+			auto vec = CViewObjectsExt::ObjectFilterB;
 			if (!vec.empty())
-				if (std::find(vec.begin(), vec.end(), bID) == vec.end())
-					return 0x472F33;
+				if (std::find(vec.begin(), vec.end(), data.TypeID) == vec.end())
+				{
+					thisDraw = false;
+					return 0x470E48;
+				}
+					
 
 			auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
 				{
-					if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
+					if (CViewObjectsExt::BuildingBrushBoolsBF[nCheckBoxIdx - 1300])
 					{
 						if (dst == src) return true;
 						else return false;
 					}
 					return true;
 				};
-			if (celldata.BaseNode.House)
-				if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, celldata.BaseNode.House))
-					return 0x472F33;
+			if (
+				CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
+				CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
+				CheckValue(1302, CViewObjectsExt::BuildingBrushDlgBF->CString_Direction, data.Facing) &&
+				CheckValue(1303, CViewObjectsExt::BuildingBrushDlgBF->CString_Sellable, data.AISellable) &&
+				CheckValue(1304, CViewObjectsExt::BuildingBrushDlgBF->CString_Rebuildable, data.AIRebuildable) &&
+				CheckValue(1305, CViewObjectsExt::BuildingBrushDlgBF->CString_EnergySupport, data.PoweredOn) &&
+				CheckValue(1306, CViewObjectsExt::BuildingBrushDlgBF->CString_UpgradeCount, data.Upgrades) &&
+				CheckValue(1307, CViewObjectsExt::BuildingBrushDlgBF->CString_Spotlight, data.SpotLight) &&
+				CheckValue(1308, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade1, data.Upgrade1) &&
+				CheckValue(1309, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade2, data.Upgrade2) &&
+				CheckValue(1310, CViewObjectsExt::BuildingBrushDlgBF->CString_Upgrade3, data.Upgrade3) &&
+				CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
+				CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
+				CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag)
+				)
+			{
+				return 0;
+			}
+				
+			else
+			{
+				thisDraw = false;
+				return 0x470E48;
+			}
 		}
+
 		return 0;
 	}
-	return 0x472F33;
+	{
+		thisDraw = false;
+		return 0x470E48;
+	}
 }
+*/
+
 
 DEFINE_HOOK(472F33, CIsoView_Draw_LayerVisible_Units, 9)
 {
@@ -375,13 +338,12 @@ DEFINE_HOOK(4741E7, CIsoView_Draw_LayerVisible_Terrains, 9)
 {
 	return CIsoViewExt::DrawTerrains ? 0 : 0x474563;
 }
-
-//DEFINE_HOOK(474563, CIsoView_Draw_LayerVisible_Smudges, 9)
-//{
-//	return CIsoViewExt::DrawSmudges ? 0 : 0x4748DC;
-//}
-
 /*
+DEFINE_HOOK(474563, CIsoView_Draw_LayerVisible_Smudges, 9)
+{
+	return CIsoViewExt::DrawSmudges ? 0 : 0x4748DC;
+}
+
 DEFINE_HOOK(471162, CIsoView_Draw_PowerUp1Loc_PosFix, 5)
 {
 	REF_STACK(const ppmfc::CString, ID, STACK_OFFS(0xD18, 0xBFC));
@@ -541,7 +503,7 @@ DEFINE_HOOK(4709EE, CIsoView_Draw_ShowBuildingOutline, 6)
 
 	return 0x470A38;
 }
-*/
+
 
 DEFINE_HOOK(4727B2, CIsoView_Draw_BasenodeOutline_CustomFoundation, B)
 {
@@ -573,6 +535,7 @@ DEFINE_HOOK(47280B, CIsoView_Draw_BasenodeOutline, 6)
 	
 	return 0x472884;
 }
+*/
 
 DEFINE_HOOK(4748DC, CIsoView_Draw_SkipCelltagAndWaypointDrawing, 9)
 {

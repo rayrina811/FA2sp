@@ -147,7 +147,11 @@ public:
     static int SearchCombobox_MaxCount;
     static int NewTheaterType;
     static bool UseStrictNewTheater;
-    static int ShadowDisplaySetting;
+    static bool InGameDisplay_Shadow;
+    static bool InGameDisplay_Deploy;
+    static bool InGameDisplay_Water;
+    static bool InGameDisplay_Hover;
+    static bool InGameDisplay_AlphaImage;
     static bool LightingPreview_MultUnitColor;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;

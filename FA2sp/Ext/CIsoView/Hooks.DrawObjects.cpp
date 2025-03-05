@@ -7,6 +7,7 @@
 #include "../CIsoView/Body.h"
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
+#include <Miscs/Miscs.h>
 
 static int Left, Right, Top, Bottom;
 static RECT window;
@@ -458,7 +459,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
 	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
-	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::ShadowDisplaySetting != 0;
+	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
 
 	const unsigned char Transparency = 128;
 	auto pThis = CIsoView::GetInstance();
@@ -556,7 +557,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 
 						bool water = false;
 						const auto& swim = CLoadingExt::SwimableInfantries;
-						if (std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
+						if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), obj.TypeID) != swim.end())
 						{
 							auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
 							if (landType == LandType::Water || landType == LandType::Beach)
@@ -564,7 +565,8 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 								water = true;
 							}
 						}
-						bool deploy = obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
+						bool deploy = ExtConfigs::InGameDisplay_Deploy 
+							&& obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
 
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
@@ -607,12 +609,15 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 
 					int nFacing = (atoi(obj.Facing) / 32) % 8;
 
-					auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-					if (landType == LandType::Water || landType == LandType::Beach)
+					if (ExtConfigs::InGameDisplay_Water)
 					{
-						obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+						auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
+						if (landType == LandType::Water || landType == LandType::Beach)
+						{
+							obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+						}
 					}
-					if (obj.Status == "Unload")
+					if (ExtConfigs::InGameDisplay_Deploy && obj.Status == "Unload")
 					{
 						obj.TypeID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", obj.TypeID);
 					}
@@ -772,17 +777,19 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 								x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, 255, objRender.HouseColor);
 						}
 					}
-
-					if (auto pAIFile = Variables::Rules.TryGetString(objRender.ID, "AlphaImage"))
+					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 					{
-						ppmfc::CString AIFile = *pAIFile;
-						AIFile.Trim();
-						auto pAIData = ImageDataMapHelper::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
-
-						if (pAIData && pAIData->pImageBuffer)
+						if (auto pAIFile = Variables::Rules.TryGetString(objRender.ID, "AlphaImage"))
 						{
-							CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-								x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15, pAIData);
+							ppmfc::CString AIFile = *pAIFile;
+							AIFile.Trim();
+							auto pAIData = ImageDataMapHelper::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
+
+							if (pAIData && pAIData->pImageBuffer)
+							{
+								CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
+									x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 15, pAIData);
+							}
 						}
 					}
 				}
@@ -796,6 +803,9 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 
 DEFINE_HOOK(47454B, CIsoView_Draw_TerrainAlphaImage, 7)
 {
+	if (!CIsoViewExt::DrawAlphaImages || !ExtConfigs::InGameDisplay_AlphaImage)
+		return 0;
+
 	GET_STACK(CellData, cell, STACK_OFFS(0xD18, 0xC60));
 	if (cell.Terrain != -1)
 	{
@@ -830,11 +840,14 @@ DEFINE_HOOK(47454B, CIsoView_Draw_TerrainAlphaImage, 7)
 
 DEFINE_HOOK(473E8C, CIsoView_Draw_Infantry_DeployImage, 5)
 {
+	if (!ExtConfigs::InGameDisplay_Water && !ExtConfigs::InGameDisplay_Deploy)
+		return 0;
+
 	GET_STACK(ppmfc::CString, pImageName, STACK_OFFS(0xD18, 0xCD0));
 	auto ID = pImageName.Mid(0, pImageName.GetLength() - 1);
 
 	const auto& swim = CLoadingExt::SwimableInfantries;
-	if (std::find(swim.begin(), swim.end(), ID) != swim.end())
+	if (ExtConfigs::InGameDisplay_Water && std::find(swim.begin(), swim.end(), ID) != swim.end())
 	{
 		REF_STACK(CellData, cell, STACK_OFFS(0xD18, 0xC60));
 		GET(int, subPos, EBX);
@@ -849,7 +862,7 @@ DEFINE_HOOK(473E8C, CIsoView_Draw_Infantry_DeployImage, 5)
 			return 0;
 		}
 	}
-	if (Variables::Rules.GetBool(ID, "Deployer"))
+	if (ExtConfigs::InGameDisplay_Deploy && Variables::Rules.GetBool(ID, "Deployer"))
 	{
 		REF_STACK(CellData, cell, STACK_OFFS(0xD18, 0xC60));
 		GET(int, subPos, EBX);
@@ -875,19 +888,30 @@ DEFINE_HOOK(4730F1, CIsoView_Draw_Vehicle_AltImage, 5)
 	REF_STACK(CellData, cell, STACK_OFFS(0xD18, 0xC60));
 	CUnitData obj;
 	CMapData::Instance->GetUnitData(cell.Unit, obj);
-	HoveringUnit = Variables::Rules.GetString(ID, "SpeedType") == "Hover";
+	HoveringUnit = Variables::Rules.GetString(ID, "SpeedType") == "Hover" 
+		&& (Variables::Rules.GetString(ID, "Locomotor") == "Hover"
+			|| Variables::Rules.GetString(ID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
+	if (!ExtConfigs::InGameDisplay_Water && !ExtConfigs::InGameDisplay_Deploy)
+		return 0;
+
 	if (Variables::Rules.KeyExists(ID, "WaterImage") || Variables::Rules.KeyExists(ID, "UnloadingClass"))
 	{
-		auto landType = CMapDataExt::GetLandType(cell.TileIndex, cell.TileSubIndex);
-		if (landType == LandType::Water || landType == LandType::Beach)
+		if (ExtConfigs::InGameDisplay_Water)
 		{
-			obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+			auto landType = CMapDataExt::GetLandType(cell.TileIndex, cell.TileSubIndex);
+			if (landType == LandType::Water || landType == LandType::Beach)
+			{
+				obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+			}
 		}
-		if (obj.Status == "Unload")
+		if (ExtConfigs::InGameDisplay_Deploy)
 		{
-			obj.TypeID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", obj.TypeID);
+			if (obj.Status == "Unload")
+			{
+				obj.TypeID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", obj.TypeID);
+			}
 		}
-	
+
 		int nFacing = (atoi(obj.Facing) / 32) % 8;
 		const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, false);
 		R->Stack(STACK_OFFS(0xD18, 0xCB4), imageName);
@@ -897,45 +921,122 @@ DEFINE_HOOK(4730F1, CIsoView_Draw_Vehicle_AltImage, 5)
 
 	return 0;
 }
+
 DEFINE_HOOK(4732C5, CIsoView_Draw_Vehicle_Hover, 5)
 {
-	if (HoveringUnit)
+	if (ExtConfigs::InGameDisplay_Hover && HoveringUnit)
 	{
 		R->EDX(R->EDX() - 10);
 	}
 	return 0;
 }
 
-// buggy
-//DEFINE_HOOK(470772, CIsoView_Draw_SmudgeBeforeBuilding, 8)
-//{
-//	GET_STACK(int, Smudge, STACK_OFFS(0xD18, 0xC4C));
-//	Smudge = LOWORD(Smudge);
-//	if (Smudge != 0xFFFF && CIsoViewExt::DrawSmudges)
-//	{
-//		return 0x474572;
-//	}
-//	return 0;
-//}
-//
-//DEFINE_HOOK(4748C4, CIsoView_Draw_SmudgeBeforeBuilding_back, 7)
-//{
-//	return 0x47077A;
-//}
-//
-//DEFINE_HOOK(474563, CIsoView_Draw_SkipOriSmudge, 9)
-//{
-//	return 0x4748DC;
-//}
-//
-//DEFINE_HOOK(474650, CIsoView_Draw_SkipSmudge_StatusBarFix, 5)
-//{
-//	return 0x47465C;
-//}
-//
-//DEFINE_HOOK(4725E8, CIsoView_Draw_SkipSmudge_NodeFix, A)
-//{
-//	R->EBX(CIsoViewExt::CurrentDrawCellLocation.X);
-//	R->EBP(CIsoViewExt::CurrentDrawCellLocation.Y);
-//	return 0;
-//}
+DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
+{
+	if (CIsoViewExt::DrawBasenodes)
+	{
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+		if (celldata.BaseNode.BasenodeID != -1)
+		{
+			char key[10];
+			sprintf(key, "%03d", celldata.BaseNode.BasenodeID);
+			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(celldata.BaseNode.House, key), 2);
+			const auto& ID = atoms[0];
+			int X = atoi(atoms[2]);
+			int Y = atoi(atoms[1]);
+
+			if (X == CIsoViewExt::CurrentDrawCellLocation.X && Y == CIsoViewExt::CurrentDrawCellLocation.Y)
+			{
+				if (CIsoViewExt::DrawBasenodesFilter && CViewObjectsExt::BuildingBrushDlgBNF)
+				{
+					const auto& filter = CViewObjectsExt::ObjectFilterBN;
+					auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+						{
+							if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
+							{
+								if (dst == src) return true;
+								else return false;
+							}
+							return true;
+						};
+					if (std::find(filter.begin(), filter.end(), ID) != filter.end())
+					{
+						if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, celldata.BaseNode.House))
+							return 0x472F33;
+					}
+					else
+					{
+						return 0x472F33;
+					}
+				}
+	
+				GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+				GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+				LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+				auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+				auto color = Miscs::GetColorRef(celldata.BaseNode.House);
+				DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+				X -= DrawOffsetX;
+				Y -= DrawOffsetY;
+
+				const auto& imageName = CLoadingExt::GetBuildingImageName(ID, 0, 0);
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+				if (!pData || !pData->pImageBuffer)
+				{
+					CLoading::Instance->LoadObjects(ID);
+				}
+				if (CFinalSunApp::Instance->ShowBuildingCells)
+				{
+					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(ID);
+					const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+					if (DataExt.IsCustomFoundation())
+					{
+						pThis->DrawLockedLines(*DataExt.LinesToDraw, X, Y, color, true, false, lpDesc);
+						pThis->DrawLockedLines(*DataExt.LinesToDraw, X + 1, Y, color, true, false, lpDesc);
+					}
+					else
+					{
+						pThis->DrawLockedCellOutline(X, Y, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
+						pThis->DrawLockedCellOutline(X + 1, Y, DataExt.Width, DataExt.Height, color, true, false, lpDesc);
+					}
+				}
+
+				if (pData && pData->pImageBuffer)
+				{
+					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
+						X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128, color);
+				}
+			}
+		}
+	}
+	return 0x472F33;
+}
+
+
+DEFINE_HOOK(470772, CIsoView_Draw_SmudgeBeforeBuilding, 8)
+{
+	GET_STACK(int, Smudge, STACK_OFFS(0xD18, 0xC4C));
+	Smudge = LOWORD(Smudge);
+	if (Smudge != 0xFFFF && CIsoViewExt::DrawSmudges)
+	{
+		return 0x474572;
+	}
+	return 0;
+}
+
+DEFINE_HOOK(4748C4, CIsoView_Draw_SmudgeBeforeBuilding_back, 7)
+{
+	return 0x47077A;
+}
+
+DEFINE_HOOK(474563, CIsoView_Draw_SkipOriSmudge, 9)
+{
+	return 0x4748DC;
+}
+
+DEFINE_HOOK(474650, CIsoView_Draw_SkipSmudge_StatusBarFix, 5)
+{
+	return 0x47465C;
+}

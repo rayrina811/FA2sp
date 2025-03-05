@@ -134,7 +134,11 @@ int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
 bool ExtConfigs::UseStrictNewTheater;
-int ExtConfigs::ShadowDisplaySetting;
+bool ExtConfigs::InGameDisplay_Shadow;
+bool ExtConfigs::InGameDisplay_Deploy;
+bool ExtConfigs::InGameDisplay_Water;
+bool ExtConfigs::InGameDisplay_Hover;
+bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 
 
@@ -239,11 +243,12 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
-	ExtConfigs::ShadowDisplaySetting = CINI::FAData->GetInteger("ExtConfigs", "InGameDisplay.ShadowSetting", 2);
-	if (ExtConfigs::ShadowDisplaySetting >= 2)
-		CIsoViewExt::DrawShadows = true;
-	else
-		CIsoViewExt::DrawShadows = false;
+	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
+	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
+	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
+	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
+	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
+
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	if (ExtConfigs::SearchCombobox_MaxCount < 0)
