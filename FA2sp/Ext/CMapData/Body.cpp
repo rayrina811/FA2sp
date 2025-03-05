@@ -840,7 +840,6 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 		{
 			fielddata[i].Structure = -1;
 			fielddata[i].TypeListIndex = -1;
-			CellDataExts[i].Structure = -1;
 		}
 
 	}
@@ -887,7 +886,6 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 						{
 							auto pCell = CMapData::Instance->GetCellAt(coord);
 							pCell->Structure = i;
-							CellDataExts[coord].Structure = i;
 							pCell->TypeListIndex = BuildingIndex;
 							CMapData::Instance->UpdateMapPreviewAt(x, y);
 						}
@@ -907,19 +905,6 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool add, ppmfc::CS
 						pCell->Structure = i;
 						pCell->TypeListIndex = BuildingIndex;
 						CMapData::Instance->UpdateMapPreviewAt(x, y);
-					}
-				}
-				for (int dy = 0; dy < DataExt.Width; ++dy)
-				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
-					{
-						const int x = X + dx;
-						const int y = Y + dy;
-						int coord = CMapData::Instance->GetCoordIndex(x, y);
-						if (coord < CMapData::Instance->CellDataCount)
-						{
-							CellDataExts[coord].Structure = i;
-						}
 					}
 				}
 			}
@@ -1526,34 +1511,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
 			}
-		}
-	}
-
-	if (auto pSection = CINI::CurrentDocument->GetSection("Structures"))
-	{
-		int i = 0;
-		for (auto& data : pSection->GetEntities())
-		{
-			auto& value = data.second;
-			const auto& splits = STDHelpers::SplitString(value);
-			int X = atoi(splits[4]);
-			int Y = atoi(splits[3]);
-			const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
-			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-			for (int dy = 0; dy < DataExt.Width; ++dy)
-			{
-				for (int dx = 0; dx < DataExt.Height; ++dx)
-				{
-					const int x = X + dx;
-					const int y = Y + dy;
-					int coord = CMapData::Instance->GetCoordIndex(x, y);
-					if (coord < CMapData::Instance->CellDataCount)
-					{
-						CellDataExts[coord].Structure = i;
-					}
-				}
-			}
-			i++;
 		}
 	}
 	CLoadingExt::SwimableInfantries.clear();

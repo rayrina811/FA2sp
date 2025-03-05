@@ -132,9 +132,6 @@ struct CellDataExt
 
     // for terrain generation
     bool AddRandomTile = false;
-
-    // for drawmap
-    short Structure = -1;
 };
 
 class CMapDataExt : public CMapData

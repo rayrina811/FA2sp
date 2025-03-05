@@ -21,6 +21,7 @@ std::vector<short> CIsoViewExt::VisibleStructures;
 std::vector<short> CIsoViewExt::VisibleInfantries;
 std::vector<short> CIsoViewExt::VisibleUnits;
 std::vector<short> CIsoViewExt::VisibleAircrafts;
+std::vector<short> DrawnBuildings;
 
 #define EXTRA_BORDER 15
 #define EXTRA_BORDER_BOTTOM 25
@@ -45,6 +46,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::VisibleAircrafts.clear();
 	CMapDataExt::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
 	CIsoViewExt::DrawVeterancies.clear();
+	DrawnBuildings.clear();
 
 	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
 	{
@@ -490,17 +492,18 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 			{
 				CIsoViewExt::WaypointsToDraw[{X, Y}] = cell->Waypoint;
 			}
-			if (CMapDataExt::CellDataExts[pos].Structure != -1 && CIsoViewExt::DrawStructures)
+			if (cell->Structure != -1 && CIsoViewExt::DrawStructures)
 			{
 				const auto& filter = CIsoViewExt::VisibleStructures;
 				if (!CIsoViewExt::DrawStructuresFilter
-					|| std::find(filter.begin(), filter.end(), CMapDataExt::CellDataExts[pos].Structure) != filter.end())
+					|| std::find(filter.begin(), filter.end(), cell->Structure) != filter.end())
 				{
 					int x1 = x;
 					int y1 = y;
-					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[CMapDataExt::CellDataExts[pos].Structure];
-					if ((objRender.X == X && objRender.Y == Y))
+					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[cell->Structure];
+					if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), cell->Structure) == DrawnBuildings.end())
 					{
+						DrawnBuildings.push_back(cell->Structure);
 						MapCoord objCenter;
 						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
 						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
@@ -512,7 +515,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 							objCenter.Y = objRender.Y;
 						}
 						CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] = 
-						{ CMapDataExt::CellDataExts[pos].Structure , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
+						{ cell->Structure , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
 
 						if (shadow)
 						{
