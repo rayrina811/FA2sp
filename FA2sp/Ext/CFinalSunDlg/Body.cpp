@@ -245,6 +245,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
 			}
+			LightingSourceTint::CalculateMapLamps();
 
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);

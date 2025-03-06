@@ -24,6 +24,8 @@ struct LightingSourceTint
     float AmbientTint;
 public:
     static LightingSourceTint ApplyLamp(int X, int Y);
+    static void CalculateMapLamps();
+    static bool IsLamp(ppmfc::CString ID);
 
 };
 

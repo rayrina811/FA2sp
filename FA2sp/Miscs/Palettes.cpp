@@ -328,38 +328,92 @@ Palette* LightingPalette::GetPalette()
 
 LightingSourceTint LightingSourceTint::ApplyLamp(int X, int Y)
 {
-    LightingSourceTint ret{ 0.0f };
-    for (const auto& [idx, ls] : CMapDataExt::LightingSources)
+    if (CMapDataExt::Instance->IsCoordInMap(X, Y))
+        return CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)].Lighting;
+    return { 0.0f, 0.0f, 0.0f, 0.0f };
+}
+
+void LightingSourceTint::CalculateMapLamps()
+{
+    CMapDataExt::LightingSources.clear();
+    const float TOLERANCE = 0.001f;
+    if (CINI::CurrentDocument->SectionExists("Structures"))
     {
-        float sqX = (X - ls.CenterX) * (X - ls.CenterX);
-        float sqY = (Y - ls.CenterY) * (Y - ls.CenterY);
-        float distance = sqrt(sqX + sqY);
-
-        if ((0 < ls.LightVisibility) && (distance < ls.LightVisibility / 256.0f)) 
+        int len = CINI::CurrentDocument->GetKeyCount("Structures");
+        for (int i = 0; i < len; i++)
         {
-            float lsEffect = (ls.LightVisibility - 256 * distance) / ls.LightVisibility;
-            switch (CFinalSunDlgExt::CurrentLighting)
+            const auto value = CINI::CurrentDocument->GetValueAt("Structures", i);
+            const auto atoms = STDHelpers::SplitString(value, 4);
+            const auto& ID = atoms[1];
+            LightingSource ls{};
+            ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
+            if (abs(ls.LightIntensity) > TOLERANCE)
             {
-                // color doesn't apply in superweapons
-            case 31002:
-            case 31003:
-            {
-                float maxTint = 0.0f;
-                if (ls.LightRedTint > maxTint) maxTint = ls.LightRedTint;
-                if (ls.LightBlueTint > maxTint) maxTint = ls.LightBlueTint;
-                if (ls.LightGreenTint > maxTint) maxTint = ls.LightGreenTint;
-                ret.AmbientTint += lsEffect * (maxTint * 0.5 + ls.LightIntensity);
-                break;
-            }
-            default:
-                ret.AmbientTint += lsEffect * ls.LightIntensity;
-                ret.RedTint += lsEffect * ls.LightRedTint;
-                ret.BlueTint += lsEffect * ls.LightBlueTint;
-                ret.GreenTint += lsEffect * ls.LightGreenTint;
-                break;
-            }
+                ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
+                ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
+                ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
+                ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
+                const int Index = CMapData::Instance->GetBuildingTypeID(ID);
+                const int Y = atoi(atoms[3]);
+                const int X = atoi(atoms[4]);
+                const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
+                ls.CenterX = X + DataExt.Height / 2.0f;
+                ls.CenterY = Y + DataExt.Width / 2.0f;
+                LightingSourcePosition lsp;
+                lsp.X = X;
+                lsp.Y = Y;
+                lsp.BuildingType = ID;
+                CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
+            }
         }
     }
-    return ret;
+    for (int x = 0; x < CMapData::Instance->MapWidthPlusHeight; ++x)
+    {
+        for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; ++y)
+        {
+            auto& ret = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(x, y)].Lighting;
+            ret.RedTint = 0.0f;
+            ret.GreenTint = 0.0f;
+            ret.BlueTint = 0.0f;
+            ret.AmbientTint = 0.0f;
+            for (const auto& [idx, ls] : CMapDataExt::LightingSources)
+            {
+                float sqX = (x - ls.CenterX) * (x - ls.CenterX);
+                float sqY = (y - ls.CenterY) * (y - ls.CenterY);
+                float distanceSquare = sqX + sqY;
+
+                if ((0 < ls.LightVisibility) && (distanceSquare < ls.LightVisibility * ls.LightVisibility / 65536))
+                {
+                    float lsEffect = (ls.LightVisibility - 256 * sqrt(distanceSquare)) / ls.LightVisibility;
+                    switch (CFinalSunDlgExt::CurrentLighting)
+                    {
+                        // color doesn't apply in superweapons
+                    case 31002:
+                    case 31003:
+                    {
+                        float maxTint = 0.0f;
+                        if (ls.LightRedTint > maxTint) maxTint = ls.LightRedTint;
+                        if (ls.LightBlueTint > maxTint) maxTint = ls.LightBlueTint;
+                        if (ls.LightGreenTint > maxTint) maxTint = ls.LightGreenTint;
+                        ret.AmbientTint += lsEffect * (maxTint * 0.5 + ls.LightIntensity);
+                        break;
+                    }
+                    default:
+                        ret.AmbientTint += lsEffect * ls.LightIntensity;
+                        ret.RedTint += lsEffect * ls.LightRedTint;
+                        ret.BlueTint += lsEffect * ls.LightBlueTint;
+                        ret.GreenTint += lsEffect * ls.LightGreenTint;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool LightingSourceTint::IsLamp(ppmfc::CString ID)
+{
+    const float TOLERANCE = 0.001f;
+    return abs(Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f)) > TOLERANCE;
 }

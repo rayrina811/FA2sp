@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../Miscs/Palettes.h"
 
 struct TerrainGeneratorOverlay
 {
@@ -132,6 +133,9 @@ struct CellDataExt
 
     // for terrain generation
     bool AddRandomTile = false;
+
+    // for lighting preview
+    LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
 };
 
 class CMapDataExt : public CMapData
@@ -188,7 +192,7 @@ public:
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
     static std::map<int, BuildingRenderData>  BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
-    static void UpdateFieldStructureData_Optimized(int ID, bool add = true, ppmfc::CString oldStructure = "");
+    static void UpdateFieldStructureData_Optimized(int ID, bool isLamp = false);
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static void SmoothWater();

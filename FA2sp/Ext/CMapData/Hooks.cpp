@@ -120,7 +120,7 @@ DEFINE_THEATER_NAME_FIX(49EAA4, DESERT, ESI);
 
 DEFINE_HOOK(4A4A40, CMapData_UpdateMapFieldData, 6)
 {
-	CMapDataExt::UpdateFieldStructureData_Optimized(0, false);
+	CMapDataExt::UpdateFieldStructureData_Optimized(-1);
 	return 0x4A583F;
 }
 
@@ -704,32 +704,12 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		realid++;
 	}
 
-	const float TOLERANCE = 0.001f;
-	const auto& ID = structure.TypeID;
-	LightingSource ls{};
-	ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
-	if (abs(ls.LightIntensity) > TOLERANCE)
-	{
-		ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
-		ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
-		ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
-		ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
-		const int Index = CMapData::Instance->GetBuildingTypeID(ID);
-		const int Y = atoi(structure.Y);
-		const int X = atoi(structure.X);
-		const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
+	bool isLamp = LightingSourceTint::IsLamp(structure.TypeID);
 
-		ls.CenterX = X + DataExt.Height / 2.0f;
-		ls.CenterY = Y + DataExt.Width / 2.0f;
-		LightingSourcePosition lsp;
-		lsp.X = X;
-		lsp.Y = Y;
-		lsp.BuildingType = ID;
-		CMapDataExt::LightingSources.push_back(std::make_pair(lsp, ls));
-	}
-	
 	if (!MultiSelection::AddBuildingOptimize)
-		CMapDataExt::UpdateFieldStructureData_Optimized(realid, true);
+		CMapDataExt::UpdateFieldStructureData_Optimized(realid, isLamp);
+	else if (isLamp)
+		LightingSourceTint::CalculateMapLamps();
 
 	return 0x4AD921;
 }
@@ -793,6 +773,7 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	ppmfc::CString key = *pSection->GetKeyAt(m_id);
 	ppmfc::CString value = *pSection->GetValueAt(m_id);
 	auto splits =STDHelpers::SplitString(value, 4);
+	bool isLamp = LightingSourceTint::IsLamp(splits[1]);
 	int Index = CMapData::Instance->GetBuildingTypeID(splits[1]);
 	int Y = atoi(splits[3]);
 	int X = atoi(splits[4]);
@@ -927,13 +908,13 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	if (overlap)
 	{
 		ini->DeleteKey("Structures", key);
-		CMapDataExt::UpdateFieldStructureData_Optimized(0, false);
+		CMapDataExt::UpdateFieldStructureData_Optimized(0, isLamp);
 		CMapDataExt::SkipUpdateBuildingInfo = false;
 	}
 	else if (!CMapDataExt::SkipUpdateBuildingInfo)
 	{
 		ini->DeleteKey("Structures", key);
-		CMapDataExt::UpdateFieldStructureData_Optimized(m_id, false, value);
+		CMapDataExt::UpdateFieldStructureData_Optimized(m_id, isLamp);
 	}
 	else
 	{
@@ -941,20 +922,9 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		CMapDataExt::SkipUpdateBuildingInfo = false;
 	}
 
-	auto& lsMap = CMapDataExt::LightingSources;
-
-	LightingSourcePosition lsp;
-	lsp.X = X;
-	lsp.Y = Y;
-	lsp.BuildingType = splits[1];
-	for (auto it = lsMap.begin(); it != lsMap.end(); ) {
-		if (it->first == lsp) {
-			lsMap.erase(it);
-			break;
-		}
-		else {
-			++it;
-		}
+	if (isLamp)
+	{
+		LightingSourceTint::CalculateMapLamps();
 	}
 
 	return 0x4A98AC;

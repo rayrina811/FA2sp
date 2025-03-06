@@ -222,6 +222,7 @@ DEFINE_HOOK(469410, CLoading_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 		}
 		PalettesManager::RestoreCurrentIso();
 		PalettesManager::ManualReloadTMP = false;
+		LightingSourceTint::CalculateMapLamps();
 
 		CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		auto tmp = CIsoView::CurrentCommand->Command;
