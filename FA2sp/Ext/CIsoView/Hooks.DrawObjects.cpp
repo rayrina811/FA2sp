@@ -15,7 +15,7 @@ static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static int HorizontalLoopIndex;
 
-std::map<MapCoord, int> CIsoViewExt::WaypointsToDraw;
+std::map<MapCoord, ppmfc::CString> CIsoViewExt::WaypointsToDraw;
 std::map<MapCoord, DrawBuildings> CIsoViewExt::BuildingsToDraw;
 std::vector<short> CIsoViewExt::VisibleStructures;
 std::vector<short> CIsoViewExt::VisibleInfantries;
@@ -267,6 +267,10 @@ DEFINE_HOOK(46EAEF, CIsoView_Draw_Optimize_1, 5)
 	if (!IsCoordInWindow(X, Y))
 		return 0x46F5AF;
 
+	CIsoViewExt::CurrentDrawCellLocation.X = X;
+	CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(X, Y)->Height;
+
 	return 0;
 }
 
@@ -278,7 +282,34 @@ DEFINE_HOOK(46F680, CIsoView_Draw_Optimize_2, 5)
 	if (!IsCoordInWindow(X, Y))
 		return 0x474AC2;
 
+	CIsoViewExt::CurrentDrawCellLocation.X = X;
+	CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(X, Y)->Height;
+
 	return 0;
+}
+
+DEFINE_HOOK(46EE0F, CIsoView_Draw_TileRedrawSetting, 8)
+{
+	auto& X = CIsoViewExt::CurrentDrawCellLocation.X;
+	auto& Y = CIsoViewExt::CurrentDrawCellLocation.Y;
+	auto cell = CMapData::Instance->TryGetCellAt(X, Y);
+	cell->Flag.RedrawTerrain = false;
+	for (int i = 1; i <= 2; i++)
+	{
+		if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
+		{
+			auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
+			if (cell->Height - blockedCell->Height >= 2 * i 
+				|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+				cell->Flag.RedrawTerrain = true;
+		}
+	}
+
+	if (cell->Flag.RedrawTerrain)
+		return 0x46F594;
+
+	return 0x46EE1D;
 }
 
 DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
@@ -442,9 +473,7 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 				int drawX = mc.X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
 				int drawY = mc.Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
-				ppmfc::CString text;
-				text.Format("%d", index);
-				TextOut(hDC, drawX, drawY, text, strlen(text));
+				TextOut(hDC, drawX, drawY, index, strlen(index));
 			}
 		}
 	}
@@ -490,7 +519,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 			}
 			if (cell->Waypoint != -1)
 			{
-				CIsoViewExt::WaypointsToDraw[{X, Y}] = cell->Waypoint;
+				CIsoViewExt::WaypointsToDraw[{X, Y}] = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
 			}
 			if (cell->Structure != -1)
 			{

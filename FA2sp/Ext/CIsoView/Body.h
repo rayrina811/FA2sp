@@ -113,7 +113,7 @@ public:
     static float drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
-    static std::map<MapCoord, int> WaypointsToDraw;
+    static std::map<MapCoord, ppmfc::CString> WaypointsToDraw;
     static std::map<MapCoord, DrawBuildings> BuildingsToDraw;
     static std::vector<short> VisibleStructures;
     static std::vector<short> VisibleInfantries;

@@ -831,25 +831,6 @@ DEFINE_HOOK(461A37, CIsoView_PlaceTile_FixUndo, 7)
 	return 0x461A5B;
 }
 
-DEFINE_HOOK(46EAFA, CIsoView_Draw_TileCurrentCoord_1, 5)
-{
-	CIsoViewExt::CurrentDrawCellLocation.X = R->EBP();
-	CIsoViewExt::CurrentDrawCellLocation.Y = R->EBX();
-	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(R->EBP(), R->EBX())->Height;
-	return 0;
-}
-
-DEFINE_HOOK(46F6B4, CIsoView_Draw_TileCurrentCoord_2, 6)
-{
-	GET(CellData*, pCell, ESI);
-	GET(int, X, EDI);
-	GET(int, Y, EBP);
-	CIsoViewExt::CurrentDrawCellLocation.Height = pCell->Height;
-	CIsoViewExt::CurrentDrawCellLocation.X = X;
-	CIsoViewExt::CurrentDrawCellLocation.Y = Y;
-	return 0;
-}
-
 DEFINE_HOOK(461C3E, CIsoView_OnLButtonDown_PlaceTile_SkipHide, 6)
 {
 	if (!ExtConfigs::PlaceTileSkipHide)
