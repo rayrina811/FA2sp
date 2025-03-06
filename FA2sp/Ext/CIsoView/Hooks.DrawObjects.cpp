@@ -492,7 +492,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 			{
 				CIsoViewExt::WaypointsToDraw[{X, Y}] = cell->Waypoint;
 			}
-			if (cell->Structure != -1 && CIsoViewExt::DrawStructures)
+			if (cell->Structure != -1)
 			{
 				const auto& filter = CIsoViewExt::VisibleStructures;
 				if (!CIsoViewExt::DrawStructuresFilter
@@ -517,7 +517,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 						CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] = 
 						{ cell->Structure , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
 
-						if (shadow)
+						if (shadow && CIsoViewExt::DrawStructures)
 						{
 							int nFacing = 0;
 							if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
