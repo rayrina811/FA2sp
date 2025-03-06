@@ -1228,7 +1228,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetVehicleOrAircraftFileID(ID);
 	bool bHasTurret = Variables::Rules.GetBool(ID, "Turret");
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "Underwater");
+	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
