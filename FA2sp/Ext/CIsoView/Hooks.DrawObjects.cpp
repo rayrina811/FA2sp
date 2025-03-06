@@ -498,8 +498,6 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 				if (!CIsoViewExt::DrawStructuresFilter
 					|| std::find(filter.begin(), filter.end(), cell->Structure) != filter.end())
 				{
-					int x1 = x;
-					int y1 = y;
 					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[cell->Structure];
 					if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), cell->Structure) == DrawnBuildings.end())
 					{
@@ -519,6 +517,12 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 
 						if (shadow && CIsoViewExt::DrawStructures)
 						{
+							int x1 = objRender.X;
+							int y1 = objRender.Y;
+							CIsoView::MapCoord2ScreenCoord(x1, y1);
+							x1 -= DrawOffsetX;
+							y1 -= DrawOffsetY;
+
 							int nFacing = 0;
 							if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								nFacing = 7 - (objRender.Facing / 32) % 8;
@@ -532,7 +536,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
 							auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-							if (!pData || !pData->pImageBuffer)
+							if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
 							{
 								CLoading::Instance->LoadObjects(objRender.ID);
 							}
@@ -745,7 +749,7 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 				const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if (!pData || !pData->pImageBuffer)
+				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
 				{
 					CLoading::Instance->LoadObjects(objRender.ID);
 				}
@@ -764,7 +768,7 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 							continue;
 
 						auto pUpgData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(upg, 0));
-						if (!pUpgData || !pUpgData->pImageBuffer)
+						if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 						{
 							CLoading::Instance->LoadObjects(upg);
 						}
@@ -986,7 +990,7 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 				const auto& imageName = CLoadingExt::GetBuildingImageName(ID, 0, 0);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if (!pData || !pData->pImageBuffer)
+				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(ID))
 				{
 					CLoading::Instance->LoadObjects(ID);
 				}

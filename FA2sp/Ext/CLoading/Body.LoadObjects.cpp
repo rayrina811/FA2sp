@@ -14,6 +14,7 @@
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+std::vector<ppmfc::CString> CLoadingExt::LoadedObjects;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
@@ -99,6 +100,7 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 		return;
 
     Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
+	LoadedObjects.push_back(ID);
 
 	// GlobalVars::CMapData->UpdateCurrentDocument();
 	auto eItemType = GetItemType(ID);
@@ -149,6 +151,12 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 void CLoadingExt::ClearItemTypes()
 {
 	ObjectTypes.clear();
+	LoadedObjects.clear();
+}
+
+bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
+{
+	return std::find(LoadedObjects.begin(), LoadedObjects.end(), pRegName) != LoadedObjects.end();
 }
 
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
@@ -267,6 +275,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -392,7 +401,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
+	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
 	{
 		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
 		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
@@ -419,7 +428,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		ppmfc::CString DictNameShadow;
 		unsigned char* pBufferShadow{ 0 };
 		int widthShadow, heightShadow;
-		if (ExtConfigs::InGameDisplay_Shadow)
+		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
@@ -518,7 +527,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
-				if (ExtConfigs::InGameDisplay_Shadow)
+				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
 					DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
@@ -530,7 +539,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+				bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -574,7 +583,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		{
 			DictName.Format("%s%d", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
-			if (ExtConfigs::InGameDisplay_Shadow)
+			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
@@ -587,6 +596,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -720,7 +730,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	};
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
+	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
 	{
 		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
 		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
@@ -747,7 +757,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		ppmfc::CString DictNameShadow;
 		unsigned char* pBufferShadow{ 0 };
 		int widthShadow, heightShadow;
-		if (ExtConfigs::InGameDisplay_Shadow)
+		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
 		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
@@ -849,7 +859,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					SetImageData(pImage, DictName, width1, height1, palette);
 				}
 
-				if (ExtConfigs::InGameDisplay_Shadow)
+				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
 					if (loadAsRubble)
 						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
@@ -864,7 +874,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			{
 				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+				bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 				for (int i = 0; i < 8; ++i)
 				{
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -918,7 +928,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				DictName.Format("%s%d\233DAMAGED", ID, 0);
 			SetImageData(pBuffer, DictName, width, height, palette);
 
-			if (ExtConfigs::InGameDisplay_Shadow)
+			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				if (loadAsRubble)
 					DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
@@ -934,6 +944,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 	ppmfc::CString PaletteName = "iso";
 	GetFullPaletteName(PaletteName);
 	auto pal = PalettesManager::LoadPalette(PaletteName);
@@ -1039,7 +1050,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	if (Variables::Rules.GetBool(ID, "LeaveRubble"))
 	{
 		int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 3;
-		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, CINI::Art->GetBool(ArtID, "Shadow", true)))
+		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
 		{
 			unsigned char* pBuffer;
 			int width, height;
@@ -1048,7 +1059,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			ppmfc::CString DictName = ID + "0\233RUBBLE";
 			SetImageData(pBuffer, DictName, width, height, pal);
 
-			if (ExtConfigs::InGameDisplay_Shadow)
+			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				ppmfc::CString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
@@ -1069,6 +1080,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 {	
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetInfantryFileID(ID);
+	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
 	ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
 	bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
@@ -1101,7 +1113,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			// DictName.Format("%s%d", ImageID, i);
 			SetImageData(FramesBuffers, DictName, header.Width, header.Height, pal);
 
-			if (ExtConfigs::InGameDisplay_Shadow)
+			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				ppmfc::CString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
@@ -1127,7 +1139,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
 				SetImageData(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
-				if (ExtConfigs::InGameDisplay_Shadow)
+				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
 					ppmfc::CString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
