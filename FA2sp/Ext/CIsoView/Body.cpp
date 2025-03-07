@@ -2247,7 +2247,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
             const int spos = i + e * swidth;
             BYTE val = src[spos];
 
-            if (val && val != 127) {
+            if (val != 127) {
                 auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
 
                 if (dest >= dst) {

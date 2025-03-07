@@ -541,6 +541,48 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 							objCenter.X = objRender.X;
 							objCenter.Y = objRender.Y;
 						}
+						// if objects overlapping with building, draw building earlier
+						if (DataExt.IsCustomFoundation())
+						{
+							for (const auto& block : *DataExt.Foundations)
+							{
+								MapCoord coord = { X + block.Y, Y + block.X };
+								if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+									continue;
+
+								auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+								if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
+									|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
+									|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
+								{
+									objCenter.X = objRender.X;
+									objCenter.Y = objRender.Y;
+									break;
+								}
+							}
+						}
+						else
+						{
+							for (int dx = 0; dx < DataExt.Height; ++dx)
+							{
+								for (int dy = 0; dy < DataExt.Width; ++dy)
+								{
+									MapCoord coord = { X + dx, Y + dy };
+									if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+										continue;
+
+									auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+									if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
+										|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
+										|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
+									{
+										objCenter.X = objRender.X;
+										objCenter.Y = objRender.Y;
+										break;
+									}
+								}
+							}
+						}
 						CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] = 
 						{ cell->Structure , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
 
