@@ -199,7 +199,6 @@ DEFINE_HOOK(4A7CA7, CMapData_DeleteInfantry_UpdateIni, 6)//DeleteInfantry
 
 DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 {
-
 	GET_STACK(CInfantryData*, lpInfantry, 0x4);
 	GET_STACK(LPCTSTR, lpType, 0x8);
 	GET_STACK(LPCTSTR, lpHouse, 0xC);
@@ -432,7 +431,7 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 
 	if (!bFound)
 	{
-		m_infantry.push_back(infantry);//默认exe中100个步兵会崩溃，需要修补004A2B62和004A2BC8（60*n）
+		m_infantry.push_back(infantry);
 		if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = (short)m_infantry.size() - 1;
 	}
 
@@ -1061,6 +1060,174 @@ DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
 	}
 
 	return 0;
+}
+
+DEFINE_HOOK(4A6040, CMapData_UpdateUnits, 6)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(BOOL, bSave, 0x4);
+	if (bSave == FALSE)
+	{
+		int i;
+		for (i = 0; i < pThis->CellDataCount; i++)
+		{
+			pThis->CellDatas[i].Unit = -1;
+		}
+
+		if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+		{
+			int i = 0;
+			for (const auto& data : pSection->GetEntities())
+			{
+				auto atoms = STDHelpers::SplitString(data.second, 4);
+				int x = atoi(atoms[4]);
+				int y = atoi(atoms[3]);
+				int pos = pThis->GetCoordIndex(x, y);
+				if (pos < pThis->CellDataCount) 
+					pThis->CellDatas[pos].Unit = i;
+
+				pThis->UpdateMapPreviewAt(x, y);
+				i++;
+			}
+		}
+	}
+	return 0x4A67CD;
+}
+
+DEFINE_HOOK(4A87A0, CMapData_DeleteUnit, 7)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(int, index, 0x4);
+	if (auto pSection = CINI::CurrentDocument->GetSection("Units"))
+	{
+		if (index < pSection->GetEntities().size())
+		{
+			auto& value = *pSection->GetValueAt(index);
+			auto atoms = STDHelpers::SplitString(value, 4);
+			int x = atoi(atoms[4]);
+			int y = atoi(atoms[3]);
+			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			pThis->UpdateFieldUnitData(false);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
+	return 0x4A8F9F;
+}
+
+DEFINE_HOOK(4A4270, CMapData_UpdateAircraft, 6)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(BOOL, bSave, 0x4);
+	if (bSave == FALSE)
+	{
+		int i;
+		for (i = 0; i < pThis->CellDataCount; i++)
+		{
+			pThis->CellDatas[i].Aircraft = -1;
+		}
+
+		if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
+		{
+			int i = 0;
+			for (const auto& data : pSection->GetEntities())
+			{
+				auto atoms = STDHelpers::SplitString(data.second, 4);
+				int x = atoi(atoms[4]);
+				int y = atoi(atoms[3]);
+				int pos = pThis->GetCoordIndex(x, y);
+				if (pos < pThis->CellDataCount)
+					pThis->CellDatas[pos].Aircraft = i;
+
+				pThis->UpdateMapPreviewAt(x, y);
+				i++;
+			}
+		}
+	}
+	return 0x4A4A09;
+}
+
+DEFINE_HOOK(4A98B0, CMapData_DeleteAircraft, 7)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(int, index, 0x4);
+	if (auto pSection = CINI::CurrentDocument->GetSection("Aircraft"))
+	{
+		if (index < pSection->GetEntities().size())
+		{
+			auto& value = *pSection->GetValueAt(index);
+			auto atoms = STDHelpers::SplitString(value, 4);
+			int x = atoi(atoms[4]);
+			int y = atoi(atoms[3]);
+			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			pThis->UpdateFieldAircraftData(false);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
+	return 0x4AA0AF;
+}
+
+DEFINE_HOOK(4A67D0, CMapData_UpdateWaypoints, 6)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(BOOL, bSave, 0x4);
+	if (bSave == FALSE)
+	{
+		int i;
+		for (i = 0; i < pThis->CellDataCount; i++)
+		{
+			pThis->CellDatas[i].Waypoint = -1;
+		}
+
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			int i = 0;
+			for (const auto& data : pSection->GetEntities())
+			{
+				int x =  atoi(data.second) / 1000;
+				int y =  atoi(data.second) % 1000;
+				int pos = pThis->GetCoordIndex(x, y);
+				if (pos < pThis->CellDataCount) 
+					pThis->CellDatas[pos].Waypoint = i;
+
+				if (pThis->IsMultiOnly())
+				{
+					int k, l;
+					for (k = -1; k < 2; k++)
+						for (l = -1; l < 2; l++)
+							pThis->UpdateMapPreviewAt(x + k, y + l);
+				}
+				i++;
+			}
+		}
+	}
+	return 0x4A6FA3;
+}
+
+DEFINE_HOOK(4A7CB0, CMapData_DeleteWaypoints, 7)
+{
+	GET(CMapData*, pThis, ECX);
+	GET_STACK(int, index, 0x4);
+	if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+	{
+		if (index < pSection->GetEntities().size())
+		{
+			auto& value = *pSection->GetValueAt(index);
+			int x = atoi(value) / 1000;
+			int y = atoi(value) % 1000;
+			CINI::CurrentDocument->DeleteKey(pSection, *pSection->GetKeyAt(index));
+			pThis->UpdateFieldWaypointData(false);
+
+			if (pThis->IsMultiOnly())
+			{
+				int k, l;
+				for (k = -1; k < 2; k++)
+					for (l = -1; l < 2; l++)
+						pThis->UpdateMapPreviewAt(x + k, y + l);
+			}
+		}
+	}
+	
+	return 0x4A847F;
 }
 
 DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
