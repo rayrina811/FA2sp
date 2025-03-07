@@ -2229,15 +2229,8 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
 
     for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = pd->pPixelValidRanges[e].First;
-        int right = pd->pPixelValidRanges[e].Last;
-
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
+        int left = srcRect.left;
+        int right = srcRect.right - 1;
 
         for (i = left; i <= right; i++) {
             if (blrect.left + i < 0) {

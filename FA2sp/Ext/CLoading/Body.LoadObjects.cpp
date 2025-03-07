@@ -250,8 +250,7 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	{
 		ppmfc::CString PowerUpBld = *ppPowerUpBld;
 		PowerUpBld.Trim();
-		ppmfc::CString SrcBldName = GetBuildingFileID(PowerUpBld) + "0";
-		if (!ImageDataMapHelper::IsImageLoaded(SrcBldName))
+		if (!CLoadingExt::IsObjectLoaded(PowerUpBld))
 			LoadBuilding(PowerUpBld);
 	}
 
@@ -265,8 +264,9 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 		{
 			ppmfc::CString AIFile = *pAIFile;
 			AIFile.Trim();
-			if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-				LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+			auto AIDicName = AIFile + "\233ALPHAIMAGE";
+			if (!CLoadingExt::IsObjectLoaded(AIDicName))
+				LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);	
 		}
 	}
 }
@@ -395,8 +395,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	{
 		ppmfc::CString PowerUpBld = *ppPowerUpBld;
 		PowerUpBld.Trim();
-		ppmfc::CString SrcBldName = GetBuildingFileID(PowerUpBld) + "0";
-		if (!ImageDataMapHelper::IsImageLoaded(SrcBldName))
+		if (!CLoadingExt::IsObjectLoaded(PowerUpBld))
 			LoadBuilding(PowerUpBld);
 	}
 
@@ -1182,8 +1181,9 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 		//{
 		//	ppmfc::CString AIFile = *pAIFile;
 		//	AIFile.Trim();
-		//	if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-		//		LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+		//  auto AIDicName = AIFile + "\233ALPHAIMAGE";
+		//  if (!CLoadingExt::IsObjectLoaded(AIDicName))
+		//  	LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
 		//}
 	}
 }
@@ -1228,8 +1228,9 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 			{
 				ppmfc::CString AIFile = *pAIFile;
 				AIFile.Trim();
-				if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-					LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+				auto AIDicName = AIFile + "\233ALPHAIMAGE";
+				if (!CLoadingExt::IsObjectLoaded(AIDicName))
+					LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
 			}
 		}
 	}
@@ -1507,8 +1508,9 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	//{
 	//	ppmfc::CString AIFile = *pAIFile;
 	//	AIFile.Trim();
-	//	if (!ImageDataMapHelper::IsImageLoaded(AIFile))
-	//		LoadShp(AIFile + "\233ALPHAIMAGE", AIFile + ".shp", "anim.pal", 0);
+	//  auto AIDicName = AIFile + "\233ALPHAIMAGE";
+	//  if (!CLoadingExt::IsObjectLoaded(AIDicName))
+	//  	LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
 	//}
 }
 
@@ -1841,6 +1843,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
 			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pal);
+			LoadedObjects.push_back(ImageID);
 		}
 	}
 }
@@ -1909,6 +1912,7 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileNam
 				pData->Flag = ImageDataFlag::SurfaceData;
 
 				CIsoView::SetColorKey(pData->lpSurface, -1);
+				LoadedObjects.push_back(ImageID);
 			}	
 		}
 	}
@@ -1966,5 +1970,6 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer
 		pData->Flag = ImageDataFlag::SurfaceData;
 
 		CIsoView::SetColorKey(pData->lpSurface, -1);
+		LoadedObjects.push_back(ImageID);
 	}	
 }
