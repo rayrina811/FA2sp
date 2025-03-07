@@ -1074,7 +1074,7 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                     if (MultiSelection::GetCount2())
                     {
                         bool found = false;
-                        for (auto coord : MultiSelection::SelectedCoordsTemp)
+                        for (auto& coord : MultiSelection::SelectedCoordsTemp)
                         {
                             //MessageBox(NULL, std::to_string(i).c_str(), std::to_string(j).c_str(), 0);
                             if (coord.X == cell.X && coord.Y == cell.Y)

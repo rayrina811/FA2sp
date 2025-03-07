@@ -1250,7 +1250,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
 	PalettesManager::Release();
-	GameDelete(&Palette::PALETTE_ISO);
 	ppmfc::CString theaterIg = thisTheater;
 	if (theaterIg == "NEWURBAN")
 		theaterIg = "UBN";
@@ -1481,7 +1480,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 			}
 		}
 	}
-	CLoadingExt::SwimableInfantries.clear();
 	CLoadingExt::ClearItemTypes();
 	LightingSourceTint::CalculateMapLamps();
 }

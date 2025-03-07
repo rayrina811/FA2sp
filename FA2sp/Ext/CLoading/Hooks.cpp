@@ -199,43 +199,6 @@ DEFINE_HOOK(48E541, CLoading_InitTMPs_UpdateTileDatas, 7)
 	return 0;
 }
 
-DEFINE_HOOK(469410, CLoading_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
-{
-	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
-	CMapDataExt::InitializeAllHdmEdition(false);
-	CFinalSunDlgExt::CurrentLighting = currentLighting;
-	if (CFinalSunDlgExt::CurrentLighting != 31000)
-	{
-		CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_UNCHECKED);
-		PalettesManager::ManualReloadTMP = true;
-		PalettesManager::CacheAndTintCurrentIso();
-		CLoading::Instance->FreeTMPs();
-		CLoading::Instance->InitTMPs();
-		int oli = 0;
-		for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
-		{
-			auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
-			if (it != CLoadingExt::LoadedOverlays.end()) {
-				CLoading::Instance->DrawOverlay(ol.second, oli);
-			}
-			oli++;
-		}
-		PalettesManager::RestoreCurrentIso();
-		PalettesManager::ManualReloadTMP = false;
-		LightingSourceTint::CalculateMapLamps();
-
-		CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-		auto tmp = CIsoView::CurrentCommand->Command;
-		if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
-			HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
-			HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
-			::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
-			CIsoView::CurrentCommand->Command = tmp;
-		}
-	}
-
-	return 0;
-}
 DEFINE_HOOK(48C3FB, CLoading_InitTMPs_StoreISOPal, 7)
 {
 	memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));

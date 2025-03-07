@@ -44,8 +44,6 @@ DEFINE_HOOK(4138A0, CBitmap2MapConverter_Convert, 7)
 	int theater = 0;
 	mapdata->CreateMap(bm.bmWidth, bm.bmHeight, CMapDataExt::BitmapImporterTheater, 0);
 
-	CMapDataExt::InitializeAllHdmEdition(false);
-
 	// weirdly MapWidthPlusHeight not loaded yet
 	int isosize = bm.bmWidth + bm.bmHeight;
 

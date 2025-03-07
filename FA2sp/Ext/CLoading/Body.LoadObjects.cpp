@@ -152,6 +152,7 @@ void CLoadingExt::ClearItemTypes()
 {
 	ObjectTypes.clear();
 	LoadedObjects.clear();
+	SwimableInfantries.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)

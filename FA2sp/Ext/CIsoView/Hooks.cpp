@@ -853,6 +853,45 @@ DEFINE_HOOK(457648, CIsoView_OnMouseMove_PlaceTile_SkipHide, B)
 	return cell->IsHidden() ? 0x457D11 : 0;
 }
 
+DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
+{
+	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
+	Logger::Debug("CIsoView::ReInitializeDDraw(): About to call InitializeAllHdmEdition()\n");
+	CMapDataExt::InitializeAllHdmEdition(false);
+	CFinalSunDlgExt::CurrentLighting = currentLighting;
+	if (CFinalSunDlgExt::CurrentLighting != 31000)
+	{
+		CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_UNCHECKED);
+		PalettesManager::ManualReloadTMP = true;
+		PalettesManager::CacheAndTintCurrentIso();
+		CLoading::Instance->FreeTMPs();
+		CLoading::Instance->InitTMPs();
+		int oli = 0;
+		for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
+		{
+			auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
+			if (it != CLoadingExt::LoadedOverlays.end()) {
+				CLoading::Instance->DrawOverlay(ol.second, oli);
+			}
+			oli++;
+		}
+		PalettesManager::RestoreCurrentIso();
+		PalettesManager::ManualReloadTMP = false;
+		LightingSourceTint::CalculateMapLamps();
+
+		CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		auto tmp = CIsoView::CurrentCommand->Command;
+		if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+			HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+			HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
+			::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+			CIsoView::CurrentCommand->Command = tmp;
+		}
+	}
+
+	return 0;
+}
+
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
 //{
 //	if (!IsPlacingTiles)

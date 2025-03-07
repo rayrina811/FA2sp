@@ -16,6 +16,7 @@
 #include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
 #include "../../Miscs/Palettes.h"
+#include "../CLoading/Body.h"
 
 DEFINE_HOOK(4C3E20, CMapData_CalculateMoneyCount, 7)
 {
@@ -1005,7 +1006,6 @@ DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
 	return 0x4576CC;
 }
 
-
 DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
 {
 	GET(DWORD, dwID6, EDI);
@@ -1028,43 +1028,43 @@ DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 	return 0x4B499C;
 }
 
-// this function does not trigger in new map
-DEFINE_HOOK(4B4853, CMapData_UpdateMapFieldData_InitializeMapDataExt, 8)
+DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 {
+	Logger::Debug("CMapData::LoadMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	return 0;
 }
-DEFINE_HOOK(42E0AC, CFinalSunDlg_OnFileNew_InitializeMapDataExt, 5)
+
+DEFINE_HOOK(4B9F7A, CMapData_CreateMap_InitializeMapDataExt, 5)
 {
+	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	return 0;
 }
-DEFINE_HOOK(438CF0, CFinalSunDlg_OnOpenFile_InitializeMapDataExt, 5)
+
+DEFINE_HOOK(4C6456, CMapData_ResizeMap_ResizeCellDataExts, 8)
 {
-	CMapDataExt::InitializeAllHdmEdition();
+	// resize for addbuilding
+	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
 	return 0;
 }
-DEFINE_HOOK(4260CF, CFinalSunDlg_OnOpenFile2_InitializeMapDataExt, 5)
+
+DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
 {
-	CMapDataExt::InitializeAllHdmEdition();
-	return 0;
-}
-DEFINE_HOOK(4C7DB9, CMapData_ResizeMap_UpdateMapDataExt, 7)
-{
-	CMapDataExt::CellDataExts.clear();
-	for (int i = 0; i < CMapData::Instance->CellDataCount; i++)
-	{
-		CellDataExt cell;
-		cell.Adjusted = false;
-		cell.CreateSlope = false;
-		CMapDataExt::CellDataExts.push_back(cell);
+	// load objects to avoid weird palette issue
+	CIsoView::GetInstance()->PrimarySurfaceLost();
+
+	for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+		for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+			CMapData::Instance->UpdateMapPreviewAt(i, j);
+		}
 	}
+
 	return 0;
 }
 
 DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 {
-
 	GET_STACK(unsigned char, Overlay, STACK_OFFS(0x78, 0x20));
 	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
 	GET(RGBTRIPLE*, Color, EBP);
