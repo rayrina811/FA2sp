@@ -31,6 +31,7 @@
 #include "../CTileSetBrowserFrame/TabPages/TagSort.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -1096,6 +1097,54 @@ bool CMapDataExt::IsValidTileSet(int tileset)
 	if (!exist || strcmp(exist2, "") == 0)
 		return false;
 	return true;
+}
+
+void CMapDataExt::UpdateIncludeIniInMap()
+{
+	if (ExtConfigs::AllowIncludes)
+	{
+		const char* includeSection = "#include";
+		if (auto pSection = CINI::CurrentDocument->GetSection(includeSection)) {
+			INIIncludes::MapIncludedKeys.clear();
+			INIIncludes::IsFirstINI = false;
+			INIIncludes::IsMapINI = true;
+			INIIncludes::MapINIWarn = true;
+			CINI ini;
+
+			for (auto& pair : pSection->GetEntities()) {
+				ppmfc::CString includeFile = pair.second;
+				includeFile.Trim();
+
+				if (includeFile && strlen(includeFile) > 0) {
+					bool canLoad = true;
+					for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
+						if (!strcmp(INIIncludes::LoadedINIFiles[j], includeFile)) {
+							canLoad = false;
+							break;
+						}
+					}
+
+					if (canLoad) {
+						Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
+						CLoading::Instance->LoadTSINI(
+							includeFile, &ini, TRUE
+						);
+					}
+				}
+			}
+
+			for (auto& [secName, pSection] : ini.Dict)
+			{
+				for (const auto& [key, value] : pSection.GetEntities())
+				{
+					INIIncludes::MapIncludedKeys[secName][key] = CINI::CurrentDocument->GetString(secName, key);
+					CINI::CurrentDocument->WriteString(secName, key, value);
+				}
+			}
+			INIIncludes::IsFirstINI = true;
+			INIIncludes::IsMapINI = false;
+		}
+	}
 }
 
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)

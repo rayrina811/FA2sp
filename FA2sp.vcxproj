@@ -376,6 +376,7 @@
     <ClInclude Include="FA2sp\Helpers\TheaterHelpers.h" />
     <ClInclude Include="FA2sp\Helpers\Templates.hpp" />
     <ClInclude Include="FA2sp\Logger.h" />
+    <ClInclude Include="FA2sp\Miscs\Hooks.INI.h" />
     <ClInclude Include="FA2sp\Miscs\StringtableLoader.h" />
     <ClInclude Include="FA2sp\Miscs\TheaterInfo.h" />
     <ClInclude Include="FA2sp\Miscs\VoxelDrawer.h" />

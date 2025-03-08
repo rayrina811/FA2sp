@@ -1,13 +1,4 @@
-#include <CINI.h>
-#include <vector>
-#include <map>
-#include <CLoading.h>
-
-#include "../Helpers/STDHelpers.h"
-#include "../FA2sp.h"
-#include <CFinalSunApp.h>
-#include <CMixFile.h>
-#include <fstream>
+#include "Hooks.INI.h"
 
 /*
 * Codes imported from Ares
@@ -16,28 +7,15 @@
 using std::map;
 using std::vector;
 
-class CINIExt : public CINI
-{
-public:
-    char* FileName;
-};
-
-
-class INIIncludes
-{
-public:
-    static int LastReadIndex;
-    static vector<CINIExt*> LoadedINIs;
-    static vector<char*> LoadedINIFiles;
-    static map<ppmfc::CString, unsigned int> CurrentINIIdxHelper;
-    static vector<char*> RulesIncludeFiles;
-};
-
 int INIIncludes::LastReadIndex = -1;
+bool INIIncludes::IsFirstINI = true;
+bool INIIncludes::IsMapINI = false;
+bool INIIncludes::MapINIWarn = false;
 vector<CINIExt*> INIIncludes::LoadedINIs;
 vector<char*> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
 map<ppmfc::CString, unsigned int> INIIncludes::CurrentINIIdxHelper;
+map<ppmfc::CString, map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
 
 DEFINE_HOOK(4530F7, CLoading_ParseINI_PlusSupport, 8)
 {
@@ -88,6 +66,13 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     CINIExt* xINI = INIIncludes::LoadedINIs.back();
     if (!xINI)
         return 0;
+
+    bool readExtra = false;
+    if (INIIncludes::IsFirstINI)
+    {
+        readExtra = true;
+        INIIncludes::IsFirstINI = false;
+    }
 
     auto toLower = [&](const std::string& input) {
         std::string result = input;
@@ -184,7 +169,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
         ini.ClearAndLoad(path.c_str());
         if (isPartOfRulesIni) {
-            for (auto& section : ini.Dict) {
+            for (const auto& section : ini.Dict) {
                 auto&& cur = ini.ParseIndiciesData(section.first);
                 auto& Indicies = Variables::OrderedRulesIndicies[section.first];
                 for (int i = 0; i < cur.size(); i++)
@@ -238,7 +223,10 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                     }
 
                     if (canLoad) {
-                        Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
+                        if (!INIIncludes::IsMapINI)
+                            Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
+                        else
+                            Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
                         CLoading::Instance->LoadTSINI(
                             includeFile, (CINI*)xINI, TRUE
                         );
@@ -256,24 +244,32 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     ++INIIncludes::LastReadIndex;
     buffer[0] = '\0';
 
-    strcpy_s(buffer, extraName.c_str());
-    if (buffer && strlen(buffer) > 0) {
-        bool canLoad = true;
-        for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
-            if (!strcmp(INIIncludes::LoadedINIFiles[j], buffer)) {
-                canLoad = false;
-                break;
+    if (readExtra)
+    {
+        INIIncludes::IsFirstINI = true;
+        // only load extra file in the main INI
+        strcpy_s(buffer, extraName.c_str());
+        if (buffer && strlen(buffer) > 0) {
+            bool canLoad = true;
+            for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
+                if (!strcmp(INIIncludes::LoadedINIFiles[j], buffer)) {
+                    canLoad = false;
+                    break;
+                }
+
             }
 
+            if (canLoad) {
+                if (!INIIncludes::IsMapINI)
+                    Logger::Debug("Include Ext Loaded File: %s\n", buffer);
+                else
+                    Logger::Debug("Include Ext Loaded File in Map: %s\n", buffer);
+                CLoading::Instance->LoadTSINI(
+                    buffer, (CINI*)xINI, TRUE
+                );
+            }
         }
-
-        if (canLoad) {
-            Logger::Debug("Include Ext Loaded File: %s\n", buffer);
-            CLoading::Instance->LoadTSINI(
-                buffer, (CINI*)xINI, TRUE
-            );
-        }
-    }
+    } 
 
     if (isTheaterIni)
     {
@@ -333,6 +329,5 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         INIIncludes::LastReadIndex = -1;
     }
 
-   
     return 0;
 }

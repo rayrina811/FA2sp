@@ -1029,6 +1029,7 @@ DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 
 DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 {
+	CMapDataExt::UpdateIncludeIniInMap();
 	Logger::Debug("CMapData::LoadMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
 	return 0;

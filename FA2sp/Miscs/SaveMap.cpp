@@ -26,6 +26,7 @@
 #include "../Helpers/Translations.h"
 #include "../Ext/CMapData/Body.h"
 #include "Palettes.h"
+#include "Hooks.INI.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
 
@@ -500,10 +501,63 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             if (!strcmp(section.first, "Preview") || !strcmp(section.first, "PreviewPack") || !strcmp(section.first, "Header"))
                 continue;
 
-            oss << "[" << section.first << "]\n";
-            for (auto& pair : section.second.GetEntities())
-                oss << pair.first << "=" << pair.second << "\n";
-            oss << "\n";
+            auto& exclude = INIIncludes::MapIncludedKeys;
+            if (!exclude.empty() && exclude.find(section.first) != exclude.end())
+            {
+                std::vector<int> skipLines;
+                std::vector<int> useOriginLines;
+
+                auto& keys = exclude[section.first];
+                int index = 0;
+                for (auto& pair : section.second.GetEntities())
+                {
+                    if (keys.find(pair.first) != keys.end())
+                    {
+                        if (keys[pair.first] == "")
+                        {
+                            skipLines.push_back(index);
+                        }
+                        else
+                        {
+                            useOriginLines.push_back(index);
+                        }
+                    }
+                    index++;
+                }
+                if (skipLines.size() < section.second.GetEntities().size())
+                {
+                    oss << "[" << section.first << "]\n";
+                    index = 0;
+                    for (auto& pair : section.second.GetEntities())
+                    {
+                        if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
+                        {
+
+                        }
+                        else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
+                        {
+                            oss << pair.first << "=" << keys[pair.first] << "\n";
+                        }
+                        else
+                        {
+                            oss << pair.first << "=" << pair.second << "\n";
+                        }
+                        index++;
+                    }
+
+                    oss << "\n";
+                }
+            }
+            else
+            {
+                oss << "[" << section.first << "]\n";
+                for (auto& pair : section.second.GetEntities())
+                {
+                    oss << pair.first << "=" << pair.second << "\n";
+                }
+
+                oss << "\n";
+            }
         }
 
         // Generate the Digest

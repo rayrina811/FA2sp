@@ -212,6 +212,7 @@ public:
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset);
+    static void UpdateIncludeIniInMap();
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;

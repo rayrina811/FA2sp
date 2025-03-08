@@ -8,6 +8,8 @@
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
 #include <Miscs/Miscs.h>
+#include "../../Helpers/Translations.h"
+#include "../../Miscs/Hooks.INI.h"
 
 static int Left, Right, Top, Bottom;
 static RECT window;
@@ -181,6 +183,24 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 			}
 		}
 	}	
+
+	if (INIIncludes::MapINIWarn)
+	{
+		if (!CINI::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))
+		{
+			int result = MessageBox(CIsoView::GetInstance()->GetSafeHwnd(),
+				Translations::TranslateOrDefault("MapIncludeWarningMessage",
+					"This map contains include INIs. All key value pairs in the INIs will not be saved to the map, nor will be saved to the INIs.\n"
+					"If you click 'OK', this warning will no longer pop up in this map."),
+				Translations::TranslateOrDefault("Warning", "Warning"),
+				MB_OKCANCEL | MB_DEFBUTTON2 | MB_ICONEXCLAMATION);
+
+			if (result == IDOK)
+				CINI::CurrentDocument->WriteBool("FA2spVersionControl", "MapIncludeWarned", true);
+		}
+		INIIncludes::MapINIWarn = false;
+	}
+
 
 	return 0;
 }
