@@ -733,5 +733,6 @@
       <Filter>资源文件</Filter>
     </None>
     <None Include="0001-Fix-FA2pp-FAVector-T-cannot-pass-compile.patch" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
