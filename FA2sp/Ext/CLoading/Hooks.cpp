@@ -199,70 +199,15 @@ DEFINE_HOOK(48E541, CLoading_InitTMPs_UpdateTileDatas, 7)
 	return 0;
 }
 
-DEFINE_HOOK(48C3FB, CLoading_InitTMPs_StoreISOPal, 7)
+DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 {
-	memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-	return 0;
-}
-
-DEFINE_HOOK(48CBEB, CLoading_InitTMPs_CustomPalSupport, 7)
-{
-	GET_STACK(int, iTileSet, STACK_OFFS(0x59C, 0x578));
-	ppmfc::CString section;
-	section.Format("TileSet%04d", iTileSet);
-	ppmfc::CString pDefault = "iso~~~.pal";
-	pDefault.Replace("~~~", CLoading::Instance->GetTheaterSuffix());
-	auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette", pDefault);
-	if (customPal != pDefault)
-	{
-		BGRStruct empty;
-		auto pPal = PalettesManager::LoadPalette(customPal);
-		memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
-	}
-	else
-	{
-		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
-	}
-	return 0;
+	return 0x48EA44;
 }
 
 static bool DrawTranspInsideTilesChanged = false;
-DEFINE_HOOK_AGAIN(46F767, CIsoView_DrawMap_DrawTranspInsideTiles, 8)
-DEFINE_HOOK(46EC1B, CIsoView_DrawMap_DrawTranspInsideTiles, 8)
+DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
 {
-	GET_STACK(unsigned short, tileIndex, STACK_OFFS(0x0D18, 0xC32));
-	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
-	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
-	{
-		if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
-		{
-			ppmfc::CString section;
-			section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
-			auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette");
-			DrawTranspInsideTilesChanged = true;
-			memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-			BGRStruct empty;
-			if (auto pPal = PalettesManager::LoadPalette(customPal))	
-				memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
-		}
-	}
-	return 0;
-}
-
-DEFINE_HOOK_AGAIN(4700BA, CIsoView_DrawMap_DrawTranspInsideTiles_2, 7)
-DEFINE_HOOK(46F5AF, CIsoView_DrawMap_DrawTranspInsideTiles_2, 7)
-{
-	if (DrawTranspInsideTilesChanged)
-	{
-		DrawTranspInsideTilesChanged = false;
-		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
-	}
-	return 0;
-}
-
-DEFINE_HOOK(4F36A0, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
-{
-	GET_STACK(unsigned int, tileIndex, 0x4);
+	GET(unsigned int, tileIndex, EBX);
 	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
 	{

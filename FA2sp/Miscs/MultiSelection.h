@@ -17,7 +17,7 @@ public:
     inline static void ClearT();
     static void Clear2();
     static void ReverseStatus(int X, int Y);
-    inline static bool IsSelected(int X, int Y);
+    static bool IsSelected(int X, int Y);
 
     struct MyClipboardData
     {

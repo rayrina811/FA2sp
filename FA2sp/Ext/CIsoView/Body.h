@@ -69,6 +69,8 @@ public:
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd);
+    static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
+        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255);
 
     static bool DrawStructures;
     static bool DrawInfantries;

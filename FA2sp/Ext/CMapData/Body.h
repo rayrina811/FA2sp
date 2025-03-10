@@ -238,6 +238,7 @@ public:
     static int WaterBridge;
     static int BridgeSet;
     static int WoodBridgeSet;
+    static int HeightBase;
     static Palette Palette_ISO;
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;

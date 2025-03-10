@@ -138,7 +138,7 @@ void MultiSelection::ReverseStatus(int X, int Y)
     MultiSelection::SelectCellsChanged = true;
 }
 
-inline bool MultiSelection::IsSelected(int X, int Y)
+bool MultiSelection::IsSelected(int X, int Y)
 {
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();
 }
@@ -307,18 +307,14 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
             {
                 const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
                 int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
-                if (tileset >= 0 && tileset < CMapDataExt::TileSet_starts.size() - 1) {
-                    for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
-                        int x = CMapData::Instance->GetXFromCoordIndex(j);
-                        int y = CMapData::Instance->GetYFromCoordIndex(j);
-                        if (CMapData::Instance->IsCoordInMap(x, y)) {
-                            for (int i = CMapDataExt::TileSet_starts[tileset]; i < CMapDataExt::TileSet_starts[tileset + 1]; i++) {
-                                if (CMapDataExt::GetSafeTileIndex(CMapData::Instance->CellDatas[j].TileIndex) == i) {
-                                    MultiSelection::AddCoord(x, y);
-                                    break;
-                                }
-                            }
-                        }
+                for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                    int x = CMapData::Instance->GetXFromCoordIndex(j);
+                    int y = CMapData::Instance->GetYFromCoordIndex(j);
+                    if (!CMapData::Instance->IsCoordInMap(x, y))
+                        continue;
+                    auto scCell = CMapData::Instance->GetCellAt(x, y);
+                    if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(scCell->TileIndex)].TileSet == tileset) {
+                        MultiSelection::AddCoord(x, y);
                     }
                 }
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -327,20 +323,13 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
             {
                 const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
                 int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
-                if (tileset >= 0 && tileset < CMapDataExt::TileSet_starts.size() - 1) {
-                    for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
-                        for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
-                            int x = CMapData::Instance->GetXFromCoordIndex(j);
-                            int y = CMapData::Instance->GetYFromCoordIndex(j);
-                            if (CMapData::Instance->IsCoordInMap(x, y)) {
-                                for (int i = CMapDataExt::TileSet_starts[tileset]; i < CMapDataExt::TileSet_starts[tileset + 1]; i++) {
-                                    if (CMapDataExt::GetSafeTileIndex(CMapData::Instance->CellDatas[j].TileIndex) == i) {
-                                        MultiSelection::RemoveCoord(x, y);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                auto tempCoords = MultiSelection::SelectedCoords;
+                for (auto& sc : tempCoords){
+                    if (!CMapData::Instance->IsCoordInMap(sc.X, sc.Y))
+                        continue;
+                    auto scCell = CMapData::Instance->GetCellAt(sc.X, sc.Y);
+                    if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(scCell->TileIndex)].TileSet == tileset) {
+                        MultiSelection::RemoveCoord(sc.X, sc.Y);
                     }
                 }
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -489,22 +478,6 @@ static bool CIsoView_Draw_MultiSelect(BGRStruct* pColors, int nCount, bool isOve
     return colorChanged;
 }
 
-DEFINE_HOOK_AGAIN(46F0D6, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK_AGAIN(46F1B7, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK_AGAIN(46F438, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK_AGAIN(46F55F, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK_AGAIN(46FC2F, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK_AGAIN(46FD0A, CIsoView_Draw_MultiSelect_Tile, 7)
-DEFINE_HOOK(46FF71, CIsoView_Draw_MultiSelect_Tile, 7)
-{
-    GET(BGRStruct*, pColors, ESI);
-    GET(int, nCount, ECX);
-
-    if (CIsoView_Draw_MultiSelect(pColors, nCount, false))
-        R->ESI(MultiSelection::ColorHolder);
-
-    return 0;
-}
 DEFINE_HOOK_AGAIN(470081, CIsoView_Draw_MultiSelect_Overlay, 7)
 DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect_Overlay, 7)
 {

@@ -10,6 +10,7 @@
 #include <Miscs/Miscs.h>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/Hooks.INI.h"
+#include "../../Miscs/MultiSelection.h"
 
 static int Left, Right, Top, Bottom;
 static RECT window;
@@ -234,6 +235,185 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 	return 0;
 }
 
+DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
+{
+	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+	auto pThis = CIsoView::GetInstance();
+	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
+		for (int X = 0; X < XplusY; X++) {
+			int Y = XplusY - X;
+			if (!IsCoordInWindow(X, Y))
+				continue;
+			if (!CMapData::Instance->IsCoordInMap(X, Y))
+				continue;
+
+			const auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+			CIsoViewExt::CurrentDrawCellLocation.X = X;
+			CIsoViewExt::CurrentDrawCellLocation.Y = Y;
+			CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
+
+			int altImage = cell->Flag.AltIndex;
+			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+			int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+			if (tileIndex >= CMapDataExt::TileDataCount)
+				continue;
+
+			cell->Flag.RedrawTerrain = false;
+			for (int i = 1; i <= 2; i++)
+			{
+				if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
+				{
+					auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
+					if (cell->Height - blockedCell->Height >= 2 * i
+						|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+						cell->Flag.RedrawTerrain = true;
+				}
+			}
+
+			if (!cell->Flag.RedrawTerrain)
+			{
+				if (CFinalSunApp::Instance->FrameMode)
+				{
+					if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+					{
+						tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+					}
+					else
+					{
+						tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+						tileSubIndex = 0;
+					}
+				}
+
+				CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+				if (tile.AltTypeCount)
+				{
+					if (altImage > 0)
+					{
+						tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+					}
+				}
+				if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+				{
+					auto& subTile = tile.TileBlockDatas[tileSubIndex];
+					int x = X;
+					int y = Y;
+					CIsoView::MapCoord2ScreenCoord(x, y);
+					x -= DrawOffsetX;
+					y -= DrawOffsetY;
+
+					if (subTile.HasValidImage)
+					{
+						Palette* pal = &CMapDataExt::Palette_ISO;
+						if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
+						{
+							ppmfc::CString section;
+							section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
+							auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
+							if (auto pPal = PalettesManager::LoadPalette(custom))
+								pal = pPal;
+						}
+
+						CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+							x - subTile.BlockWidth, y - subTile.BlockHeight, &subTile, pal,
+							cell->IsHidden() ? 128 : 255);
+					}
+				}
+			}
+		}
+	}
+	return 0x46F5D7;
+}
+
+DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
+{
+	GET(int, X, EDI);
+	GET(int, Y, EBP);
+	GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+	auto pThis = CIsoView::GetInstance();
+	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+	const auto cell = CMapData::Instance->GetCellAt(X, Y);
+	int altImage = cell->Flag.AltIndex;
+	int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+	int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		return 0x4700BA;
+
+	cell->Flag.RedrawTerrain = false;
+	for (int i = 1; i <= 2; i++)
+	{
+		if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
+		{
+			auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
+			if (cell->Height - blockedCell->Height >= 2 * i
+				|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
+				cell->Flag.RedrawTerrain = true;
+		}
+	}
+
+	if (cell->Flag.RedrawTerrain)
+	{
+		if (CFinalSunApp::Instance->FrameMode)
+		{
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			{
+				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+			}
+			else
+			{
+				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+				tileSubIndex = 0;
+			}
+		}
+
+		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		if (tile.AltTypeCount)
+		{
+			if (altImage > 0)
+			{
+				tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+			}
+		}
+		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+		{
+			auto& subTile = tile.TileBlockDatas[tileSubIndex];
+			int x = X;
+			int y = Y;
+			CIsoView::MapCoord2ScreenCoord(x, y);
+			x -= DrawOffsetX;
+			y -= DrawOffsetY;
+
+			if (subTile.HasValidImage)
+			{
+				Palette* pal = &CMapDataExt::Palette_ISO;
+				if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
+				{
+					ppmfc::CString section;
+					section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
+					auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
+					if (auto pPal = PalettesManager::LoadPalette(custom))
+						pal = pPal;
+				}
+
+				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+					x - subTile.BlockWidth, y - subTile.BlockHeight, &subTile, pal,
+					cell->IsHidden() ? 128 : 255);
+			}
+		}
+	}
+
+	return 0x4700BA;
+}
+
+
 DEFINE_HOOK(46F604, CIsoView_Draw_Loop2_HorizontalLoop_1, 8)
 {
 	R->EBP(VisibleCoordTL.Y - EXTRA_BORDER);
@@ -279,21 +459,6 @@ DEFINE_HOOK(474ACF, CIsoView_Draw_Loop2_HorizontalLoop_3, 7)
 	return 0x46F604;
 }
 
-DEFINE_HOOK(46EAEF, CIsoView_Draw_Optimize_1, 5)
-{
-	GET(int, X, EBP);
-	GET(int, Y, EBX);
-
-	if (!IsCoordInWindow(X, Y))
-		return 0x46F5AF;
-
-	CIsoViewExt::CurrentDrawCellLocation.X = X;
-	CIsoViewExt::CurrentDrawCellLocation.Y = Y;
-	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(X, Y)->Height;
-
-	return 0;
-}
-
 DEFINE_HOOK(46F680, CIsoView_Draw_Optimize_2, 5)
 {
 	GET(int, X, EDI);
@@ -307,29 +472,6 @@ DEFINE_HOOK(46F680, CIsoView_Draw_Optimize_2, 5)
 	CIsoViewExt::CurrentDrawCellLocation.Height = CMapData::Instance->TryGetCellAt(X, Y)->Height;
 
 	return 0;
-}
-
-DEFINE_HOOK(46EE0F, CIsoView_Draw_TileRedrawSetting, 8)
-{
-	auto& X = CIsoViewExt::CurrentDrawCellLocation.X;
-	auto& Y = CIsoViewExt::CurrentDrawCellLocation.Y;
-	auto cell = CMapData::Instance->TryGetCellAt(X, Y);
-	cell->Flag.RedrawTerrain = false;
-	for (int i = 1; i <= 2; i++)
-	{
-		if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
-		{
-			auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
-			if (cell->Height - blockedCell->Height >= 2 * i 
-				|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
-				cell->Flag.RedrawTerrain = true;
-		}
-	}
-
-	if (cell->Flag.RedrawTerrain)
-		return 0x46F594;
-
-	return 0x46EE1D;
 }
 
 DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)

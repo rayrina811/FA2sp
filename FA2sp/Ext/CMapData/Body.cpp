@@ -55,6 +55,7 @@ int CMapDataExt::ShorePieces;
 int CMapDataExt::WaterBridge;
 int CMapDataExt::BridgeSet;
 int CMapDataExt::WoodBridgeSet;
+int CMapDataExt::HeightBase;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 float CMapDataExt::ConditionYellow = 0.67f;
@@ -1369,6 +1370,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	WaterBridge = CINI::CurrentTheater->GetInteger("General", "WaterBridge", -10);
 	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
 	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
+	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
 
 	AutoShore_ShoreTileSet = ShorePieces;
 	AutoShore_GreenTileSet = GreenTile;
