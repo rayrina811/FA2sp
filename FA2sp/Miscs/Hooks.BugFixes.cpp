@@ -20,40 +20,38 @@
 
 bool changedNLen = false;
 int oldNLen = 0;
-CRITICAL_SECTION cs;
+DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
+{
+	if (!ExtConfigs::StringBufferFixedAllocation)
+		return 0;
 
-//DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
-//{
-//	if (!ExtConfigs::StringBufferFixedAllocation)
-//		return 0;
-//
-//	GET_STACK(int, nLen, 0x4);
-//
-//	
-//	if (nLen > 0 && nLen <= 512)
-//	{
-//		changedNLen = true;
-//		oldNLen = nLen;
-//		R->Stack(0x4, 513);
-//	}
-//
-//	return 0;
-//}
-//
-//DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
-//{
-//	if (!ExtConfigs::StringBufferFixedAllocation)
-//		return 0;
-//
-//	if (changedNLen)
-//	{
-//		R->ESI(oldNLen);
-//		
-//	}
-//	changedNLen = false;
-//
-//	return 0;
-//}
+	GET_STACK(int, nLen, 0x4);
+
+	
+	if (nLen > 0 && nLen <= 512)
+	{
+		changedNLen = true;
+		oldNLen = nLen;
+		R->Stack(0x4, 513);
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
+{
+	if (!ExtConfigs::StringBufferFixedAllocation)
+		return 0;
+
+	if (changedNLen)
+	{
+		R->ESI(oldNLen);
+		
+	}
+	changedNLen = false;
+
+	return 0;
+}
 
 
 //DEFINE_HOOK(555D9E, CString_AllocBuffer, 5)

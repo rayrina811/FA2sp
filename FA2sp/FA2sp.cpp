@@ -129,7 +129,7 @@ bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
 bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::INIEditor_IgnoreTeams;
-//bool ExtConfigs::StringBufferFixedAllocation;
+bool ExtConfigs::StringBufferFixedAllocation;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
@@ -261,7 +261,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
-	//ExtConfigs::StringBufferFixedAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferFixedAllocation", true);
+	ExtConfigs::StringBufferFixedAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferFixedAllocation", false);
 
 	if (ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave"))
 	{
