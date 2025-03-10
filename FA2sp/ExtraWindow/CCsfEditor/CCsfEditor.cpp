@@ -185,6 +185,10 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         {
             OnViewerSelectedChange(pNMHDR);
         }
+        else if (pNMHDR->idFrom == Controls::CSFViewer && pNMHDR->code == NM_DBLCLK)
+        {
+            OnClickApply();
+        }
         break;
     }
     case WM_CLOSE:
