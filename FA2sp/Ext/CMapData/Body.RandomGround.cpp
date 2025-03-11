@@ -383,6 +383,9 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int Botto
             }
             int randomIdx = GetIndexByWeights(weights);
             if (-1 < randomIdx && randomIdx < terrains.size()) {
+                if (cell->Terrain > -1) {
+                    CMapData::Instance->DeleteTerrainData(cell->Terrain);
+                }
                 auto& terrain = terrains[randomIdx].first;
                 CMapData::Instance->SetTerrainData(STDHelpers::RandomSelect(terrain), pos);
             }
@@ -480,6 +483,9 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
                     }
                 }
                 if (!skip) {
+                    if (cell->Smudge > -1) {
+                        CMapData::Instance->DeleteSmudgeData(cell->Smudge);
+                    }
                     CMapData::Instance->SetSmudgeData(&smudge);
                     CMapData::Instance->UpdateFieldSmudgeData(false);
                 }

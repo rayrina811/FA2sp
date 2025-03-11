@@ -226,7 +226,7 @@ DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
 	return 0;
 }
 
-DEFINE_HOOK(4F3BE2, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 5)
+DEFINE_HOOK(4F35CE, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 6)
 {
 	if (DrawTranspInsideTilesChanged)
 	{
@@ -235,9 +235,3 @@ DEFINE_HOOK(4F3BE2, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 5)
 	}
 	return 0;
 }
-
-//
-//DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
-//{
-//	return 0x48E976;
-//}

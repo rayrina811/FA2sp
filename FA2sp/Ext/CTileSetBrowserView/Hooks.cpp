@@ -37,6 +37,24 @@ DEFINE_HOOK(4F22F7, CTileSetBrowserView_OnDraw_OverlayPalette, 5)
     return 0x4F2315;
 }
 
+DEFINE_HOOK(4F1EAD, CTileSetBrowserView_OnDraw_SkipDisableTile, 5)
+{
+    //disable this tile
+    //GET(int, currentTileSet, EAX);
+    //GET_STACK(int, currentTileIndex, STACK_OFFS(0xDC, 0xC4));
+    //return 0x4F21F5;
+    return 0x4F1F68;
+}
+
+DEFINE_HOOK(4F3D23, CTileSetBrowserView_OnLButtonDown_SkipDisableTile, 7)
+{
+    R->Stack(STACK_OFFS(0x210, 0x1E8), R->EDX());
+    //disable this tile
+    //GET(int, currentTileSet, EAX);
+    //GET_STACK(int, currentTileIndex, STACK_OFFS(0x210, 0x1F0));
+    //return 0x4F3DE1;
+    return 0x4F3DF7;
+}
 
 //DEFINE_HOOK(4F1D70, ASDG, 6)
 //{

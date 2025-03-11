@@ -14,8 +14,7 @@ CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
 MultimapHelper& ExtraWindow::rules = Variables::Rules;
 
-RECT ExtraWindow::rectComboLBox = { 0 };
-HWND ExtraWindow::hComboLBox = NULL;
+bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
 
 void ExtraWindow::CenterWindowPos(HWND parent, HWND target)
@@ -565,24 +564,6 @@ void ExtraWindow::LoadParam_Stringtables(HWND& hWnd)
 
 }
 
-void ExtraWindow::GetCurrentDropdown()
-{
-    hComboLBox = FindWindowEx(NULL, NULL, _T("ComboLBox"), NULL);
-    if (hComboLBox)
-        GetWindowRect(hComboLBox, &rectComboLBox);
-}
-
-bool ExtraWindow::IsClickInsideDropdown()
-{
-    POINT pt;
-    GetCursorPos(&pt);
-    if (!(hComboLBox && PtInRect(&rectComboLBox, pt)))
-    {
-        return false;
-    }
-    return true;
-}
-
 bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
 {
     if (!labels.empty())
@@ -606,17 +587,21 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& 
         else
             SendMessage(hWnd, CB_SETCURSEL, idx, NULL);
 
-        if (!IsClickInsideDropdown() || isComboboxSelectOnly)
+        if (!ExtraWindow::bComboLBoxSelected || isComboboxSelectOnly)
         {
+            ExtraWindow::bComboLBoxSelected = false;
             return false;
         }
     }
+    ExtraWindow::bComboLBoxSelected = false;
     return true;
 }
 
 void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels)
 {
-    if (SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) + labels.size() > ExtConfigs::SearchCombobox_MaxCount && !bEnterSearch)
+    if ((SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount 
+        || labels.size() > ExtConfigs::SearchCombobox_MaxCount) 
+        && !bEnterSearch)
     {
         return;
     }
@@ -636,8 +621,6 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
 
     GetWindowText(hWnd, buffer, 511);
     SendMessage(hWnd, CB_SHOWDROPDOWN, TRUE, NULL);
-
-    GetCurrentDropdown();
 
     std::vector<int> deletedLabels;
     for (int idx = SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) - 1; idx >= 0; idx--)

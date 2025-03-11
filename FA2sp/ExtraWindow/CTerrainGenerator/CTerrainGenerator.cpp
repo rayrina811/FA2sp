@@ -371,6 +371,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
                 OnSelchangePreset(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hPreset, PresetLabels, true);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)
@@ -477,6 +479,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(0, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTileSet[0], TileSetLabels[0], false);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet2:
             if (CODE == CBN_SELCHANGE)
@@ -485,6 +489,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(1, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTileSet[1], TileSetLabels[2], false);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet3:
             if (CODE == CBN_SELCHANGE)
@@ -493,6 +499,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(2, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTileSet[2], TileSetLabels[2], false);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet4:
             if (CODE == CBN_SELCHANGE)
@@ -501,6 +509,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(3, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTileSet[3], TileSetLabels[3], false);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileSet5:
             if (CODE == CBN_SELCHANGE)
@@ -509,6 +519,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
                 OnSelchangeTileSet(4, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTileSet[4], TileSetLabels[4], false);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TileChance1:
             if (CODE == EN_CHANGE && CurrentPreset && !ProgrammaticallySettingText)

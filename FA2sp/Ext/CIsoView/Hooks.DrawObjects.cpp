@@ -865,6 +865,11 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true);
 					auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
+					if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+					{
+						CLoading::Instance->LoadObjects(obj.TypeID);
+					}
+
 					if (pData && pData->pImageBuffer)
 					{
 						int x1 = x;
@@ -879,6 +884,11 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0, true);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj))
+				{
+					CLoading::Instance->LoadObjects(obj);
+				}
 
 				if (pData && pData->pImageBuffer)
 				{

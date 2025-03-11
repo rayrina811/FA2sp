@@ -30,11 +30,8 @@ public:
     static void LoadParam_Tags(HWND& hWnd);
     static void LoadParam_Stringtables(HWND& hWnd);
 
-    static RECT rectComboLBox;
-    static HWND hComboLBox;
-    static bool bEnterSearch;
-    static void GetCurrentDropdown();
-    static bool IsClickInsideDropdown();    
+    static bool bComboLBoxSelected;
+    static bool bEnterSearch; 
     // true means click inside combobox
     static bool OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
     static void OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels);

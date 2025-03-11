@@ -536,6 +536,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeTrigger(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hSelectedTrigger, TriggerLabels, true);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::House:
             if (CODE == CBN_SELCHANGE)
@@ -544,6 +546,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeHouse(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hHouse, HouseLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Attachedtrigger:
             if (CODE == CBN_SELCHANGE)
@@ -552,6 +556,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeAttachedTrigger(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hAttachedtrigger, AttachedTriggerLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Type:
             if (CODE == CBN_SELCHANGE)
@@ -566,6 +572,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeEventType(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hEventtype, EventTypeLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::EventParameter1:
             if (CODE == CBN_SELCHANGE)
@@ -574,6 +582,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeEventParam(0, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hEventParameter[0], EventParamLabels[0]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::EventParameter2:
             if (CODE == CBN_SELCHANGE)
@@ -582,6 +592,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeEventParam(1, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hEventParameter[1], EventParamLabels[1]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Actiontype:
             if (CODE == CBN_SELCHANGE)
@@ -590,6 +602,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionType(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActiontype, ActionTypeLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::ActionParameter1:
             if (CODE == CBN_SELCHANGE)
@@ -598,6 +612,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(0, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[0], ActionParamLabels[0]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(0);
             break;
@@ -608,6 +624,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(1, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[1], ActionParamLabels[1]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(1);
             break;
@@ -618,6 +636,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(2, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[2], ActionParamLabels[2]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(2);
             break;
@@ -628,6 +648,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(3, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[3], ActionParamLabels[3]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(3);
             break;
@@ -638,6 +660,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(4, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[4], ActionParamLabels[4]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(4);
             break;
@@ -648,6 +672,8 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnSelchangeActionParam(5, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hActionParameter[5], ActionParamLabels[5]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN)
                 OnDropdownCComboBox(5);
             break;

@@ -246,6 +246,8 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTaskforce(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupTaskforce();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE)
@@ -286,6 +288,8 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeUnitType(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupUnitType();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         
         default:

@@ -16,6 +16,7 @@
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -628,6 +629,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		else
 		{
 			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
+		}
+	}
+	if (wmID == 40158 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		if (CLuaConsole::GetHandle() == NULL)
+			CLuaConsole::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 		}
 	}
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)

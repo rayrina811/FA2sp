@@ -373,6 +373,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeamtypes(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupTeamtypes();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE)
@@ -399,6 +401,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeHouse(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupHouse();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Taskforce:
             if (CODE == CBN_SELCHANGE)
@@ -407,6 +411,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTaskForce(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupTaskForce();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Script:
             if (CODE == CBN_SELCHANGE)
@@ -415,6 +421,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeScript(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupScript();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Tag:
             if (CODE == CBN_SELCHANGE)
@@ -423,6 +431,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTag(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupTag();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::TransportWaypoint:
             if (CODE == CBN_SELCHANGE)

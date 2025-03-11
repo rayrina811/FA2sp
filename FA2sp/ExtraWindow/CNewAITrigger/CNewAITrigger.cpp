@@ -286,6 +286,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeAITrigger(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hSelectedAITrigger, AITriggerLabels, true);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE && CurrentAITrigger)
@@ -390,6 +392,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeCountry(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hCountry, CountryLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Side:
             if (CODE == CBN_SELCHANGE)
@@ -412,6 +416,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeComparisonObject(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hComparisonObject, ComparisonObjectLabels);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Team1:
             if (CODE == CBN_SELCHANGE)
@@ -420,6 +426,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeam(0, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTeam1, TeamLabels[0]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Team2:
             if (CODE == CBN_SELCHANGE)
@@ -428,6 +436,8 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTeam(1, true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupCComboBox(hTeam2, TeamLabels[1]);
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         default:
             break;

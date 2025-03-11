@@ -1,0 +1,20 @@
+#include "Windows.h"
+
+320 DIALOG 0, 0, 303, 359
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Lua Script Console"
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+FONT 8, "Tahoma"
+{
+   CONTROL "Execute", 1000, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 252, 51, 45, 15 
+   CONTROL "Run", 1001, BUTTON, BS_PUSHBUTTON | WS_CHILD | WS_VISIBLE | WS_TABSTOP, 252, 69, 45, 15 
+   CONTROL "", 1002, "RichEdit", ES_LEFT | ES_MULTILINE | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_HSCROLL, 7, 137, 290, 128 
+   CONTROL "", 1003, "RichEdit", ES_LEFT | ES_MULTILINE | ES_AUTOHSCROLL | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_HSCROLL, 7, 283, 290, 69 
+   CONTROL "", 1004, LISTBOX, LBS_NOTIFY | LBS_USETABSTOPS | LBS_NOINTEGRALHEIGHT | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP, 7, 51, 240, 70 
+   CONTROL "Click 'execute' to execute the selected Lua script, and click 'run' to execute the code in the input window. Scripts may damage the map, please save it or execute the snapshot function before running. Please refer to the documentation for available functions.", 1005, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 8, 290, 28 
+   CONTROL "Output:", 1006, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 125, 68, 8 
+   CONTROL "Input:", 1007, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 270, 68, 8 
+   CONTROL "Scripts:", 1008, STATIC, SS_LEFT | WS_CHILD | WS_VISIBLE | WS_GROUP, 7, 38, 68, 8 
+}
+
+

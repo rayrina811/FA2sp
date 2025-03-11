@@ -719,6 +719,14 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
                                      mapData.GetAircraftData(cell.Aircraft, copyObj);
                                      cellExt.AircraftData = copyObj;
                                  }
+                                 if (cell.Terrain != -1)
+                                 {
+                                     cellExt.TerrainData = Variables::GetRulesMapValueAt("TerrainTypes", cell.TerrainType);
+                                 }
+                                 if (cell.Smudge != -1)
+                                 {
+                                     cellExt.SmudgeData = Variables::GetRulesMapValueAt("SmudgeTypes", cell.SmudgeType);
+                                 }
 
                                  MultiSelection::CopiedCells.push_back(cellExt);
                              }
@@ -817,6 +825,14 @@ DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
                         mapData.GetAircraftData(cell.Aircraft, copyObj);
                         cellExt.AircraftData = copyObj;
                     }
+                    if (cell.Terrain != -1)
+                    {
+                        cellExt.TerrainData = Variables::GetRulesMapValueAt("TerrainTypes", cell.TerrainType);
+                    }
+                    if (cell.Smudge != -1)
+                    {
+                        cellExt.SmudgeData = Variables::GetRulesMapValueAt("SmudgeTypes", cell.SmudgeType);
+                    }
 
                     MultiSelection::CopiedCells.push_back(cellExt);
                 }
@@ -904,22 +920,23 @@ DEFINE_HOOK(435F3A, CFinalSunDlg_CopyWholeMap, 5)
                     mapData.GetAircraftData(cell.Aircraft, copyObj);
                     cellExt.AircraftData = copyObj;
                 }
+                if (cell.Terrain != -1)
+                {
+                    cellExt.TerrainData = Variables::GetRulesMapValueAt("TerrainTypes", cell.TerrainType);
+                }
+                if (cell.Smudge != -1)
+                {
+                    cellExt.SmudgeData = Variables::GetRulesMapValueAt("SmudgeTypes", cell.SmudgeType);
+                }
 
                 MultiSelection::CopiedCells.push_back(cellExt);
             }
         }
 
     }
-    //MultiSelection::CopiedCells.clear();
     return 0;
 }
 
-//DEFINE_HOOK(4C3850, CMapData_Paste, 8)
-//{
-//    if (!CIsoViewExt::PasteGround)
-//        return 0x4C3C12;
-//    return 0;
-//}
 DEFINE_HOOK(4C3B6B, CMapData_Paste_ChangeAltImage, 9)
 {
     GET(int, pos, ESI);
@@ -954,13 +971,10 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
         MapCoord startP;
         auto& mapData = CMapData::Instance();
 
-
         startP.X = point.X - MultiSelection::CopiedX / 2;
         startP.Y = point.Y - MultiSelection::CopiedY / 2;
 
         int index = 0;
-        auto& ini = CMapData::Instance->INI;
-
         MultiSelection::AddBuildingOptimize = true;
 
         if (CIsoViewExt::PasteOverriding)
@@ -984,7 +998,7 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                         if (MultiSelection::GetCount2())
                         {
                             bool found = false;
-                            for (auto coord : MultiSelection::SelectedCoordsTemp)
+                            for (auto& coord : MultiSelection::SelectedCoordsTemp)
                             {
                                 if (coord.X == cell.X && coord.Y == cell.Y)
                                 {
@@ -1049,10 +1063,8 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                         bool found = false;
                         for (auto& coord : MultiSelection::SelectedCoordsTemp)
                         {
-                            //MessageBox(NULL, std::to_string(i).c_str(), std::to_string(j).c_str(), 0);
                             if (coord.X == cell.X && coord.Y == cell.Y)
                             {
-
                                 found = true;
                                 break;
                             }
@@ -1125,61 +1137,30 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
                             CMapData::Instance->SetBuildingData(&copyObj, NULL, NULL, 0, "");
                         }
                     if (CIsoViewExt::PasteTerrains)
-                        if (tCell.Terrain != -1)
+                        if (cell.TerrainData != "")
                         {
-                            int id = tCell.Terrain;
-                            int type = tCell.TerrainType;
-                            ppmfc::CString name;
-                            if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
-                            {
-                                int indexT = 0;
-                                for (auto& pT : pTerrain->GetEntities())
-                                {
-                                    if (indexT == type)
-                                    {
-                                        name = pT.second;
-                                        break;
-                                    }
-
-                                    indexT++;
-                                }
+                            auto pCell = CMapData::Instance->GetCellAt(i, j);
+                            if (pCell->Terrain > -1) {
+                                CMapData::Instance->DeleteTerrainData(pCell->Terrain);
                             }
-                            CMapData::Instance->SetTerrainData(name, CMapData::Instance->GetCoordIndex(i, j));
+                            CMapData::Instance->SetTerrainData(cell.TerrainData, CMapData::Instance->GetCoordIndex(i, j));
 
                         }
                     if (CIsoViewExt::PasteSmudges)
-                        if (tCell.Smudge != -1)
+                        if (cell.SmudgeData != "")
                         {
-                            int id = tCell.Smudge;
-                            int type = tCell.SmudgeType;
-                            ppmfc::CString name;
-                            if (auto pTerrain = CINI::Rules().GetSection("SmudgeTypes"))
-                            {
-                                int indexT = 0;
-                                for (auto& pT : pTerrain->GetEntities())
-                                {
-                                    if (indexT == type)
-                                    {
-                                        name = pT.second;
-                                        break;
-                                    }
-
-                                    indexT++;
-                                }
-                            }
                             CSmudgeData smudge;
                             smudge.X = j;
-                            smudge.Y = i;//opposite
+                            smudge.Y = i;
                             smudge.Flag = 0;
-                            smudge.TypeID = name;
-                            auto& Map = CMapData::Instance();
-                            Map.SetSmudgeData(&smudge);
-                            Map.UpdateFieldSmudgeData(false);
-
+                            smudge.TypeID = cell.SmudgeData;
+                            auto pCell = CMapData::Instance->GetCellAt(i, j);
+                            if (pCell->Smudge > -1) {
+                                CMapData::Instance->DeleteSmudgeData(pCell->Smudge);
+                            }
+                            CMapData::Instance->SetSmudgeData(&smudge);
+                            CMapData::Instance->UpdateFieldSmudgeData(false);
                         }
-
-
-
                 }
                 index++;
             }

@@ -320,6 +320,8 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeScript(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupScript();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE)
@@ -346,6 +348,8 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionType(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupActionType();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::ActionParam:
             if (CODE == CBN_SELCHANGE)
@@ -354,6 +358,8 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionParam(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupActionParam();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::ActionExtraParam:
             if (CODE == CBN_SELCHANGE)
@@ -362,6 +368,8 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionExtraParam(true);
             else if (CODE == CBN_CLOSEUP)
                 OnCloseupActionExtraParam();
+            else if (CODE == CBN_SELENDOK)
+                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Insert:
             bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
@@ -507,7 +515,7 @@ void CNewScript::OnCloseupActionExtraParam()
         else
             SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
 
-        if (!ExtraWindow::IsClickInsideDropdown())
+        if (!ExtraWindow::bComboLBoxSelected)
             OnSelchangeActionListbox();
     }
 }
@@ -598,7 +606,7 @@ void CNewScript::OnCloseupActionParam()
         else
             SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
 
-        if (!ExtraWindow::IsClickInsideDropdown())
+        if (!ExtraWindow::bComboLBoxSelected)
             OnSelchangeActionListbox();
     }
 }
@@ -692,10 +700,8 @@ void CNewScript::OnCloseupActionType()
         else
             SendMessage(hActionType, CB_SETCURSEL, idx, NULL);
 
-
-        if (!ExtraWindow::IsClickInsideDropdown())
+        if (!ExtraWindow::bComboLBoxSelected)
             OnSelchangeActionListbox();
-
     }
 }
 

@@ -193,6 +193,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40134, "Menu.MapTools.GlobalSearch");
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
+    translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
 
     translateMenuItem(40004, "Menu.Options.Settings");
     translateMenuItem(40024, "Menu.Options.ShowMinimap");
@@ -502,12 +503,12 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
 {
     auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
     HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-    HTREEITEM hDelete = TreeView_GetLastVisible(hWnd);
     HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
     if (hParent)
         TreeView_SelectItem(hWnd, hParent);
-    if (hSelectedItem == hDelete)
+    else
         TreeView_SelectItem(hWnd, TVGN_ROOT);
+
 
     if (!MultiSelection::CopiedCells.empty())
     {
