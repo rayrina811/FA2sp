@@ -16,6 +16,7 @@
 #include "../../Sol/sol.hpp"
 #include <cctype>
 #include <chrono>
+#include "../../Miscs/MultiSelection.h"
 
 namespace LuaFunctions
 {
@@ -88,6 +89,77 @@ namespace LuaFunctions
 	static void sleep(int ms)
 	{
 		Sleep(ms);
+	}
+
+	static int message_box(std::string text, std::string title, int format) {
+		static const std::unordered_map<int, UINT> formatMap = {
+			{0, MB_OK},                       // OK button
+			{1, MB_OKCANCEL},                 // OK/Cancel buttons
+			{2, MB_YESNO},                    // Yes/No buttons
+			{3, MB_YESNOCANCEL},              // Yes/No/Cancel buttons
+			{4, MB_RETRYCANCEL},              // Retry/Cancel buttons
+			{5, MB_ABORTRETRYIGNORE},         // Abort/Retry/Ignore buttons
+			{6, MB_CANCELTRYCONTINUE},        // Cancel/Try Again/Continue buttons
+
+			{10, MB_OK | MB_ICONINFORMATION}, // OK button with Information icon
+			{11, MB_OK | MB_ICONWARNING},     // OK button with Warning icon
+			{12, MB_OK | MB_ICONERROR},       // OK button with Error icon
+			{13, MB_OK | MB_ICONQUESTION},    // OK button with Question icon
+
+			{14, MB_YESNO | MB_ICONQUESTION}, // Yes/No buttons with Question icon
+			{15, MB_RETRYCANCEL | MB_ICONERROR}, // Retry/Cancel buttons with Error icon
+			{16, MB_YESNO | MB_ICONWARNING},  // Yes/No buttons with Warning icon
+			{17, MB_ABORTRETRYIGNORE | MB_ICONERROR} // Abort/Retry/Ignore buttons with Error icon
+		};
+
+		auto it = formatMap.find(format);
+		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
+		return MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), text.c_str(), title.c_str(), style);
+	}
+	struct TimePoint {
+		int year, month, day, hour, minute, second;
+		std::chrono::system_clock::time_point time;
+	};
+
+	static TimePoint getCurrentTime() {
+		auto now = std::chrono::system_clock::now();
+		std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+		std::tm local_time = *std::localtime(&now_c);
+
+		return TimePoint{
+			local_time.tm_year + 1900,
+			local_time.tm_mon + 1,
+			local_time.tm_mday,
+			local_time.tm_hour,
+			local_time.tm_min,
+			local_time.tm_sec,
+			now
+		};
+	}
+
+	static std::string formatTime(const TimePoint& time) {
+		std::ostringstream oss;
+		oss << std::setfill('0')
+			<< time.year << "-"
+			<< std::setw(2) << time.month << "-"
+			<< std::setw(2) << time.day << " "
+			<< std::setw(2) << time.hour << ":"
+			<< std::setw(2) << time.minute << ":"
+			<< std::setw(2) << time.second;
+		return oss.str();
+	}
+
+	static std::string formatTimeInterval(std::chrono::seconds interval) {
+		int hours = interval.count() / 3600;
+		int minutes = (interval.count() % 3600) / 60;
+		int seconds = interval.count() % 60;
+
+		std::ostringstream oss;
+		if (hours > 0) {
+			oss << hours << "h ";
+		}
+		oss << minutes << "m " << seconds << "s";
+		return oss.str();
 	}
 
 	class infantry
@@ -648,6 +720,66 @@ namespace LuaFunctions
 		bool CliffHack;
 		char AltIndex;
 	};
+
+	class tile 
+	{
+	public:
+		bool Valid = false;
+		short TileIndex;
+		short TileSubIndex;
+		short Height;
+		short AltCount;
+		short RelativeX;
+		short RelativeY;
+		static tile get_tile_block(int tileIdx, int tileSubIdx)
+		{
+			tile ret{};
+			tileIdx = CMapDataExt::GetSafeTileIndex(tileIdx);
+			ret.TileIndex = tileIdx;
+			ret.TileSubIndex = tileSubIdx;
+			if (tileIdx > CMapDataExt::TileDataCount)
+				return ret;
+			const auto& tileData = CMapDataExt::TileData[tileIdx];
+			ret.AltCount = tileData.AltTypeCount;
+			if (tileSubIdx > tileData.TileBlockCount)
+				return ret;
+			const auto& tileBlock = tileData.TileBlockDatas[tileSubIdx];
+			if (tileBlock.ImageData == NULL)
+				return ret;
+			ret.Height = tileBlock.Height;
+			ret.RelativeY = tileSubIdx % tileData.Width;
+			ret.RelativeX = tileSubIdx / tileData.Width;
+			ret.Valid = true;
+			return ret;
+		}
+		static std::vector<tile> get_tile_data(int tileIdx)
+		{
+			std::vector<tile> ret;
+			if (tileIdx > CMapDataExt::TileDataCount)
+				return ret;
+			const auto& tileData = CMapDataExt::TileData[tileIdx];
+			for (int i = 0; i < tileData.Width * tileData.Height; ++i)
+			{
+				auto&& t = get_tile_block(tileIdx, i);
+				if (t.Valid)
+				{
+					ret.push_back(t);
+				}
+			}
+			return ret;
+		}
+	};
+
+	class snapshot
+	{
+	public:
+		TimePoint savedTime;
+		std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> INI;
+		unsigned char Overlay[0x40000];
+		unsigned char OverlayData[0x40000];
+		std::vector<CellData> CellDatas;
+	};
+	static std::map<int, snapshot> snapshots;
 
 	static void place_terrain(int y, int x, std::string id)
 	{
@@ -1513,7 +1645,111 @@ namespace LuaFunctions
 		return ret;
 	}
 
-	static void update_minimap(int X = -1, int Y = -1)
+	static void place_whole_tile(int y, int x, int tileIdx)
+	{
+		CMapDataExt::GetExtension()->PlaceTileAt(x, y, tileIdx);
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void place_tile(int y, int x, tile tile, int height = -1, int altType = -1)
+	{
+		if (!tile.Valid) return;
+		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
+		auto pExt = CMapDataExt::GetExtension();
+		auto cell = pExt->GetCellAt(x, y);
+		cell->TileIndex = tile.TileIndex;
+		cell->TileSubIndex = tile.TileSubIndex;
+		if (altType < 0)
+			altType = STDHelpers::RandomSelectInt(0, pExt->TileData[tile.TileIndex].AltTypeCount + 1);
+		else if (altType > pExt->TileData[tile.TileIndex].AltTypeCount)
+			altType = pExt->TileData[tile.TileIndex].AltTypeCount;
+		cell->Flag.AltIndex = altType;
+		if (height == -1)
+			height = cell->Height + tile.Height;
+		pExt->SetHeightAt(x, y, height);
+		pExt->UpdateMapPreviewAt(x, y);
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void set_height(int y, int x, int height)
+	{
+		CMapDataExt::GetExtension()->SetHeightAt(x, y, height);
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void hide_tile(int y, int x, int type = 0)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
+		auto cell = CMapData::Instance->GetCellAt(x, y);
+		if (type == 0)
+			cell->Flag.IsHiddenCell = true;
+		else if (type == 1)
+			cell->Flag.IsHiddenCell = false;
+		else if (type == 2)
+			cell->Flag.IsHiddenCell ^= 1;
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void hide_tile_set(int index, int type = 0)
+	{
+		if (index >= 0 && index < CMapDataExt::TileSet_starts.size() - 1) {
+			for (int i = CMapDataExt::TileSet_starts[index]; i < CMapDataExt::TileSet_starts[index + 1]; i++) {
+				if (type == 0) {
+					(*CTileTypeClass::Instance)[i].IsHidden = 1;
+				}
+				else if (type == 1) {
+					(*CTileTypeClass::Instance)[i].IsHidden = 0;
+				}
+				else if (type == 2) {
+					(*CTileTypeClass::Instance)[i].IsHidden ^= 1;
+				}
+			}
+			CLuaConsole::needRedraw = true;
+		}
+	}
+	
+
+	static void multi_select_tile(int y, int x, int type = 0)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
+		if (type == 0) {
+			MultiSelection::AddCoord(x, y);
+		}
+		else if (type == 1) {
+			MultiSelection::RemoveCoord(x, y);
+		}
+		else if (type == 2) {
+			MultiSelection::ReverseStatus(x, y);
+		}
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void multi_select_tile_set(int index, int type = 0)
+	{
+		if (index >= 0 && index < CMapDataExt::TileSet_starts.size() - 1) {
+			for (int x = 0; x < CMapData::Instance->MapWidthPlusHeight; x++) {
+				for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; y++) {
+					if (!CMapData::Instance->IsCoordInMap(x, y)) continue;
+					auto cell = CMapData::Instance->GetCellAt(x, y);
+					int tileIdx = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+					if (tileIdx >= CMapDataExt::TileSet_starts[index] && tileIdx < CMapDataExt::TileSet_starts[index + 1]) {
+						if (type == 0) {
+							MultiSelection::AddCoord(x, y);
+						}
+						else if (type == 1) {
+							MultiSelection::RemoveCoord(x, y);
+						}
+						else if (type == 2) {
+							MultiSelection::ReverseStatus(x, y);
+						}
+					}
+				}
+			}
+			CLuaConsole::needRedraw = true;
+		}
+	}
+
+	static void update_minimap(int Y = -1, int X = -1)
 	{
 		if (X < 0 || Y < 0)
 		{
@@ -1534,8 +1770,109 @@ namespace LuaFunctions
 		}
 	}
 
+	static int create_snapshot()
+	{
+		CMapData::Instance->UpdateINIFile(SaveMapFlag::UpdateMapFieldData);
+		auto ini = &CMapData::Instance->INI;
+		int version = 1;
+		while (snapshots.find(version) != snapshots.end())
+			version++;
+
+		auto& snapshot = snapshots[version];
+		auto itr = ini->Dict.begin();
+		for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
+		{
+			auto& section = snapshot.INI[itr->first];
+			for (const auto& [key, value] : itr->second.GetEntities())
+			{
+				section[key] = value;
+			}
+		}
+		memcpy(snapshot.Overlay, CMapData::Instance->Overlay, sizeof(CMapData::Instance->Overlay));
+		memcpy(snapshot.OverlayData, CMapData::Instance->OverlayData, sizeof(CMapData::Instance->OverlayData));
+
+		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
+		{
+			snapshot.CellDatas.push_back(CMapData::Instance->CellDatas[i]);
+		}
+		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
+		snapshot.savedTime = getCurrentTime();
+		write_lua_console(std::format("Create snapshot #{}", version));
+		return version;
+	}
+
+	static void restore_snapshot(int version)
+	{
+		if (snapshots.find(version) == snapshots.end())
+		{
+			write_lua_console(std::format("Cannot find snapshot #{}", version));
+			return;
+		}
+		auto& snapshot = snapshots[version];
+		auto timeSpan = std::chrono::system_clock::now() - snapshot.savedTime.time;
+		std::string title = "Are you sure to restore snapshot?";
+		std::string text = "Snapshot timepoint: " + formatTime(snapshot.savedTime) + "\n"
+			+ "Time span: " + formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan));
+	
+		if (message_box(text, title, 1) == IDCANCEL)
+			return;
+
+		auto ini = &CMapData::Instance->INI;
+
+		RECT newSize = { 0,0,0,0 };
+		auto&& ns = STDHelpers::SplitString(snapshot.INI["Map"]["Size"], 3);
+		newSize.right = atoi(ns[2]);
+		newSize.bottom = atoi(ns[3]);
+		RECT oldSize = { 0,0,0,0 };
+		auto&& os = STDHelpers::SplitString(ini->GetString("Map", "Size"), 3);
+		oldSize.right = atoi(os[2]);
+		oldSize.bottom = atoi(os[3]);
+		if (newSize.right != oldSize.right || newSize.bottom != oldSize.bottom)
+		{
+			CMapData::Instance->ResizeMap(0, 0, newSize.right, newSize.bottom);
+		}
+
+		std::vector<ppmfc::CString> sections;
+		auto itr = ini->Dict.begin();
+		for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
+		{
+			sections.push_back(itr->first);
+		}
+		
+		for (auto& sec : sections)
+			ini->DeleteSection(sec);
+		for (const auto& section : snapshot.INI)
+		{
+			auto pSection = ini->AddSection(section.first);
+			for (const auto& [key, value] : section.second)
+			{
+				ini->WriteString(pSection, key, value);
+			}
+		}
+		memcpy(CMapData::Instance->Overlay, snapshot.Overlay, sizeof(snapshot.Overlay));
+		memcpy(CMapData::Instance->OverlayData, snapshot.OverlayData, sizeof(snapshot.OverlayData));
+
+		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
+		{
+			CMapData::Instance->CellDatas[i] = snapshot.CellDatas[i];
+		}
+
+		CMapDataExt::UpdateFieldStructureData_Optimized(-1);
+		CMapData::Instance->UpdateFieldOverlayData(false);
+		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateMinimap = true;
+	}
+
+	static void clear_snapshot()
+	{
+		snapshots.clear();
+	}
+
 	static void redraw_window()
 	{
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	}
+
+
 }

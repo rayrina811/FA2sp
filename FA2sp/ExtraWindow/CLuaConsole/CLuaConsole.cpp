@@ -116,10 +116,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hOutputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
 
     Lua.open_libraries(sol::lib::base, sol::lib::package
-        ,sol::lib::string, sol::lib::os
-        ,sol::lib::math, sol::lib::table
-        ,sol::lib::debug, sol::lib::bit32
-        ,sol::lib::io);
+        , sol::lib::string, sol::lib::os
+        , sol::lib::math, sol::lib::table
+        , sol::lib::debug, sol::lib::bit32
+        , sol::lib::io);
 
     // variables
     Lua.set_function("iso_size", []() {return CMapData::Instance->MapWidthPlusHeight; });
@@ -189,6 +189,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("redraw_window", redraw_window);
     Lua.set_function("avoid_time_out", avoid_time_out);
     Lua.set_function("sleep", sleep);
+    Lua.set_function("message_box", message_box);
 
     // game objects
     Lua.set_function("place_terrain", place_terrain);
@@ -356,7 +357,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return get_building(indexY, x.value());
         });
     Lua.set_function("get_buildings", get_buildings);
+    Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str()).m_pchData); });
 
+    // tiles
     Lua.new_usertype<cell>("cell",
         // use game coord
         "x", &cell::Y,
@@ -394,13 +397,56 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "apply", &cell::apply
     );
     Lua["cell"]["new"] = []() {
-            write_lua_console("Creation of cell instances is forbidden.");
+        write_lua_console("Creation of cell instances is forbidden.");
         return sol::nil;
         };
     Lua.set_function("get_cell", get_cell);
     Lua.set_function("get_cells", get_cells);
-    Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str()).m_pchData);});
-
+    Lua.new_usertype<tile>("tile",
+        "x", &tile::RelativeY,
+        "y", &tile::RelativeX,
+        "valid", &tile::Valid,
+        "tile_index", &tile::TileIndex,
+        "tile_sub_index", &tile::TileSubIndex,
+        "height", &tile::Height,
+        "alt_count", &tile::AltCount
+    );
+    Lua.set_function("get_tile_data", tile::get_tile_data);
+    Lua.set_function("place_whole_tile", place_whole_tile);
+    Lua.set_function("place_tile", [](int y, int x, tile tile, sol::optional<int> height, sol::optional<int> altType) {
+        if (!height) {
+            height = -1;
+        }
+        if (!altType) {
+            altType = -1;
+        }
+        place_tile(y, x, tile, height.value(), altType.value());
+        });
+    Lua.set_function("set_height", set_height);
+    Lua.set_function("hide_tile", [](int y, int x, sol::optional<int> type) {
+        if (!type) {
+            type = 0;
+        }
+        hide_tile(y, x, type.value());
+        });
+    Lua.set_function("hide_tile_set", [](int index, sol::optional<int> type) {
+        if (!type) {
+            type = 0;
+        }
+        hide_tile_set(index, type.value());
+        });
+    Lua.set_function("multi_select_tile", [](int y, int x, sol::optional<int> type) {
+        if (!type) {
+            type = 0;
+        }
+        multi_select_tile(y, x, type.value());
+        });
+    Lua.set_function("multi_select_tile_set", [](int index, sol::optional<int> type) {
+        if (!type) {
+            type = 0;
+        }
+        multi_select_tile_set(index, type.value());
+        });
 
     // ini options
     Lua.set_function("get_string", [](std::string section, std::string key, sol::optional<std::string> def, sol::optional<std::string> loadFrom) {
@@ -474,7 +520,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("get_free_waypoint", get_free_waypoint);
     Lua.set_function("get_free_key", get_free_key);
     Lua.set_function("get_free_id", get_free_id);
-    Lua.set_function("split_string", [](std::string str, sol::optional<std::string> delimiter){
+    Lua.set_function("split_string", [](std::string str, sol::optional<std::string> delimiter) {
         if (!delimiter) {
             delimiter = ",";
         }
@@ -482,13 +528,13 @@ void CLuaConsole::Initialize(HWND& hWnd)
         });
     Lua.set_function("get_param", [](std::string section, std::string key, int index
         , sol::optional<std::string> delimiter, sol::optional<std::string> loadFrom) {
-        if (!loadFrom) {
-            loadFrom = "map";
-        }
-        if (!delimiter) {
-            delimiter = ",";
-        }
-        return get_param(section, key, index, delimiter.value(), loadFrom.value());
+            if (!loadFrom) {
+                loadFrom = "map";
+            }
+            if (!delimiter) {
+                delimiter = ",";
+            }
+            return get_param(section, key, index, delimiter.value(), loadFrom.value());
         });
     Lua.set_function("set_param", [](std::string section, std::string key, std::string value, int index, sol::optional<std::string> delimiter) {
         if (!delimiter) {
@@ -510,14 +556,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("update_smudge", []() {CMapData::Instance->UpdateFieldSmudgeData(FALSE); needRedraw = true; });
     Lua.set_function("update_tiles", []() {CMapData::Instance->UpdateMapFieldData(FALSE); needRedraw = true; });
 
-    Lua.set_function("update_minimap", [](sol::optional<int> x, sol::optional<int> y) {
+    Lua.set_function("update_minimap", [](sol::optional<int> y, sol::optional<int> x) {
         if (!x || !y) {
             update_minimap();
         }
         else {
-            update_minimap(x.value(), y.value());
+            update_minimap(y.value(), x.value());
         }
         });
+    Lua.set_function("create_snapshot", create_snapshot);
+    Lua.set_function("restore_snapshot", restore_snapshot);
+    Lua.set_function("clear_snapshot", clear_snapshot);
 
     Update(hWnd);
 }

@@ -298,9 +298,12 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 	}
 
 	index = CMapDataExt::GetSafeTileIndex(index);
+	if (index > CMapDataExt::TileDataCount) return;
+	const auto& tileData = CMapDataExt::TileData[index];
 	int width = CMapDataExt::TileData[index].Width;
 	int height = CMapDataExt::TileData[index].Height;
 	int startHeight = this->GetCellAt(X, Y)->Height;
+	bool isBridge = (tileData.TileSet == BridgeSet || tileData.TileSet == WoodBridgeSet);
 
 	int subIdx = 0;
 	switch (callType)
@@ -313,7 +316,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			{
 				if (!this->IsCoordInMap(m + X, n + Y))
 					continue;
-				if (CMapDataExt::TileData[index].TileBlockDatas[subIdx].ImageData != NULL)
+				if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
 				{
 					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
 					if (cellExt.AddRandomTile) return;
@@ -335,12 +338,12 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			if (!this->IsCoordInMap(m + X, n + Y))
 				continue;
 			auto cell = this->GetCellAt(m + X, n + Y);
-			if (CMapDataExt::TileData[index].TileBlockDatas[subIdx].ImageData != NULL)
+			if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
 			{
 				cell->TileIndex = index;
 				cell->TileSubIndex = subIdx;
-				cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[index].AltTypeCount + 1);
-				SetHeightAt(m + X, n + Y, startHeight + CMapDataExt::TileData[index].TileBlockDatas[subIdx].Height);
+				cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+				SetHeightAt(m + X, n + Y, startHeight + tileData.TileBlockDatas[subIdx].Height);
 				CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
 
 				auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];

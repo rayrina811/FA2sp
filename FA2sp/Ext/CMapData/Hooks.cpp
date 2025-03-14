@@ -120,7 +120,7 @@ DEFINE_THEATER_NAME_FIX(49EAA4, DESERT, ESI);
 #undef DEFINE_THEATER_NAME_FIX
 
 
-DEFINE_HOOK(4A4A40, CMapData_UpdateMapFieldData, 6)
+DEFINE_HOOK(4A4A40, CMapData_UpdateFieldStructureData, 6)
 {
 	CMapDataExt::UpdateFieldStructureData_Optimized(-1);
 	return 0x4A583F;
