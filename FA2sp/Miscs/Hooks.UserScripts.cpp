@@ -1082,7 +1082,6 @@ DEFINE_HOOK(51213B, CUserScripts_ReadINI, 6)
         auto key = UserScriptExt::GetParam(Params, 2);
         auto loadFrom = UserScriptExt::GetParam(Params, 4);
         MultimapHelper mmh;
-        CINI ini;
         
         ExtraWindow::LoadFrom(mmh, loadFrom);
         auto value = mmh.TryGetString(section, key);

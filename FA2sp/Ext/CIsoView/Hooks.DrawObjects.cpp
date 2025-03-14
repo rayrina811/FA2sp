@@ -811,6 +811,11 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
+						if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+						{
+							CLoading::Instance->LoadObjects(obj.TypeID);
+						}
+
 						if (pData && pData->pImageBuffer)
 						{
 							int x1 = x;
@@ -895,7 +900,7 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 					int x1 = x;
 					int y1 = y;
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 12, pData, NULL, Transparency);
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pData, NULL, Transparency);
 				}
 			}
 			if (shadow && cell->Overlay != 0xFF && CIsoViewExt::DrawOverlays)
@@ -1051,6 +1056,18 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 	return 0x4725CB;
 }
 
+DEFINE_HOOK(47438D, CIsoView_Draw_TibTreeOffset, 7)
+{
+	GET_STACK(CellData, cell, STACK_OFFS(0xD18, 0xC60));
+	if (cell.Terrain != -1 && cell.TerrainType > 0)
+	{
+		auto ID = Variables::GetRulesMapValueAt("TerrainTypes", cell.TerrainType);
+		if (Variables::Rules.GetBool(ID, "SpawnsTiberium"))
+			R->EDI(R->EDI() - 12);
+	}
+	return 0;
+}
+
 DEFINE_HOOK(47454B, CIsoView_Draw_TerrainAlphaImage, 7)
 {
 	if (!CIsoViewExt::DrawAlphaImages || !ExtConfigs::InGameDisplay_AlphaImage)
@@ -1080,7 +1097,7 @@ DEFINE_HOOK(47454B, CIsoView_Draw_TerrainAlphaImage, 7)
 				x -= DrawOffsetX;
 				y -= DrawOffsetY;
 				CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-					x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + 12, pAIData);
+					x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::Rules.GetBool(terrain, "SpawnsTiberium") ? 0 : 12), pAIData);
 			}
 		}
 	}

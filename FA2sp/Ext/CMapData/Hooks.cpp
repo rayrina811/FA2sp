@@ -17,6 +17,7 @@
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 
 DEFINE_HOOK(4C3E20, CMapData_CalculateMoneyCount, 7)
 {
@@ -227,8 +228,6 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 		char cx[10], cy[10];
 		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
 		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
-
-
 
 		infantry.Status = "Guard";
 		infantry.Tag = "None";
@@ -706,7 +705,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 	bool isLamp = LightingSourceTint::IsLamp(structure.TypeID);
 
-	if (!MultiSelection::AddBuildingOptimize)
+	if (!MultiSelection::AddBuildingOptimize && !CLuaConsole::skipBuildingUpdate)
 		CMapDataExt::UpdateFieldStructureData_Optimized(realid, isLamp);
 	else if (isLamp)
 		LightingSourceTint::CalculateMapLamps();

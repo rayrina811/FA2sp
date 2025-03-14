@@ -540,7 +540,7 @@ DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)
 
 DEFINE_HOOK(4327A1, CFinalSunDlg_QuitProgram_AfterDialog, 5)
 {
-    CTerrainGenerator::ini = nullptr;
+    GameDelete(CTerrainGenerator::ini.get());
     ExtConfigs::FileWatcher = false;
 
     auto& minimap = CFinalSunDlg::Instance->MyViewFrame.Minimap;

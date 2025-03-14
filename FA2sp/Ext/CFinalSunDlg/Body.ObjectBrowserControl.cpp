@@ -77,6 +77,7 @@ std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterI;
 std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterV;
 std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterBN;
 std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterCT;
+std::map<int, int> CViewObjectsExt::WallDamageStages;
 
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
 int CViewObjectsExt::PlacingWall;
@@ -168,7 +169,7 @@ void CViewObjectsExt::Redraw()
     //Redraw_InfantrySubCell(); // we do not need this any more!
     Redraw_ViewObjectInfo();
     Redraw_MultiSelection();
-    Redraw_ConnectedTile();
+    Redraw_ConnectedTile(this);
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
 }
 
@@ -1164,6 +1165,7 @@ void CViewObjectsExt::Redraw_Overlay()
     mmh.AddINI(&CINI::Rules());
     auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
     int indexWall = Wall;
+    CViewObjectsExt::WallDamageStages.clear();
     for (size_t i = 0, sz = std::min<unsigned int>(overlays.size(), 255); i < sz; ++i)
     {
         ppmfc::CString buffer;
@@ -1175,6 +1177,7 @@ void CViewObjectsExt::Redraw_Overlay()
         if (rules.GetBool(overlays[i], "Wall"))
         {
             int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels");
+            CViewObjectsExt::WallDamageStages[i] = damageLevel;
             auto thisWall = this->InsertString(
                 QueryUIName(overlays[i]),
                 Const_Overlay + i * 5 + indexWall,

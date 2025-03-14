@@ -118,8 +118,6 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
                 if (infantryLoop >= 3)
                     infantryLoop = 0;
             }
-                
-
             newTechno.SubCell = "-1";
         }
 

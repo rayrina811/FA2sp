@@ -18,6 +18,9 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include "../../Miscs/MultiSelection.h"
 
 namespace fs = std::filesystem;
 
@@ -35,12 +38,20 @@ int CLuaConsole::origWndHeight;
 int CLuaConsole::minWndWidth;
 int CLuaConsole::minWndHeight;
 bool CLuaConsole::minSizeSet;
+bool CLuaConsole::needRedraw = false;
+bool CLuaConsole::recalculateOre = false;
+bool CLuaConsole::updateBuilding = false;
+bool CLuaConsole::updateUnit = false;
+bool CLuaConsole::updateInfantry = false;
+bool CLuaConsole::updateAircraft = false;
+bool CLuaConsole::updateNode = false;
+bool CLuaConsole::updateMinimap = false;
+bool CLuaConsole::skipBuildingUpdate = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
 
 #define BUFFER_SIZE 800000
 char Buffer[BUFFER_SIZE]{ 0 };
-
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -104,12 +115,409 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hInputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
     SendMessage(hOutputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
 
+    Lua.open_libraries(sol::lib::base, sol::lib::package
+        ,sol::lib::string, sol::lib::os
+        ,sol::lib::math, sol::lib::table
+        ,sol::lib::debug, sol::lib::bit32
+        ,sol::lib::io);
 
-    Lua.open_libraries(sol::lib::base, sol::lib::package);
-    Lua.set_function("print", luaPrint);
+    // variables
+    Lua.set_function("iso_size", []() {return CMapData::Instance->MapWidthPlusHeight; });
+    Lua.set_function("width", []() {return CMapData::Instance->Size.Width; });
+    Lua.set_function("height", []() {return CMapData::Instance->Size.Height; });
+    Lua.set_function("local_width", []() {return CMapData::Instance->LocalSize.Width; });
+    Lua.set_function("local_height", []() {return CMapData::Instance->LocalSize.Height; });
+    Lua.set_function("local_top", []() {return CMapData::Instance->LocalSize.Top; });
+    Lua.set_function("local_left", []() {return CMapData::Instance->LocalSize.Left; });
+    Lua.set_function("waypoint_count", []() {return CINI::CurrentDocument->GetKeyCount("Waypoints"); });
+    Lua.set_function("unit_count", []() {return CINI::CurrentDocument->GetKeyCount("Units"); });
+    Lua.set_function("infantry_count", []() {return CINI::CurrentDocument->GetKeyCount("Infantry"); });
+    Lua.set_function("building_count", []() {return CINI::CurrentDocument->GetKeyCount("Structures"); });
+    Lua.set_function("aircraft_count", []() {return CINI::CurrentDocument->GetKeyCount("Aircraft"); });
+    Lua.set_function("terrain_count", []() {return CINI::CurrentDocument->GetKeyCount("Terrain"); });
+    Lua.set_function("smudge_count", []() {return CINI::CurrentDocument->GetKeyCount("Smudge"); });
+    Lua.set_function("player_count", []() {
+        if (CMapData::Instance->IsMultiOnly())
+        {
+            int wp_count = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                ppmfc::CString key;
+                key.Format("%d", i);
+                if (CINI::CurrentDocument->TryGetString("Waypoints", key) != nullptr)
+                    wp_count++;
+            }
+            return wp_count;
+        }
+        else
+        {
+            return 1;
+        }
+        });
+    Lua.set_function("house_count", []() { return CINI::CurrentDocument->GetKeyCount("Houses"); });
+    Lua.set_function("country_count", []() { return CINI::CurrentDocument->GetKeyCount("Countries"); });
+    Lua.set_function("node_count", [](std::string house) {
+        if (house == "")
+        {
+            if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+            {
+                int count = 0;
+                for (auto& [_, house] : pSection->GetEntities())
+                {
+                    count += CINI::CurrentDocument->GetInteger(house, "NodeCount");
+                }
+                return count;
+            }
+        }
+        if (!CINI::CurrentDocument->TryGetString("Houses", house.c_str()))
+        {
+            house += " House";
+        }
+        if (auto pSection = CINI::CurrentDocument->GetSection(house.c_str()))
+        {
+            return pSection->GetInteger("NodeCount");
+        }
+        return 0; });
+    Lua.set_function("trigger_count", []() { return CINI::CurrentDocument->GetKeyCount("Triggers"); });
+    Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
+    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").m_pchData; });
+    Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
+
+    // misc functions
+    Lua.set_function("print", lua_print);
     Lua.set_function("clear", clear);
-    Lua.set_function("placeTerrain", placeTerrain);
-    Lua.set_function("redrawWindow", redrawFA2Window);
+    Lua.set_function("redraw_window", redraw_window);
+    Lua.set_function("avoid_time_out", avoid_time_out);
+    Lua.set_function("sleep", sleep);
+
+    // game objects
+    Lua.set_function("place_terrain", place_terrain);
+    Lua.set_function("remove_terrain", remove_terrain);
+    Lua.set_function("place_smudge", place_smudge);
+    Lua.set_function("remove_smudge", remove_smudge);
+    Lua.set_function("place_overlay", [](int y, int x, int overlay, sol::optional<int> overlayData) {
+        if (!overlayData) {
+            overlayData = -1;
+        }
+        place_overlay(y, x, overlay, overlayData.value());
+        });
+    Lua.set_function("remove_overlay", remove_overlay);
+    Lua.set_function("place_wall", place_wall);
+    Lua.set_function("place_waypoint", [](int y, int x, sol::optional<int> index) {
+        if (!index) {
+            index = -1;
+        }
+        place_waypoint(y, x, index.value());
+        });
+    Lua.set_function("remove_waypoint", remove_waypoint);
+    Lua.set_function("remove_waypoint_at", remove_waypoint_at);
+    Lua.new_usertype<infantry>("infantry",
+        sol::constructors<infantry(std::string, std::string, int, int)>(),
+        "house", &infantry::House,
+        "type", &infantry::TypeID,
+        "x", &infantry::Y,
+        "y", &infantry::X,
+        "health", &infantry::Health,
+        "status", &infantry::Status,
+        "tag", &infantry::Tag,
+        "facing", &infantry::Facing,
+        "veterancy", &infantry::VeterancyPercentage,
+        "group", &infantry::Group,
+        "above_ground", &infantry::IsAboveGround,
+        "auto_no_recruit", &infantry::AutoNORecruitType,
+        "auto_yes_recruit", &infantry::AutoYESRecruitType,
+        "subcell", &infantry::SubCell,
+        "place", &infantry::place,
+        "remove", &infantry::remove
+    );
+    Lua.set_function("place_infantry", place_infantry);
+    Lua.set_function("remove_infantry", [](int indexY, sol::optional<int> x, sol::optional<int> pos) {
+        if (!x) {
+            x = -1;
+        }
+        if (!pos) {
+            pos = -1;
+        }
+        remove_infantry(indexY, x.value(), pos.value());
+        });
+    Lua.set_function("get_infantry", [](int indexY, sol::optional<int> x, sol::optional<int> pos) {
+        if (!x) {
+            x = -1;
+        }
+        if (!pos) {
+            pos = -1;
+        }
+        return get_infantry(indexY, x.value(), pos.value());
+        });
+    Lua.set_function("get_infantries", get_infantries);
+    Lua.new_usertype<unit>("unit",
+        sol::constructors<unit(std::string, std::string, int, int)>(),
+        "house", &unit::House,
+        "type", &unit::TypeID,
+        "x", &unit::Y,
+        "y", &unit::X,
+        "health", &unit::Health,
+        "status", &unit::Status,
+        "tag", &unit::Tag,
+        "facing", &unit::Facing,
+        "veterancy", &unit::VeterancyPercentage,
+        "group", &unit::Group,
+        "above_ground", &unit::IsAboveGround,
+        "auto_no_recruit", &unit::AutoNORecruitType,
+        "auto_yes_recruit", &unit::AutoYESRecruitType,
+        "follow", &unit::FollowsIndex,
+        "place", &unit::place,
+        "remove", &unit::remove
+    );
+    Lua.set_function("place_unit", place_unit);
+    Lua.set_function("remove_unit", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        remove_unit(indexY, x.value());
+        });
+    Lua.set_function("get_unit", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        return get_unit(indexY, x.value());
+        });
+    Lua.set_function("get_units", get_units);
+    Lua.new_usertype<aircraft>("aircraft",
+        sol::constructors<aircraft(std::string, std::string, int, int)>(),
+        "house", &aircraft::House,
+        "type", &aircraft::TypeID,
+        "x", &aircraft::Y,
+        "y", &aircraft::X,
+        "health", &aircraft::Health,
+        "status", &aircraft::Status,
+        "tag", &aircraft::Tag,
+        "facing", &aircraft::Facing,
+        "veterancy", &aircraft::VeterancyPercentage,
+        "group", &aircraft::Group,
+        "auto_no_recruit", &aircraft::AutoNORecruitType,
+        "auto_yes_recruit", &aircraft::AutoYESRecruitType,
+        "place", &aircraft::place,
+        "remove", &aircraft::remove
+    );
+    Lua.set_function("place_aircraft", place_aircraft);
+    Lua.set_function("remove_aircraft", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        remove_aircraft(indexY, x.value());
+        });
+    Lua.set_function("get_aircraft", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        return get_aircraft(indexY, x.value());
+        });
+    Lua.set_function("get_aircrafts", get_aircrafts);
+    Lua.new_usertype<building>("building",
+        sol::constructors<building(std::string, std::string, int, int)>(),
+        "house", &building::House,
+        "type", &building::TypeID,
+        "health", &building::Health,
+        "x", &building::Y,
+        "y", &building::X,
+        "facing", &building::Facing,
+        "tag", &building::Tag,
+        "ai_sell", &building::AISellable,
+        "ai_rebuild", &building::AIRebuildable,
+        "powered", &building::PoweredOn,
+        "upgrades", &building::Upgrades,
+        "spot_light", &building::SpotLight,
+        "upgrade1", &building::Upgrade1,
+        "upgrade2", &building::Upgrade2,
+        "upgrade3", &building::Upgrade3,
+        "ai_repair", &building::AIRepairable,
+        "nominal", &building::Nominal,
+        "place", &building::place,
+        "place_node", &building::place_node,
+        "remove", &building::remove
+    );
+    Lua.set_function("place_building", [](std::string house, std::string type, int y, int x, sol::optional<bool> ignoreOverlap) {
+        if (!ignoreOverlap) {
+            ignoreOverlap = false;
+        }
+        place_building(house, type, y, x, ignoreOverlap.value());
+        });
+    Lua.set_function("remove_building", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        remove_building(indexY, x.value());
+        });
+    Lua.set_function("get_building", [](int indexY, sol::optional<int> x) {
+        if (!x) {
+            x = -1;
+        }
+        return get_building(indexY, x.value());
+        });
+    Lua.set_function("get_buildings", get_buildings);
+
+    Lua.new_usertype<cell>("cell",
+        // use game coord
+        "x", &cell::Y,
+        "y", &cell::X,
+        "unit", &cell::Unit,
+        "infantry", &cell::Infantry,
+        "aircraft", &cell::Aircraft,
+        "building", &cell::Structure,
+        //"TypeListIndex", &cell::TypeListIndex,
+        "terrain", &cell::Terrain,
+        "terrain_type", &cell::TerrainType,
+        "smudge", &cell::Smudge,
+        "smudge_type", &cell::SmudgeType,
+        "waypoint", &cell::Waypoint,
+        "node_building", &cell::BuildingID,
+        "node_id", &cell::BasenodeID,
+        "node_house", &cell::House,
+        "overlay", &cell::Overlay,
+        "overlay_data", &cell::OverlayData,
+        "tile", &cell::TileIndex,
+        "TileIndexHiPart", &cell::TileIndexHiPart,
+        "subtile", &cell::TileSubIndex,
+        "height", &cell::Height,
+        //"IceGrowth", &cell::IceGrowth,
+        "cell_tag", &cell::CellTag,
+        "tube", &cell::Tube,
+        "tube_data", &cell::TubeDataIndex,
+        //"StatusFlag", &cell::StatusFlag,
+        //"NotAValidCell", &cell::NotAValidCell,
+        "hidden", &cell::IsHiddenCell,
+        //"RedrawTerrain", &cell::RedrawTerrain,
+        //"CliffHack", &cell::CliffHack,
+        "alt_image", &cell::AltIndex,
+        "is_hidden", &cell::IsHidden,
+        "apply", &cell::apply
+    );
+    Lua["cell"]["new"] = []() {
+            write_lua_console("Creation of cell instances is forbidden.");
+        return sol::nil;
+        };
+    Lua.set_function("get_cell", get_cell);
+    Lua.set_function("get_cells", get_cells);
+    Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str()).m_pchData);});
+
+
+    // ini options
+    Lua.set_function("get_string", [](std::string section, std::string key, sol::optional<std::string> def, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        if (!def) {
+            def = "";
+        }
+        return get_string(section, key, def.value(), loadFrom.value());
+        });
+    Lua.set_function("get_sections", [](sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        auto&& result = get_sections(loadFrom.value());
+        sol::table luaTable = Lua.create_table();
+        int index = 1;
+        for (const auto& str : result) {
+            luaTable[index++] = str;
+        }
+        return luaTable;
+        });
+    Lua.set_function("get_keys", [](std::string section, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        return get_keys(section, loadFrom.value());
+        });
+    Lua.set_function("get_key_value_pairs", [](std::string section, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        auto&& result = get_key_value_pairs(section, loadFrom.value());
+        sol::table luaTable = Lua.create_table();
+        for (const auto& [key, value] : result) {
+            luaTable[key] = value;
+        }
+        return luaTable;
+        });
+    Lua.set_function("get_integer", [](std::string section, std::string key, sol::optional<int> def, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        if (!def) {
+            def = 0;
+        }
+        return get_integer(section, key, def.value(), loadFrom.value());
+        });
+    Lua.set_function("get_float", [](std::string section, std::string key, sol::optional<float> def, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        if (!def) {
+            def = 0.0f;
+        }
+        return get_float(section, key, def.value(), loadFrom.value());
+        });
+    Lua.set_function("get_bool", [](std::string section, std::string key, sol::optional<bool> def, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        if (!def) {
+            def = false;
+        }
+        return get_bool(section, key, def.value(), loadFrom.value());
+        });
+    Lua.set_function("write_string", write_string);
+    Lua.set_function("delete_key", delete_key);
+    Lua.set_function("delete_section", delete_section);
+    Lua.set_function("get_free_waypoint", get_free_waypoint);
+    Lua.set_function("get_free_key", get_free_key);
+    Lua.set_function("get_free_id", get_free_id);
+    Lua.set_function("split_string", [](std::string str, sol::optional<std::string> delimiter){
+        if (!delimiter) {
+            delimiter = ",";
+        }
+        return split_string(str, delimiter.value());
+        });
+    Lua.set_function("get_param", [](std::string section, std::string key, int index
+        , sol::optional<std::string> delimiter, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        if (!delimiter) {
+            delimiter = ",";
+        }
+        return get_param(section, key, index, delimiter.value(), loadFrom.value());
+        });
+    Lua.set_function("set_param", [](std::string section, std::string key, std::string value, int index, sol::optional<std::string> delimiter) {
+        if (!delimiter) {
+            delimiter = ",";
+        }
+        set_param(section, key, value, index, delimiter.value());
+        });
+
+    // fa2 logic
+    Lua.set_function("update_building", []() {CMapData::Instance->UpdateFieldStructureData(FALSE); needRedraw = true; });
+    Lua.set_function("update_infantry", []() {CMapData::Instance->UpdateFieldInfantryData(FALSE); needRedraw = true; });
+    Lua.set_function("update_unit", []() {CMapData::Instance->UpdateFieldUnitData(FALSE); needRedraw = true; });
+    Lua.set_function("update_aircraft", []() {CMapData::Instance->UpdateFieldAircraftData(FALSE); needRedraw = true; });
+    Lua.set_function("update_terrain", []() {CMapData::Instance->UpdateFieldTerrainData(FALSE); needRedraw = true; });
+    Lua.set_function("update_waypoint", []() {CMapData::Instance->UpdateFieldWaypointData(FALSE); needRedraw = true; });
+    Lua.set_function("update_node", []() {CMapData::Instance->UpdateFieldBasenodeData(FALSE); needRedraw = true; });
+    Lua.set_function("update_overlay", []() {CMapData::Instance->UpdateFieldOverlayData(FALSE); needRedraw = true; });
+    Lua.set_function("update_tube", []() {CMapData::Instance->UpdateFieldTubeData(FALSE); needRedraw = true; });
+    Lua.set_function("update_smudge", []() {CMapData::Instance->UpdateFieldSmudgeData(FALSE); needRedraw = true; });
+    Lua.set_function("update_tiles", []() {CMapData::Instance->UpdateMapFieldData(FALSE); needRedraw = true; });
+
+    Lua.set_function("update_minimap", [](sol::optional<int> x, sol::optional<int> y) {
+        if (!x || !y) {
+            update_minimap();
+        }
+        else {
+            update_minimap(x.value(), y.value());
+        }
+        });
 
     Update(hWnd);
 }
@@ -284,28 +692,121 @@ void CLuaConsole::OnClickRun(bool fromFile)
     char* dt = ctime(&now_c);
     auto timeStart = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     std::ostringstream oss;
-    oss << "==============================\r\n   Lua Script Console for FA2SPHE\r\n   Time: " << dt << "   ==============================\r\n";
+    oss << "==============================\r\n   Lua Script Console for FA2SPHE\r\n   Time: " << dt << "   ==============================";
     std::string text = oss.str();
 
-    writeLuaConsole(text);
+    write_lua_console(text);
+    LuaFunctions::time = timeStart;
+    skipBuildingUpdate = true;
     try {
         sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
         if (!result.valid()) {
             sol::error err = result;
-            std::string errorMessage = "Lua Error: " + std::string(err.what()) + "\r\n";
-            writeLuaConsole(errorMessage);
+            std::string errorMessage = "Lua Error: " + std::string(err.what());
+
+            sol::call_status status = result.status();
+            switch (status) {
+            case sol::call_status::syntax:
+                errorMessage += " (Syntax Error)";
+                break;
+            case sol::call_status::runtime:
+                errorMessage += " (Runtime Error)";
+                break;
+            case sol::call_status::memory:
+                errorMessage += " (Memory Allocation Error)";
+                break;
+            case sol::call_status::handler:
+                errorMessage += " (Message Handler Error)";
+                break;
+            case sol::call_status::gc:
+                errorMessage += " (Garbage Collector Error)";
+                break;
+            case sol::call_status::file:
+                errorMessage += " (File Error)";
+                break;
+            default:
+                errorMessage += " (Unknown Error)";
+                break;
+            }
+
+            write_lua_console(errorMessage);
         }
-        else
-        {
+        else {
             oss.str("");
-            auto timeEnd = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.\r\n";
+            auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
             text = oss.str();
-            writeLuaConsole(text);
+            write_lua_console(text);
         }
     }
     catch (const std::exception& e) {
-        std::string errorMessage = "Critical Error: " + std::string(e.what()) + "\r\n";
-        writeLuaConsole(errorMessage);
+        std::string errorMessage = "Critical Error: " + std::string(e.what());
+        write_lua_console(errorMessage);
+    }
+    catch (...) {
+        std::string errorMessage = "Critical Error: Unknown exception occurred.";
+        write_lua_console(errorMessage);
+    }
+
+    for (auto& ini : LoadedINIs)
+    {
+        GameDelete(ini.second);
+    }
+    LoadedINIs.clear();
+    skipBuildingUpdate = false;
+    if (updateBuilding)
+    {
+        updateBuilding = false;
+        CMapDataExt::UpdateFieldStructureData_Optimized(-1);
+    }
+    if (updateUnit)
+    {
+        updateUnit = false;
+        CMapData::Instance->UpdateFieldUnitData(FALSE);
+    }
+    if (updateInfantry)
+    {
+        updateInfantry = false;
+        CMapData::Instance->UpdateFieldInfantryData(FALSE);
+    }
+    if (updateAircraft)
+    {
+        updateAircraft = false;
+        CMapData::Instance->UpdateFieldAircraftData(FALSE);
+    }
+    if (updateNode)
+    {
+        updateNode = false;
+        CMapData::Instance->UpdateFieldBasenodeData(FALSE);
+    }
+    if (updateMinimap)
+    {
+        updateMinimap = false;
+        update_minimap();
+        CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+    if (recalculateOre)
+    {
+        auto pExt = CMapDataExt::GetExtension();
+        pExt->MoneyCount = 0;
+        for (int x = 0; x < pExt->MapWidthPlusHeight; ++x)
+        {
+            for (int y = 0; y < pExt->MapWidthPlusHeight; ++y)
+            {
+                if (pExt->IsCoordInMap(x, y))
+                {
+                    auto cell = pExt->GetCellAt(x, y);
+                    if (pExt->IsOre(cell->Overlay))
+                    {
+                        pExt->MoneyCount += pExt->GetOreValue(cell->Overlay, cell->OverlayData);
+                    }
+                }
+            }
+        }
+        recalculateOre = false;
+    }
+    if (needRedraw) {
+        redraw_window();
+        needRedraw = false;
     }
 }

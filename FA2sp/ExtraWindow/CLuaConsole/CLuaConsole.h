@@ -36,7 +36,6 @@ protected:
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd);
     static void OnClickRun(bool fromFile);
-    static void ListBoxProc(HWND& hWnd, WORD nCode, LPARAM lParam);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -59,5 +58,14 @@ public:
     static HWND hInputText;
     static HWND hScripts;
     static sol::state Lua;
+    static bool needRedraw;
+    static bool recalculateOre;
+    static bool updateBuilding;
+    static bool updateUnit;
+    static bool updateInfantry;
+    static bool updateAircraft;
+    static bool updateNode;
+    static bool updateMinimap;
+    static bool skipBuildingUpdate;
 };
 

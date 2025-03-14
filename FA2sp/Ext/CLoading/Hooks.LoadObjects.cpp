@@ -194,7 +194,7 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
         return 0x48DC52;
     }
 
-    if (CINI::CurrentTheater == &CINI::Urban)
+    if (CINI::CurrentTheater == &CINI::NewUrban)
         return 0x48DBC0;
 
     return 0x48DC03;

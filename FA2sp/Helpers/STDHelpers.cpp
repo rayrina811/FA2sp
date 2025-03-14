@@ -146,7 +146,7 @@ std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSourc
     while (ret.size() <= nth)
     {
         ret.push_back("");
-        Logger::Raw("[STDHelpers::SplitString] Warn: (%s) cannot meet nth, adding empty strings.\n", pSource);
+        //Logger::Raw("[STDHelpers::SplitString] Warn: (%s) cannot meet nth, adding empty strings.\n", pSource);
     }
 
     return ret;

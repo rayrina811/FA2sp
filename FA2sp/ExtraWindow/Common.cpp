@@ -877,31 +877,33 @@ ppmfc::CString ExtraWindow::GetCloneName(ppmfc::CString oriName)
 }
 void ExtraWindow::LoadFrom(MultimapHelper& mmh, ppmfc::CString loadfrom)
 {
-    if (loadfrom == "0")
+    if (loadfrom == "0" || loadfrom == "fadata")
         mmh.AddINI(&CINI::FAData);
-    else if (loadfrom == "1")
+    else if (loadfrom == "1" || loadfrom == "rules")
         mmh.AddINI(&CINI::Rules);
-    else if (loadfrom == "2")
+    else if (loadfrom == "2" || loadfrom == "rules+map")
     {
         mmh.AddINI(&CINI::Rules);
         mmh.AddINI(&CINI::CurrentDocument);
     }
-    else if (loadfrom == "3")
+    else if (loadfrom == "3" || loadfrom == "map")
         mmh.AddINI(&CINI::CurrentDocument);
-    else if (loadfrom == "4")
+    else if (loadfrom == "4" || loadfrom == "art")
         mmh.AddINI(&CINI::Art);
-    else if (loadfrom == "5")
+    else if (loadfrom == "5" || loadfrom == "sound")
         mmh.AddINI(&CINI::Sound);
-    else if (loadfrom == "6")
+    else if (loadfrom == "6" || loadfrom == "theme")
         mmh.AddINI(&CINI::Theme);
-    else if (loadfrom == "7")
+    else if (loadfrom == "7" || loadfrom == "ai+map")
     {
         mmh.AddINI(&CINI::Ai);
         mmh.AddINI(&CINI::CurrentDocument);
     }
-    else if (loadfrom == "8")
+    else if (loadfrom == "8" || loadfrom == "eva")
         mmh.AddINI(&CINI::Eva);
-    else if (loadfrom == "9")
+    else if (loadfrom == "9" || loadfrom == "theater")
         mmh.AddINI(CINI::CurrentTheater);
+    else if (loadfrom == "10" || loadfrom == "ai")
+        mmh.AddINI(&CINI::Ai);
 
 }

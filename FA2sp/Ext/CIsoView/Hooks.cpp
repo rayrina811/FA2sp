@@ -686,7 +686,7 @@ DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 			nOffset += 15;
 		else if (nOverlay < CMapDataExt::OverlayTypeDatas.size())
 		{
-			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock)
+			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock || CMapDataExt::OverlayTypeDatas[nOverlay].TerrainRock)
 				nOffset += 15;
 		}
 	}
@@ -858,6 +858,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
 	Logger::Debug("CIsoView::ReInitializeDDraw(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition(false);
+	CViewObjectsExt::Redraw_ConnectedTile(nullptr);
 	CFinalSunDlgExt::CurrentLighting = currentLighting;
 	if (CFinalSunDlgExt::CurrentLighting != 31000)
 	{

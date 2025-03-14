@@ -206,7 +206,7 @@ public:
     }
     // damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
-    static int GetInfantryAt(int dwPos, int dwSubPos = 0xFFFFFFFF);
+    static int GetInfantryAt(int dwPos, int dwSubPos = -1);
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
     static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing);
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord);

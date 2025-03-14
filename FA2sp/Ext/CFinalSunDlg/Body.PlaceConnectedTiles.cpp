@@ -133,27 +133,27 @@ void CViewObjectsExt::ConnectedTile_Initialize()
     }
 }
 
-void CViewObjectsExt::Redraw_ConnectedTile()
+void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
 {
     int index = 0;
     int parentIndex = 9000;
     HTREEITEM& hCT = ExtNodes[Root_Cliff];
     if (hCT == NULL)    return;
 
-    HTREEITEM hCliff = this->InsertTranslatedString("CT_Cliff",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hCliffLand = this->InsertTranslatedString("CT_CliffLand",Const_ConnectedTile + parentIndex++, hCliff);
-    HTREEITEM hCliffWater = this->InsertTranslatedString("CT_CliffWater",Const_ConnectedTile + parentIndex++, hCliff);
+    HTREEITEM hCliff = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Cliff",Const_ConnectedTile + parentIndex++, hCT);
+    HTREEITEM hCliffLand = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffLand",Const_ConnectedTile + parentIndex++, hCliff);
+    HTREEITEM hCliffWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffWater",Const_ConnectedTile + parentIndex++, hCliff);
 
-    HTREEITEM hCliffLandSnowSnow = this->InsertTranslatedString("CT_CliffTXSnowSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandSnowStone = this->InsertTranslatedString("CT_CliffTXSnowStone", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandStoneSnow = this->InsertTranslatedString("CT_CliffTXStoneSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandStoneStone = this->InsertTranslatedString("CT_CliffTXStoneStone", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffSnowWater = this->InsertTranslatedString("CT_CliffTXSnowWater", Const_ConnectedTile + parentIndex++, hCliffWater);
-    HTREEITEM hCliffStoneWater = this->InsertTranslatedString("CT_CliffTXStoneWater", Const_ConnectedTile + parentIndex++, hCliffWater);
+    HTREEITEM hCliffLandSnowSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
+    HTREEITEM hCliffLandSnowStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowStone", Const_ConnectedTile + parentIndex++, hCliffLand);
+    HTREEITEM hCliffLandStoneSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
+    HTREEITEM hCliffLandStoneStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneStone", Const_ConnectedTile + parentIndex++, hCliffLand);
+    HTREEITEM hCliffSnowWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowWater", Const_ConnectedTile + parentIndex++, hCliffWater);
+    HTREEITEM hCliffStoneWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneWater", Const_ConnectedTile + parentIndex++, hCliffWater);
 
-    HTREEITEM hDirtRoad = this->InsertTranslatedString("CT_Road",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hShore = this->InsertTranslatedString("CT_Shore",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hHighway = this->InsertTranslatedString("CT_PavedRoad", Const_ConnectedTile + parentIndex++, hCT);
+    HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road",Const_ConnectedTile + parentIndex++, hCT);
+    HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",Const_ConnectedTile + parentIndex++, hCT);
+    HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", Const_ConnectedTile + parentIndex++, hCT);
 
     std::vector<HTREEITEM> subNodes;
     subNodes.push_back(hCliffLandSnowSnow);
@@ -189,15 +189,19 @@ void CViewObjectsExt::Redraw_ConnectedTile()
                 if (ct.ConnectedTile.size() > 30)
                 {
                     int lastTileIndexTX = ct.ConnectedTile[30].TileIndices[0] + ct.StartTile;
-                    int lastTilesetTX = CMapDataExt::TileData[lastTileIndexTX].TileSet;
-                    ppmfc::CString buffer;
-                    buffer.Format("TileSet%04d", lastTilesetTX);
-
-                    auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
-                    auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-                    if (exist && strcmp(exist2, "") != 0)
+                    if (lastTileIndexTX < CMapDataExt::TileDataCount)
                     {
-                        ct.IsTXCityCliff = true;
+                        int lastTilesetTX = CMapDataExt::TileData[lastTileIndexTX].TileSet;
+                        ppmfc::CString buffer;
+                        buffer.Format("TileSet%04d", lastTilesetTX);
+
+                        auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+                        auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+                        if (exist && strcmp(exist2, "") != 0)
+                        {
+                            Logger::Raw(buffer);
+                            ct.IsTXCityCliff = true;
+                        }
                     }
                 }
             }
@@ -238,10 +242,10 @@ void CViewObjectsExt::Redraw_ConnectedTile()
                     if (ct.SpecialType < 0)
                     {
                         TreeView_ConnectedTileMap[index] = info;
-                        this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffWater);
+                        if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffWater);
                         index++;
                         TreeView_ConnectedTileMap[index] = info2;
-                        this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffWater);
+                        if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffWater);
                         index++;
                     }
                     else
@@ -250,19 +254,19 @@ void CViewObjectsExt::Redraw_ConnectedTile()
                         if (ct.SpecialType == SnowWater)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffSnowWater);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffSnowWater);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffSnowWater);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffSnowWater);
                             index++;
                         }
                         else if (ct.SpecialType == StoneWater)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffStoneWater);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffStoneWater);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffStoneWater);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffStoneWater);
                             index++;
                         }
   
@@ -273,10 +277,10 @@ void CViewObjectsExt::Redraw_ConnectedTile()
                     if (ct.SpecialType < 0)
                     {
                         TreeView_ConnectedTileMap[index] = info;
-                        this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLand);
+                        if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLand);
                         index++;
                         TreeView_ConnectedTileMap[index] = info2;
-                        this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLand);
+                        if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLand);
                         index++;
                     }
                     else
@@ -284,37 +288,37 @@ void CViewObjectsExt::Redraw_ConnectedTile()
                         if (ct.SpecialType == SnowSnow)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandSnowSnow);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandSnowSnow);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandSnowSnow);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandSnowSnow);
                             index++;
                         }
                         else if (ct.SpecialType == SnowStone)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandSnowStone);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandSnowStone);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandSnowStone);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandSnowStone);
                             index++;
                         }
                         else if (ct.SpecialType == StoneSnow)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandStoneSnow);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandStoneSnow);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandStoneSnow);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandStoneSnow);
                             index++;
                         }
                         else if (ct.SpecialType == StoneStone)
                         {
                             TreeView_ConnectedTileMap[index] = info;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandStoneStone);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hCliffLandStoneStone);
                             index++;
                             TreeView_ConnectedTileMap[index] = info2;
-                            this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandStoneStone);
+                            if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hCliffLandStoneStone);
                             index++;
                         }
 
@@ -325,21 +329,21 @@ void CViewObjectsExt::Redraw_ConnectedTile()
             case ConnectedTileSetTypes::DirtRoad:
             case ConnectedTileSetTypes::CityDirtRoad:
                 TreeView_ConnectedTileMap[index] = info;
-                this->InsertString(ct.Name, Const_ConnectedTile + index, hDirtRoad);
+                if (pThis) pThis->InsertString(ct.Name, Const_ConnectedTile + index, hDirtRoad);
                 index++;
                 break;
             case ConnectedTileSetTypes::Highway:
                 TreeView_ConnectedTileMap[index] = info;
-                this->InsertString(ct.Name, Const_ConnectedTile + index, hHighway);
+                if (pThis) pThis->InsertString(ct.Name, Const_ConnectedTile + index, hHighway);
                 index++;
                 break;
             case ConnectedTileSetTypes::Shore:
             case ConnectedTileSetTypes::PaveShore:
                 TreeView_ConnectedTileMap[index] = info;
-                this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hShore);
+                if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Front", " (Front)"), Const_ConnectedTile + index, hShore);
                 index++;
                 TreeView_ConnectedTileMap[index] = info2;
-                this->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hShore);
+                if (pThis) pThis->InsertString(ct.Name + Translations::TranslateOrDefault("ConnectedTile.Back", " (Back)"), Const_ConnectedTile + index, hShore);
                 index++;
                 break;
             default:
@@ -348,11 +352,13 @@ void CViewObjectsExt::Redraw_ConnectedTile()
         }
     }
 
-
-    for (auto& subnode : subNodes)
+    if (pThis)
     {
-        if (!this->GetTreeCtrl().ItemHasChildren(subnode))
-            this->GetTreeCtrl().DeleteItem(subnode);
+        for (auto& subnode : subNodes)
+        {
+            if (!pThis->GetTreeCtrl().ItemHasChildren(subnode))
+                pThis->GetTreeCtrl().DeleteItem(subnode);
+        }
     }
 }
 
@@ -365,7 +371,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
         return;
     }
-
 
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
@@ -3802,8 +3807,5 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
         return;
     }
 
-    //::MessageBox(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, std::to_string(CViewObjectsExt::ConnectedTileSets[0].ConnectedTile.size()).c_str(), "", 0);
-
     CViewObjectsExt::PlaceConnectedTile_OnMouseMove(X, Y, true);
-    // ::MessageBox(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, "", "", 0);
 }

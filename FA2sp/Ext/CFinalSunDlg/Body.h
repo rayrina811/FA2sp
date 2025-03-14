@@ -228,8 +228,6 @@ private:
 
     void Redraw_ViewObjectInfo();
     void Redraw_MultiSelection();
-    void Redraw_ConnectedTile();
-
 
     bool DoPropertyBrush_Building();
     bool DoPropertyBrush_Infantry();
@@ -320,6 +318,8 @@ public:
     static std::vector<ppmfc::CString> ObjectFilterBN;
     static std::vector<ppmfc::CString> ObjectFilterCT;
 
+    static std::map<int, int> WallDamageStages;
+
     static bool InitPropertyDlgFromProperty;
     static int PlacingWall;
     static int PlacingRandomRock;
@@ -364,6 +364,7 @@ public:
     static void MoveBaseNode(int X, int Y);
     static void ModifyOre(int X, int Y);
     static void BatchAddMultiSelection(int X, int Y, bool add);
+    static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
     
     static bool IsIgnored(const char* pItem);
 

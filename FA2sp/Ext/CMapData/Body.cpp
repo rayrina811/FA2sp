@@ -20,6 +20,7 @@
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CTileSetBrowserFrame/TabPages/TeamSort.h"
 #include "../CTileSetBrowserFrame/TabPages/WaypointSort.h"
@@ -491,7 +492,7 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 
 int CMapDataExt::GetInfantryAt(int dwPos, int dwSubPos)
 {
-	if (dwSubPos == 0xFFFFFFFF)
+	if (dwSubPos < 0)
 	{
 		int i;
 		for (i = 0; i < 3; i++)
@@ -913,7 +914,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool isLamp)
 			i++;
 		}
 
-		if (ExtConfigs::PlaceStructureResort)
+		if (ExtConfigs::PlaceStructureResort && !CLuaConsole::skipBuildingUpdate)
 			if (ID < sec->GetEntities().size())
 			{
 				std::vector<ppmfc::CString> buildings;
@@ -932,7 +933,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool isLamp)
 					idx++;
 				}
 			}
-		if (isLamp)
+		if (isLamp || ID < 0)
 			LightingSourceTint::CalculateMapLamps();
 	}
 }
@@ -1248,6 +1249,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 	
 	if (CNewAITrigger::GetHandle())
 		::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+	
+	if (CLuaConsole::GetHandle())
+		::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 
 	if (IsWindowVisible(CCsfEditor::GetHandle()))
 	{
@@ -1532,5 +1536,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		}
 	}
 	CLoadingExt::ClearItemTypes();
-	LightingSourceTint::CalculateMapLamps();
+	//LightingSourceTint::CalculateMapLamps();
 }
