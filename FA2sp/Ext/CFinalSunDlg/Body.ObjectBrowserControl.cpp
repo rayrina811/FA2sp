@@ -384,7 +384,6 @@ void CViewObjectsExt::Redraw_Ground()
             auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
             auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
             auto exist3 = CINI::CurrentTheater->GetString(buffer2, "FileName", "");
-            //Logger::Raw("TEST: (%s)\n", exist3);
             if (exist && strcmp(exist2, "") != 0 && strcmp(exist3, "") != 0)
                 InsertTile(morphables.Morphable);
             else
@@ -416,7 +415,6 @@ void CViewObjectsExt::Redraw_Ground()
             auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
             auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
             auto exist3 = CINI::CurrentTheater->GetString(buffer2, "FileName", "");
-            //Logger::Raw("TEST: (%s)\n", exist3);
             if (exist && strcmp(exist2, "") != 0 && strcmp(exist3, "") != 0)
                 InsertTile(morphables.Morphable);
             else

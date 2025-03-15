@@ -835,7 +835,7 @@ void CNewScript::OnCloseupScript()
 void CNewScript::OnClickNewScript(HWND& hWnd)
 {
     ppmfc::CString key = CINI::GetAvailableKey("ScriptTypes");
-    ppmfc::CString value = CINI::GetAvailableIndex();
+    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     ppmfc::CString buffer2;
 
     const char* newName = "New script";
@@ -888,7 +888,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
         ppmfc::CString key = CINI::GetAvailableKey("ScriptTypes");
-        ppmfc::CString value = CINI::GetAvailableIndex();
+        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 

@@ -33,6 +33,7 @@
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
 #include "../../Miscs/Hooks.INI.h"
+#include <unordered_set>
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
@@ -1104,6 +1105,44 @@ bool CMapDataExt::IsValidTileSet(int tileset)
 	return true;
 }
 
+ppmfc::CString CMapDataExt::GetAvailableIndex()
+{
+	auto& ini = CINI::CurrentDocument;
+	int n = 1000000;
+
+	std::unordered_set<std::string> usedIDs;
+
+	for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
+		if (auto pSection = ini->GetSection(sec)) {
+			for (const auto& [k, v] : pSection->GetEntities()) {
+				usedIDs.insert(v.m_pchData);
+			}
+		}
+	}
+	for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
+		if (auto pSection = ini->GetSection(sec)) {
+			for (const auto& [k, v] : pSection->GetEntities()) {
+				usedIDs.insert(k.m_pchData);
+			}
+		}
+	}
+
+	char idBuffer[9];
+	while (true)
+	{
+		std::sprintf(idBuffer, "%08d", n);
+		std::string id(idBuffer);
+
+		if (usedIDs.find(id) == usedIDs.end() && !ini->SectionExists(id.c_str())) {
+			return id.c_str();
+		}
+
+		n++;
+	}
+
+	return "";
+}
+
 void CMapDataExt::UpdateIncludeIniInMap()
 {
 	if (ExtConfigs::AllowIncludes)
@@ -1154,6 +1193,7 @@ void CMapDataExt::UpdateIncludeIniInMap()
 
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 {
+	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 

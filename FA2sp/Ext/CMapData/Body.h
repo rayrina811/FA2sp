@@ -155,7 +155,8 @@ public:
     };
 
     void PackExt(bool UpdatePreview, bool Description);
-    //bool ResizeMapExt(MapRect* const pRect);
+    // just alter CellData size for lua.restore_snapshot
+    bool ResizeMapExt(MapRect* const pRect);
     
     enum OreType { Riparius = 0, Cruentus, Vinifera, Aboreus };
     int GetOreValue(unsigned char nOverlay, unsigned char nOverlayData);
@@ -213,6 +214,7 @@ public:
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset);
     static void UpdateIncludeIniInMap();
+    static ppmfc::CString GetAvailableIndex();
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;

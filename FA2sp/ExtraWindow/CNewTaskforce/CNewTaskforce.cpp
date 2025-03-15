@@ -549,7 +549,7 @@ void CNewTaskforce::OnCloseupTaskforce()
 void CNewTaskforce::OnClickNewTaskforce(HWND& hWnd)
 {
     ppmfc::CString key = CINI::GetAvailableKey("TaskForces");
-    ppmfc::CString value = CINI::GetAvailableIndex();
+    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     ppmfc::CString buffer2;
 
     const char* newName = "New task force";
@@ -603,7 +603,7 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
     if (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTaskForceIndex >= 0)
     {
         ppmfc::CString key = CINI::GetAvailableKey("TaskForces");
-        ppmfc::CString value = CINI::GetAvailableIndex();
+        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("TaskForces", key, value);
 

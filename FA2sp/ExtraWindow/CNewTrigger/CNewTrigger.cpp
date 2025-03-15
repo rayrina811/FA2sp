@@ -1306,7 +1306,7 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
 void CNewTrigger::OnClickNewTrigger()
 {
-    ppmfc::CString id = CINI::GetAvailableIndex();
+    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
     ppmfc::CString value;
     ppmfc::CString house;
     char buffer[512]{ 0 };
@@ -1326,7 +1326,7 @@ void CNewTrigger::OnClickNewTrigger()
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
-    ppmfc::CString tagId = CINI::GetAvailableIndex();
+    ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 
@@ -1344,7 +1344,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     auto& oriID = CurrentTrigger->ID;
     auto& oriTagID = CurrentTrigger->Tag;
 
-    ppmfc::CString id = CINI::GetAvailableIndex();
+    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
     ppmfc::CString value;
     auto& Name = CurrentTrigger->Name;
 
@@ -1355,7 +1355,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
         CurrentTrigger->MediumEnabled ? "1" : "0", CurrentTrigger->HardEnabled ? "1" : "0", CurrentTrigger->Obsolete);
     map.WriteString("Triggers", id, value);
 
-    ppmfc::CString tagId = CINI::GetAvailableIndex();
+    ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
     value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
     map.WriteString("Tags", tagId, value);
 

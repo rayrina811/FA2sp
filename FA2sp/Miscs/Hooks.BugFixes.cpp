@@ -346,6 +346,9 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
 		{
 			for (const auto& [key, id, x, y] : smudges)
 			{
+				if (!CMapData::Instance->IsCoordInMap(x, y))
+					continue;
+
 				buffer.Format("%s,%d,%d,0", id, x, y);
 				CMapData::Instance->INI.WriteString(pSection, key, buffer);
 			}
@@ -368,8 +371,14 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
 				nodes.emplace_back(buffer, splits[0], atoi(splits[1]) + XOFF, atoi(splits[2]) + YOFF);
 			}
 
-			for (const auto& [key, id, x, y] : nodes)
+			for (auto& [key, id, x, y] : nodes)
 			{
+				if (!CMapData::Instance->IsCoordInMap(x, y))
+				{
+					x = 0;
+					y = 0;
+				}
+
 				buffer.Format("%s,%d,%d", id, x, y);
 				// CMapData::Instance->INI.DeleteKey(pSection, key); // useless
 				CMapData::Instance->INI.WriteString(pSection, key, buffer);

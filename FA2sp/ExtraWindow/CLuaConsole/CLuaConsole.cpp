@@ -46,6 +46,7 @@ bool CLuaConsole::updateInfantry = false;
 bool CLuaConsole::updateAircraft = false;
 bool CLuaConsole::updateNode = false;
 bool CLuaConsole::updateMinimap = false;
+bool CLuaConsole::updateTrigger = false;
 bool CLuaConsole::skipBuildingUpdate = false;
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
@@ -519,7 +520,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_section", delete_section);
     Lua.set_function("get_free_waypoint", get_free_waypoint);
     Lua.set_function("get_free_key", get_free_key);
-    Lua.set_function("get_free_id", get_free_id);
+    Lua.set_function("get_free_id", GetAvailableIndex);
     Lua.set_function("split_string", [](std::string str, sol::optional<std::string> delimiter) {
         if (!delimiter) {
             delimiter = ",";
@@ -568,6 +569,37 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("restore_snapshot", restore_snapshot);
     Lua.set_function("clear_snapshot", clear_snapshot);
 
+    // triggers & teams
+    Lua.new_usertype<tag>("tag",
+        sol::constructors<tag()>(),
+        "id", sol::readonly(&tag::ID),
+        "name", &tag::Name,
+        "type", &tag::RepeatType
+    );
+    Lua.new_usertype<trigger>("trigger",
+        sol::constructors<trigger(std::string), trigger()>(),
+        "id", sol::readonly(&trigger::ID),
+        "name", &trigger::Name,
+        "house", &trigger::House,
+        "tags", sol::readonly(&trigger::Tags),
+        "attached_trigger", &trigger::AttachedTrigger,
+        "disabled", &trigger::Disabled,
+        "easy", &trigger::EasyEnabled,
+        "medium", &trigger::MediumEnabled,
+        "hard", &trigger::HardEnabled,
+        "events", sol::readonly(&trigger::Events),
+        "actions", sol::readonly(&trigger::Actions),
+        "add_tag", &trigger::add_tag,
+        "add_event", &trigger::add_event,
+        "add_action", &trigger::add_action,
+        "delete_tag", &trigger::delete_tag,
+        "delete_event", &trigger::delete_event,
+        "delete_action", &trigger::delete_action,
+        "change_id", &trigger::change_id,
+        "apply", &trigger::apply
+    );
+    
+
     Update(hWnd);
 }
 
@@ -582,8 +614,9 @@ void CLuaConsole::Close(HWND& hWnd)
 
 void CLuaConsole::Update(HWND& hWnd)
 {
+    ShowWindow(m_hwnd, SW_SHOW);
+    SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     while (SendMessage(hScripts, LB_DELETESTRING, 0, NULL) != CB_ERR);
-  
     std::string scriptPath = CFinalSunApp::ExePath();
     scriptPath += "\\Scripts\\";
     if (fs::exists(scriptPath) && fs::is_directory(scriptPath)) {
@@ -827,6 +860,14 @@ void CLuaConsole::OnClickRun(bool fromFile)
     {
         updateNode = false;
         CMapData::Instance->UpdateFieldBasenodeData(FALSE);
+    }
+    if (updateTrigger)
+    {
+        updateTrigger = false;
+        if (CNewTrigger::GetHandle())
+            ::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+        else
+            CMapDataExt::UpdateTriggers();
     }
     if (updateMinimap)
     {

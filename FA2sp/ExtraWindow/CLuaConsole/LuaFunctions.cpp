@@ -17,11 +17,13 @@
 #include <cctype>
 #include <chrono>
 #include "../../Miscs/MultiSelection.h"
+#include <unordered_set>
 
 namespace LuaFunctions
 {
 	static long long time = 0;
 	static std::map<ppmfc::CString, CINI*> LoadedINIs;
+	static std::unordered_set<std::string> UsedINIIndices;
 
 	static void write_lua_console(std::string text)
 	{
@@ -116,6 +118,7 @@ namespace LuaFunctions
 		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
 		return MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), text.c_str(), title.c_str(), style);
 	}
+
 	struct TimePoint {
 		int year, month, day, hour, minute, second;
 		std::chrono::system_clock::time_point time;
@@ -160,6 +163,17 @@ namespace LuaFunctions
 		}
 		oss << minutes << "m " << seconds << "s";
 		return oss.str();
+	}
+
+	static std::vector<std::string> split_string(std::string s, std::string delimiter = ",") {
+		char deli = delimiter[0];
+		std::vector<std::string> tokens;
+		std::stringstream ss(s);
+		std::string token;
+		while (getline(ss, token, deli)) {
+			tokens.push_back(token);
+		}
+		return tokens;
 	}
 
 	class infantry
@@ -774,12 +788,195 @@ namespace LuaFunctions
 	{
 	public:
 		TimePoint savedTime;
+		std::string fileName;
 		std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> INI;
 		unsigned char Overlay[0x40000];
 		unsigned char OverlayData[0x40000];
 		std::vector<CellData> CellDatas;
 	};
 	static std::map<int, snapshot> snapshots;
+
+	static std::string GetAvailableIndex()
+	{
+		auto& ini = CINI::CurrentDocument;
+		int n = 1000000;
+
+		std::unordered_set<std::string> usedIDs;
+
+		for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
+			if (auto pSection = ini->GetSection(sec)) {
+				for (const auto& [k, v] : pSection->GetEntities()) {
+					usedIDs.insert(v.m_pchData);
+				}
+			}
+		}
+		for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
+			if (auto pSection = ini->GetSection(sec)) {
+				for (const auto& [k, v] : pSection->GetEntities()) {
+					usedIDs.insert(k.m_pchData);
+				}
+			}
+		}
+
+		char idBuffer[9];
+		while (true)
+		{
+			std::sprintf(idBuffer, "%08d", n);
+			std::string id(idBuffer);
+
+			if (usedIDs.find(id) == usedIDs.end() 
+				&& UsedINIIndices.find(id) == UsedINIIndices.end() 
+				&& !ini->SectionExists(id.c_str())) {
+				return id;
+			}
+
+			n++;
+		}
+
+		return "";
+	}
+
+
+	struct tag
+	{
+		std::string ID;
+		std::string Name;
+		std::string RepeatType;
+	};
+
+	class trigger
+	{
+	public:
+		std::string ID;
+		std::string Name;
+		std::string House;
+		std::vector<tag> Tags;
+		std::string AttachedTrigger;
+		std::string Obsolete;
+		bool Disabled;
+		bool EasyEnabled;
+		bool MediumEnabled;
+		bool HardEnabled;
+		std::vector<std::string> Events;
+		std::vector<std::string> Actions;
+
+		trigger()
+		{
+			ID = GetAvailableIndex();
+			Name = "New Trigger";
+			House = "Americans";
+			AttachedTrigger = "<none>";
+			Obsolete = "0";
+			Disabled = false;
+			EasyEnabled = true;
+			MediumEnabled = true;
+			HardEnabled = true;
+			UsedINIIndices.insert(ID);
+		}
+		trigger(std::string id)
+			: ID(id)
+		{
+			Name = "New Trigger";
+			House = "Americans";
+			AttachedTrigger = "<none>";
+			Obsolete = "0";
+			Disabled = false;
+			EasyEnabled = true;
+			MediumEnabled = true;
+			HardEnabled = true;
+			UsedINIIndices.insert(id);
+		}
+		void add_tag(std::string id, std::string name, int repeat)
+		{
+			if (id == "")
+				id = GetAvailableIndex();
+			if (name == "")
+				name = Name + " 1";
+			auto& tag = Tags.emplace_back();
+			tag.ID = id;
+			tag.Name = name;
+			tag.RepeatType = repeat == 2 ? "2" : repeat == 1 ? "1" : "0";
+			UsedINIIndices.insert(id);
+		}
+		void add_event(std::string value)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() < 3 || splits.size() > 4 || (splits.size() == 4 && splits[1] != "2"))
+			{
+				write_lua_console("Ill-formed event " + value);
+				return;
+			}
+			Events.push_back(value);
+		}
+		void add_action(std::string value)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() != 8)
+			{
+				write_lua_console("Ill-formed action " + value);
+				return;
+			}
+			Actions.push_back(value);
+		}
+		void delete_tag(int index)
+		{
+			if (0 <= index && index < Tags.size())
+			{
+				UsedINIIndices.erase(Tags[index].ID);
+				Tags.erase(Tags.begin() + index);
+			}
+		}
+		void delete_event(int index)
+		{
+			if (0 <= index && index < Events.size())
+				Events.erase(Events.begin() + index);
+		}
+		void delete_action(int index)
+		{
+			if (0 <= index && index < Actions.size())
+				Actions.erase(Actions.begin() + index);
+		}
+		void change_id(std::string id)
+		{
+			UsedINIIndices.erase(ID);
+			UsedINIIndices.insert(id);
+			ID = id;
+		}
+		void apply()
+		{
+			ppmfc::CString trigger;
+			trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House.c_str(), AttachedTrigger.c_str(), Name.c_str(),
+				Disabled ? "1" : "0", EasyEnabled ? "1" : "0", MediumEnabled ? "1" : "0", HardEnabled ? "1" : "0", Obsolete.c_str());
+			CINI::CurrentDocument->WriteString("Triggers", ID.c_str(), trigger);
+
+			for (const auto& tag : Tags)
+			{
+				ppmfc::CString tagStr;
+				tagStr.Format("%s,%s,%s", tag.RepeatType.c_str(), tag.Name.c_str(), ID.c_str());
+				CINI::CurrentDocument->WriteString("Tags", tag.ID.c_str(), tagStr);
+			}
+
+			ppmfc::CString events;
+			events.Format("%d", Events.size());
+			for (const auto& e : Events)
+			{
+				events += ",";
+				events += e.c_str();
+			}
+			CINI::CurrentDocument->WriteString("Events", ID.c_str(), events);
+
+			ppmfc::CString actions;
+			actions.Format("%d", Actions.size());
+			for (const auto& a : Actions)
+			{
+				actions += ",";
+				actions += a.c_str();
+			}
+			CINI::CurrentDocument->WriteString("Actions", ID.c_str(), actions);
+			CLuaConsole::updateTrigger = true;
+		}
+
+	};
 
 	static void place_terrain(int y, int x, std::string id)
 	{
@@ -1223,22 +1420,6 @@ namespace LuaFunctions
 	static std::string get_free_key(std::string section)
 	{
 		return CINI::CurrentDocument->GetAvailableKey(section.c_str()).m_pchData;
-	}
-
-	static std::string get_free_id()
-	{
-		return CINI::GetAvailableIndex().m_pchData;
-	}
-
-	static std::vector<std::string> split_string(std::string s, std::string delimiter) {
-		char deli = delimiter[0];
-		std::vector<std::string> tokens;
-		std::stringstream ss(s);
-		std::string token;
-		while (getline(ss, token, deli)) {
-			tokens.push_back(token);
-		}
-		return tokens;
 	}
 
 	static std::string get_param(std::string section, std::string key, int index, std::string delimiter = ",", std::string loadFrom = "map")
@@ -1797,6 +1978,9 @@ namespace LuaFunctions
 		}
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
 		snapshot.savedTime = getCurrentTime();
+		snapshot.fileName = CFinalSunApp::MapPath();
+		if (snapshot.fileName == "")
+			snapshot.fileName = "New map";
 		write_lua_console(std::format("Create snapshot #{}", version));
 		return version;
 	}
@@ -1809,12 +1993,23 @@ namespace LuaFunctions
 			return;
 		}
 		auto& snapshot = snapshots[version];
+		Logger::Debug("Restoring map snapshot #%d, time point: %s\n", version, formatTime(snapshot.savedTime).c_str());
+		if (CINI::CurrentDocument->GetString("Map", "Theater") != snapshot.INI["Map"]["Theater"])
+		{
+			write_lua_console(std::format("Cannot restore snapshot #{}, theater dismatch.", version));
+			return;
+		}
+
 		auto timeSpan = std::chrono::system_clock::now() - snapshot.savedTime.time;
-		std::string title = "Are you sure to restore snapshot?";
-		std::string text = "Snapshot timepoint: " + formatTime(snapshot.savedTime) + "\n"
-			+ "Time span: " + formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan));
+		std::string title = Translations::TranslateOrDefault("LuaConsole.SnapshotConfirmTitle", "Are you sure to restore the snapshot?");
+		ppmfc::CString text; 
+		text.Format(Translations::TranslateOrDefault("LuaConsole.SnapshotConfirmMessage"
+				, "Snapshot timepoint: %s\nTime span: %s\nMap file name: %s")
+			, formatTime(snapshot.savedTime).c_str()
+			, formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan)).c_str()
+				, snapshot.fileName.c_str());
 	
-		if (message_box(text, title, 1) == IDCANCEL)
+		if (message_box(text.m_pchData, title, 1) == IDCANCEL)
 			return;
 
 		auto ini = &CMapData::Instance->INI;
@@ -1829,7 +2024,8 @@ namespace LuaFunctions
 		oldSize.bottom = atoi(os[3]);
 		if (newSize.right != oldSize.right || newSize.bottom != oldSize.bottom)
 		{
-			CMapData::Instance->ResizeMap(0, 0, newSize.right, newSize.bottom);
+			MapRect rect{ 0, 0, newSize.right, newSize.bottom };
+			CMapDataExt::GetExtension()->ResizeMapExt(&rect);
 		}
 
 		std::vector<ppmfc::CString> sections;
@@ -1860,6 +2056,9 @@ namespace LuaFunctions
 		CMapDataExt::UpdateFieldStructureData_Optimized(-1);
 		CMapData::Instance->UpdateFieldOverlayData(false);
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
+		// load objects to avoid weird palette issue
+		CIsoView::GetInstance()->PrimarySurfaceLost();
+		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateMinimap = true;
 	}

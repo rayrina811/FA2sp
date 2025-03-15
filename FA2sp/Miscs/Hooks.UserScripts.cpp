@@ -223,7 +223,7 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
                 break;
         }
         // this is how we change param 0
-        UserScriptExt::Temps.push_back(CINI::GetAvailableIndex());
+        UserScriptExt::Temps.push_back(CMapDataExt::GetAvailableIndex());
         UserScriptExt::EditVaribale = true;
         break;
     }

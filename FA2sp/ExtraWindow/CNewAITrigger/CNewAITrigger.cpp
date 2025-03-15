@@ -798,7 +798,7 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
 
 void CNewAITrigger::OnClickNewAITrigger()
 {
-    ppmfc::CString id = CINI::GetAvailableIndex();
+    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
     ppmfc::CString value = "New AI Trigger,<none>,<all>,1,-1,<none>,0000000000000000000000000000000000000000000000000000000000000000,50.000000,30.000000,50.000000,1,0,1,0,<none>,1,1,1";
 
     map.WriteString("AITriggerTypes", id, value);
@@ -812,7 +812,7 @@ void CNewAITrigger::OnClickCloAITrigger()
 {
     if (!CurrentAITrigger) return;
 
-    ppmfc::CString id = CINI::GetAvailableIndex();
+    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
     AITrigger trigger2;
     trigger2 = *CurrentAITrigger;
     trigger2.ID = id;

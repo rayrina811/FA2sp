@@ -1108,7 +1108,7 @@ void CNewTeamTypes::OnCloseupTeamtypes()
 void CNewTeamTypes::OnClickNewTeam(HWND& hWnd)
 {
     ppmfc::CString key = CINI::GetAvailableKey("TeamTypes");
-    ppmfc::CString value = CINI::GetAvailableIndex();
+    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     char buffer[512];
     ppmfc::CString buffer2;
 
@@ -1222,7 +1222,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
     if (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTeamIndex >= 0)
     {
         ppmfc::CString key = CINI::GetAvailableKey("TeamTypes");
-        ppmfc::CString value = CINI::GetAvailableIndex();
+        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("TeamTypes", key, value);
 

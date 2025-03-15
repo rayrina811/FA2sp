@@ -199,7 +199,6 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                         auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
                         if (exist && strcmp(exist2, "") != 0)
                         {
-                            Logger::Raw(buffer);
                             ct.IsTXCityCliff = true;
                         }
                     }

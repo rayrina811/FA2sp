@@ -138,7 +138,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
                         CINI::CurrentDocument().Release();
 
                         strcpy_s(CFinalSunApp::FilePath, 260, folder);
-                        Logger::Raw("[Debug] CLoading::Load() Called. Reload all files from %s\n", folder);
+                        Logger::Debug("CLoading::Load() Called. Reload all files from %s\n", folder);
                         CLoading::Instance()->Load();
                         CCsfEditor::NeedUpdate = true;
                 }

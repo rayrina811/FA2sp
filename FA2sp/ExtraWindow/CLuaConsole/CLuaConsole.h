@@ -66,6 +66,7 @@ public:
     static bool updateAircraft;
     static bool updateNode;
     static bool updateMinimap;
+    static bool updateTrigger;
     static bool skipBuildingUpdate;
 };
 
