@@ -596,9 +596,13 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "delete_event", &trigger::delete_event,
         "delete_action", &trigger::delete_action,
         "change_id", &trigger::change_id,
-        "apply", &trigger::apply
+        "apply", &trigger::apply,
+        "delete", &trigger::delete_trigger_self,
+        "release_id", &trigger::release_id
     );
-    
+    Lua.set_function("delete_trigger", trigger::delete_trigger);
+    Lua.set_function("delete_tag", trigger::delete_tag_static);
+    Lua.set_function("get_trigger", trigger::get_trigger);
 
     Update(hWnd);
 }

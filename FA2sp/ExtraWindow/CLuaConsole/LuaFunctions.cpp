@@ -973,7 +973,119 @@ namespace LuaFunctions
 				actions += a.c_str();
 			}
 			CINI::CurrentDocument->WriteString("Actions", ID.c_str(), actions);
+			CMapDataExt::AddTrigger(ID.c_str());
 			CLuaConsole::updateTrigger = true;
+		}
+		void delete_trigger_self(bool keepTag)
+		{
+			CINI::CurrentDocument->DeleteKey("Triggers", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("Events", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("Actions", ID.c_str());
+			if (!keepTag)
+			{
+				for (const auto& tag : Tags)
+				{
+					CINI::CurrentDocument->DeleteKey("Tags", tag.ID.c_str());
+				}
+			}
+
+			CMapDataExt::DeleteTrigger(ID.c_str());
+			CLuaConsole::updateTrigger = true;
+		}
+		static void delete_trigger(std::string ID, bool keepTag)
+		{
+			CINI::CurrentDocument->DeleteKey("Triggers", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("Events", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("Actions", ID.c_str());
+			if (!keepTag)
+			{
+				std::vector<ppmfc::CString> keys;
+				if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+				{
+					for (const auto& [key, value] : pSection->GetEntities())
+					{
+						auto&& atoms = STDHelpers::SplitString(value, 2);
+						if (atoms[2] == ID.c_str())
+							keys.push_back(key);
+					}
+				}
+				for (auto& key : keys)
+					CINI::CurrentDocument->DeleteKey("Tags", key);
+			}
+			CMapDataExt::DeleteTrigger(ID.c_str());
+			CLuaConsole::updateTrigger = true;
+		}
+		static void delete_tag_static(std::string ID, bool keepTrigger)
+		{
+			if (!keepTrigger)
+			{
+				auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Tags", ID.c_str()), 2);
+				CINI::CurrentDocument->DeleteKey("Triggers", atoms[2]);
+				CINI::CurrentDocument->DeleteKey("Events", atoms[2]);
+				CINI::CurrentDocument->DeleteKey("Actions", atoms[2]);
+				CMapDataExt::DeleteTrigger(atoms[2]);
+			}
+			CINI::CurrentDocument->DeleteKey("Tags", ID.c_str());
+			CLuaConsole::updateTrigger = true;
+		}
+		static sol::object get_trigger(std::string ID)
+		{
+			if (auto t = CMapDataExt::GetTrigger(ID.c_str()))
+			{
+				trigger ret{ t->ID.m_pchData };
+				ret.Name = t->Name.m_pchData;
+				ret.House = t->House.m_pchData;
+				ret.AttachedTrigger = t->AttachedTrigger.m_pchData;
+				ret.Obsolete = "0";
+				ret.Disabled = t->Disabled;
+				ret.EasyEnabled = t->EasyEnabled;
+				ret.MediumEnabled = t->MediumEnabled;
+				ret.HardEnabled = t->HardEnabled;
+				if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
+				{
+					for (const auto& [key, value] : pSection->GetEntities())
+					{
+						auto&& atoms = STDHelpers::SplitString(value, 2);
+						if (atoms[2] == ID.c_str())
+						{
+							auto& tag = ret.Tags.emplace_back();
+							tag.ID = key.m_pchData;
+							tag.Name = atoms[1].m_pchData;
+							tag.RepeatType = atoms[0].m_pchData;
+						}
+					}
+				}
+				for (const auto& eve : t->Events)
+				{
+					auto& str = ret.Events.emplace_back();
+					str += eve.EventNum.m_pchData;
+					int loopCount = eve.P3Enabled ? 3 : 2;
+					for (int i = 0; i < loopCount; ++i)
+					{
+						str += ",";
+						str += eve.Params[i].m_pchData;
+					}
+				}
+				for (const auto& act : t->Actions)
+				{
+					auto& str = ret.Actions.emplace_back();
+					str += act.ActionNum.m_pchData;
+					for (int i = 0; i < 7; ++i)
+					{
+						str += ",";
+						str += act.Params[i].m_pchData;
+					}
+				}
+				return sol::make_object(CLuaConsole::Lua, ret);
+			}
+			else
+			{
+				write_lua_console("Cannot find trigger " + ID);
+			}
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+		void release_id() const {
+			UsedINIIndices.erase(ID);
 		}
 
 	};
