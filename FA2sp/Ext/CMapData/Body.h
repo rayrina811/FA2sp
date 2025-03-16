@@ -99,6 +99,28 @@ struct LightingSourcePosition
     }
 };
 
+struct BaseNodeDataExt
+{
+    int BuildingID;
+    int BasenodeID;
+    ppmfc::CString House;
+    int X;
+    int Y;
+    ppmfc::CString ID;
+
+    bool operator==(const BaseNodeDataExt& another) const
+    {
+        return
+            BuildingID == another.BuildingID &&
+            BasenodeID == another.BasenodeID &&
+            X == another.X &&
+            Y == another.Y &&
+            House == another.House &&
+            ID == another.ID;
+    }
+
+};
+
 struct CellDataExt
 {
     short X;
@@ -136,6 +158,8 @@ struct CellDataExt
 
     // for lighting preview
     LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
+
+    std::vector<BaseNodeDataExt> BaseNodes;
 };
 
 class CMapDataExt : public CMapData

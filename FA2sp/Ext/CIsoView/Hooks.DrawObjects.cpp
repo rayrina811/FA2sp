@@ -25,6 +25,7 @@ std::vector<short> CIsoViewExt::VisibleInfantries;
 std::vector<short> CIsoViewExt::VisibleUnits;
 std::vector<short> CIsoViewExt::VisibleAircrafts;
 std::vector<short> DrawnBuildings;
+std::vector<BaseNodeDataExt> DrawnBaseNodes;
 
 #define EXTRA_BORDER 15
 #define EXTRA_BORDER_BOTTOM 25
@@ -50,6 +51,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CMapDataExt::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
 	CIsoViewExt::DrawVeterancies.clear();
 	DrawnBuildings.clear();
+	DrawnBaseNodes.clear();
 
 	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
 	{
@@ -1202,22 +1204,36 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 {
 	if (CIsoViewExt::DrawBasenodes)
 	{
-		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
-		if (celldata.BaseNode.BasenodeID != -1)
-		{
-			char key[10];
-			sprintf(key, "%03d", celldata.BaseNode.BasenodeID);
-			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(celldata.BaseNode.House, key), 2);
-			const auto& ID = atoms[0];
-			int X = atoi(atoms[2]);
-			int Y = atoi(atoms[1]);
+		const auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex
+		(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y)];
 
-			if (X == CIsoViewExt::CurrentDrawCellLocation.X && Y == CIsoViewExt::CurrentDrawCellLocation.Y)
+		if (cellExt.BaseNodes.empty())
+			return 0x472F33;
+
+		GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
+		GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
+		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+		REF_STACK(CellData, celldata, STACK_OFFS(0xD18, 0xC60));
+
+		auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+		DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+		for (const auto& node : cellExt.BaseNodes)
+		{
+			if (std::find(DrawnBaseNodes.begin(), DrawnBaseNodes.end(), node) == DrawnBaseNodes.end())
 			{
+				DrawnBaseNodes.push_back(node);
+
+				int X = node.X;
+				int Y = node.Y;
+				CIsoView::MapCoord2ScreenCoord(X, Y);
+				X -= DrawOffsetX;
+				Y -= DrawOffsetY;
+
 				if (CIsoViewExt::DrawBasenodesFilter && CViewObjectsExt::BuildingBrushDlgBNF)
 				{
 					const auto& filter = CViewObjectsExt::ObjectFilterBN;
-					auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, ppmfc::CString& dst)
+					auto CheckValue = [&](int nCheckBoxIdx, ppmfc::CString& src, const ppmfc::CString& dst)
 						{
 							if (CViewObjectsExt::BuildingBrushBoolsBNF[nCheckBoxIdx - 1300])
 							{
@@ -1226,37 +1242,27 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 							}
 							return true;
 						};
-					if (std::find(filter.begin(), filter.end(), ID) != filter.end())
+					if (std::find(filter.begin(), filter.end(), node.ID) != filter.end())
 					{
-						if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, celldata.BaseNode.House))
-							return 0x472F33;
+						if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, node.House))
+							continue;
 					}
 					else
 					{
-						return 0x472F33;
+						continue;
 					}
 				}
-	
-				GET_STACK(float, DrawOffsetX, STACK_OFFS(0xD18, 0xCB0));
-				GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
-				LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-				auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
-				auto color = Miscs::GetColorRef(celldata.BaseNode.House);
-				DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
-				CIsoView::MapCoord2ScreenCoord(X, Y);
-				X -= DrawOffsetX;
-				Y -= DrawOffsetY;
-
-				const auto& imageName = CLoadingExt::GetBuildingImageName(ID, 0, 0);
+				const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+				auto color = Miscs::GetColorRef(node.House);
 
-				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(ID))
+				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(node.ID))
 				{
-					CLoading::Instance->LoadObjects(ID);
+					CLoading::Instance->LoadObjects(node.ID);
 				}
 				if (CFinalSunApp::Instance->ShowBuildingCells || celldata.Structure != -1)
 				{
-					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(ID);
+					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(node.ID);
 					const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 					if (DataExt.IsCustomFoundation())
 					{
@@ -1272,8 +1278,15 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 
 				if (pData && pData->pImageBuffer)
 				{
+					int addonColor = -1;
+					if (CViewObjectsExt::MoveBaseNode_SelectedObj.X == CIsoViewExt::CurrentDrawCellLocation.X
+						&& CViewObjectsExt::MoveBaseNode_SelectedObj.Y == CIsoViewExt::CurrentDrawCellLocation.Y
+						&& node.ID == CViewObjectsExt::MoveBaseNode_SelectedObj.ID
+						&& node.House == CViewObjectsExt::MoveBaseNode_SelectedObj.House)
+						addonColor = RGB(255, 0, 0);
+
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128, color);
+						X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128, color, addonColor);
 				}
 			}
 		}

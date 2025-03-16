@@ -38,8 +38,6 @@ public:
 
 };
 
-
-
 class ConnectedTiles
 {
     public:
@@ -131,6 +129,15 @@ struct ConnectedTileInfo
     int Index;
     bool Front;
 };
+struct MoveBaseNode
+{
+    ppmfc::CString House;
+    ppmfc::CString Key;
+    ppmfc::CString ID;
+    int X = -1;
+    int Y = -1;
+};
+
 class CViewObjectsExt : public CViewObjects
 {
 public:
@@ -164,7 +171,7 @@ public:
     };
     
     enum {
-        MoveUp = 0, MoveDown
+        MoveUp = 0, MoveDown, Move
     };
 
     enum {
@@ -331,6 +338,7 @@ public:
     static int PlacingRandomAircraft;
     static bool PlacingRandomRandomFacing;
     static bool PlacingRandomStructureAIRepairs;
+    static MoveBaseNode MoveBaseNode_SelectedObj;
 
     static std::unique_ptr<CPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CPropertyInfantry> InfantryBrushDlg;
@@ -361,6 +369,7 @@ public:
     static void PlaceConnectedTile_OnLButtonDown(int X, int Y);
     static void ConnectedTile_Initialize();
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
+    static void MoveBaseNodeOrder(int X, int Y);
     static void MoveBaseNode(int X, int Y);
     static void ModifyOre(int X, int Y);
     static void BatchAddMultiSelection(int X, int Y, bool add);

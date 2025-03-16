@@ -90,6 +90,7 @@ int CViewObjectsExt::PlacingRandomStructure;
 int CViewObjectsExt::PlacingRandomAircraft;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
+MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
@@ -1256,6 +1257,7 @@ void CViewObjectsExt::Redraw_Basenode()
 
     this->InsertTranslatedString("NodeMoveUP", Const_BaseNode + MoveUp, hBasenode);
     this->InsertTranslatedString("NodeMoveDown", Const_BaseNode + MoveDown, hBasenode);
+    this->InsertTranslatedString("NodeMove", Const_BaseNode + Move, hBasenode);
 
 }
 
@@ -1577,66 +1579,28 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
     }
 }
 
-void CViewObjectsExt::MoveBaseNode(int X, int Y)
+void CViewObjectsExt::MoveBaseNodeOrder(int X, int Y)
 {
-    ppmfc::CString targetHouse;
-    int targetIndex = -1;
-    int exchangeIndex = -1;
-
     auto& ini = CMapData::Instance->INI;
-    if (auto pSection = ini.GetSection("Houses"))
-    {
-        for (auto pair : pSection->GetEntities())
-        {
-            if (targetIndex > -1)
-                break;
+    auto cell = CMapData::Instance->GetCellAt(X, Y);
+    int exchangeIndex = -1;
+    int targetIndex = -1;
 
-            int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
-            if (nodeCount > 0)
-            {
-                for (int i = 0; i < nodeCount; i++)
-                {
-                    if (targetIndex > -1)
-                        break;
-
-                    char key[10];
-                    sprintf(key, "%03d", i);
-                    auto value = ini.GetString(pair.second, key, "");
-                    if (value == "")
-                        continue;
-                    auto atoms = STDHelpers::SplitString(value);
-                    if (atoms.size() < 3)
-                        continue;
-
-                    auto size = CViewObjectsExt::GetStructureSize(atoms[0]);
-                    for (int w = 0; w < size[0]; w++)
-                    {
-                        if (targetIndex > -1)
-                            break;
-                        for (int h = 0; h < size[1]; h++)
-                        {
-                            if (atoi(atoms[1]) + w == Y && atoi(atoms[2]) + h == X)
-                            {
-                                targetIndex = i;
-                                targetHouse = pair.second;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (targetIndex == -1)
+    if (cell->BaseNode.BasenodeID < 0)
         return;
+
+    char key[10];
+    sprintf(key, "%03d", cell->BaseNode.BasenodeID);
+    auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
+    const auto& ID = atoms[0];
+    targetIndex = cell->BaseNode.BasenodeID;
 
     if (CIsoView::CurrentCommand->Type == MoveUp)
     {
         exchangeIndex = targetIndex - 1;
         char key[10];
         sprintf(key, "%03d", exchangeIndex);
-        auto value = ini.GetString(targetHouse, key, "");
+        auto value = ini.GetString(cell->BaseNode.House, key, "");
         if (value == "")
             return;
     }
@@ -1645,7 +1609,7 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
         exchangeIndex = targetIndex + 1;
         char key[10];
         sprintf(key, "%03d", exchangeIndex);
-        auto value = ini.GetString(targetHouse, key, "");
+        auto value = ini.GetString(cell->BaseNode.House, key, "");
         if (value == "")
             return;
     }
@@ -1654,13 +1618,58 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
     sprintf(targetBuffer, "%03d", targetIndex);
     sprintf(exchangeBuffer, "%03d", exchangeIndex);
 
-    auto targetValue = ini.GetString(targetHouse, targetBuffer, "");
-    auto exchangeValue = ini.GetString(targetHouse, exchangeBuffer, "");
+    auto targetValue = ini.GetString(cell->BaseNode.House, targetBuffer, "");
+    auto exchangeValue = ini.GetString(cell->BaseNode.House, exchangeBuffer, "");
 
-    ini.WriteString(targetHouse, targetBuffer, exchangeValue);
-    ini.WriteString(targetHouse, exchangeBuffer, targetValue);
-
+    ini.WriteString(cell->BaseNode.House, targetBuffer, exchangeValue);
+    ini.WriteString(cell->BaseNode.House, exchangeBuffer, targetValue);
+    CMapData::Instance->UpdateFieldBasenodeData(false);
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+
+void CViewObjectsExt::MoveBaseNode(int X, int Y)
+{
+    if (CIsoView::CurrentCommand->Type != Move)
+        return;
+
+    auto& ini = CMapData::Instance->INI;
+    auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+    if (MoveBaseNode_SelectedObj.X < 0)
+    {
+        if (cell->BaseNode.BasenodeID < 0)
+            return;
+
+        char key[10];
+        sprintf(key, "%03d", cell->BaseNode.BasenodeID);
+        auto&& atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(cell->BaseNode.House, key), 2);
+        const auto& ID = atoms[0];
+        int bnX = atoi(atoms[2]);
+        int bnY = atoi(atoms[1]);
+
+        MoveBaseNode_SelectedObj.House = cell->BaseNode.House;
+        MoveBaseNode_SelectedObj.ID = ID;
+        MoveBaseNode_SelectedObj.Key = key;
+        MoveBaseNode_SelectedObj.X = bnX;
+        MoveBaseNode_SelectedObj.Y = bnY;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        return;
+    }
+    else
+    {
+        ppmfc::CString value;
+        value.Format("%s,%d,%d", MoveBaseNode_SelectedObj.ID, Y, X);
+        ini.WriteString(MoveBaseNode_SelectedObj.House, MoveBaseNode_SelectedObj.Key, value);
+        MoveBaseNode_SelectedObj.House = "";
+        MoveBaseNode_SelectedObj.ID = "";
+        MoveBaseNode_SelectedObj.Key = "";
+        MoveBaseNode_SelectedObj.X = -1;
+        MoveBaseNode_SelectedObj.Y = -1;
+        CMapData::Instance->UpdateFieldBasenodeData(false);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        return;
+    }
 }
 
 
@@ -2552,6 +2561,12 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1A; // BaseNode
             CIsoView::CurrentCommand->Type = MoveDown;
+            return true;
+        }
+        if (nData == Move)
+        {
+            CIsoView::CurrentCommand->Command = 0x1A; // BaseNode
+            CIsoView::CurrentCommand->Type = Move;
             return true;
         }
     }

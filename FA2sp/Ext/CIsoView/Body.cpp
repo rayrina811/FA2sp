@@ -2054,7 +2054,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 }
 
 void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor, int addOnColor)
 {
     if (alpha == 0) return;
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
@@ -2129,6 +2129,15 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         }
     }
 
+    BGRStruct addOn = { 0,0,0 };
+    if (addOnColor > -1)
+    {
+        auto pRGB = (ColorStruct*)&addOnColor;
+        addOn.R = pRGB->red;
+        addOn.G = pRGB->green;
+        addOn.B = pRGB->blue;
+    }
+
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
 
     for (e = srcRect.top; e < srcRect.bottom; e++) {
@@ -2156,6 +2165,12 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
                 if (dest >= dst) {
                     BGRStruct c = newPal->Data[val];
                     if (dest + bpp < surfaceEnd) {
+                        if (addOnColor > -1)
+                        {
+                            c.B = (c.B + addOn.B) / 2;
+                            c.G = (c.G + addOn.G) / 2;
+                            c.R = (c.R + addOn.R) / 2;
+                        }
                         if (alpha < 255)
                         {
                             BGRStruct oriColor;

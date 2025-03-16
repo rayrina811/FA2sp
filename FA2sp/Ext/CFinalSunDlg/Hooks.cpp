@@ -527,6 +527,16 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CTerrainGenerator::RangeSecondCell.Y = -1;
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
+    }  
+    else if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
+        CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
+        CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
+        CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
+        CViewObjectsExt::MoveBaseNode_SelectedObj.X = -1;
+        CViewObjectsExt::MoveBaseNode_SelectedObj.Y = -1;
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
     return 0x45EBC5;

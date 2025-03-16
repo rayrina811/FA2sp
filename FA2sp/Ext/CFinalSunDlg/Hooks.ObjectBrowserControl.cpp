@@ -558,9 +558,16 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     }
     else if (CIsoView::CurrentCommand->Command == 0x1A)
     {
-        CViewObjectsExt::MoveBaseNode(X, Y);
-
-        return 0x466860;
+        if (CIsoView::CurrentCommand->Type == 0 || CIsoView::CurrentCommand->Type == 1)
+        {
+            CViewObjectsExt::MoveBaseNodeOrder(X, Y);
+            return 0x466860;
+        }
+        else if (CIsoView::CurrentCommand->Type == 2)
+        {
+            CViewObjectsExt::MoveBaseNode(X, Y);
+            return 0x466860;
+        }
     }
     else if (CIsoView::CurrentCommand->Command == 0x1E)
     {
@@ -623,9 +630,11 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     }        
     else if (CIsoView::CurrentCommand->Command == 0x1A)
     {
-        CViewObjectsExt::MoveBaseNode(X, Y);
-        
-        return 0x45CD6D;
+        if (CIsoView::CurrentCommand->Type == 0 || CIsoView::CurrentCommand->Type == 1)
+        {
+            CViewObjectsExt::MoveBaseNodeOrder(X, Y);
+            return 0x45CD6D;
+        }
     }         
     else if (CIsoView::CurrentCommand->Command == 0x20)
     {

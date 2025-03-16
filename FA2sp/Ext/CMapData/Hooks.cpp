@@ -1235,6 +1235,78 @@ DEFINE_HOOK(4A7CB0, CMapData_DeleteWaypoints, 7)
 	return 0x4A847F;
 }
 
+DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
+{
+	GET_STACK(BOOL, bSave, 0x4);
+	if (bSave == FALSE)
+	{
+		auto& mapData = CMapData::Instance;
+		for (int i = 0; i < mapData->CellDataCount; i++)
+		{
+			mapData->CellDatas[i].BaseNode.BuildingID = -1;
+			mapData->CellDatas[i].BaseNode.BasenodeID = -1;
+			mapData->CellDatas[i].BaseNode.House = "";
+			CMapDataExt::CellDataExts[i].BaseNodes.clear();
+		}
+
+		if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+		{
+			for (const auto& [key, house] : pSection->GetEntities())
+			{
+				if (auto pHouse = CINI::CurrentDocument->GetSection(house))
+				{
+					for (int j = 0; j < pHouse->GetInteger("NodeCount"); ++j)
+					{
+						char key[10];
+						sprintf(key, "%03d", j);
+						auto&& atoms = STDHelpers::SplitString(pHouse->GetString(key), 2);
+						const auto& ID = atoms[0];
+						int bnX = atoi(atoms[2]);
+						int bnY = atoi(atoms[1]);
+
+						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(ID);
+						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+						if (!DataExt.IsCustomFoundation())
+						{
+							for (int dy = 0; dy < DataExt.Width; ++dy)
+							{
+								for (int dx = 0; dx < DataExt.Height; ++dx)
+								{
+									if (!mapData->IsCoordInMap(bnX + dx, bnY + dy))
+										continue;
+									int pos = mapData->GetCoordIndex(bnX + dx, bnY + dy);
+									auto& cellExt = CMapDataExt::CellDataExts[pos];
+									auto cell = mapData->TryGetCellAt(pos);
+									cell->BaseNode.BuildingID = BuildingIndex;
+									cell->BaseNode.BasenodeID = j;
+									cell->BaseNode.House = house;
+									cellExt.BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
+								}
+							}
+						}
+						else
+						{
+							for (const auto& block : *DataExt.Foundations)
+							{
+								if (!mapData->IsCoordInMap(bnX + block.X, bnY + block.Y))
+									continue;
+								int pos = mapData->GetCoordIndex(bnX + block.X, bnY + block.Y);
+								auto& cellExt = CMapDataExt::CellDataExts[pos];
+								auto cell = mapData->TryGetCellAt(pos);
+								cell->BaseNode.BuildingID = BuildingIndex;
+								cell->BaseNode.BasenodeID = j;
+								cell->BaseNode.House = house;
+								cellExt.BaseNodes.push_back({ BuildingIndex , j, house, bnX, bnY, ID });
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0x4A781E;
+}
+
 DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 {
 	GET_STACK(unsigned char, Overlay, STACK_OFFS(0x78, 0x20));
