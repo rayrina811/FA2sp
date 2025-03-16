@@ -114,9 +114,32 @@ namespace LuaFunctions
 			{17, MB_ABORTRETRYIGNORE | MB_ICONERROR} // Abort/Retry/Ignore buttons with Error icon
 		};
 
+		static const std::unordered_map<int, std::vector<int>> returnValueMap = {
+			{MB_OK,                  {IDOK}},                     // OK -> [0]
+			{MB_OKCANCEL,            {IDOK, IDCANCEL}},           // OK/Cancel -> [0,1]
+			{MB_YESNO,               {IDYES, IDNO}},              // Yes/No -> [0,1]
+			{MB_YESNOCANCEL,         {IDYES, IDNO, IDCANCEL}},    // Yes/No/Cancel -> [0,1,2]
+			{MB_RETRYCANCEL,         {IDRETRY, IDCANCEL}},        // Retry/Cancel -> [0,1]
+			{MB_ABORTRETRYIGNORE,    {IDABORT, IDRETRY, IDIGNORE}}, // Abort/Retry/Ignore -> [0,1,2]
+			{MB_CANCELTRYCONTINUE,   {IDCANCEL, IDTRYAGAIN, IDCONTINUE}} // Cancel/Try Again/Continue -> [0,1,2]
+		};
+
 		auto it = formatMap.find(format);
 		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
-		return MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), text.c_str(), title.c_str(), style);
+
+		int result = MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), text.c_str(), title.c_str(), style);
+
+		auto returnIt = returnValueMap.find(style & ~(MB_ICONMASK));
+		if (returnIt != returnValueMap.end()) {
+			const std::vector<int>& buttons = returnIt->second;
+			for (size_t i = 0; i < buttons.size(); ++i) {
+				if (result == buttons[i]) {
+					return static_cast<int>(i);
+				}
+			}
+		}
+
+		return -1;
 	}
 
 	struct TimePoint {
@@ -649,27 +672,31 @@ namespace LuaFunctions
 	public:
 		bool IsHidden() const
 		{
-			return IsHiddenCell || (*CTileTypeClass::Instance)[TileIndex == 0xFFFF ? 0 : TileIndex].IsHidden;
+			return (CMapData::Instance->GetCellAt(X, Y)->IsHidden());
+		}
+		bool IsMultiSelected() const
+		{
+			return MultiSelection::IsSelected(X, Y);
 		}
 
 		void apply() const
 		{
 			auto pCell = CMapData::Instance->GetCellAt(this->X, this->Y);
-			pCell->Unit = this->Unit;
-			pCell->Infantry[0] = this->Infantry[0];
-			pCell->Infantry[1] = this->Infantry[1];
-			pCell->Infantry[2] = this->Infantry[2];
-			pCell->Aircraft = this->Aircraft;
-			pCell->Structure = this->Structure;
-			pCell->TypeListIndex = this->TypeListIndex;
-			pCell->Terrain = this->Terrain;
-			pCell->TerrainType = this->TerrainType;
-			pCell->Smudge = this->Smudge;
-			pCell->SmudgeType = this->SmudgeType;
-			pCell->Waypoint = this->Waypoint;
-			pCell->BaseNode.BuildingID = this->BuildingID;
-			pCell->BaseNode.BasenodeID = this->BasenodeID;
-			pCell->BaseNode.House = this->House.c_str();
+			//pCell->Unit = this->Unit;
+			//pCell->Infantry[0] = this->Infantry[0];
+			//pCell->Infantry[1] = this->Infantry[1];
+			//pCell->Infantry[2] = this->Infantry[2];
+			//pCell->Aircraft = this->Aircraft;
+			//pCell->Structure = this->Structure;
+			//pCell->TypeListIndex = this->TypeListIndex;
+			//pCell->Terrain = this->Terrain;
+			//pCell->TerrainType = this->TerrainType;
+			//pCell->Smudge = this->Smudge;
+			//pCell->SmudgeType = this->SmudgeType;
+			//pCell->Waypoint = this->Waypoint;
+			//pCell->BaseNode.BuildingID = this->BuildingID;
+			//pCell->BaseNode.BasenodeID = this->BasenodeID;
+			//pCell->BaseNode.House = this->House.c_str();
 			if (pCell->Overlay != this->Overlay || pCell->OverlayData != this->OverlayData)
 			{
 				int olyPos = this->Y + this->X * 512;
@@ -683,19 +710,19 @@ namespace LuaFunctions
 			pCell->Overlay = this->Overlay;
 			pCell->OverlayData = this->OverlayData;
 			pCell->TileIndex = this->TileIndex;
-			pCell->TileIndexHiPart = this->TileIndexHiPart;
+			//pCell->TileIndexHiPart = this->TileIndexHiPart;
 			pCell->TileSubIndex = this->TileSubIndex;
 			pCell->Height = this->Height;
-			pCell->IceGrowth = this->IceGrowth;
-			pCell->CellTag = this->CellTag;
-			pCell->Tube = this->Tube;
-			pCell->TubeDataIndex = this->TubeDataIndex;
-			pCell->StatusFlag = this->StatusFlag;
-			pCell->Flag.NotAValidCell = this->NotAValidCell;
+			//pCell->IceGrowth = this->IceGrowth;
+			//pCell->CellTag = this->CellTag;
+			//pCell->Tube = this->Tube;
+			//pCell->TubeDataIndex = this->TubeDataIndex;
+			//pCell->StatusFlag = this->StatusFlag;
+			//pCell->Flag.NotAValidCell = this->NotAValidCell;
 			pCell->Flag.IsHiddenCell = this->IsHiddenCell;
-			pCell->Flag.RedrawTerrain = this->RedrawTerrain;
-			pCell->Flag.CliffHack = this->CliffHack;
-			pCell->Flag.AltIndex = this->AltIndex;
+			//pCell->Flag.RedrawTerrain = this->RedrawTerrain;
+			//pCell->Flag.CliffHack = this->CliffHack;
+			//pCell->Flag.AltIndex = this->AltIndex;
 			CMapData::Instance->UpdateMapPreviewAt(this->X, this->Y);
 			CLuaConsole::needRedraw = true;
 		}
@@ -733,6 +760,8 @@ namespace LuaFunctions
 		bool RedrawTerrain;
 		bool CliffHack;
 		char AltIndex;
+
+
 	};
 
 	class tile 
@@ -745,6 +774,11 @@ namespace LuaFunctions
 		short AltCount;
 		short RelativeX;
 		short RelativeY;
+
+		short TileSet;
+		short RampType;
+		std::string LandType;
+
 		static tile get_tile_block(int tileIdx, int tileSubIdx)
 		{
 			tile ret{};
@@ -763,10 +797,46 @@ namespace LuaFunctions
 			ret.Height = tileBlock.Height;
 			ret.RelativeY = tileSubIdx % tileData.Width;
 			ret.RelativeX = tileSubIdx / tileData.Width;
+			ret.TileSet = tileData.TileSet;
+			ret.RampType = tileBlock.RampType;
+
+			if (tileBlock.TerrainType == 0x0)
+				ret.LandType = "clear";
+			else if (tileBlock.TerrainType == 0xd)
+				ret.LandType = "clear";
+			else if (tileBlock.TerrainType == 0xb)
+				ret.LandType = "road";
+			else if (tileBlock.TerrainType == 0xc)
+				ret.LandType = "road";
+			else if (tileBlock.TerrainType == 0x9)
+				ret.LandType = "water";
+			else if (tileBlock.TerrainType == 0x7)
+				ret.LandType = "rock";
+			else if (tileBlock.TerrainType == 0x8)
+				ret.LandType = "rock";
+			else if (tileBlock.TerrainType == 0xf)
+				ret.LandType = "rock";
+			else if (tileBlock.TerrainType == 0xa)
+				ret.LandType = "beach";
+			else if (tileBlock.TerrainType == 0xe)
+				ret.LandType = "rough";
+			else if (tileBlock.TerrainType == 0x1)
+				ret.LandType = "ice";
+			else if (tileBlock.TerrainType == 0x2)
+				ret.LandType = "ice";
+			else if (tileBlock.TerrainType == 0x3)
+				ret.LandType = "ice";
+			else if (tileBlock.TerrainType == 0x4)
+				ret.LandType = "ice";
+			else if (tileBlock.TerrainType == 0x6)
+				ret.LandType = "railroad";
+			else if (tileBlock.TerrainType == 0x5)
+				ret.LandType = "tunnel";
+
 			ret.Valid = true;
 			return ret;
 		}
-		static std::vector<tile> get_tile_data(int tileIdx)
+		static std::vector<tile> get_whole_tile(int tileIdx)
 		{
 			std::vector<tile> ret;
 			if (tileIdx > CMapDataExt::TileDataCount)
@@ -1187,6 +1257,47 @@ namespace LuaFunctions
 		int pos = CMapData::Instance->GetCoordIndex(x, y);
 		CMapData::Instance->SetOverlayAt(pos, 255);
 		CMapData::Instance->SetOverlayDataAt(pos, 0);
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void smooth_ore(int Y1, int X1, int Y2, int X2)
+	{
+		int x1, x2, y1, y2;
+		if (Y1 == 0 && Y1 == X1 && X1 == Y2 && Y2 == X2)
+		{
+			x1 = 0;
+			y1 = 0;
+			x2 = CMapData::Instance->MapWidthPlusHeight;
+			y2 = CMapData::Instance->MapWidthPlusHeight;
+		}
+		else
+		{
+			if (X1 < X2) {
+				x1 = X1;
+				x2 = X2;
+			}
+			else {
+				x2 = X1;
+				x1 = X2;
+			}
+			if (Y1 < Y2) {
+				y1 = Y1;
+				y2 = Y2;
+			}
+			else {
+				y2 = Y1;
+				y1 = Y2;
+			}
+		}
+		for (int x = x1; x < x2; ++x)
+		{
+			for (int y = y1; y < y2; ++y)
+			{
+				if (!CMapData::Instance->IsCoordInMap(x, y))
+					continue;
+				CMapData::Instance->SmoothTiberium(CMapData::Instance->GetCoordIndex(x, y));
+			}
+		}	
 		CLuaConsole::needRedraw = true;
 	}
 
@@ -1931,7 +2042,41 @@ namespace LuaFunctions
 			{
 				if (CMapData::Instance->IsCoordInMap(x, y))
 				{
-					ret.push_back(get_cell(x, y));
+					ret.push_back(get_cell(y, x));
+				}
+			}
+		}
+		return ret;
+	}
+
+	static std::vector<cell> get_multi_selected_cells()
+	{
+		std::vector<cell> ret;
+		for (int x = 0; x < CMapData::Instance->MapWidthPlusHeight; ++x)
+		{
+			for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; ++y)
+			{
+				if (CMapData::Instance->IsCoordInMap(x, y))
+				{
+					if (MultiSelection::IsSelected(x, y))
+						ret.push_back(get_cell(y, x));
+				}
+			}
+		}
+		return ret;
+	}
+
+	static std::vector<cell> get_hidden_cells()
+	{
+		std::vector<cell> ret;
+		for (int x = 0; x < CMapData::Instance->MapWidthPlusHeight; ++x)
+		{
+			for (int y = 0; y < CMapData::Instance->MapWidthPlusHeight; ++y)
+			{
+				if (CMapData::Instance->IsCoordInMap(x, y))
+				{
+					if (CMapData::Instance->GetCellAt(x, y)->IsHidden())
+						ret.push_back(get_cell(y, x));
 				}
 			}
 		}
@@ -2001,7 +2146,6 @@ namespace LuaFunctions
 		}
 	}
 	
-
 	static void multi_select_tile(int y, int x, int type = 0)
 	{
 		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
@@ -2040,6 +2184,87 @@ namespace LuaFunctions
 			}
 			CLuaConsole::needRedraw = true;
 		}
+	}
+
+	static void create_shore(int Y1, int X1, int Y2, int X2)
+	{
+		int x1, x2, y1, y2;
+		if (X1 < X2) {
+			x1 = X1;
+			x2 = X2;
+		}
+		else {
+			x2 = X1;
+			x1 = X2;
+		}
+		if (Y1 < Y2) {
+			y1 = Y1;
+			y2 = Y2;
+		}
+		else {
+			y2 = Y1;
+			y1 = Y2;
+		}
+		CMapData::Instance->CreateShore(x1, y1, x2, y2);
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void smooth_lat(int Y1, int X1, int Y2, int X2)
+	{
+		int x1, x2, y1, y2;
+		if (X1 < X2) {
+			x1 = X1;
+			x2 = X2;
+		}
+		else {
+			x2 = X1;
+			x1 = X2;
+		}
+		if (Y1 < Y2) {
+			y1 = Y1;
+			y2 = Y2;
+		}
+		else {
+			y2 = Y1;
+			y1 = Y2;
+		}
+		for (int x = x1; x < x2; ++x)
+		{
+			for (int y = y1; y < y2; ++y)
+			{
+				CMapDataExt::SmoothTileAt(x, y);
+			}
+		}
+		CLuaConsole::needRedraw = true;
+	}
+
+	static void create_slope(int Y1, int X1, int Y2, int X2)
+	{
+		int x1, x2, y1, y2;
+		if (X1 < X2) {
+			x1 = X1;
+			x2 = X2;
+		}
+		else {
+			x2 = X1;
+			x1 = X2;
+		}
+		if (Y1 < Y2) {
+			y1 = Y1;
+			y2 = Y2;
+		}
+		else {
+			y2 = Y1;
+			y1 = Y2;
+		}
+		for (int x = x1; x < x2; ++x)
+		{
+			for (int y = y1; y < y2; ++y)
+			{
+				CMapDataExt::CreateSlopeAt(x, y);
+			}
+		}
+		CLuaConsole::needRedraw = true;
 	}
 
 	static void update_minimap(int Y = -1, int X = -1)
@@ -2178,6 +2403,17 @@ namespace LuaFunctions
 	static void clear_snapshot()
 	{
 		snapshots.clear();
+	}
+
+	static void save_undo()
+	{
+		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+	}
+
+	static void save_undo_redo()
+	{
+		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+		CMapData::Instance->DoUndo();
 	}
 
 	static void redraw_window()

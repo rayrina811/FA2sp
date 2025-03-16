@@ -220,6 +220,7 @@ public:
     static void UpdateFieldStructureData_Optimized(int ID, bool isLamp = false);
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
+    static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false);
     static void SmoothWater();
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);

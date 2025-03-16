@@ -204,6 +204,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         place_overlay(y, x, overlay, overlayData.value());
         });
     Lua.set_function("remove_overlay", remove_overlay);
+    Lua.set_function("smooth_ore", smooth_ore);
     Lua.set_function("place_wall", place_wall);
     Lua.set_function("place_waypoint", [](int y, int x, sol::optional<int> index) {
         if (!index) {
@@ -363,38 +364,39 @@ void CLuaConsole::Initialize(HWND& hWnd)
     // tiles
     Lua.new_usertype<cell>("cell",
         // use game coord
-        "x", &cell::Y,
-        "y", &cell::X,
-        "unit", &cell::Unit,
-        "infantry", &cell::Infantry,
-        "aircraft", &cell::Aircraft,
-        "building", &cell::Structure,
+        "x", sol::readonly(&cell::Y),
+        "y", sol::readonly(&cell::X),
+        "unit", sol::readonly(&cell::Unit),
+        "infantry", sol::readonly(&cell::Infantry),
+        "aircraft", sol::readonly(&cell::Aircraft),
+        "building", sol::readonly(&cell::Structure),
         //"TypeListIndex", &cell::TypeListIndex,
-        "terrain", &cell::Terrain,
-        "terrain_type", &cell::TerrainType,
-        "smudge", &cell::Smudge,
-        "smudge_type", &cell::SmudgeType,
-        "waypoint", &cell::Waypoint,
-        "node_building", &cell::BuildingID,
-        "node_id", &cell::BasenodeID,
-        "node_house", &cell::House,
+        "terrain", sol::readonly(&cell::Terrain),
+        "terrain_type", sol::readonly(&cell::TerrainType),
+        "smudge", sol::readonly(&cell::Smudge),
+        "smudge_type", sol::readonly(&cell::SmudgeType),
+        "waypoint", sol::readonly(&cell::Waypoint),
+        "node_building", sol::readonly(&cell::BuildingID),
+        "node_id", sol::readonly(&cell::BasenodeID),
+        "node_house", sol::readonly(&cell::House),
         "overlay", &cell::Overlay,
         "overlay_data", &cell::OverlayData,
         "tile", &cell::TileIndex,
-        "TileIndexHiPart", &cell::TileIndexHiPart,
+        //"TileIndexHiPart", &cell::TileIndexHiPart,
         "subtile", &cell::TileSubIndex,
         "height", &cell::Height,
         //"IceGrowth", &cell::IceGrowth,
-        "cell_tag", &cell::CellTag,
-        "tube", &cell::Tube,
-        "tube_data", &cell::TubeDataIndex,
+        "cell_tag", sol::readonly(&cell::CellTag),
+        "tube", sol::readonly(&cell::Tube),
+        "tube_data", sol::readonly(&cell::TubeDataIndex),
         //"StatusFlag", &cell::StatusFlag,
         //"NotAValidCell", &cell::NotAValidCell,
         "hidden", &cell::IsHiddenCell,
         //"RedrawTerrain", &cell::RedrawTerrain,
         //"CliffHack", &cell::CliffHack,
-        "alt_image", &cell::AltIndex,
+        "alt_image", sol::readonly(&cell::AltIndex),
         "is_hidden", &cell::IsHidden,
+        "is_multi_selected", &cell::IsMultiSelected,
         "apply", &cell::apply
     );
     Lua["cell"]["new"] = []() {
@@ -403,6 +405,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         };
     Lua.set_function("get_cell", get_cell);
     Lua.set_function("get_cells", get_cells);
+    Lua.set_function("get_multi_selected_cells", get_multi_selected_cells);
+    Lua.set_function("get_hidden_cells", get_hidden_cells);
     Lua.new_usertype<tile>("tile",
         "x", &tile::RelativeY,
         "y", &tile::RelativeX,
@@ -410,9 +414,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "tile_index", &tile::TileIndex,
         "tile_sub_index", &tile::TileSubIndex,
         "height", &tile::Height,
-        "alt_count", &tile::AltCount
+        "alt_count", &tile::AltCount,
+        "tile_set", &tile::TileSet,
+        "ramp_type", &tile::RampType,
+        "land_type", &tile::LandType
     );
-    Lua.set_function("get_tile_data", tile::get_tile_data);
+    Lua["tile"]["new"] = []() {
+        write_lua_console("Creation of tile instances is forbidden.");
+        return sol::nil;
+        };
+    Lua.set_function("get_tile_block", tile::get_tile_block);
+    Lua.set_function("get_whole_tile", tile::get_whole_tile);
     Lua.set_function("place_whole_tile", place_whole_tile);
     Lua.set_function("place_tile", [](int y, int x, tile tile, sol::optional<int> height, sol::optional<int> altType) {
         if (!height) {
@@ -424,7 +436,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         place_tile(y, x, tile, height.value(), altType.value());
         });
     Lua.set_function("set_height", set_height);
-    Lua.set_function("hide_tile", [](int y, int x, sol::optional<int> type) {
+    Lua.set_function("hide_cell", [](int y, int x, sol::optional<int> type) {
         if (!type) {
             type = 0;
         }
@@ -436,7 +448,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         hide_tile_set(index, type.value());
         });
-    Lua.set_function("multi_select_tile", [](int y, int x, sol::optional<int> type) {
+    Lua.set_function("multi_select_cell", [](int y, int x, sol::optional<int> type) {
         if (!type) {
             type = 0;
         }
@@ -448,6 +460,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         multi_select_tile_set(index, type.value());
         });
+    Lua.set_function("create_shore", create_shore);
+    Lua.set_function("smooth_lat", smooth_lat);
+    Lua.set_function("create_slope", create_slope);
 
     // ini options
     Lua.set_function("get_string", [](std::string section, std::string key, sol::optional<std::string> def, sol::optional<std::string> loadFrom) {
@@ -568,6 +583,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("create_snapshot", create_snapshot);
     Lua.set_function("restore_snapshot", restore_snapshot);
     Lua.set_function("clear_snapshot", clear_snapshot);
+    Lua.set_function("save_undo", save_undo);
+    Lua.set_function("save_undo_redo", save_undo_redo);
 
     // triggers & teams
     Lua.new_usertype<tag>("tag",

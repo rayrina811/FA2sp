@@ -1039,7 +1039,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 	return 0;
 }
 
-DEFINE_HOOK(4B9F7A, CMapData_CreateMap_InitializeMapDataExt, 5)
+DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 {
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
