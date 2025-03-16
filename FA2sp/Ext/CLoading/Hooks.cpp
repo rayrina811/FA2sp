@@ -152,8 +152,8 @@ DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
 			auto palName = typeData.WallPaletteName;
 			pThis->GetFullPaletteName(palName);
 			if (auto pal = PalettesManager::LoadPalette(palName)) {
-				BGRStruct empty;
-				auto lightingPal = PalettesManager::GetPalette(pal, empty);
+				BGRStruct houseColor{ 0,0,255 };
+				auto lightingPal = PalettesManager::GetPalette(pal, houseColor);
 				pDrawData.pPalette = lightingPal;
 			}
 		}
