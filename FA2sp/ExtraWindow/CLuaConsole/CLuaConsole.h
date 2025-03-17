@@ -8,6 +8,8 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Sol/sol.hpp"
 
+#define BUFFER_SIZE 800000
+
 // A static window class
 class CLuaConsole
 {
@@ -67,6 +69,8 @@ public:
     static bool updateNode;
     static bool updateMinimap;
     static bool updateTrigger;
+    static bool updateCellTag;
     static bool skipBuildingUpdate;
+    static char Buffer[BUFFER_SIZE];
 };
 

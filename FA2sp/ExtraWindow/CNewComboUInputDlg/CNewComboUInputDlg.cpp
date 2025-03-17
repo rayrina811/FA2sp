@@ -9,6 +9,7 @@ CNewComboUInputDlg::CNewComboUInputDlg(CWnd* pParent /*=NULL*/)
 {
 	m_Caption = "";
 	m_Combo = "";
+	m_ComboOri = "";
 	m_Section = "";
 	m_type = 0;
 }
@@ -106,7 +107,13 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 				box->AddString(m_ManualStrings.back());
 			}
 		}
-		
+		break;
+	case COMBOUINPUT_ALL_CUSTOM:
+		for (const auto& srt : m_CustomStrings)
+		{
+			box->AddString(srt.c_str());
+		}
+		break;
 	}
 
 	box->SetCurSel(0);
@@ -119,10 +126,8 @@ void CNewComboUInputDlg::OnOK()
 {
 	UpdateData(TRUE);
 
-	if (m_type == COMBOUINPUT_MANUAL)
-	{
-		STDHelpers::TrimIndex(m_Combo);
-	}
+	m_ComboOri = m_Combo;
+	STDHelpers::TrimIndex(m_Combo);
 
 	EndDialog(0);
 

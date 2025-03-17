@@ -21,6 +21,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "../../Miscs/MultiSelection.h"
+#include <Miscs/Miscs.h>
 
 namespace fs = std::filesystem;
 
@@ -47,12 +48,13 @@ bool CLuaConsole::updateAircraft = false;
 bool CLuaConsole::updateNode = false;
 bool CLuaConsole::updateMinimap = false;
 bool CLuaConsole::updateTrigger = false;
+bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+char CLuaConsole::Buffer[BUFFER_SIZE]{ 0 };
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
 
-#define BUFFER_SIZE 800000
-char Buffer[BUFFER_SIZE]{ 0 };
+
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -180,6 +182,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         return 0; });
     Lua.set_function("trigger_count", []() { return CINI::CurrentDocument->GetKeyCount("Triggers"); });
+    Lua.set_function("tile_count", []() { return CMapDataExt::TileDataCount; });
+    Lua.set_function("tile_set_count", []() { return CMapDataExt::TileSet_starts.size() - 1; });
     Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
     Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").m_pchData; });
     Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
@@ -187,10 +191,20 @@ void CLuaConsole::Initialize(HWND& hWnd)
     // misc functions
     Lua.set_function("print", lua_print);
     Lua.set_function("clear", clear);
-    Lua.set_function("redraw_window", redraw_window);
     Lua.set_function("avoid_time_out", avoid_time_out);
     Lua.set_function("sleep", sleep);
     Lua.set_function("message_box", message_box);
+    Lua.new_usertype<select_box>("select_box",
+        sol::constructors<select_box()>(),
+        "options", &select_box::options,
+        "caption", &select_box::caption,
+        "selected_key", &select_box::selected_key,
+        "selected_value", &select_box::selected_value,
+        "add_option", &select_box::add_option,
+        "do_modal", &select_box::do_modal
+    );
+    Lua.set_function("input_box", input_box);
+    Lua.set_function("read_input", read_input);
 
     // game objects
     Lua.set_function("place_terrain", place_terrain);
@@ -359,7 +373,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return get_building(indexY, x.value());
         });
     Lua.set_function("get_buildings", get_buildings);
+    Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
+        if (!index) {
+            index = -1;
+        }
+        return place_node(house, type, y, x, index.value());
+        });
+    Lua.set_function("remove_node", remove_node);
     Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str()).m_pchData); });
+    Lua.set_function("translate_house", [](std::string id, bool back = false) {
+        return std::string(Miscs::ParseHouseName(id.c_str(), !back).m_pchData);
+        });
 
     // tiles
     Lua.new_usertype<cell>("cell",
@@ -492,11 +516,28 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         return get_keys(section, loadFrom.value());
         });
+    Lua.set_function("get_values", [](std::string section, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        return get_values(section, loadFrom.value());
+        });
     Lua.set_function("get_key_value_pairs", [](std::string section, sol::optional<std::string> loadFrom) {
         if (!loadFrom) {
             loadFrom = "map";
         }
         auto&& result = get_key_value_pairs(section, loadFrom.value());
+        sol::table luaTable = Lua.create_table();
+        for (const auto& [key, value] : result) {
+            luaTable[key] = value;
+        }
+        return luaTable;
+        });
+    Lua.set_function("get_ordered_values", [](std::string section, sol::optional<std::string> loadFrom) {
+        if (!loadFrom) {
+            loadFrom = "map";
+        }
+        auto&& result = get_ordered_values(section, loadFrom.value());
         sol::table luaTable = Lua.create_table();
         for (const auto& [key, value] : result) {
             luaTable[key] = value;
@@ -558,6 +599,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         set_param(section, key, value, index, delimiter.value());
         });
+    Lua.set_function("trim_index", trim_index);
+    Lua.set_function("waypoint_to_string", [](std::string wp) { return STDHelpers::WaypointToString(wp.c_str()).m_pchData; });
+    Lua.set_function("string_to_waypoint", [](std::string str) { return STDHelpers::StringToWaypointStr(str.c_str()).m_pchData; });
 
     // fa2 logic
     Lua.set_function("update_building", []() {CMapData::Instance->UpdateFieldStructureData(FALSE); needRedraw = true; });
@@ -571,7 +615,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("update_tube", []() {CMapData::Instance->UpdateFieldTubeData(FALSE); needRedraw = true; });
     Lua.set_function("update_smudge", []() {CMapData::Instance->UpdateFieldSmudgeData(FALSE); needRedraw = true; });
     Lua.set_function("update_tiles", []() {CMapData::Instance->UpdateMapFieldData(FALSE); needRedraw = true; });
-
+    Lua.set_function("redraw_window", redraw_window);
     Lua.set_function("update_minimap", [](sol::optional<int> y, sol::optional<int> x) {
         if (!x || !y) {
             update_minimap();
@@ -584,7 +628,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("restore_snapshot", restore_snapshot);
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
-    Lua.set_function("save_undo_redo", save_undo_redo);
+    Lua.set_function("save_redo", save_redo);
 
     // triggers & teams
     Lua.new_usertype<tag>("tag",
@@ -620,6 +664,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_trigger", trigger::delete_trigger);
     Lua.set_function("delete_tag", trigger::delete_tag_static);
     Lua.set_function("get_trigger", trigger::get_trigger);
+    Lua.set_function("place_celltag", place_celltag);
+    Lua.set_function("remove_celltag", remove_celltag);
+    Lua.set_function("remove_celltags", remove_celltags);
 
     Update(hWnd);
 }
@@ -881,6 +928,11 @@ void CLuaConsole::OnClickRun(bool fromFile)
     {
         updateNode = false;
         CMapData::Instance->UpdateFieldBasenodeData(FALSE);
+    }
+    if (updateCellTag)
+    {
+        updateCellTag = false;
+        CMapData::Instance->UpdateFieldCelltagData(FALSE);
     }
     if (updateTrigger)
     {

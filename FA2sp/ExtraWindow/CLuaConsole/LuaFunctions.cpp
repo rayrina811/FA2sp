@@ -18,6 +18,8 @@
 #include <chrono>
 #include "../../Miscs/MultiSelection.h"
 #include <unordered_set>
+#include "../CNewComboUInputDlg/CNewComboUInputDlg.h"
+#include <CInputMessageBox.h>
 
 namespace LuaFunctions
 {
@@ -140,6 +142,71 @@ namespace LuaFunctions
 		}
 
 		return -1;
+	}
+
+	class select_box
+	{
+	public:
+		std::vector<std::pair<std::string, std::string>> options;
+		std::string caption;
+		std::string selected_key;
+		std::string selected_value;
+
+		select_box()
+		{
+
+		}
+		void add_option(std::string key, std::string value)
+		{
+			options.push_back(std::make_pair(key, value));
+		}
+		std::string do_modal()
+		{
+			CNewComboUInputDlg dlg;
+			dlg.m_type = COMBOUINPUT_ALL_CUSTOM;
+			dlg.m_Caption = caption.c_str();
+			for (const auto& [key, value] : options)
+			{
+				if (value == "")
+					dlg.m_CustomStrings.push_back(key);
+				else
+					dlg.m_CustomStrings.push_back(key + " - " + value);
+			}
+			dlg.DoModal();
+			for (const auto& [key, value] : options)
+			{
+				if (value == "")
+				{
+					if (key == dlg.m_ComboOri.m_pchData)
+					{
+						selected_key = key;
+						selected_value = value;
+						return selected_key;
+					}
+				}
+				else
+				{
+					if (key + " - " + value == dlg.m_ComboOri.m_pchData)
+					{
+						selected_key = key;
+						selected_value = value;
+						return selected_key;
+					}
+				}
+			}
+			return "";
+		}
+	};
+
+	static std::string input_box(std::string message)
+	{
+		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaInputBoxTitle", "Please enter")).m_pchData;
+	}
+	
+	static std::string read_input()
+	{
+		GetWindowText(CLuaConsole::hInputBox, CLuaConsole::Buffer, BUFFER_SIZE);
+		return CLuaConsole::Buffer;
 	}
 
 	struct TimePoint {
@@ -596,11 +663,11 @@ namespace LuaFunctions
 		}
 		void place_node(bool deleteBuilding = false) const
 		{
+			if (CMapData::Instance->IsMultiOnly())
+				return;
 			if (this->X == -1 || this->Y == -1)
 				return;
 			auto cell = CMapData::Instance->TryGetCellAt(this->X, this->Y);
-			if (cell->BaseNode.BasenodeID > 0)
-				return;
 			if (auto pHouse = CINI::CurrentDocument->GetSection(this->House.c_str()))
 			{
 				for (int i = 0; i < 1000; ++i)
@@ -1572,6 +1639,53 @@ namespace LuaFunctions
 		}
 		return ret;
 	}
+	
+	static std::vector<std::string> get_values(std::string section, std::string loadFrom = "map")
+	{
+		std::vector<std::string> ret;
+		auto endsWithIni = [](const std::string& str) {
+			size_t strLength = str.length();
+			size_t iniLength = 4;
+			if (strLength < iniLength) {
+				return false;
+			}
+
+			return (str.compare(strLength - iniLength, iniLength, ".ini") == 0);
+			};
+
+		std::transform(loadFrom.begin(), loadFrom.end(), loadFrom.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		if (endsWithIni(loadFrom))
+		{
+			CINI* ini;
+			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			{
+				ini = LoadedINIs[loadFrom.c_str()];
+			}
+			else
+			{
+				ini = GameCreate<CINI>();
+				LoadedINIs[loadFrom.c_str()] = ini;
+				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
+			}
+			if (auto pSection = ini->GetSection(section.c_str()))
+			{
+				for (auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.m_pchData);
+				}
+			}
+			return ret;
+		}
+
+		MultimapHelper mmh;
+		ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
+		for (auto& [key, value] : mmh.GetUnorderedUnionSection(section.c_str()))
+		{
+			ret.push_back(value.m_pchData);
+		}
+		return ret;
+	}
 
 	static std::vector<std::pair<std::string, std::string>> get_key_value_pairs(std::string section, std::string loadFrom = "map")
 	{
@@ -1616,6 +1730,72 @@ namespace LuaFunctions
 		for (auto& [key, value] : mmh.GetUnorderedUnionSection(section.c_str()))
 		{
 			ret.push_back(std::make_pair(key.m_pchData, value.m_pchData));
+		}
+		return ret;
+	}
+
+	static std::vector<std::pair<int, std::string>> get_ordered_values(std::string section, std::string loadFrom = "map")
+	{
+		std::vector<std::pair<int, std::string>>  ret;
+		auto endsWithIni = [](const std::string& str) {
+			size_t strLength = str.length();
+			size_t iniLength = 4;
+			if (strLength < iniLength) {
+				return false;
+			}
+
+			return (str.compare(strLength - iniLength, iniLength, ".ini") == 0);
+			};
+
+		std::transform(loadFrom.begin(), loadFrom.end(), loadFrom.begin(),
+			[](unsigned char c) { return std::tolower(c); });
+		if (endsWithIni(loadFrom))
+		{
+			CINI* ini;
+			if (LoadedINIs.find(loadFrom.c_str()) != LoadedINIs.end())
+			{
+				ini = LoadedINIs[loadFrom.c_str()];
+			}
+			else
+			{
+				ini = GameCreate<CINI>();
+				LoadedINIs[loadFrom.c_str()] = ini;
+				CLoading::Instance->LoadTSINI(loadFrom.c_str(), ini, TRUE);
+			}
+			if (auto pSection = ini->GetSection(section.c_str()))
+			{
+				std::map<int, ppmfc::CString> collector;
+
+				for (auto& pair : pSection->GetIndices())
+					collector[pair.second] = pair.first;
+
+				for (auto& pair : collector)
+				{
+					const auto& contains = pair.second;
+					const auto& value = pSection->GetEntities().find(contains)->second;
+					ret.push_back(std::make_pair(pair.first, value.m_pchData));
+				}
+			}
+		}
+		else if (loadFrom == "rules" || loadFrom == "rules+map")
+		{
+			auto& indicies = loadFrom == "rules" ? Variables::GetRulesSection(section.c_str()) : Variables::GetRulesMapSection(section.c_str());
+			int idx = 0;
+			for (auto& pair : indicies)
+			{
+				ret.push_back(std::make_pair(idx, pair.second.m_pchData));
+				idx++;
+			}
+		}
+		else
+		{
+			MultimapHelper mmh;
+			ExtraWindow::LoadFrom(mmh, loadFrom.c_str());
+			auto&& entries = mmh.ParseIndicies(section.c_str(), true);
+			for (size_t i = 0, sz = entries.size(); i < sz; i++)
+			{
+				ret.push_back(std::make_pair(i, entries[i].m_pchData));
+			}
 		}
 		return ret;
 	}
@@ -1676,6 +1856,18 @@ namespace LuaFunctions
 			}
 			write_string(section, key, fullValue);
 		}
+	}
+	
+	static std::string trim_index(std::string value)
+	{
+		char ch = ' ';
+		size_t pos = value.find(ch);
+
+		if (pos != std::string::npos) {
+			std::string result = value.substr(0, pos);
+			return result;
+		}
+		return value;
 	}
 
 	static void place_infantry(std::string house, std::string type, int y, int x)
@@ -1950,6 +2142,122 @@ namespace LuaFunctions
 			ret.push_back(get_unit(i));
 		}
 		return ret;
+	}
+
+	static void place_celltag(int y, int x, std::string id)
+	{
+		ppmfc::CString key;
+		key.Format("%d", x * 1000 + y);
+		if (CINI::CurrentDocument->KeyExists("CellTags", key))
+		{
+			write_lua_console(std::format("CellTag {} already exists at ({},{}), abort.",
+				CINI::CurrentDocument->GetString("CellTags", key).m_pchData, x, y));
+			return;
+		}
+		CINI::CurrentDocument->WriteString("CellTags", key, id.c_str());
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateCellTag = true;
+	}
+
+	static void remove_celltags(std::string id)
+	{
+		std::vector<ppmfc::CString> keys;
+		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+		{
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				if (value == id.c_str())
+					keys.push_back(key);
+			}
+		}
+		for (const auto& key : keys)
+		{
+			CINI::CurrentDocument->DeleteKey("CellTags", key);
+		}
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateCellTag = true;
+	}
+
+	static void remove_celltag(int y, int x)
+	{
+		ppmfc::CString key;
+		key.Format("%d", x * 1000 + y);
+		CINI::CurrentDocument->DeleteKey("CellTags", key);
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateCellTag = true;
+	}
+
+	static void place_node(std::string house, std::string type, int y, int x, int index = -1)
+	{
+		if (CMapData::Instance->IsMultiOnly())
+			return;
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return;
+
+		if (auto pHouse = CINI::CurrentDocument->GetSection(house.c_str()))
+		{
+			ppmfc::CString value;
+			value.Format("%s,%d,%d", type.c_str(), y, x);
+			if (index < 0)
+			{
+				for (int i = 0; i < 1000; ++i)
+				{
+					ppmfc::CString key;
+					key.Format("%03d", i);
+					if (!CINI::CurrentDocument->KeyExists(house.c_str(), key))
+					{
+						ppmfc::CString count;
+						count.Format("%d", i + 1);
+						CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
+						CINI::CurrentDocument->WriteString(house.c_str(), key, value);
+						CLuaConsole::updateNode = true;
+						CLuaConsole::needRedraw = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				std::vector<ppmfc::CString> nodes;
+				int nodeCount = CINI::CurrentDocument->GetInteger(house.c_str(), "NodeCount", 0);
+				for (int i = 0; i < nodeCount; ++i)
+				{
+					ppmfc::CString key;
+					key.Format("%03d", i);
+					if (CINI::CurrentDocument->KeyExists(house.c_str(), key))
+					{
+						nodes.push_back(CINI::CurrentDocument->GetString(house.c_str(), key));
+					}
+				}
+				if (index > nodes.size()) index = nodes.size();
+				nodes.insert(nodes.begin() + index, value);
+				int i = 0;
+				for (const auto& node : nodes)
+				{
+					ppmfc::CString key;
+					key.Format("%03d", i);
+					CINI::CurrentDocument->WriteString(house.c_str(), key, node);
+					i++;
+				}
+				ppmfc::CString count;
+				count.Format("%d", nodes.size());
+				CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
+				CLuaConsole::updateNode = true;
+				CLuaConsole::needRedraw = true;
+			}
+		}
+	}
+
+	static void remove_node(int y, int x)
+	{
+		if (CMapData::Instance->IsMultiOnly())
+			return;
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return;
+
+		const auto& node = CMapData::Instance->GetCellAt(x, y)->BaseNode;
+		CMapData::Instance->DeleteBaseNodeData(node.House, node.BasenodeID);
+		CLuaConsole::needRedraw = true;
 	}
 
 	static cell get_cell(int y, int x)
@@ -2318,7 +2626,7 @@ namespace LuaFunctions
 		snapshot.fileName = CFinalSunApp::MapPath();
 		if (snapshot.fileName == "")
 			snapshot.fileName = "New map";
-		write_lua_console(std::format("Create snapshot #{}", version));
+		write_lua_console(std::format("Script has just created snapshot #{}.\n   To restore, type and run \"restore_snapshot({}).\"", version, version));
 		return version;
 	}
 
@@ -2410,7 +2718,7 @@ namespace LuaFunctions
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 	}
 
-	static void save_undo_redo()
+	static void save_redo()
 	{
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 		CMapData::Instance->DoUndo();

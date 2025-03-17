@@ -8,6 +8,7 @@
 #define COMBOUINPUT_HOUSES_N 4
 #define COMBOUINPUT_COUNTRIES_N 5
 #define COMBOUINPUT_MANUAL 6
+#define COMBOUINPUT_ALL_CUSTOM 7
 
 class CNewComboUInputDlg : public ppmfc::CDialog
 {
@@ -17,7 +18,9 @@ public:
 	CNewComboUInputDlg(CWnd* pParent = NULL);
 	ppmfc::CString m_Caption;
 	ppmfc::CString m_Combo;
+	ppmfc::CString m_ComboOri;
 	ppmfc::CString m_Section;
+	std::vector<std::string> m_CustomStrings;
 	bool ReadValue = true;
 	bool LoadValueAsName = false;
 	bool UseStrictOrder = false;
