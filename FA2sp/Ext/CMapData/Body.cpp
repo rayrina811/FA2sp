@@ -438,7 +438,7 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 		MultimapHelper mmh;
 		mmh.AddINI(&CINI::Rules());
 		auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
-		int damageLevel = CINI::Art().GetInteger(overlays[overlay], "DamageLevels");
+		int damageLevel = CINI::Art().GetInteger(overlays[overlay], "DamageLevels", 1);
 		std::vector<int> rnd;
 		for (int i = 0; i < damageLevel; i++)
 			rnd.push_back(i);
@@ -1758,5 +1758,4 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
 		}
 	}
 	CLoadingExt::ClearItemTypes();
-	//LightingSourceTint::CalculateMapLamps();
 }

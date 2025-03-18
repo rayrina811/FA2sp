@@ -249,6 +249,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -626,6 +629,9 @@
     <ClCompile Include="FA2sp\Ext\CMapData\Body.ResizeMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
@@ -740,6 +746,9 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

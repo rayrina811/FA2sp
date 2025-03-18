@@ -236,8 +236,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         }
 
         DeleteFile(path.c_str());
-
-
     }
 
 

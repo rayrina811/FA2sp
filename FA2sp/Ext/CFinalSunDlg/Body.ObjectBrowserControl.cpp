@@ -1175,7 +1175,7 @@ void CViewObjectsExt::Redraw_Overlay()
         id.Format("%03d %s", i, buffer);
         if (rules.GetBool(overlays[i], "Wall"))
         {
-            int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels");
+            int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels", 1);
             CViewObjectsExt::WallDamageStages[i] = damageLevel;
             auto thisWall = this->InsertString(
                 QueryUIName(overlays[i]),
@@ -1192,11 +1192,13 @@ void CViewObjectsExt::Redraw_Overlay()
                     thisWall
                 );
             }
-            this->InsertString(
-                QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                Const_Overlay + i * 5 + 4 + indexWall,
-                thisWall);
-
+            if (damageLevel > 1)
+            {
+                this->InsertString(
+                    QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                    Const_Overlay + i * 5 + 4 + indexWall,
+                    thisWall);
+            }
         }
 
         if (IgnoreSet.find(overlays[i]) == IgnoreSet.end())

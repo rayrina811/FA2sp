@@ -29,6 +29,8 @@
 #include "Hooks.INI.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
+static byte image[256 * 512 * 3]{ 0 };
+static byte imageLocal[256 * 512 * 3]{ 0 };
 
 DEFINE_HOOK(4D5505, CSaveOption_CTOR_DefaultValue, 0)
 {
@@ -105,6 +107,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     {
         // Generate new preview.
         Logger::Raw("SaveMap : Generating a new map preview.\n");
+        memset(image, 0, sizeof(image));
+        memset(imageLocal, 0, sizeof(imageLocal));
 
         if (ExtConfigs::SaveMaps_BetterMapPreview && CMapData::Instance->IsMultiOnly())
         {
@@ -156,9 +160,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                 tiledata = CTileTypeInfo::Lunar().Datas;
             if (thisTheater == "DESERT")
                 tiledata = CTileTypeInfo::Desert().Datas;
-
-            byte image[256 * 512 * 3];
-            byte imageLocal[256 * 512 * 3];
 
             auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
             auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
@@ -793,6 +794,11 @@ void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID
         hwnd, message, iTimerID, dwTime);
 
     if (!CMapData::Instance->MapWidthPlusHeight || !CMapData::Instance->FieldDataAllocated)
+    {
+        StopTimer();
+        return;
+    }
+    if (CIsoView::GetInstance()->lpDDPrimarySurface->IsLost() != DD_OK)
     {
         StopTimer();
         return;

@@ -118,6 +118,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hInputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
     SendMessage(hOutputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
 
+    Lua.collect_garbage();
+    Lua = sol::state();
+
     Lua.open_libraries(sol::lib::base, sol::lib::package
         , sol::lib::string, sol::lib::os
         , sol::lib::math, sol::lib::table
@@ -194,8 +197,17 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("avoid_time_out", avoid_time_out);
     Lua.set_function("sleep", sleep);
     Lua.set_function("message_box", message_box);
+    Lua.new_usertype<multi_select_box>("multi_select_box",
+        sol::constructors<multi_select_box(std::string)>(),
+        "options", &multi_select_box::options,
+        "caption", &multi_select_box::caption,
+        "selected_keys", &multi_select_box::selected_keys,
+        "selected_values", &multi_select_box::selected_values,
+        "add_option", &multi_select_box::add_option,
+        "do_modal", &multi_select_box::do_modal
+    );
     Lua.new_usertype<select_box>("select_box",
-        sol::constructors<select_box()>(),
+        sol::constructors<select_box(std::string)>(),
         "options", &select_box::options,
         "caption", &select_box::caption,
         "selected_key", &select_box::selected_key,

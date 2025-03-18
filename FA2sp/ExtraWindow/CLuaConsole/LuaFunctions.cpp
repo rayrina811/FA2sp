@@ -19,6 +19,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include <unordered_set>
 #include "../CNewComboUInputDlg/CNewComboUInputDlg.h"
+#include "../CListUInputDlg/CListUInputDlg.h"
 #include <CInputMessageBox.h>
 
 namespace LuaFunctions
@@ -152,9 +153,9 @@ namespace LuaFunctions
 		std::string selected_key;
 		std::string selected_value;
 
-		select_box()
+		select_box(std::string cap)
 		{
-
+			caption = cap;
 		}
 		void add_option(std::string key, std::string value)
 		{
@@ -195,6 +196,65 @@ namespace LuaFunctions
 				}
 			}
 			return "";
+		}
+	};
+
+	class multi_select_box
+	{
+	public:
+		std::vector<std::pair<std::string, std::string>> options;
+		std::string caption;
+		std::vector<std::string> selected_keys;
+		std::vector<std::string> selected_values;
+
+		multi_select_box(std::string cap)
+		{
+			caption = cap;
+		}
+		void add_option(std::string key, std::string value)
+		{
+			options.push_back(std::make_pair(key, value));
+		}
+		std::vector<std::string> do_modal()
+		{
+			std::vector<std::string> ret;
+			CListUInputDlg dlg;
+			dlg.m_Caption = caption.c_str();
+			for (const auto& [key, value] : options)
+			{
+				if (value == "")
+					dlg.m_CustomStrings.push_back(key.c_str());
+				else
+					dlg.m_CustomStrings.push_back((key + " - " + value).c_str());
+			}
+			dlg.DoModal();
+			for (const auto& text : dlg.m_selectedTexts)
+			{
+				for (const auto& [key, value] : options)
+				{
+					if (value == "")
+					{
+						if (key == text.m_pchData)
+						{
+							ret.push_back(key);
+							selected_keys.push_back(key);
+							selected_values.push_back(value);
+							break;
+						}
+					}
+					else
+					{
+						if (key + " - " + value == text.m_pchData)
+						{
+							ret.push_back(key);
+							selected_keys.push_back(key);
+							selected_values.push_back(value);
+							break;
+						}
+					}
+				}
+			}
+			return ret;
 		}
 	};
 
