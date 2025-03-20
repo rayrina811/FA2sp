@@ -439,30 +439,6 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 
 	return 0x4ACA49;
 }
-std::vector<int>GetStructureSize(ppmfc::CString structure)
-{
-	std::vector<int> result;
-	MultimapHelper mmh;
-	mmh.AddINI(&CINI::Rules());
-	mmh.AddINI(&CINI::CurrentDocument());
-	auto art = &CINI::Art();
-	auto image = mmh.GetString(structure, "Image", structure);
-	std::string foundation = std::string(art->GetString(image, "Foundation", "1X1"));
-	if (foundation == "")
-		foundation = "1X1";
-	std::transform(foundation.begin(), foundation.end(), foundation.begin(), (int(*)(int))tolower);
-
-	if (foundation == "custom")
-	{
-		std::string x = std::string(art->GetString(image, "Foundation.X", "5"));
-		std::string y = std::string(art->GetString(image, "Foundation.Y", "5"));
-		foundation = x + "x" + y;
-	}
-	auto found = STDHelpers::SplitString(foundation.c_str(), "x");
-	result.push_back(atoi(found[1]));
-	result.push_back(atoi(found[0]));
-	return result;
-}
 
 DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 {

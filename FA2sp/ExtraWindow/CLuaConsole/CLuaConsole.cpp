@@ -5,6 +5,10 @@
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../Common.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CNewTeamTypes/CNewTeamTypes.h"
+#include "../CNewScript/CNewScript.h"
+#include "../CNewTaskforce/CNewTaskforce.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -48,6 +52,10 @@ bool CLuaConsole::updateAircraft = false;
 bool CLuaConsole::updateNode = false;
 bool CLuaConsole::updateMinimap = false;
 bool CLuaConsole::updateTrigger = false;
+bool CLuaConsole::updateAITrigger = false;
+bool CLuaConsole::updateScript = false;
+bool CLuaConsole::updateTeam = false;
+bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::skipBuildingUpdate = false;
 char CLuaConsole::Buffer[BUFFER_SIZE]{ 0 };
@@ -204,6 +212,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "selected_keys", &multi_select_box::selected_keys,
         "selected_values", &multi_select_box::selected_values,
         "add_option", &multi_select_box::add_option,
+        "sort_options", &multi_select_box::sort_options,
         "do_modal", &multi_select_box::do_modal
     );
     Lua.new_usertype<select_box>("select_box",
@@ -213,6 +222,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "selected_key", &select_box::selected_key,
         "selected_value", &select_box::selected_value,
         "add_option", &select_box::add_option,
+        "sort_options", &select_box::sort_options,
         "do_modal", &select_box::do_modal
     );
     Lua.set_function("input_box", input_box);
@@ -666,6 +676,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "add_event", &trigger::add_event,
         "add_action", &trigger::add_action,
         "delete_tag", &trigger::delete_tag,
+        "delete_tags", &trigger::delete_tags,
         "delete_event", &trigger::delete_event,
         "delete_action", &trigger::delete_action,
         "change_id", &trigger::change_id,
@@ -679,6 +690,116 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("place_celltag", place_celltag);
     Lua.set_function("remove_celltag", remove_celltag);
     Lua.set_function("remove_celltags", remove_celltags);
+
+    Lua.new_usertype<ai_trigger>("ai_trigger",
+        sol::constructors<ai_trigger(std::string), ai_trigger()>(),
+        "id", sol::readonly(&ai_trigger::ID),
+        "name", &ai_trigger::Name,
+        "team1", &ai_trigger::Team1,
+        "house", &ai_trigger::House,
+        "tech_level", &ai_trigger::TechLevel,
+        "condition", &ai_trigger::ConditionType,
+        "object", &ai_trigger::ComparisonObject,
+        "comparators", sol::readonly(&ai_trigger::Comparators),
+        "init_weight", &ai_trigger::InitialWeight,
+        "min_weight", &ai_trigger::MinWeight,
+        "max_weight", &ai_trigger::MaxWeight,
+        "is_for_skirmish", &ai_trigger::IsForSkirmish,
+        "unused", &ai_trigger::unused,
+        "side", &ai_trigger::Side,
+        "is_base_defense", &ai_trigger::IsBaseDefense,
+        "team2", &ai_trigger::Team2,
+        "easy", &ai_trigger::EnabledInE,
+        "medium", &ai_trigger::EnabledInM,
+        "hard", &ai_trigger::EnabledInH,
+        "enabled", &ai_trigger::Enabled,
+        "comparator", &ai_trigger::Comparator,
+        "amount", &ai_trigger::Amount,
+        "apply", &ai_trigger::apply,
+        "change_id", &ai_trigger::change_id,
+        "release_id", &ai_trigger::release_id,
+        "delete", &ai_trigger::delete_ai_trigger_self
+    );
+    Lua.set_function("delete_ai_trigger", ai_trigger::delete_ai_trigger);
+    Lua.set_function("get_ai_trigger", ai_trigger::get_ai_trigger);
+
+    Lua.new_usertype<script>("script",
+        sol::constructors<script(std::string), script()>(),
+        "id", sol::readonly(&script::ID),
+        "name", &script::Name,
+        "actions", sol::readonly(&script::Actions),
+        "params", sol::readonly(&script::Params),
+        "add_action", &script::add_action,
+        "delete_action", &script::delete_action,
+        "apply", &script::apply,
+        "change_id", &script::change_id,
+        "release_id", &script::release_id,
+        "delete", &script::delete_script_self
+        );
+    Lua.set_function("delete_script", script::delete_script);
+    Lua.set_function("get_script", script::get_script);
+
+    Lua.new_usertype<task_force>("task_force",
+        sol::constructors<task_force(std::string), task_force()>(),
+        "id", sol::readonly(&task_force::ID),
+        "name", &task_force::Name,
+        "group", &task_force::Group,
+        "numbers", sol::readonly(&task_force::Numbers),
+        "units", sol::readonly(&task_force::Units),
+        "add_number", &task_force::add_number,
+        "delete_number", &task_force::delete_number,
+        "apply", &task_force::apply,
+        "change_id", &task_force::change_id,
+        "release_id", &task_force::release_id,
+        "delete", &task_force::delete_task_force_self
+        );
+    Lua.set_function("delete_task_force", task_force::delete_task_force);
+    Lua.set_function("get_task_force", task_force::get_task_force);
+
+    Lua.new_usertype<team>("team",
+        sol::constructors<team(std::string), team()>(),
+        "id", sol::readonly(&team::ID),
+        "name", &team::Name,
+        "house", &team::House,
+        "task_force", &team::Taskforce,
+        "script", &team::Script,
+        "tag", &team::Tag,
+        "veteran_level", &team::VeteranLevel,
+        "priority", &team::Priority,
+        "max", &team::Max,
+        "techlevel", &team::Techlevel,
+        "transport_waypoint", &team::TransportWaypoint,
+        "group", &team::Group,
+        "waypoint", &team::Waypoint,
+        "mind_control_decision", &team::MindControlDecision,
+        "full", &team::Full,
+        "whiner", &team::Whiner,
+        "droppod", &team::Droppod,
+        "suicide", &team::Suicide,
+        "loadable", &team::Loadable,
+        "prebuild", &team::Prebuild,
+        "annoyance", &team::Annoyance,
+        "ion_immune", &team::IonImmune,
+        "recruiter", &team::Recruiter,
+        "reinforce", &team::Reinforce,
+        "aggressive", &team::Aggressive,
+        "autocreate", &team::Autocreate,
+        "guard_slower", &team::GuardSlower,
+        "on_trans_only", &team::OnTransOnly,
+        "avoid_threats", &team::AvoidThreats,
+        "loose_recruit", &team::LooseRecruit,
+        "is_base_defense", &team::IsBaseDefense,
+        "use_transport_origin", &team::UseTransportOrigin,
+        "only_target_house_enemy", &team::OnlyTargetHouseEnemy,
+        "transports_return_on_unload", &team::TransportsReturnOnUnload,
+        "are_team_members_recruitable", &team::AreTeamMembersRecruitable,
+        "apply", &team::apply,
+        "change_id", &team::change_id,
+        "release_id", &team::release_id,
+        "delete", &team::delete_team_self
+        );
+    Lua.set_function("delete_team", team::delete_team);
+    Lua.set_function("get_team", team::get_team);
 
     Update(hWnd);
 }
@@ -953,6 +1074,30 @@ void CLuaConsole::OnClickRun(bool fromFile)
             ::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
         else
             CMapDataExt::UpdateTriggers();
+    }
+    if (updateAITrigger)
+    {
+        updateAITrigger = false;
+        if (CNewAITrigger::GetHandle())
+            ::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
+    }
+    if (updateScript)
+    {
+        updateScript = false;
+        if (CNewScript::GetHandle())
+            ::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+    }
+    if (updateTeam)
+    {
+        updateTeam = false;
+        if (CNewTeamTypes::GetHandle())
+            ::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+    }
+    if (updateTaskforce)
+    {
+        updateTaskforce = false;
+        if (CNewTaskforce::GetHandle())
+            ::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
     }
     if (updateMinimap)
     {

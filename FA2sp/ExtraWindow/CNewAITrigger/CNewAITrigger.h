@@ -53,7 +53,7 @@ public:
     }
     AITrigger(const char* id)
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id));
+        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id), 17);
         ID = id;
         Name = atoms[0];
         Team1 = atoms[1];

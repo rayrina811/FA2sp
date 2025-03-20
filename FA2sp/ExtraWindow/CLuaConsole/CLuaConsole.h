@@ -69,6 +69,10 @@ public:
     static bool updateNode;
     static bool updateMinimap;
     static bool updateTrigger;
+    static bool updateAITrigger;
+    static bool updateScript;
+    static bool updateTeam;
+    static bool updateTaskforce;
     static bool updateCellTag;
     static bool skipBuildingUpdate;
     static char Buffer[BUFFER_SIZE];

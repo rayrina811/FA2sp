@@ -37,6 +37,7 @@ public:
     static void OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels);
 
     static bool SortLabels(ppmfc::CString a, ppmfc::CString b);
+    static bool SortRawStrings(std::string sa, std::string sb);
     static void SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedIndex, ppmfc::CString id = "");
     static void SortAITriggers(HWND& hWnd, int& selectedIndex, ppmfc::CString id = "");
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);

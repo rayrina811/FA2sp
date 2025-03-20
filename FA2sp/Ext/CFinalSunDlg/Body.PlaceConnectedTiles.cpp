@@ -115,7 +115,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                             ct.HeightAdjust = ini.GetInteger(buffer, "HeightAdjust");
 
                             auto tileIndices = STDHelpers::SplitString(ini.GetString(buffer, "TileIndices"));
-                            for (auto ti : tileIndices)
+                            for (auto& ti : tileIndices)
                             {
                                 ct.TileIndices.push_back(atoi(ti) + ct.AdditionalOffset);
                             }

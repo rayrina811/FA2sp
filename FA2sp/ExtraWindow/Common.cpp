@@ -699,6 +699,47 @@ bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
     return sa < sb;
 }
 
+bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
+{
+    std::regex re("(\\D*)(\\d+)");
+    std::sregex_iterator itA(sa.begin(), sa.end(), re);
+    std::sregex_iterator itB(sb.begin(), sb.end(), re);
+    std::sregex_iterator end;
+
+    while (itA != end && itB != end) {
+
+        std::string prefixA = (*itA)[1].str();
+        std::string prefixB = (*itB)[1].str();
+        if (prefixA != prefixB) return prefixA < prefixB;
+
+        int numA = INT_MAX;
+        int numB = INT_MAX;
+        try {
+            numA = std::stoi((*itA)[2].str());
+        }
+        catch (const std::out_of_range& e)
+        {
+        }
+        try {
+            numB = std::stoi((*itB)[2].str());
+        }
+        catch (const std::out_of_range& e)
+        {
+        }
+        if (numA != numB) return numA < numB;
+
+        if (numA == INT_MAX) {
+            std::string suffixA = (*itA)[2].str();
+            std::string suffixB = (*itB)[2].str();
+            if (suffixA != suffixB) return suffixA < suffixB;
+        }
+        ++itA;
+        ++itB;
+    }
+
+    return sa < sb;
+}
+
 void ExtraWindow::SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedIndex, ppmfc::CString id)
 {
     while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);

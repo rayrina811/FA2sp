@@ -368,7 +368,6 @@ public:
     static void PlaceConnectedTile_OnMouseMove(int X, int Y, bool place = false);
     static void PlaceConnectedTile_OnLButtonDown(int X, int Y);
     static void ConnectedTile_Initialize();
-    static std::vector<int> GetStructureSize(ppmfc::CString structure);
     static void MoveBaseNodeOrder(int X, int Y);
     static void MoveBaseNode(int X, int Y);
     static void ModifyOre(int X, int Y);

@@ -974,7 +974,45 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     }
 
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
-    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL)) return;
+    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+    {
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hTaskforce, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hScript, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hVeteranLevel, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hTechlevel, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hTransportWaypoint, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hCheckBoxLoadable, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxFull, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxAnnoyance, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxGuardSlower, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxRecruiter, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxAutoCreate, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxPrebuild, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxReinforce, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxCargoPlane, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxWhiner, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxLooseRecruit, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxAggressive, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxSuicide, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxOnTransOnly, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxAvoidThreats, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxIonImmune, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxTransportsReturnOnUnload, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxAreTeamMembersRecruitable, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, BST_UNCHECKED, 0);
+        SendMessage(hSearchReference, BM_SETCHECK, BST_UNCHECKED, 0);
+        return;
+    }
 
     ppmfc::CString pID;
     SendMessage(hSelectedTeam, CB_GETLBTEXT, SelectedTeamIndex, (LPARAM)buffer);

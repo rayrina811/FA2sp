@@ -161,6 +161,18 @@ namespace LuaFunctions
 		{
 			options.push_back(std::make_pair(key, value));
 		}
+		void sort_options(bool second = false) {
+			if (!second) {
+				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
+					return ExtraWindow::SortRawStrings(lhs.first, rhs.first);
+					});
+			}
+			else {
+				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
+					return ExtraWindow::SortRawStrings(lhs.second, rhs.second);
+					});
+			}
+		}
 		std::string do_modal()
 		{
 			CNewComboUInputDlg dlg;
@@ -214,6 +226,18 @@ namespace LuaFunctions
 		void add_option(std::string key, std::string value)
 		{
 			options.push_back(std::make_pair(key, value));
+		}
+		void sort_options(bool second = false) {
+			if (!second) {
+				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
+					return ExtraWindow::SortRawStrings(lhs.first, rhs.first);
+					});
+			}
+			else {
+				std::sort(options.begin(), options.end(), [](const auto& lhs, const auto& rhs) {
+					return ExtraWindow::SortRawStrings(lhs.second, rhs.second);
+					});
+			}
 		}
 		std::vector<std::string> do_modal()
 		{
@@ -1033,7 +1057,6 @@ namespace LuaFunctions
 		return "";
 	}
 
-
 	struct tag
 	{
 		std::string ID;
@@ -1059,6 +1082,7 @@ namespace LuaFunctions
 
 		trigger()
 		{
+			CLuaConsole::Lua.collect_garbage();
 			ID = GetAvailableIndex();
 			Name = "New Trigger";
 			House = "Americans";
@@ -1082,6 +1106,9 @@ namespace LuaFunctions
 			MediumEnabled = true;
 			HardEnabled = true;
 			UsedINIIndices.insert(id);
+		}
+		~trigger() {
+			release_id();
 		}
 		void add_tag(std::string id, std::string name, int repeat)
 		{
@@ -1117,19 +1144,32 @@ namespace LuaFunctions
 		}
 		void delete_tag(int index)
 		{
+			index--;
 			if (0 <= index && index < Tags.size())
 			{
+				CINI::CurrentDocument->DeleteKey("Tags", Tags[index].ID.c_str());
 				UsedINIIndices.erase(Tags[index].ID);
 				Tags.erase(Tags.begin() + index);
 			}
+		}		
+		void delete_tags()
+		{
+			for (int i = 0; i < Tags.size(); ++i)
+			{
+				CINI::CurrentDocument->DeleteKey("Tags", Tags[i].ID.c_str());
+				UsedINIIndices.erase(Tags[i].ID);
+			}
+			Tags.clear();
 		}
 		void delete_event(int index)
 		{
+			index--;
 			if (0 <= index && index < Events.size())
 				Events.erase(Events.begin() + index);
 		}
 		void delete_action(int index)
 		{
+			index--;
 			if (0 <= index && index < Actions.size())
 				Actions.erase(Actions.begin() + index);
 		}
@@ -1169,8 +1209,14 @@ namespace LuaFunctions
 				actions += ",";
 				actions += a.c_str();
 			}
+			ppmfc::CString validate;
+			validate.Format("%s=%s", ID.c_str(), actions);
+			if (validate.GetLength() >= 512)
+				write_lua_console(std::format("Warn: length of action {} exceeds 512.", ID));
+
 			CINI::CurrentDocument->WriteString("Actions", ID.c_str(), actions);
 			CMapDataExt::AddTrigger(ID.c_str());
+			UsedINIIndices.insert(ID);
 			CLuaConsole::updateTrigger = true;
 		}
 		void delete_trigger_self(bool keepTag)
@@ -1187,6 +1233,7 @@ namespace LuaFunctions
 			}
 
 			CMapDataExt::DeleteTrigger(ID.c_str());
+			UsedINIIndices.erase(ID);
 			CLuaConsole::updateTrigger = true;
 		}
 		static void delete_trigger(std::string ID, bool keepTag)
@@ -1210,6 +1257,7 @@ namespace LuaFunctions
 					CINI::CurrentDocument->DeleteKey("Tags", key);
 			}
 			CMapDataExt::DeleteTrigger(ID.c_str());
+			UsedINIIndices.erase(ID);
 			CLuaConsole::updateTrigger = true;
 		}
 		static void delete_tag_static(std::string ID, bool keepTrigger)
@@ -1283,6 +1331,773 @@ namespace LuaFunctions
 		}
 		void release_id() const {
 			UsedINIIndices.erase(ID);
+		}
+
+	};
+
+	class team
+	{
+	public:
+		std::string ID;
+		std::string Name = "New Teamtype";
+		std::string House = "Americans";
+		std::string Taskforce = "";
+		std::string Script = "";
+		std::string Tag = "";
+		std::string VeteranLevel = "1";
+		std::string Priority = "5";
+		std::string Max = "5";
+		std::string Techlevel = "0";
+		std::string TransportWaypoint = "";
+		std::string Group = "-1";
+		std::string Waypoint = "0";
+		std::string MindControlDecision = "0";
+		bool Full = false;
+		bool Whiner = false;
+		bool Droppod = false;
+		bool Suicide = false;
+		bool Loadable = false;
+		bool Prebuild = false;
+		bool Annoyance = false;
+		bool IonImmune = false;
+		bool Recruiter = false;
+		bool Reinforce = false;
+		bool Aggressive = false;
+		bool Autocreate = false;
+		bool GuardSlower = false;
+		bool OnTransOnly = false;
+		bool AvoidThreats = false;
+		bool LooseRecruit = false;
+		bool IsBaseDefense = false;
+		bool UseTransportOrigin = false;
+		bool OnlyTargetHouseEnemy = false;
+		bool TransportsReturnOnUnload = false;
+		bool AreTeamMembersRecruitable = false;
+
+		team()
+		{
+			CLuaConsole::Lua.collect_garbage();
+			ID = GetAvailableIndex();
+			UsedINIIndices.insert(ID);
+		}
+		team(std::string id)
+		{
+			ID = id;
+			UsedINIIndices.insert(ID);
+		}
+		~team() {
+			release_id();
+		}
+		void change_id(std::string id)
+		{
+			UsedINIIndices.erase(ID);
+			UsedINIIndices.insert(id);
+			ID = id;
+		}
+		void release_id() const {
+			UsedINIIndices.erase(ID);
+		}
+		static sol::object get_team(std::string id)
+		{
+			bool found = false;
+			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					{
+						found = true;
+						break;
+					}
+				}
+			}
+			if (found)
+			{
+				team ret;
+				ret.ID = id;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").m_pchData;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "NewTeamtype").m_pchData;
+				ret.House = CINI::CurrentDocument->GetString(id.c_str(), "House").m_pchData;
+				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "Taskforce").m_pchData;
+				ret.Script = CINI::CurrentDocument->GetString(id.c_str(), "Script").m_pchData;
+				ret.Tag = CINI::CurrentDocument->GetString(id.c_str(), "Tag").m_pchData;
+				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").m_pchData;
+				ret.Priority = CINI::CurrentDocument->GetString(id.c_str(), "Priority").m_pchData;
+				ret.Max = CINI::CurrentDocument->GetString(id.c_str(), "Max").m_pchData;
+				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "Techlevel").m_pchData;
+				if (CINI::CurrentDocument->KeyExists(id.c_str(), "TransportWaypoint"))
+					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).m_pchData;
+				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group").m_pchData;
+				ret.Waypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "Waypoint")).m_pchData;
+				ret.MindControlDecision = CINI::CurrentDocument->GetString(id.c_str(), "MindControlDecision").m_pchData;
+				ret.Full = CINI::CurrentDocument->GetBool(id.c_str(), "Full");
+				ret.Whiner = CINI::CurrentDocument->GetBool(id.c_str(), "Whiner");
+				ret.Droppod = CINI::CurrentDocument->GetBool(id.c_str(), "Droppod");
+				ret.Suicide = CINI::CurrentDocument->GetBool(id.c_str(), "Suicide");
+				ret.Loadable = CINI::CurrentDocument->GetBool(id.c_str(), "Loadable");
+				ret.Prebuild = CINI::CurrentDocument->GetBool(id.c_str(), "Prebuild");
+				ret.Annoyance = CINI::CurrentDocument->GetBool(id.c_str(), "Annoyance");
+				ret.IonImmune = CINI::CurrentDocument->GetBool(id.c_str(), "IonImmune");
+				ret.Recruiter = CINI::CurrentDocument->GetBool(id.c_str(), "Recruiter");
+				ret.Reinforce = CINI::CurrentDocument->GetBool(id.c_str(), "Reinforce");
+				ret.Aggressive = CINI::CurrentDocument->GetBool(id.c_str(), "Aggressive");
+				ret.Autocreate = CINI::CurrentDocument->GetBool(id.c_str(), "Autocreate");
+				ret.GuardSlower = CINI::CurrentDocument->GetBool(id.c_str(), "GuardSlower");
+				ret.OnTransOnly = CINI::CurrentDocument->GetBool(id.c_str(), "OnTransOnly");
+				ret.AvoidThreats = CINI::CurrentDocument->GetBool(id.c_str(), "AvoidThreats");
+				ret.LooseRecruit = CINI::CurrentDocument->GetBool(id.c_str(), "LooseRecruit");
+				ret.IsBaseDefense = CINI::CurrentDocument->GetBool(id.c_str(), "IsBaseDefense");
+				ret.UseTransportOrigin = CINI::CurrentDocument->GetBool(id.c_str(), "UseTransportOrigin");
+				ret.OnlyTargetHouseEnemy = CINI::CurrentDocument->GetBool(id.c_str(), "OnlyTargetHouseEnemy");
+				ret.TransportsReturnOnUnload = CINI::CurrentDocument->GetBool(id.c_str(), "TransportsReturnOnUnload");
+				ret.AreTeamMembersRecruitable = CINI::CurrentDocument->GetBool(id.c_str(), "AreTeamMembersRecruitable");
+
+				return sol::make_object(CLuaConsole::Lua, ret);
+			}
+			else
+			{
+				write_lua_console("Cannot find team " + id);
+			}
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+		void apply()
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						break;
+					}
+				}
+			}
+			CINI::CurrentDocument->WriteString("TeamTypes", CINI::GetAvailableKey("TeamTypes"), ID.c_str());
+
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "House", House.c_str());
+			if (Taskforce == "")
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Taskforce");
+			else
+				CINI::CurrentDocument->WriteString(ID.c_str(), "Taskforce", Taskforce.c_str());
+			if (Script == "")
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Script");
+			else
+				CINI::CurrentDocument->WriteString(ID.c_str(), "Script", Script.c_str());
+			if (Tag == "")
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Tag");
+			else
+				CINI::CurrentDocument->WriteString(ID.c_str(), "Tag", Tag.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "VeteranLevel", VeteranLevel.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Priority", Priority.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Max", Max.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Techlevel", Techlevel.c_str());
+			if (TransportWaypoint == "")
+			{
+				UseTransportOrigin = false;
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), "TransportWaypoint");
+			}
+			else
+			{
+				UseTransportOrigin = true;
+				if (STDHelpers::IsNumber(TransportWaypoint.c_str()))
+					CINI::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", STDHelpers::WaypointToString(atoi(TransportWaypoint.c_str())));
+				else
+					CINI::CurrentDocument->WriteString(ID.c_str(), "TransportWaypoint", TransportWaypoint.c_str());
+			}
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
+			if (STDHelpers::IsNumber(Waypoint.c_str()))
+				CINI::CurrentDocument->WriteString(ID.c_str(), "Waypoint", STDHelpers::WaypointToString(atoi(Waypoint.c_str())));
+			else
+				CINI::CurrentDocument->WriteString(ID.c_str(), "Waypoint", Waypoint.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "MindControlDecision", MindControlDecision.c_str());
+
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Full", Full);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Whiner", Whiner);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Droppod", Droppod);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Suicide", Suicide);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Loadable", Loadable);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Prebuild", Prebuild);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Annoyance", Annoyance);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "IonImmune", IonImmune);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Recruiter", Recruiter);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Reinforce", Reinforce);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Aggressive", Aggressive);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "Autocreate", Autocreate);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "GuardSlower", GuardSlower);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "OnTransOnly", OnTransOnly);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "AvoidThreats", AvoidThreats);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "LooseRecruit", LooseRecruit);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "IsBaseDefense", IsBaseDefense);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "UseTransportOrigin", UseTransportOrigin);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "OnlyTargetHouseEnemy", OnlyTargetHouseEnemy);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "TransportsReturnOnUnload", TransportsReturnOnUnload);
+			CINI::CurrentDocument->WriteBool(ID.c_str(), "AreTeamMembersRecruitable", AreTeamMembersRecruitable);
+
+			UsedINIIndices.insert(ID);
+			CLuaConsole::updateTeam = true;
+		}
+		void delete_team_self() const
+		{
+			CINI::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						break;
+					}
+				}
+			}
+			UsedINIIndices.erase(ID);
+			CLuaConsole::updateTeam = true;
+		}
+		static void delete_team(std::string id)
+		{
+			CINI::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TeamTypes", key);
+						break;
+					}
+				}
+			}
+			UsedINIIndices.erase(id);
+			CLuaConsole::updateTeam = true;
+		}
+	};
+
+	class task_force
+	{
+	public:
+		std::string ID;
+		std::string Name = "New task force";
+		std::string Group = "-1";
+		std::vector<int> Numbers;
+		std::vector<std::string> Units;
+
+		task_force()
+		{
+			CLuaConsole::Lua.collect_garbage();
+			ID = GetAvailableIndex();
+			UsedINIIndices.insert(ID);
+		}
+		task_force(std::string id)
+		{
+			ID = id;
+			UsedINIIndices.insert(ID);
+		}
+		~task_force() {
+			release_id();
+		}
+		void change_id(std::string id)
+		{
+			UsedINIIndices.erase(ID);
+			UsedINIIndices.insert(id);
+			ID = id;
+		}
+		void release_id() const {
+			UsedINIIndices.erase(ID);
+		}
+		void add_number(int num, std::string obj)
+		{
+			if (Units.size() >= 6)
+			{
+				write_lua_console(std::format("Task force {} exceeds unit limit, abort.", ID));
+				return;
+			}
+			for (const auto& unit : Units)
+			{
+				if (obj == unit)
+				{
+					write_lua_console(std::format("Duplicate unit {} for task force {}, abort.", obj, ID));
+					return;
+				}
+			}
+			Numbers.push_back(num);
+			Units.push_back(obj);
+		}
+		void delete_number(int index)
+		{
+			index--;
+			if (0 <= index && index < Numbers.size())
+			{
+				Numbers.erase(Numbers.begin() + index);
+				Units.erase(Units.begin() + index);
+			}
+		}
+		static sol::object get_task_force(std::string id)
+		{
+			bool found = false;
+			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					{
+						found = true;
+						break;
+					}
+				}
+			}
+			if (found)
+			{
+				task_force ret;
+				ret.ID = id;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New task force").m_pchData;
+				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group", "-1").m_pchData;
+				ppmfc::CString key;
+				for (int i = 0; i < 6; ++i)
+				{
+					key.Format("%d", i);
+					if (CINI::CurrentDocument->KeyExists(id.c_str(), key))
+					{
+						auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(id.c_str(), key, "1,E1"), 1);
+						ret.Numbers.push_back(atoi(atoms[0]));
+						ret.Units.push_back(atoms[1].m_pchData);
+					}
+				}
+				return sol::make_object(CLuaConsole::Lua, ret);
+			}
+			else
+			{
+				write_lua_console("Cannot find task force " + id);
+			}
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+		void apply() const
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						break;
+					}
+				}
+			}
+			CINI::CurrentDocument->WriteString("TaskForces", CINI::GetAvailableKey("TaskForces"), ID.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
+			ppmfc::CString key;
+			ppmfc::CString value;
+			for (int i = 0; i < 6; ++i)
+			{
+				key.Format("%d", i);
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), key);
+			}
+			for (int i = 0; i < Numbers.size(); ++i)
+			{
+				key.Format("%d", i);
+				value.Format("%d,%s", Numbers[i], Units[i].c_str());
+				CINI::CurrentDocument->WriteString(ID.c_str(), key, value);
+			}
+			UsedINIIndices.insert(ID);
+			CLuaConsole::updateTaskforce = true;
+		}
+		void delete_task_force_self() const
+		{
+			CINI::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						break;
+					}
+				}
+			}
+			UsedINIIndices.erase(ID);
+			CLuaConsole::updateTaskforce = true;
+		}
+		static void delete_task_force(std::string id)
+		{
+			CINI::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("TaskForces", key);
+						break;
+					}
+				}
+			}
+			UsedINIIndices.erase(id);
+			CLuaConsole::updateTaskforce = true;
+		}
+	};
+
+	class script
+	{
+	public:
+		std::string ID;
+		std::string Name = "New script";
+		std::vector<int> Actions;
+		std::vector<int> Params;
+
+		script()
+		{
+			CLuaConsole::Lua.collect_garbage();
+			ID = GetAvailableIndex();
+			UsedINIIndices.insert(ID);
+		}
+		script(std::string id)
+		{
+			ID = id;
+			UsedINIIndices.insert(ID);
+		}
+		~script() {
+			release_id();
+		}
+		void change_id(std::string id)
+		{
+			UsedINIIndices.erase(ID);
+			UsedINIIndices.insert(id);
+			ID = id;
+		}
+		void release_id() const {
+			UsedINIIndices.erase(ID);
+		}
+		void add_action(int act, int par)
+		{
+			if (Actions.size() >= 50)
+			{
+				write_lua_console(std::format("Script {} exceeds action limit, abort.", ID));
+				return;
+			}
+			Actions.push_back(act);
+			Params.push_back(par);
+		}		
+		void delete_action(int index)
+		{
+			index--;
+			if (0 <= index && index < Actions.size())
+			{
+				Actions.erase(Actions.begin() + index);
+				Params.erase(Params.begin() + index);
+			}
+		}
+		static sol::object get_script(std::string id)
+		{
+			bool found = false;
+			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str() && CINI::CurrentDocument->SectionExists(value))
+					{
+						found = true;
+						break;
+					}
+				}
+			}
+			if (found)
+			{
+				script ret;
+				ret.ID = id;
+				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New script").m_pchData;
+				ppmfc::CString key;
+				for (int i = 0; i < 50; ++i)
+				{
+					key.Format("%d", i);
+					if (CINI::CurrentDocument->KeyExists(id.c_str(), key))
+					{
+						auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString(id.c_str(), key, "0,0"), 1);
+						ret.Actions.push_back(atoi(atoms[0]));
+						ret.Params.push_back(atoi(atoms[1]));
+					}
+				}
+				return sol::make_object(CLuaConsole::Lua, ret);
+			}
+			else
+			{
+				write_lua_console("Cannot find script " + id);
+			}
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+		void apply() const
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						break;
+					}
+				}
+			}
+			CINI::CurrentDocument->WriteString("ScriptTypes", CINI::GetAvailableKey("ScriptTypes"), ID.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
+			ppmfc::CString key;
+			ppmfc::CString value;
+			for (int i = 0; i < 50; ++i)
+			{
+				key.Format("%d", i);
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), key);
+			}
+			for (int i = 0; i < Actions.size(); ++i)
+			{
+				key.Format("%d", i);
+				value.Format("%d,%d", Actions[i], Params[i]);
+				CINI::CurrentDocument->WriteString(ID.c_str(), key, value);
+			}
+			UsedINIIndices.insert(ID);
+			CLuaConsole::updateScript = true;
+		}
+		void delete_script_self() const
+		{
+			CINI::CurrentDocument->DeleteSection(ID.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == ID.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						break;
+					}
+				}
+			}	
+			UsedINIIndices.erase(ID);
+			CLuaConsole::updateScript = true;
+		}
+		static void delete_script(std::string id)
+		{
+			CINI::CurrentDocument->DeleteSection(id.c_str());
+			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					if (value == id.c_str())
+					{
+						CINI::CurrentDocument->DeleteKey("ScriptTypes", key);
+						break;
+					}
+				}
+			}	
+			UsedINIIndices.erase(id);
+			CLuaConsole::updateScript = true;
+		}
+	};
+
+	class ai_trigger
+	{
+	public:
+		std::string ID;
+		std::string Name = "New AI Trigger";
+		std::string Team1 = "<none>";
+		std::string House = "<all>";
+		std::string TechLevel = "0";
+		std::string ConditionType = "-1";
+		std::string ComparisonObject = "<none>";
+		int Comparators[8] = { 0 };
+		double InitialWeight = 50.0;
+		double MinWeight = 30.0;
+		double MaxWeight = 50.0;
+		bool IsForSkirmish = true;
+		std::string unused = "0";
+		std::string Side = "1";
+		bool IsBaseDefense = false;
+		std::string Team2 = "<none>";
+		bool EnabledInE = true;
+		bool EnabledInM = true;
+		bool EnabledInH = true;
+		std::string Comparator = "0";
+		std::string Amount = "0";
+
+		bool Enabled = true;
+
+		ai_trigger()
+		{
+			CLuaConsole::Lua.collect_garbage();
+			ID = GetAvailableIndex();
+			UsedINIIndices.insert(ID);
+		}
+		ai_trigger(std::string id)
+		{
+			ID = id;
+			UsedINIIndices.insert(ID);
+		}
+		~ai_trigger() {
+			release_id();
+		}
+		static sol::object get_ai_trigger(std::string id)
+		{	
+			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id.c_str()));
+			if (atoms.size() >= 18)
+			{
+				ai_trigger ret(id);
+				ret.ID = id;
+				ret.Name = atoms[0].m_pchData;
+				ret.Team1 = atoms[1].m_pchData;
+				ret.House = atoms[2].m_pchData;
+				ret.TechLevel = atoms[3].m_pchData;
+				ret.ConditionType = atoms[4].m_pchData;
+				ret.ComparisonObject = atoms[5].m_pchData;
+				for (int i = 0; i < 8; i++) {
+					ret.Comparators[i] = ReadComparator(atoms[6], i);
+				}
+				ret.InitialWeight = std::atof(atoms[7]);
+				ret.MinWeight = std::atof(atoms[8]);
+				ret.MaxWeight = std::atof(atoms[9]);
+				ret.IsForSkirmish = atoms[10] == "0" ? false : true;
+				ret.unused = atoms[11].m_pchData;
+				ret.Side = atoms[12].m_pchData;
+				ret.IsBaseDefense = atoms[13] == "0" ? false : true;
+				ret.Team2 = atoms[14].m_pchData;
+				ret.EnabledInE = atoms[15] == "0" ? false : true;
+				ret.EnabledInM = atoms[16] == "0" ? false : true;
+				ret.EnabledInH = atoms[17] == "0" ? false : true;
+
+				ret.Enabled = CINI::CurrentDocument().GetBool("AITriggerTypesEnable", id.c_str());
+				return sol::make_object(CLuaConsole::Lua, ret);
+			}
+			else
+			{
+				write_lua_console("Cannot find AI trigger " + id);
+			}
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+		void apply()
+		{
+			Comparators[0] = atoi(Amount.c_str());
+			if (Comparator == "<" || Comparator == "0")
+				Comparators[1] = 0;
+			else if (Comparator == "<=" || Comparator == "1")
+				Comparators[1] = 1;
+			else if (Comparator == "==" || Comparator == "=" || Comparator == "2")
+				Comparators[1] = 2;
+			else if (Comparator == ">=" || Comparator == "3")
+				Comparators[1] = 3;
+			else if (Comparator == ">" || Comparator == "4")
+				Comparators[1] = 4;
+			else if (Comparator == "!=" || Comparator == "~=" || Comparator == "5")
+				Comparators[1] = 5;
+			else
+				Comparators[1] = 0;
+			ppmfc::CString value;
+			ppmfc::CString comparator = "";
+			for (int i = 0; i < 8; i++) {
+				comparator += SaveComparator(Comparators[i]);
+			}
+			std::ostringstream oss;
+			oss.precision(6);
+			oss << std::fixed << InitialWeight;
+			std::string initial = oss.str();
+			oss.str("");
+			oss.precision(6);
+			oss << std::fixed << MinWeight;
+			std::string min = oss.str();
+			oss.str("");
+			oss.precision(6);
+			oss << std::fixed << MaxWeight;
+			std::string max = oss.str();
+			oss.str("");
+
+			value.Format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
+				Name.c_str(),
+				Team1.c_str(),
+				House.c_str(),
+				TechLevel.c_str(),
+				ConditionType.c_str(),
+				ComparisonObject.c_str(),
+				comparator,
+				initial.c_str(),
+				min.c_str(),
+				max.c_str(),
+				IsForSkirmish ? "1" : "0",
+				unused.c_str(),
+				Side.c_str(),
+				IsBaseDefense ? "1" : "0",
+				Team2.c_str(),
+				EnabledInE ? "1" : "0",
+				EnabledInM ? "1" : "0",
+				EnabledInH ? "1" : "0"
+			);
+			if (Enabled) {
+				CINI::CurrentDocument->WriteBool("AITriggerTypesEnable", ID.c_str(), Enabled);
+			}
+			else {
+				CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+			}
+			CINI::CurrentDocument->WriteString("AITriggerTypes", ID.c_str(), value);
+			UsedINIIndices.insert(ID);
+			CLuaConsole::updateAITrigger = true;
+		}
+		void change_id(std::string id)
+		{
+			UsedINIIndices.erase(ID);
+			UsedINIIndices.insert(id);
+			ID = id;
+		}
+		void release_id() const {
+			UsedINIIndices.erase(ID);
+		}
+		void delete_ai_trigger_self() const
+		{
+			CINI::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+			UsedINIIndices.erase(ID);
+			CLuaConsole::updateAITrigger = true;
+		}
+		static void delete_ai_trigger(std::string ID)
+		{
+			CINI::CurrentDocument->DeleteKey("AITriggerTypes", ID.c_str());
+			CINI::CurrentDocument->DeleteKey("AITriggerTypesEnable", ID.c_str());
+			UsedINIIndices.erase(ID);
+			CLuaConsole::updateAITrigger = true;
+		}
+
+	private:
+		static int ReadComparator(ppmfc::CString text, int index)
+		{
+			int num = 0;
+			if (text.GetLength() != 64) return num;
+			if (index < 0 || index > 7) return num;
+
+			auto thisText = text.Mid(8 * index, 8);
+			unsigned char bytes[4]{ 0 };
+			for (int i = 0; i < 4; ++i) {
+				bytes[i] = static_cast<unsigned char>(strtol(thisText.Mid(2 * i, 2), NULL, 16));
+
+			}
+			num |= (bytes[0] << 0);
+			num |= (bytes[1] << 8);
+			num |= (bytes[2] << 16);
+			num |= (bytes[3] << 24);
+
+			return num;
+		}
+		static ppmfc::CString SaveComparator(int comparator)
+		{
+			ppmfc::CString ret = "";
+
+			std::stringstream ss;
+			ss << std::hex << comparator;
+			ppmfc::CString bigEndian = ss.str().c_str();
+			while (bigEndian.GetLength() < 8) {
+				bigEndian = "0" + bigEndian;
+			}
+
+			for (int i = 3; i >= 0; --i) {
+				ret += bigEndian.Mid(2 * i, 2);
+			}
+			return ret;
 		}
 
 	};
@@ -2788,6 +3603,4 @@ namespace LuaFunctions
 	{
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	}
-
-
 }

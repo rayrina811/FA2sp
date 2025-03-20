@@ -862,7 +862,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 							auto atoms = STDHelpers::SplitString(pair.second);
 							if (atoms.size() < 5)
 								continue;
-							auto pID = atoms[1];
+							auto& pID = atoms[1];
 							auto results = STDHelpers::SplitString(result);
 							if (!results.empty())
 								if (std::find(results.begin(), results.end(), pID) != results.end() ||
