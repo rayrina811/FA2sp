@@ -32,7 +32,7 @@ void WaypointSort::LoadAllTriggers()
     // Optimisze the efficiency
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
     {
-        for (auto pair : pSection->GetEntities())
+        for (auto& pair : pSection->GetEntities())
         {
             auto second = atoi(pair.second);
 
@@ -533,7 +533,7 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, ppmfc::CString x, ppmfc:
                         }
                         if (skiplist.size() > 0)
                         {
-                            for (auto wp : skiplist)
+                            for (auto& wp : skiplist)
                             {
                                 if (triggerId == wp)
                                     add = false;

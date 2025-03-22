@@ -358,6 +358,9 @@ void CMapValidatorExt::ValidateValueLength(BOOL& result)
 		if (!strcmp(section.first, "Actions") || !strcmp(section.first, "Events") || !strcmp(section.first, "AITriggerTypes"))
 			Length = 512; 
 
+		if (!strcmp(section.first, "Annotations"))
+			continue;
+
 		for (auto& pair : section.second.GetEntities())
 		{
 			auto line = pair.first + "=" + pair.second;

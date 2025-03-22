@@ -1776,6 +1776,174 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
     CMapDataExt::GetExtension()->PlaceTileAt(X, Y, ID, Subtile);
 }
 
+void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
+    CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
+    int x, int y, int fontSize, BYTE alpha, bool bold)
+{
+    int bpp = 4;
+    HDC hdcScreen = GetDC(NULL);
+    HDC hdcMem = CreateCompatibleDC(hdcScreen);
+
+    RECT textRect = { 0, 0, 1000, 1000 };
+    HFONT hFont = CreateFontW(fontSize, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, L"Cambria");
+    HFONT oldFont = (HFONT)SelectObject(hdcMem, hFont);
+
+    ::DrawTextW(hdcMem, text.c_str(), -1, &textRect, DT_CALCRECT | DT_LEFT | DT_TOP | DT_WORDBREAK);
+    int swidth = textRect.right - textRect.left;
+    int sheight = textRect.bottom - textRect.top;
+
+    HBITMAP hBitmap = CreateCompatibleBitmap(hdcScreen, swidth, sheight);
+    SelectObject(hdcMem, hBitmap);
+
+    SetBkColor(hdcMem, bgColor);
+    SetTextColor(hdcMem, textColor);
+    SetBkMode(hdcMem, OPAQUE);
+
+    swidth = std::min(swidth, 1000);
+    sheight = std::min(sheight, 1000);
+
+    RECT fillRect = { 0, 0, swidth, sheight };
+    HBRUSH hBrush = CreateSolidBrush(bgColor);
+    FillRect(hdcMem, &fillRect, hBrush);
+    DeleteObject(hBrush);
+
+    ::DrawTextW(hdcMem, text.c_str(), -1, &fillRect, DT_LEFT | DT_TOP | DT_WORDBREAK);
+
+    BITMAPINFO bmi = {};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = swidth;
+    bmi.bmiHeader.biHeight = -sheight;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    auto tempPixels = new BYTE[swidth * sheight * bpp];
+    GetDIBits(hdcMem, hBitmap, 0, sheight, tempPixels, &bmi, DIB_RGB_COLORS);
+
+    int borderWidth = 3;
+    int finalWidth = swidth + 2 * borderWidth;
+    int finalHeight = sheight + 2 * borderWidth;
+
+    auto src = new BGRStruct[finalWidth * finalHeight];
+    for (int i = 0; i < finalWidth * finalHeight; i++) {
+        src[i] = BGRStruct(bgColor & 0xFF, (bgColor >> 8) & 0xFF, (bgColor >> 16) & 0xFF);
+    }
+
+    // textColor border
+    for (int y = 0; y < finalHeight; y++) {
+        for (int x = 0; x < finalWidth; x++) {
+            if (x == 0 || x == finalWidth - 1 || y == 0 || y == finalHeight - 1) {
+                src[y * finalWidth + x] = BGRStruct((textColor >> 16) & 0xFF, (textColor >> 8) & 0xFF, textColor & 0xFF);
+            }
+        }
+    }
+
+    // bgColor border
+    for (int y = 1; y < finalHeight - 1; y++) {
+        for (int x = 1; x < finalWidth - 1; x++) {
+            if (x <= 2 || x >= finalWidth - 3 || y <= 2 || y >= finalHeight - 3) {
+                src[y * finalWidth + x] = BGRStruct((bgColor >> 16) & 0xFF, (bgColor >> 8) & 0xFF, bgColor & 0xFF);
+            }
+        }
+    }
+
+    for (int y = 0; y < sheight; y++) {
+        for (int x = 0; x < swidth; x++) {
+            int srcIndex = (y + borderWidth) * finalWidth + (x + borderWidth);
+            int tempIndex = (y * swidth + x) * 4;
+            src[srcIndex] = BGRStruct(tempPixels[tempIndex + 0], // B
+                tempPixels[tempIndex + 1], // G
+                tempPixels[tempIndex + 2]);// R
+        }
+    }
+
+    delete[] tempPixels;
+
+    swidth = finalWidth;
+    sheight = finalHeight;
+
+    SelectObject(hdcMem, oldFont);
+    DeleteObject(hFont);
+    DeleteObject(hBitmap);
+    DeleteDC(hdcMem);
+    ReleaseDC(NULL, hdcScreen);
+
+    if (src == NULL || dst == NULL) {
+        return;
+    }
+    if (x + swidth < window.left || y + sheight < window.top) {
+        return;
+    }
+    if (x >= window.right || y >= window.bottom) {
+        return;
+    }
+
+    RECT blrect;
+    RECT srcRect;
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+        //blrect.left=1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+        //blrect.top=1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
+    }
+
+    BGRStruct textBGR;
+    auto pRGB = (ColorStruct*)&textColor;
+    textBGR.R = pRGB->red;
+    textBGR.G = pRGB->green;
+    textBGR.B = pRGB->blue;
+
+    int i, e;
+    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+
+    for (e = srcRect.top; e < srcRect.bottom; e++) {
+        for (i = srcRect.left; i <= srcRect.right; i++) {
+            if (blrect.left + i < 0) {
+                continue;
+            }
+            
+            const int spos = i + e * swidth;
+            auto c = src[spos];
+            auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
+
+            if (dest >= dst) {
+                if (dest + bpp < surfaceEnd) {
+                    if (alpha < 255 && !(c.B == textBGR.B && c.G == textBGR.G && c.R == textBGR.R))
+                    {
+                        BGRStruct oriColor;
+                        memcpy(&oriColor, dest, bpp);
+                        c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
+                        c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
+                        c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
+                    }
+                    memcpy(dest, &c, bpp);
+                }
+            }
+        }
+    }
+    delete[] src;
+}
+
 IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap)
 {
     BITMAP bm;

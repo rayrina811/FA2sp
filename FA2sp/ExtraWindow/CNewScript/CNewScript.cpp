@@ -499,24 +499,9 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
 
 void CNewScript::OnCloseupActionExtraParam()
 {
-    if (!ActionExtraParamLabels.empty())
+    if (!ExtraWindow::OnCloseupCComboBox(hActionExtraParam, ActionExtraParamLabels))
     {
-        char buffer[512]{ 0 };
-        GetWindowText(hActionExtraParam, buffer, 511);
-        ppmfc::CString text(buffer);
-        SendMessage(hActionExtraParam, CB_GETLBTEXT, SendMessage(hActionExtraParam, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
-        while (SendMessage(hActionExtraParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : ActionExtraParamLabels)
-            SendMessage(hActionExtraParam, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-        ActionExtraParamLabels.clear();
-        int idx = SendMessage(hActionExtraParam, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
-        if (idx == CB_ERR)
-            SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
-        else
-            SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
-
-        if (!ExtraWindow::bComboLBoxSelected)
-            OnSelchangeActionListbox();
+        OnSelchangeActionListbox();
     }
 }
 
@@ -590,24 +575,9 @@ void CNewScript::OnSelchangeActionParam(bool edited)
 
 void CNewScript::OnCloseupActionParam()
 {
-    if (!ActionParamLabels.empty())
+    if (!ExtraWindow::OnCloseupCComboBox(hActionParam, ActionParamLabels))
     {
-        char buffer[512]{ 0 };
-        GetWindowText(hActionParam, buffer, 511);
-        ppmfc::CString text(buffer);
-        SendMessage(hActionParam, CB_GETLBTEXT, SendMessage(hActionParam, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
-        while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : ActionParamLabels)
-            SendMessage(hActionParam, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-        ActionParamLabels.clear();
-        int idx = SendMessage(hActionParam, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
-        if (idx == CB_ERR)
-            SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
-        else
-            SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
-
-        if (!ExtraWindow::bComboLBoxSelected)
-            OnSelchangeActionListbox();
+        OnSelchangeActionListbox();
     }
 }
 
@@ -684,24 +654,9 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
 void CNewScript::OnCloseupActionType()
 {
-    if (!ActionTypeLabels.empty())
+    if (!ExtraWindow::OnCloseupCComboBox(hActionType, ActionTypeLabels))
     {
-        char buffer[512]{ 0 };
-        GetWindowText(hActionType, buffer, 511);
-        ppmfc::CString text(buffer);
-        SendMessage(hActionType, CB_GETLBTEXT, SendMessage(hActionType, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
-        while (SendMessage(hActionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : ActionTypeLabels)
-            SendMessage(hActionType, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-        ActionTypeLabels.clear();
-        int idx = SendMessage(hActionType, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
-        if (idx == CB_ERR)
-            SendMessage(hActionType, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
-        else
-            SendMessage(hActionType, CB_SETCURSEL, idx, NULL);
-
-        if (!ExtraWindow::bComboLBoxSelected)
-            OnSelchangeActionListbox();
+        OnSelchangeActionListbox();
     }
 }
 
@@ -813,21 +768,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 
 void CNewScript::OnCloseupScript()
 {
-    if (!ScriptLabels.empty())
+    if (!ExtraWindow::OnCloseupCComboBox(hSelectedScript, ScriptLabels, true))
     {
-        char buffer[512]{ 0 };
-        GetWindowText(hSelectedScript, buffer, 511);
-        ppmfc::CString text(buffer);
-        SendMessage(hSelectedScript, CB_GETLBTEXT, SendMessage(hSelectedScript, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
-        while (SendMessage(hSelectedScript, CB_DELETESTRING, 0, NULL) != CB_ERR);
-        for (auto& pair : ScriptLabels)
-            SendMessage(hSelectedScript, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
-        ScriptLabels.clear();
-        int idx = SendMessage(hSelectedScript, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
-        if (idx == CB_ERR)
-            SendMessage(hSelectedScript, CB_SETCURSEL, 0, NULL);
-        else
-            SendMessage(hSelectedScript, CB_SETCURSEL, idx, NULL);
         OnSelchangeScript();
     }
 }

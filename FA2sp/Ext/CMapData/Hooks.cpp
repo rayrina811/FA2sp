@@ -835,6 +835,15 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 	return 0x4A98AC;
 }
 
+DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_UpdateStructureData, 8)
+{
+	if (CMapDataExt::StructureIndexMap.size() > 65500)
+	{
+		CMapDataExt::UpdateFieldStructureData_Optimized();
+	}
+	return 0;
+}
+
 DEFINE_HOOK(4AB68D, CMapData_GetStdStructureData, 7)
 {
 	GET_STACK(int, cellIndex, STACK_OFFS(0x74, -0x4));
@@ -849,91 +858,6 @@ DEFINE_HOOK(4AAE98, CMapData_GetStructureData, A)
 	return 0;
 }
 
-DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
-{
-	GET_STACK(UINT, nFlags, 0x218);
-	GET_STACK(int, screenCoordX, 0x21C);
-	GET_STACK(int, screenCoordY, 0x220);
-
-	if (nFlags == MK_CONTROL)
-	{
-		auto Map = &CMapData::Instance();
-		auto isoView = CIsoView::GetInstance();
-		auto m_id = isoView->CurrentCellObjectIndex;
-		auto m_type = isoView->CurrentCellObjectType;
-
-		CBuildingData structure;
-		CInfantryData infantry;
-		CUnitData unit;
-		CAircraftData aircraft;
-
-		int X = screenCoordX;
-		int	Y = screenCoordY;
-		CPoint point(X, Y);
-		auto newMapCoord = isoView->GetCurrentMapCoord(point);
-
-		//order: inf unit air str
-		if (m_type == 0)
-		{
-			Map->GetInfantryData(m_id, infantry);
-			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
-			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing);
-			Map->DeleteInfantryData(m_id);
-			Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
-		}
-		else if (m_type == 3)
-		{
-			Map->GetUnitData(m_id, unit);
-			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
-			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing);
-			Map->DeleteUnitData(m_id);
-			Map->SetUnitData(&unit, NULL, NULL, 0, "");
-		}
-		else if (m_type == 2)
-		{
-			Map->GetAircraftData(m_id, aircraft);
-			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
-			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing);
-			Map->DeleteAircraftData(m_id);
-			Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
-		}
-		else if (m_type == 1)
-		{
-			Map->GetBuildingData(m_id, structure);
-			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
-			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing);
-			CMapDataExt::SkipUpdateBuildingInfo = true;
-			Map->DeleteBuildingData(m_id);
-			Map->SetBuildingData(&structure, NULL, NULL, 0, "");
-		}
-
-		return 0x467682;
-	}
-
-	return 0;
-}
-
-DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
-{
-	GET_STACK(DWORD, dwID, STACK_OFFS(0x3D528, 0x3D450));
-
-	if (dwID < *CTileTypeClass::InstanceCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
-			return 0x4577F7;
-
-	return 0x4576CC;
-}
-
-DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
-{
-	GET(DWORD, dwID6, EDI);
-	int dwID = dwID6 >> 6;
-	if (dwID < *CTileTypeClass::InstanceCount)
-		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
-			return 0x461DEE;
-
-	return 0x461CE1;
-}
 DEFINE_HOOK(4B4996, CMapData_UpdateMapFieldData_NoRndForBridge, 6)
 {
 	GET(DWORD, dwID6, EAX);

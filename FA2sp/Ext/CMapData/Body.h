@@ -244,6 +244,7 @@ public:
     static bool IsValidTileSet(int tileset);
     static void UpdateIncludeIniInMap();
     static ppmfc::CString GetAvailableIndex();
+    static bool HasAnnotation(int pos);
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;

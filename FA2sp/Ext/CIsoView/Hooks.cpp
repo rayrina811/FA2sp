@@ -861,6 +861,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	auto currentLighting = CFinalSunDlgExt::CurrentLighting;
 	Logger::Debug("CIsoView::ReInitializeDDraw(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition(false);
+	CMapData::Instance->UpdateFieldBasenodeData(FALSE);
 	CViewObjectsExt::Redraw_ConnectedTile(nullptr);
 	CFinalSunDlgExt::CurrentLighting = currentLighting;
 	if (CFinalSunDlgExt::CurrentLighting != 31000)
@@ -900,6 +901,190 @@ DEFINE_HOOK(46A362, CIsoView_UpdateStatusBar_BuildingID, 6)
 {
 	R->ESI(CMapDataExt::StructureIndexMap[R->ESI()]);
 	return 0;
+}
+
+DEFINE_HOOK(45ED9E, CIsoView_OnCommand_FoldAnnotations, 5)
+{
+	GET(int, pos, EAX);
+	if (pos < CMapData::Instance->CellDataCount)
+	{
+		int x = CMapData::Instance->GetXFromCoordIndex(pos);
+		int y = CMapData::Instance->GetYFromCoordIndex(pos);
+		ppmfc::CString key;
+		key.Format("%d", x * 1000 + y);
+		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		{
+			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+			ppmfc::CString value;
+			bool folded = STDHelpers::IsTrue(atoms[2]);
+			for (int i = 0; i < atoms.size(); ++i)
+			{
+				if (i != 0)
+					value += ",";
+				if (i != 2)
+					value += atoms[i];
+				else
+				{
+					if (folded)
+						value += "no";
+					else
+						value += "yes";
+				}
+			}
+			CINI::CurrentDocument->WriteString("Annotations", key, value);
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+		}
+	}
+	return 0;
+}
+
+
+DEFINE_HOOK(4618D1, CIsoView_OnLButtonDown_DragOtherObject_Jump, 5)
+{
+	auto pThis = CIsoView::GetInstance();
+	if (pThis->CurrentCellObjectIndex < 0)
+	{
+		int pos = CMapData::Instance->GetCoordIndex(pThis->StartCell.X, pThis->StartCell.Y);
+		if (CMapDataExt::HasAnnotation(pos))
+		{
+			pThis->CurrentCellObjectIndex = pos;
+			// annotation
+			pThis->CurrentCellObjectType = 7;
+		}
+		return 0x46686A;
+	}
+	return 0;
+}
+
+DEFINE_HOOK(4B1B50, CIsoView_OnLButtonDown_IsGroundObjectAt, 8)
+{
+	GET_STACK(int, pos, 0x4);
+
+	if (CMapDataExt::HasAnnotation(pos))
+	{
+		R->EAX(1);
+		return 0x4B1BBE;
+	}
+	return 0;
+}
+
+
+UINT nLButtonUpFlags = 0;
+DEFINE_HOOK(466970, CIsoView_OnLButtonUp_GetnFlags, 6)
+{
+	nLButtonUpFlags = R->Stack<UINT>(0x4);
+	return 0;
+}
+
+DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
+{
+	auto isoView = CIsoView::GetInstance();
+	auto& m_id = isoView->CurrentCellObjectIndex;
+	auto& m_type = isoView->CurrentCellObjectType;
+
+	//annotation
+	if (m_type == 7)
+	{
+		int X = R->EBX();
+		int	Y = R->EDI();
+
+		int oldX = CMapData::Instance->GetXFromCoordIndex(m_id);
+		int oldY = CMapData::Instance->GetYFromCoordIndex(m_id);
+		ppmfc::CString key;
+		key.Format("%d", oldX * 1000 + oldY);
+		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		{
+			auto value = CINI::CurrentDocument->GetString("Annotations", key);
+			if (nLButtonUpFlags != MK_SHIFT)
+				CINI::CurrentDocument->DeleteKey("Annotations", key);
+			key.Format("%d", X * 1000 + Y);
+			CINI::CurrentDocument->WriteString("Annotations", key, value);
+		}
+		m_id = -1;
+		m_type = -1;
+	}
+	return 0;
+}
+
+DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
+{
+	if (nLButtonUpFlags == MK_CONTROL)
+	{
+		auto Map = &CMapData::Instance();
+		auto isoView = CIsoView::GetInstance();
+		auto m_id = isoView->CurrentCellObjectIndex;
+		auto m_type = isoView->CurrentCellObjectType;
+
+		CBuildingData structure;
+		CInfantryData infantry;
+		CUnitData unit;
+		CAircraftData aircraft;
+
+		int X = R->EBX();
+		int	Y = R->EDI();
+		MapCoord newMapCoord = { X,Y };
+
+		//order: inf unit air str
+		if (m_type == 0)
+		{
+			Map->GetInfantryData(m_id, infantry);
+			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
+			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing);
+			Map->DeleteInfantryData(m_id);
+			Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
+		}
+		else if (m_type == 3)
+		{
+			Map->GetUnitData(m_id, unit);
+			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
+			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing);
+			Map->DeleteUnitData(m_id);
+			Map->SetUnitData(&unit, NULL, NULL, 0, "");
+		}
+		else if (m_type == 2)
+		{
+			Map->GetAircraftData(m_id, aircraft);
+			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
+			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing);
+			Map->DeleteAircraftData(m_id);
+			Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
+		}
+		else if (m_type == 1)
+		{
+			Map->GetBuildingData(m_id, structure);
+			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
+			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing);
+			CMapDataExt::SkipUpdateBuildingInfo = true;
+			Map->DeleteBuildingData(m_id);
+			Map->SetBuildingData(&structure, NULL, NULL, 0, "");
+		}
+
+		return 0x467682;
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(4576C6, CIsoView_OnMouseMove_NoRndForBridge, 6)
+{
+	GET_STACK(DWORD, dwID, STACK_OFFS(0x3D528, 0x3D450));
+
+	if (dwID < *CTileTypeClass::InstanceCount)
+		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
+			return 0x4577F7;
+
+	return 0x4576CC;
+}
+
+DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
+{
+	GET(DWORD, dwID6, EDI);
+	int dwID = dwID6 >> 6;
+	if (dwID < *CTileTypeClass::InstanceCount)
+		if (CMapDataExt::TileData[dwID].TileSet == CMapDataExt::WoodBridgeSet)
+			return 0x461DEE;
+
+	return 0x461CE1;
 }
 
 

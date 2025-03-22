@@ -145,7 +145,8 @@ public:
         Root_Nothing = 0, Root_Ground, Root_Owner, Root_Infantry, Root_Vehicle,
         Root_Aircraft, Root_Building, Root_Terrain, Root_Smudge, Root_Overlay,
         Root_Waypoint, Root_Celltag, Root_Basenode, Root_Tunnel, Root_PlayerLocation,
-        Root_PropertyBrush,Root_InfantrySubCell, Root_View, Root_MultiSelection, Root_Cliff, Root_Delete, Root_Count
+        Root_PropertyBrush, Root_Annotation, Root_InfantrySubCell, Root_View,
+        Root_MultiSelection, Root_Cliff, Root_Delete, Root_Count
     };
     
 
@@ -173,6 +174,10 @@ public:
     enum {
         MoveUp = 0, MoveDown, Move
     };
+    
+    enum {
+        AnnotationsAdd = 0, AnnotationsRemove
+    };
 
     enum {
         i1_2_3 = 0, i1_3_2, i2_1_3, i2_3_1, i3_1_2, i3_2_1, i4_2_3, i4_3_2, i2_4_3, i2_3_4, i3_4_2, i3_2_4, changeOrder
@@ -193,7 +198,7 @@ public:
         Const_Vehicle = 40000, Const_Terrain = 50000, Const_Overlay = 63000,
         Const_House = 70000, Const_Smudge = 80000, Const_PropertyBrush = 90000,
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
-        Const_MultiSelection = 130000, Const_ConnectedTile = 140000
+        Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000
     };
     static std::map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
@@ -235,6 +240,7 @@ private:
 
     void Redraw_ViewObjectInfo();
     void Redraw_MultiSelection();
+    void Redraw_Annotation();
 
     bool DoPropertyBrush_Building();
     bool DoPropertyBrush_Infantry();
@@ -371,6 +377,8 @@ public:
     static void MoveBaseNodeOrder(int X, int Y);
     static void MoveBaseNode(int X, int Y);
     static void ModifyOre(int X, int Y);
+    static void AddAnnotation(int X, int Y);
+    static void RemoveAnnotation(int X, int Y);
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
     

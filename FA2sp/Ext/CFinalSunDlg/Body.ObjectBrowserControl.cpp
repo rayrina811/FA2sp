@@ -16,6 +16,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
+#include "../../ExtraWindow/CAnnotationDlg/CAnnotationDlg.h"
 
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
@@ -167,6 +168,7 @@ void CViewObjectsExt::Redraw()
     Redraw_Tunnel();
     Redraw_PlayerLocation(); // player location is just waypoints!
     Redraw_PropertyBrush();
+    Redraw_Annotation();
     //Redraw_InfantrySubCell(); // we do not need this any more!
     Redraw_ViewObjectInfo();
     Redraw_MultiSelection();
@@ -327,6 +329,7 @@ void CViewObjectsExt::Redraw_MainList()
     ExtNodes[Root_Tunnel] = this->InsertTranslatedString("TunnelObList", 9);
     ExtNodes[Root_PlayerLocation] = this->InsertTranslatedString("StartpointsObList", 12);
     ExtNodes[Root_PropertyBrush] = this->InsertTranslatedString("PropertyBrushObList", 14);
+    ExtNodes[Root_Annotation] = this->InsertTranslatedString("AnnotationObList", 19);
     //ExtNodes[Root_InfantrySubCell] = this->InsertTranslatedString("InfantrySubCellObList", 15);
     ExtNodes[Root_View] = this->InsertTranslatedString("ViewObjObList", 16);
     if (ExtConfigs::EnableMultiSelection)
@@ -1312,6 +1315,14 @@ void CViewObjectsExt::Redraw_InfantrySubCell()
     this->InsertTranslatedString("InfantrySubCellChangeOrder", Const_InfantrySubCell + changeOrder, hInfantrySubCell);
 }
 
+void CViewObjectsExt::Redraw_Annotation()
+{
+    HTREEITEM& hAnnotation = ExtNodes[Root_Annotation];
+    if (hAnnotation == NULL)    return;
+    this->InsertTranslatedString("AnnotationObListAddChange", Const_Annotation + AnnotationsAdd, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListDelete", Const_Annotation + AnnotationsRemove, hAnnotation);
+}
+
 void CViewObjectsExt::Redraw_ViewObjectInfo()
 {
     HTREEITEM& hView = ExtNodes[Root_View];
@@ -1554,6 +1565,65 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
         }
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
+}
+
+void CViewObjectsExt::AddAnnotation(int X, int Y)
+{
+    ppmfc::CString key;
+    key.Format("%d", X * 1000 + Y);
+    CAnnotationDlg dlg;
+
+    bool folded = false;
+    if (CINI::CurrentDocument->KeyExists("Annotations", key))
+    {
+        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+        dlg.m_Text = atoms[5];
+        for (int i = 6; i < atoms.size() - 1; i++)
+        {
+             dlg.m_Text += ",";
+             dlg.m_Text += atoms[i];
+        }
+        dlg.m_FontSize = atoms[0];
+        dlg.m_Bold = STDHelpers::IsTrue(atoms[1]);
+        folded = STDHelpers::IsTrue(atoms[2]);
+        dlg.m_TextColor = atoms[3];
+        dlg.m_BgColor = atoms[4];
+    }
+        
+    dlg.DoModal();
+
+    dlg.m_Text.Replace("\n", "\\n");
+    dlg.m_Text.Replace("\r", "\\n");
+    if (STDHelpers::IsNullOrWhitespaceOrReturn(dlg.m_Text))
+        return;
+
+    int size = std::min(100, atoi(dlg.m_FontSize));
+    size = std::max(10, size);
+    auto textColor = STDHelpers::HexStringToColorRefRGB(dlg.m_TextColor);
+    auto bgColor = STDHelpers::HexStringToColorRefRGB(dlg.m_BgColor);
+    bool bold = dlg.m_Bold == TRUE;
+
+    ppmfc::CString value;
+    value.Format("%d,%s,%s,%s,%s,%s,END", size, bold ? "yes" : "no", folded ? "yes" : "no",
+        STDHelpers::ColorRefRGBToHexString(textColor), STDHelpers::ColorRefRGBToHexString(bgColor),
+        dlg.m_Text);
+
+    CINI::CurrentDocument->WriteString("Annotations", key, value);
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+void CViewObjectsExt::RemoveAnnotation(int X, int Y)
+{
+    ppmfc::CString key;
+    key.Format("%d", X * 1000 + Y);
+
+    if (CINI::CurrentDocument->KeyExists("Annotations", key))
+    {
+        CINI::CurrentDocument->DeleteKey("Annotations", key);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+
+    return;
 }
 
 void CViewObjectsExt::MoveBaseNodeOrder(int X, int Y)
@@ -2771,8 +2841,17 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x1E; // Cliff
         CIsoView::CurrentCommand->Type = nData;
+
+        return true;
+    }
+    if (nCode == 15) // Annotation
+    {
+        CIsoView::CurrentCommand->Command = 0x21; // Cliff
+        CIsoView::CurrentCommand->Type = nData;
         return true;
     }
     // 0x1F Terrain Generator
+    // 0x20 Modify Ore
+    // 0x21 Annotation
     return false;
 }

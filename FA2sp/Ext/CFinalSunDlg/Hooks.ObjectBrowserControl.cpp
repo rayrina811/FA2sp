@@ -595,6 +595,19 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
         return 0x466860;
     }
+    else if (CIsoView::CurrentCommand->Command == 0x21)
+    {
+        if (CIsoView::CurrentCommand->Type == 0)
+        {
+            CViewObjectsExt::AddAnnotation(X, Y);
+            return 0x466860;
+        }
+        else
+        {
+            CViewObjectsExt::RemoveAnnotation(X, Y);
+            return 0x466860;
+        }
+    }
     else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 3)
     {
         CViewObjectsExt::BatchAddMultiSelection(X, Y, true);
@@ -641,7 +654,20 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
         CViewObjectsExt::ModifyOre(X, Y);
 
         return 0x45CD6D;
-    }         
+    }    
+    else if (CIsoView::CurrentCommand->Command == 0x21)
+    {
+        if (CIsoView::CurrentCommand->Type == 0)
+        {
+            CViewObjectsExt::AddAnnotation(X, Y);
+            return 0x45CD6D;
+        }
+        else
+        {
+            CViewObjectsExt::RemoveAnnotation(X, Y);
+            return 0x45CD6D;
+        }
+    }
     else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 3)
     {
         CViewObjectsExt::BatchAddMultiSelection(X, Y, true);

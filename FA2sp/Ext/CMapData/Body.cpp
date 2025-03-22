@@ -1041,7 +1041,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
 
 	int cellIndex = StructureIndexMap.size();
-	if (cellIndex >= 65535)
+	if (cellIndex > 65500 && !CIsoView::IsMouseMoving)
 	{
 		UpdateFieldStructureData_Optimized();
 	}
@@ -1114,7 +1114,6 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 
 void CMapDataExt::UpdateFieldStructureData_Optimized()
 {
-	Logger::Raw("UpdateFieldStructureData_Optimized Called!\n");
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
@@ -1338,6 +1337,22 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 	}
 
 	return "";
+}
+
+bool CMapDataExt::HasAnnotation(int pos)
+{
+	if (pos < CMapData::Instance->CellDataCount)
+	{
+		int x = CMapData::Instance->GetXFromCoordIndex(pos);
+		int y = CMapData::Instance->GetYFromCoordIndex(pos);
+		ppmfc::CString key;
+		key.Format("%d", x * 1000 + y);
+		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void CMapDataExt::UpdateIncludeIniInMap()

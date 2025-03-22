@@ -17,7 +17,7 @@ ppmfc::CString STDHelpers::RandomSelect(std::vector<ppmfc::CString>& vec) {
     std::uniform_int_distribution<int> dis(0, vec.size() - 1); 
 
     int index = dis(gen); 
-    return vec[index]; // 返回随机选取的元素
+    return vec[index];
 }
 
 int STDHelpers::RandomSelectInt(std::vector<int>& vec, bool record, int thisCT) {
@@ -54,22 +54,68 @@ int STDHelpers::RandomSelectInt(int start, int end)
     return RandomSelectInt(vec);
 }
 
-bool STDHelpers::IsNumber(const std::string& str) {
+bool STDHelpers::IsNumber(const std::string& str) 
+{
     if (str.empty()) return false;
     size_t start = 0;
     if (str[0] == '-') {
         if (str.size() == 1) return false;
         start = 1;
     }
-    for (size_t i = start; i < str.size(); ++i) {
+    for (size_t i = start; i < str.size(); ++i) 
+    {
         if (!std::isdigit(str[i])) return false;
     }
     return true;
 }
 
-bool STDHelpers::IsNumber(const char * str) {
+bool STDHelpers::IsNumber(const char * str) 
+{
     std::string tmp = str;
     return STDHelpers::IsNumber(tmp);
+}
+
+bool STDHelpers::IsTrue(const char* str, bool nDefault)
+{
+    switch (toupper(static_cast<unsigned char>(str[0])))
+    {
+    case '1':
+    case 'T':
+    case 'Y':
+        return true;
+    case '0':
+    case 'F':
+    case 'N':
+        return false;
+    default:
+        return nDefault;
+    }
+}
+
+COLORREF STDHelpers::HexStringToColorRefRGB(const char* hexStr) 
+{
+    std::string hex = hexStr;
+    if (hex.find("0x") == 0 || hex.find("0X") == 0) {
+        hex = hex.substr(2);
+    }
+    else if (hex.find("#") == 0) {
+        hex = hex.substr(1);
+    }
+    if (hex.length() != 6) return 0;
+    try {
+        unsigned int color = std::stoul(hex, nullptr, 16);
+        return RGB((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+    }
+    catch (...) {
+        return 0; 
+    }
+}
+
+ppmfc::CString STDHelpers::ColorRefRGBToHexString(COLORREF color)
+{
+    char hexStr[10];
+    std::sprintf(hexStr, "0x%02X%02X%02X", GetRValue(color), GetGValue(color), GetBValue(color));
+    return hexStr;
 }
 
 std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSource, const char* pSplit)
@@ -226,6 +272,21 @@ bool STDHelpers::IsNullOrWhitespace(const char* pSource)
     return true;
 }
 
+bool STDHelpers::IsNullOrWhitespaceOrReturn(const char* pSource)
+{
+    if (pSource == nullptr || *pSource == '\0') 
+        return true;
+
+    while (*pSource)
+    {
+        if (!isspace(static_cast<unsigned char>(*pSource)))
+            return false;
+        ++pSource;
+    }
+
+    return true;
+}
+
 bool STDHelpers::IsNoneOrEmpty(const char* pSource)
 {
     int len = strlen(pSource);
@@ -331,7 +392,6 @@ std::string STDHelpers::ToUpperCase(const std::string& _str) {
     return upperStr;
 }
 
-
 std::string STDHelpers::WStringToString(const std::wstring& wstr) {
 
     int len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), wstr.size(), nullptr, 0, nullptr, nullptr);
@@ -348,6 +408,17 @@ std::string STDHelpers::WStringToString(const std::wstring& wstr) {
     }
 
     return result;
+}
+
+std::wstring STDHelpers::StringToWString(const std::string& str) 
+{
+    int wideSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, nullptr, 0);
+    if (wideSize == 0) return L"";
+
+    std::wstring wstr(wideSize, 0);
+    MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, &wstr[0], wideSize);
+
+    return wstr;
 }
 
 std::string STDHelpers::UTF8ToANSI(const std::string& utf8Str) {

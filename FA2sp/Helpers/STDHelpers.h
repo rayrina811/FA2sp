@@ -25,6 +25,7 @@ public:
     static ppmfc::CString IntToString(int source, const char* format = "%d");
     static bool IsNullOrEmpty(const char* pSource);
     static bool IsNullOrWhitespace(const char* pSource);
+    static bool IsNullOrWhitespaceOrReturn(const char* pSource);
     static bool IsNoneOrEmpty(const char* pSource);
     static void TrimString(ppmfc::CString& str);
     static ppmfc::CString GetTrimString(ppmfc::CString str);
@@ -35,6 +36,9 @@ public:
     static ppmfc::CString GetComboBoxText(const ppmfc::CComboBox& cbb);
     static bool IsNumber(const std::string& str);
     static bool IsNumber(const char * str);
+	static bool IsTrue(const char* str, bool nDefault = false);
+	static COLORREF HexStringToColorRefRGB(const char* hexStr);
+	static ppmfc::CString ColorRefRGBToHexString(COLORREF color);
 
     static ppmfc::CString ReplaceSpeicalString(ppmfc::CString ori);
 
@@ -47,6 +51,7 @@ public:
     static std::string ToUpperCase(const std::string& _str);
 
     static std::string WStringToString(const std::wstring& wstr);
+    static std::wstring StringToWString(const std::string& str);
 	static std::string UTF8ToANSI(const std::string& utf8Str);
 
 	static inline int letter2number(char let) {

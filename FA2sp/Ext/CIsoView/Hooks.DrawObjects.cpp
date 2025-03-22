@@ -11,6 +11,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Miscs/MultiSelection.h"
+#include <codecvt>
 
 static int Left, Right, Top, Bottom;
 static RECT window;
@@ -489,7 +490,9 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 	int X = R->Stack<int>(STACK_OFFS(0xD18, 0xCE4)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
 	int Y = R->Stack<int>(STACK_OFFS(0xD18, 0xCD0)) - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-	if (IsCoordInWindow(R->Stack<int>(STACK_OFFS(0xD18, 0xCA8)), R->Stack<int>(STACK_OFFS(0xD18, 0xCA4))))
+	int cellX = R->Stack<int>(STACK_OFFS(0xD18, 0xCA8)); 
+	int cellY = R->Stack<int>(STACK_OFFS(0xD18, 0xCA4));
+	if (IsCoordInWindow(cellX, cellY))
 	{
 		// We had unlocked it already, just blt them now
 		if (CIsoViewExt::DrawCelltags && celldata.CellTag != -1)
@@ -534,21 +537,16 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 			pThis->DrawWaypointFlag(X, Y);
 		if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
 			pThis->DrawTube(&celldata, X, Y);
+
+		if (CMapDataExt::HasAnnotation(CMapData::Instance->GetCoordIndex(cellX, cellY)))
+		{
+			pThis->DrawWaypointFlag(X, Y);
+		}
 	}
 
 	auto& cellDataExt = CMapDataExt::CellDataExt_FindCell;
 	if (cellDataExt.drawCell)
 	{
-		SetTextColor(hDC, ExtConfigs::Waypoint_Color);
-		if (ExtConfigs::Waypoint_Background)
-		{
-			SetBkMode(hDC, OPAQUE);
-			SetBkColor(hDC, ExtConfigs::Waypoint_Background_Color);
-		}
-		else
-			SetBkMode(hDC, TRANSPARENT);
-		SetTextAlign(hDC, TA_CENTER);
-
 		int x = cellDataExt.X;
 		int y = cellDataExt.Y;
 
@@ -566,7 +564,8 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 {
 	GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-
+	int drawOffsetX = R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+	int drawOffsetY = R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 	if (CIsoViewExt::DrawBaseNodeIndex)
 	{
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
@@ -605,8 +604,8 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 						{
 							CIsoView::MapCoord2ScreenCoord(x, y);
 
-							int ndrawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30;
-							int ndrawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15;
+							int ndrawX = x - drawOffsetX + 30;
+							int ndrawY = y - drawOffsetY - 15;
 
 							TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
 						}
@@ -635,8 +634,8 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 			if (IsCoordInWindow(mc.X, mc.Y))
 			{
 				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
-				int drawX = mc.X - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0)) + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
-				int drawY = mc.Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8)) - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
+				int drawX = mc.X - drawOffsetX + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
+				int drawY = mc.Y - drawOffsetY - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
 				TextOut(hDC, drawX, drawY, index, strlen(index));
 			}
 		}
@@ -644,6 +643,61 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 
 	SetTextAlign(hDC, TA_LEFT);
 	SetTextColor(hDC, RGB(0, 0, 0));
+
+	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	{
+		LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
+		auto pThis = CIsoView::GetInstance();
+		DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto pos = atoi(key);
+			int x = pos / 1000;
+			int y = pos % 1000;
+			CIsoView::MapCoord2ScreenCoord(x, y);
+			x -= drawOffsetX;
+			y -= drawOffsetY;
+			x += 23;
+			y -= 15;
+			auto atoms = STDHelpers::SplitString(value, 6);
+			int fontSize = std::min(100, atoi(atoms[0]));
+			fontSize = std::max(10, fontSize);
+			bool bold = STDHelpers::IsTrue(atoms[1]);
+			bool folded = STDHelpers::IsTrue(atoms[2]);
+			auto textColor = STDHelpers::HexStringToColorRefRGB(atoms[3]);
+			auto bgColor = STDHelpers::HexStringToColorRefRGB(atoms[4]);
+
+			ppmfc::CString text = atoms[5];
+			for (int i = 6; i < atoms.size() - 1; i++)
+			{
+				text += ",";
+				text += atoms[i];
+			}
+			text.Replace("\\n", "\n");
+			std::string str(text.m_pchData);
+			auto result = STDHelpers::StringToWString(str);
+
+			if (folded)
+			{
+				int count = 3;
+				if (count < result.length() - 1)
+				{
+					if (IS_HIGH_SURROGATE(result[count - 1]) && IS_LOW_SURROGATE(result[count])) {
+						count--;
+					}
+					result = result.substr(0, count);
+					wchar_t toRemove = L'\n';
+					result.erase(std::remove(result.begin(), result.end(), toRemove), result.end());
+					result += L"...";
+				}
+				if (fontSize > 18)
+					fontSize = 18;
+			}
+			CIsoViewExt::BlitText(result, textColor, bgColor,
+				pThis, lpDesc->lpSurface, window, boundary, x, y, fontSize, 128, folded ? false : bold);
+		}
+	}
 
 	return CIsoViewExt::DrawBounds ? 0 : 0x474FE0;
 }
