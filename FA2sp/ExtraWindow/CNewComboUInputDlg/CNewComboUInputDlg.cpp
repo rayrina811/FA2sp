@@ -136,5 +136,8 @@ void CNewComboUInputDlg::OnOK()
 
 void CNewComboUInputDlg::OnCancel()
 {
+	m_ComboOri = "";
+	m_Combo = "";
+	EndDialog(0);
 	//CDialog::OnCancel();
 }

@@ -67,5 +67,7 @@ void CListUInputDlg::OnOK()
 
 void CListUInputDlg::OnCancel()
 {
+	m_selectedTexts.clear();
+	EndDialog(0);
 	//CDialog::OnCancel();
 }

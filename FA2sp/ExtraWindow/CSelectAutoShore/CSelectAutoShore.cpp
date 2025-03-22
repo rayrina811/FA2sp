@@ -86,4 +86,6 @@ void CSelectAutoShore::OnOK()
 
 void CSelectAutoShore::OnCancel()
 {
+	m_Combo = "";
+	EndDialog(0);
 }
