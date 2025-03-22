@@ -709,6 +709,7 @@ DEFINE_HOOK(475122, CIsoView_Draw_ScrollCursor, 5)
 	R->Stack(STACK_OFFS(0xD24, 0xCDC), newTitle);
 	return 0;
 }
+
 DEFINE_HOOK(475119, CIsoView_Draw_ScrollCursor_Position_Y, 5)
 {
 	GET(int, y, EDX);
@@ -716,6 +717,7 @@ DEFINE_HOOK(475119, CIsoView_Draw_ScrollCursor_Position_Y, 5)
 	R->EDX(y - 12);
 	return 0;
 }
+
 DEFINE_HOOK(475122, CIsoView_Draw_ScrollCursor_Position_X, 5)
 {
 	GET(int, x, EDX);
@@ -747,6 +749,7 @@ DEFINE_HOOK(45CDB8, CIsoView_OnMouseMove_SkipOverlayUndoRedo1, 6)
 		return 0;
 	return 0x45CDCC;
 }
+
 DEFINE_HOOK(45CD4F, CIsoView_OnMouseMove_SkipOverlayUndoRedo2, 6)
 {
 	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
@@ -892,6 +895,13 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 	return 0;
 }
+
+DEFINE_HOOK(46A362, CIsoView_UpdateStatusBar_BuildingID, 6)
+{
+	R->ESI(CMapDataExt::StructureIndexMap[R->ESI()]);
+	return 0;
+}
+
 
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
 //{

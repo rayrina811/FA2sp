@@ -830,7 +830,6 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
                                 if (coord.X == point.X && coord.Y == point.Y)
                                 {
                                     ids.push_back(index);
-
                                 }
                             }
 
@@ -841,7 +840,7 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             for (auto id : ids)
             {
                 CBuildingData object;
-                Map->GetBuildingData(id, object);
+                CMapDataExt::GetBuildingDataByIniID(id, object);
 
                 if (bDrawRange)
                     displayRanges(object.TypeID, object.X, object.Y, true);

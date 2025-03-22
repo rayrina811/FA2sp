@@ -189,11 +189,11 @@ void CMapValidatorExt::ValidateRepeatingTaskforce(BOOL& result)
 		"MV_ValidateRepeatingTaskforce_repeat", "Taskforce - %1 has duplicate units! This will cause crash in game.");
 	if (auto pSection = CMapData::Instance->INI.GetSection("TaskForces"))
 	{
-		for (auto pair : pSection->GetEntities())
+		for (auto& pair : pSection->GetEntities())
 		{
 			if (auto pTaskforce = CMapData::Instance->INI.GetSection(pair.second))
 			{
-				for (auto pair2 : pTaskforce->GetEntities())
+				for (auto& pair2 : pTaskforce->GetEntities())
 				{
 					if (atoi(pair2.first) > 5)
 					{
@@ -242,14 +242,14 @@ void CMapValidatorExt::ValidateLoopTrigger_loop(ppmfc::CString attachedTrigger)
 	auto atoms2 = STDHelpers::SplitString(trigger2);
 	if (atoms2.size() < 3)
 		return;
-	auto attachedTrigger2 = atoms2[1];
+	auto& attachedTrigger2 = atoms2[1];
 	if (attachedTrigger2 == "<none>")
 		return;
-	for (auto tri : AttachedTriggers)
+	for (auto& tri : AttachedTriggers)
 	{
 		if (tri == attachedTrigger2)
 		{
-			for (auto tri2 : AttachedTriggers)
+			for (auto& tri2 : AttachedTriggers)
 			{
 				LoopedTriggers.push_back(tri2);
 			}
@@ -269,13 +269,13 @@ void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 
 	if (auto pSection = CMapData::Instance->INI.GetSection("Triggers"))
 	{
-		for (auto pair : pSection->GetEntities())
+		for (auto& pair : pSection->GetEntities())
 		{
 			AttachedTriggers.clear();
 			auto atoms = STDHelpers::SplitString(pair.second);
 			if (atoms.size() < 3)
 				continue;
-			auto attachedTrigger = atoms[1];
+			auto& attachedTrigger = atoms[1];
 
 			if (attachedTrigger == "<none>")
 				continue;
@@ -290,7 +290,7 @@ void CMapValidatorExt::ValidateLoopTrigger(BOOL& result)
 		auto last = std::unique(LoopedTriggers.begin(), LoopedTriggers.end());
 		LoopedTriggers.erase(last, LoopedTriggers.end());
 
-		for (auto loop : LoopedTriggers)
+		for (auto& loop : LoopedTriggers)
 		{
 			auto tmp = Format1;
 			tmp.ReplaceNumString(1, loop);
@@ -308,7 +308,7 @@ void CMapValidatorExt::ValidateBaseNode(BOOL& result)
 
 	if (auto pSection = CMapData::Instance->INI.GetSection("Houses"))
 	{
-		for (auto pair : pSection->GetEntities())
+		for (auto& pair : pSection->GetEntities())
 		{
 			bool end = false;
 			int nodeCount = CMapData::Instance->INI.GetInteger(pair.second, "NodeCount", 0);

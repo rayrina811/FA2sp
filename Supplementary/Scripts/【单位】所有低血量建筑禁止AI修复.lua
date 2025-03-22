@@ -1,8 +1,7 @@
 house = "none"
 repair_step = get_integer("General","RepairStep", 0 ,"rules+map")
 if message_box("需要将修改限制到制定所属方吗？", "限制所属方", 2) == 0 then
-	box = select_box:new()
-	box.caption = "选择所属方"
+	box = select_box:new("选择所属方")
 	house_section = "Houses"
 	load_from = "map"
 	if is_multiplay() then

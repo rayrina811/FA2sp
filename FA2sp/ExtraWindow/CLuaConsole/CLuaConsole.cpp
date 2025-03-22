@@ -1040,7 +1040,7 @@ void CLuaConsole::OnClickRun(bool fromFile)
     if (updateBuilding)
     {
         updateBuilding = false;
-        CMapDataExt::UpdateFieldStructureData_Optimized(-1);
+        CMapDataExt::UpdateFieldStructureData_Optimized();
     }
     if (updateUnit)
     {
@@ -1129,4 +1129,5 @@ void CLuaConsole::OnClickRun(bool fromFile)
         redraw_window();
         needRedraw = false;
     }
+    CMapDataExt::DeleteBuildingByIniID = false;
 }

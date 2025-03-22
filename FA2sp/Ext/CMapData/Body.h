@@ -160,6 +160,8 @@ struct CellDataExt
     LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
 
     std::vector<BaseNodeDataExt> BaseNodes;
+    // first = index of StructureIndexMap, second = index in GetBuildingTypeID 
+    std::unordered_map<short, short> Structures;
 };
 
 class CMapDataExt : public CMapData
@@ -215,15 +217,17 @@ public:
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
-    static std::map<int, BuildingRenderData>  BuildingRenderDatasFix;
+    static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
-    static void UpdateFieldStructureData_Optimized(int ID, bool isLamp = false);
+    static void UpdateFieldStructureData_Optimized();
+    static void UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value = "");
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static void CreateSlopeAt(int x, int y, bool IgnoreMorphable = false);
     static void SmoothWater();
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);
+    static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
     static inline int GetSafeTileIndex(int idx)
     {
         if (idx == 0xFFFF)
@@ -277,7 +281,9 @@ public:
     static std::map<int, bool> SoftTileSets; // soft = affected by shore logic
     static ppmfc::CString BitmapImporterTheater;
     static float ConditionYellow;
+    static bool DeleteBuildingByIniID;
     static std::map<int, bool> TileSetCumstomPalette;
 
     static std::map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
+    static std::vector<short> StructureIndexMap;
 };

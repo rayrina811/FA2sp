@@ -783,7 +783,7 @@ namespace LuaFunctions
 			for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Structures"); ++i)
 			{
 				CBuildingData obj;
-				CMapData::Instance->GetBuildingData(i, obj);
+				CMapDataExt::GetBuildingDataByIniID(i, obj);
 				if (*this == convert(obj))
 				{
 					CINI::CurrentDocument->DeleteKey("Structures", CINI::CurrentDocument->GetKeyAt("Structures", i));
@@ -814,6 +814,28 @@ namespace LuaFunctions
 			ret.Upgrade3 = obj.Upgrade3.m_pchData;
 			ret.AIRepairable = obj.AIRepairable.m_pchData;
 			ret.Nominal = obj.Nominal.m_pchData;
+			return ret;
+		}
+		CBuildingData convert() const
+		{
+			CBuildingData ret;
+			ret.House = House.c_str();
+			ret.TypeID = TypeID.c_str();
+			ret.Health = Health.c_str();
+			ret.Y.Format("%d", Y);
+			ret.X.Format("%d", X);
+			ret.Facing = Facing.c_str();
+			ret.Tag = Tag.c_str();
+			ret.AISellable = AISellable.c_str();
+			ret.AIRebuildable = AIRebuildable.c_str();
+			ret.PoweredOn = PoweredOn.c_str();
+			ret.Upgrades = Upgrades.c_str();
+			ret.SpotLight = SpotLight.c_str();
+			ret.Upgrade1 = Upgrade1.c_str();
+			ret.Upgrade2 = Upgrade2.c_str();
+			ret.Upgrade3 = Upgrade3.c_str();
+			ret.AIRepairable = AIRepairable.c_str();
+			ret.Nominal = Nominal.c_str();
 			return ret;
 		}
 	};
@@ -2937,8 +2959,10 @@ namespace LuaFunctions
 	{
 		if (x < 0)
 		{
+			CMapDataExt::DeleteBuildingByIniID = true;
 			CMapData::Instance->DeleteBuildingData(indexY);
 			CLuaConsole::needRedraw = true;
+			CMapDataExt::DeleteBuildingByIniID = false;
 		}
 		else
 		{
@@ -2952,6 +2976,7 @@ namespace LuaFunctions
 				CLuaConsole::needRedraw = true;
 			}
 		}
+
 	}
 
 	static building get_building(int indexY, int x = -1)
@@ -2960,7 +2985,7 @@ namespace LuaFunctions
 		if (x < 0)
 		{
 			CBuildingData obj;
-			CMapData::Instance->GetBuildingData(indexY, obj);
+			CMapDataExt::GetBuildingDataByIniID(indexY, obj);
 			return building::convert(obj);
 		}
 		else
@@ -3187,7 +3212,7 @@ namespace LuaFunctions
 		c.Infantry[1] = pCell->Infantry[1];
 		c.Infantry[2] = pCell->Infantry[2];
 		c.Aircraft = pCell->Aircraft;
-		c.Structure = pCell->Structure;
+		c.Structure = pCell->Structure > -1 ? CMapDataExt::StructureIndexMap[pCell->Structure] : -1;
 		c.TypeListIndex = pCell->TypeListIndex;
 		c.Terrain = pCell->Terrain;
 		c.TerrainType = pCell->TerrainType;
@@ -3573,7 +3598,7 @@ namespace LuaFunctions
 			CMapData::Instance->CellDatas[i] = snapshot.CellDatas[i];
 		}
 
-		CMapDataExt::UpdateFieldStructureData_Optimized(-1);
+		CMapDataExt::UpdateFieldStructureData_Optimized();
 		CMapData::Instance->UpdateFieldOverlayData(false);
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
 		// load objects to avoid weird palette issue

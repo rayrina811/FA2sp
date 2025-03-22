@@ -695,7 +695,7 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
                                  if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
                                  {
                                      CBuildingData copyObj;
-                                     mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                                     CMapDataExt::GetBuildingDataByIniID(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
                                      cellExt.BuildingData = copyObj;
                                  }
                                  for (int subpos = 0; subpos < 3; subpos++)
@@ -801,7 +801,7 @@ DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
                     if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
                     {
                         CBuildingData copyObj;
-                        mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                        CMapDataExt::GetBuildingDataByIniID(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
                         cellExt.BuildingData = copyObj;
                     }
                     for (int subpos = 0; subpos < 3; subpos++)
@@ -896,7 +896,7 @@ DEFINE_HOOK(435F3A, CFinalSunDlg_CopyWholeMap, 5)
                 if (MultiSelection::CopiedCellsBuilding[dwpos] > -1)
                 {
                     CBuildingData copyObj;
-                    mapData.GetBuildingData(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
+                    CMapDataExt::GetBuildingDataByIniID(MultiSelection::CopiedCellsBuilding[dwpos], copyObj);
                     cellExt.BuildingData = copyObj;
                 }
                 for (int subpos = 0; subpos < 3; subpos++)

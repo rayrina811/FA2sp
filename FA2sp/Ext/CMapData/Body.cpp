@@ -38,7 +38,7 @@
 
 int CMapDataExt::OreValue[4] { -1,-1,-1,-1 };
 unsigned short CMapDataExt::CurrentRenderBuildingStrength;
-std::map<int, BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
+std::vector<BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
 std::vector<OverlayTypeData> CMapDataExt::OverlayTypeDatas;
 CellDataExt CMapDataExt::CellDataExt_FindCell;
 std::vector<CellDataExt> CMapDataExt::CellDataExts;
@@ -62,6 +62,7 @@ int CMapDataExt::HeightBase;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 float CMapDataExt::ConditionYellow = 0.67f;
+bool CMapDataExt::DeleteBuildingByIniID = false;
 std::map<int, bool> CMapDataExt::TileSetCumstomPalette;
 std::vector<int> CMapDataExt::ShoreTileSets;
 std::map<int, bool> CMapDataExt::SoftTileSets;
@@ -73,6 +74,7 @@ std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::Ligh
 std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
+std::vector<short> CMapDataExt::StructureIndexMap;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -168,6 +170,28 @@ BuildingPowers CMapDataExt::GetStructurePower(ppmfc::CString value)
 	object.Upgrade2 = atoms[13];
 	object.Upgrade3 = atoms[14];
 	return GetStructurePower(object);
+}
+
+void CMapDataExt::GetBuildingDataByIniID(int bldID, CBuildingData& data)
+{
+	auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetValueAt("Structures", bldID), 16);
+	data.House = atoms[0];
+	data.TypeID = atoms[1];
+	data.Health = atoms[2];
+	data.Y = atoms[3];
+	data.X = atoms[4];
+	data.Facing = atoms[5];
+	data.Tag = atoms[6];
+	data.AISellable = atoms[7];
+	data.AIRebuildable = atoms[8];
+	data.PoweredOn = atoms[9];
+	data.Upgrades = atoms[10];
+	data.SpotLight = atoms[11];
+	data.Upgrade1 = atoms[12];
+	data.Upgrade2 = atoms[13];
+	data.Upgrade3 = atoms[14];
+	data.AIRepairable = atoms[15];
+	data.Nominal = atoms[16];
 }
 
 void CMapDataExt::UpdateTriggers()
@@ -1011,113 +1035,107 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 }
 
-void CMapDataExt::UpdateFieldStructureData_Optimized(int ID, bool isLamp)
+void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value)
 {
-	auto Map = &CMapData::Instance();
-	auto& fielddata_size = Map->CellDataCount;
-	auto& fielddata = Map->CellDatas;
-	CMapData::Instance->UpdateCurrentDocument();
-	auto m_mapfile = Map->GetMapDocument();
+	if (value == "")
+		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
 
-	int i = 0;
-	for (i = 0; i < fielddata_size; i++)
+	int cellIndex = StructureIndexMap.size();
+	if (cellIndex >= 65535)
 	{
-		if (fielddata[i].Structure >= ID)
-		{
-			fielddata[i].Structure = -1;
-			fielddata[i].TypeListIndex = -1;
-		}
-
+		UpdateFieldStructureData_Optimized();
 	}
-	if (auto sec = m_mapfile->GetSection("Structures"))
+	else
 	{
-		i = 0;
-		for (auto& data : sec->GetEntities())
+		for (int i = 0; i < cellIndex; ++i)
 		{
-			if (i < ID)
-			{
-				i++;
-				continue;
-			}
-			auto& value = data.second;
-			const auto& splits = STDHelpers::SplitString(value);
+			if (CMapDataExt::StructureIndexMap[i] >= iniIndex)
+				CMapDataExt::StructureIndexMap[i]++;
+		}
+		StructureIndexMap.push_back(iniIndex);
+		const auto splits = STDHelpers::SplitString(value, 16);
 
-			BuildingRenderData data;
-			data.HouseColor = Miscs::GetColorRef(splits[0]);
-			data.ID = splits[1];
-			data.Strength = std::clamp(atoi(splits[2]), 0, 256);
-			data.Y = atoi(splits[3]);
-			data.X = atoi(splits[4]);
-			data.Facing = atoi(splits[5]);
-			data.PowerUpCount = atoi(splits[10]);
-			data.PowerUp1 = splits[12];
-			data.PowerUp2 = splits[13];
-			data.PowerUp3 = splits[14];
-			CMapDataExt::BuildingRenderDatasFix[i] = data;
+		BuildingRenderData data;
+		data.HouseColor = Miscs::GetColorRef(splits[0]);
+		data.ID = splits[1];
+		data.Strength = std::clamp(atoi(splits[2]), 0, 256);
+		data.Y = atoi(splits[3]);
+		data.X = atoi(splits[4]);
+		data.Facing = atoi(splits[5]);
+		data.PowerUpCount = atoi(splits[10]);
+		data.PowerUp1 = splits[12];
+		data.PowerUp2 = splits[13];
+		data.PowerUp3 = splits[14];
+		CMapDataExt::BuildingRenderDatasFix.insert(CMapDataExt::BuildingRenderDatasFix.begin() + iniIndex, data);
 
-			int X = atoi(splits[4]);
-			int Y = atoi(splits[3]);
-			const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
-			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-			if (!DataExt.IsCustomFoundation())
+		int X = atoi(splits[4]);
+		int Y = atoi(splits[3]);
+		const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(splits[1]);
+		const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+		if (!DataExt.IsCustomFoundation())
+		{
+			for (int dy = 0; dy < DataExt.Width; ++dy)
 			{
-				for (int dy = 0; dy < DataExt.Width; ++dy)
+				for (int dx = 0; dx < DataExt.Height; ++dx)
 				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
-					{
-						const int x = X + dx;
-						const int y = Y + dy;
-						int coord = CMapData::Instance->GetCoordIndex(x, y);
-						if (coord < CMapData::Instance->CellDataCount)
-						{
-							auto pCell = CMapData::Instance->GetCellAt(coord);
-							pCell->Structure = i;
-							pCell->TypeListIndex = BuildingIndex;
-							CMapData::Instance->UpdateMapPreviewAt(x, y);
-						}
-					}
-				}
-			}
-			else
-			{
-				for (const auto& block : *DataExt.Foundations)
-				{
-					const int x = X + block.Y;
-					const int y = Y + block.X;
+					const int x = X + dx;
+					const int y = Y + dy;
 					int coord = CMapData::Instance->GetCoordIndex(x, y);
 					if (coord < CMapData::Instance->CellDataCount)
 					{
 						auto pCell = CMapData::Instance->GetCellAt(coord);
-						pCell->Structure = i;
+						CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
+						pCell->Structure = cellIndex;
 						pCell->TypeListIndex = BuildingIndex;
 						CMapData::Instance->UpdateMapPreviewAt(x, y);
 					}
 				}
 			}
-			i++;
 		}
-
-		if (ExtConfigs::PlaceStructureResort && !CLuaConsole::skipBuildingUpdate)
-			if (ID < sec->GetEntities().size())
+		else
+		{
+			for (const auto& block : *DataExt.Foundations)
 			{
-				std::vector<ppmfc::CString> buildings;
-				for (auto& b : sec->GetEntities())
+				const int x = X + block.Y;
+				const int y = Y + block.X;
+				int coord = CMapData::Instance->GetCoordIndex(x, y);
+				if (coord < CMapData::Instance->CellDataCount)
 				{
-					buildings.push_back(b.second);
-				}
-				int idx = 0;
-				m_mapfile->DeleteSection("Structures");
-				auto newSec = m_mapfile->AddOrGetSection("Structures");
-				for (auto& b : buildings)
-				{
-					char buffer[10];
-					_itoa(idx, buffer, 10);
-					m_mapfile->WriteString(newSec, buffer, b);
-					idx++;
+					auto pCell = CMapData::Instance->GetCellAt(coord);
+					CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
+					pCell->Structure = cellIndex;
+					pCell->TypeListIndex = BuildingIndex;
+					CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
-		if (isLamp || ID < 0)
-			LightingSourceTint::CalculateMapLamps();
+		}
+	}
+}
+
+void CMapDataExt::UpdateFieldStructureData_Optimized()
+{
+	Logger::Raw("UpdateFieldStructureData_Optimized Called!\n");
+	auto Map = &CMapData::Instance();
+	auto& fielddata_size = Map->CellDataCount;
+	auto& fielddata = Map->CellDatas;
+
+	int i = 0;
+	for (i = 0; i < fielddata_size; i++)
+	{
+		CMapDataExt::CellDataExts[i].Structures.clear();
+		fielddata[i].Structure = -1;
+		fielddata[i].TypeListIndex = -1;
+	}
+	StructureIndexMap.clear();
+	BuildingRenderDatasFix.clear();
+	if (auto sec = CINI::CurrentDocument->GetSection("Structures"))
+	{
+		i = 0;
+		for (const auto& data : sec->GetEntities())
+		{
+			UpdateFieldStructureData_Index(i, data.second);
+			i++;
+		}
 	}
 }
 

@@ -1353,7 +1353,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                                 met = true;
                             break;
                         case FindType::Structure:
-                            CMapData::Instance->GetBuildingData(index, buiData);
+                            CMapDataExt::GetBuildingDataByIniID(index, buiData);
                             if (CFinalSunDlgExt::CheckProperty_Building(buiData))
                                 met = true;
                             break;

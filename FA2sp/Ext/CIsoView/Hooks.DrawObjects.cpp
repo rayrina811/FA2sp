@@ -164,7 +164,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		for (short idx = 0; idx < CINI::CurrentDocument->GetKeyCount("Structures"); idx++)
 		{
 			CBuildingData data;
-			CMapData::Instance->GetBuildingData(idx, data);
+			CMapDataExt::GetBuildingDataByIniID(idx, data);
 			const auto& filter = CViewObjectsExt::ObjectFilterB;
 			if (std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
 			{
@@ -685,53 +685,35 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 			{
 				CIsoViewExt::WaypointsToDraw[{X, Y}] = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
 			}
-			if (cell->Structure != -1)
+			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 			{
-				const auto& filter = CIsoViewExt::VisibleStructures;
-				if (!CIsoViewExt::DrawStructuresFilter
-					|| std::find(filter.begin(), filter.end(), cell->Structure) != filter.end())
+				auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+				if (StrINIIndex != -1)
 				{
-					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[cell->Structure];
-					if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), cell->Structure) == DrawnBuildings.end())
+					const auto& filter = CIsoViewExt::VisibleStructures;
+					if (!CIsoViewExt::DrawStructuresFilter
+						|| std::find(filter.begin(), filter.end(), StrINIIndex) != filter.end())
 					{
-						DrawnBuildings.push_back(cell->Structure);
-						MapCoord objCenter;
-						const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
-						const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
-						objCenter.X = objRender.X + DataExt.Height / 2;
-						objCenter.Y = objRender.Y + DataExt.Width / 2;
-						if (!CMapData::Instance->IsCoordInMap(objCenter.X, objCenter.Y))
+						const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{
-							objCenter.X = objRender.X;
-							objCenter.Y = objRender.Y;
-						}
-						// if objects overlapping with building, draw building earlier
-						if (DataExt.IsCustomFoundation())
-						{
-							for (const auto& block : *DataExt.Foundations)
+							DrawnBuildings.push_back(StrINIIndex);
+							MapCoord objCenter;
+							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
+							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+							objCenter.X = objRender.X + DataExt.Height / 2;
+							objCenter.Y = objRender.Y + DataExt.Width / 2;
+							if (!CMapData::Instance->IsCoordInMap(objCenter.X, objCenter.Y))
 							{
-								MapCoord coord = { X + block.Y, Y + block.X };
-								if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-									continue;
-
-								auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-								if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
-									|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
-									|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
-								{
-									objCenter.X = objRender.X;
-									objCenter.Y = objRender.Y;
-									break;
-								}
+								objCenter.X = objRender.X;
+								objCenter.Y = objRender.Y;
 							}
-						}
-						else
-						{
-							for (int dx = 0; dx < DataExt.Height; ++dx)
+							// if objects overlapping with building, draw building earlier
+							if (DataExt.IsCustomFoundation())
 							{
-								for (int dy = 0; dy < DataExt.Width; ++dy)
+								for (const auto& block : *DataExt.Foundations)
 								{
-									MapCoord coord = { X + dx, Y + dy };
+									MapCoord coord = { X + block.Y, Y + block.X };
 									if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
 										continue;
 
@@ -746,40 +728,62 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 									}
 								}
 							}
-						}
-						CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] = 
-						{ cell->Structure , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
-
-						if (shadow && CIsoViewExt::DrawStructures)
-						{
-							int x1 = objRender.X;
-							int y1 = objRender.Y;
-							CIsoView::MapCoord2ScreenCoord(x1, y1);
-							x1 -= DrawOffsetX;
-							y1 -= DrawOffsetY;
-
-							int nFacing = 0;
-							if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
-								nFacing = 7 - (objRender.Facing / 32) % 8;
-
-							const int HP = objRender.Strength;
-							int status = CLoadingExt::GBIN_NORMAL;
-							if (HP == 0)
-								status = CLoadingExt::GBIN_RUBBLE;
-							else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
-								status = CLoadingExt::GBIN_DAMAGED;
-							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
-							auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
-
-							if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
+							else
 							{
-								CLoading::Instance->LoadObjects(objRender.ID);
+								for (int dx = 0; dx < DataExt.Height; ++dx)
+								{
+									for (int dy = 0; dy < DataExt.Width; ++dy)
+									{
+										MapCoord coord = { X + dx, Y + dy };
+										if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+											continue;
+
+										auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+										if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
+											|| buildingCell->Terrain != -1 || buildingCell->Infantry[0] != -1
+											|| buildingCell->Infantry[1] != -1 || buildingCell->Infantry[2] != -1)
+										{
+											objCenter.X = objRender.X;
+											objCenter.Y = objRender.Y;
+											break;
+										}
+									}
+								}
 							}
+							CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] =
+							{ StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
 
-							if (pData && pData->pImageBuffer)
+							if (shadow && CIsoViewExt::DrawStructures)
 							{
-								CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-									x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+								int x1 = objRender.X;
+								int y1 = objRender.Y;
+								CIsoView::MapCoord2ScreenCoord(x1, y1);
+								x1 -= DrawOffsetX;
+								y1 -= DrawOffsetY;
+
+								int nFacing = 0;
+								if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
+									nFacing = 7 - (objRender.Facing / 32) % 8;
+
+								const int HP = objRender.Strength;
+								int status = CLoadingExt::GBIN_NORMAL;
+								if (HP == 0)
+									status = CLoadingExt::GBIN_RUBBLE;
+								else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+									status = CLoadingExt::GBIN_DAMAGED;
+								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
+								auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+
+								if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
+								{
+									CLoading::Instance->LoadObjects(objRender.ID);
+								}
+
+								if (pData && pData->pImageBuffer)
+								{
+									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+								}
 							}
 						}
 					}
@@ -1260,7 +1264,10 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 				{
 					CLoading::Instance->LoadObjects(node.ID);
 				}
-				if (CFinalSunApp::Instance->ShowBuildingCells || celldata.Structure != -1)
+				int cellStr = -1;
+				if (celldata.Structure > -1 && celldata.Structure < CMapDataExt::StructureIndexMap.size())
+					cellStr = CMapDataExt::StructureIndexMap[celldata.Structure];
+				if (CFinalSunApp::Instance->ShowBuildingCells || cellStr != -1)
 				{
 					const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(node.ID);
 					const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];

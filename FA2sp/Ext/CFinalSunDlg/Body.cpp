@@ -856,7 +856,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					std::pair<int, int> resultp(-1, -1);
 					if (auto pSection = CMapData::Instance->INI.GetSection(section))
 					{
-						for (auto pair : pSection->GetEntities())
+						for (auto& pair : pSection->GetEntities())
 						{
 
 							auto atoms = STDHelpers::SplitString(pair.second);
@@ -902,7 +902,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 											met = true;
 										break;
 									case FindType::Structure: 
-										CMapData::Instance->GetBuildingData(index, buiData);
+										CMapDataExt::GetBuildingDataByIniID(index, buiData);
 										if (CheckProperty_Building(buiData))
 											met = true;
 										break;
