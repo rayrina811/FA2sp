@@ -1,6 +1,7 @@
 #pragma once
 #include "../FA2sp.h"
 
+#include <unordered_map>
 #include <map>
 #include <fstream>
 
@@ -16,7 +17,7 @@ public:
     static void WriteCSFFile();
     static bool LoadToBuffer();
 
-    static std::map<CString, CString> CSFFiles_Stringtable;
+    static std::unordered_map<CString, CString> CSFFiles_Stringtable;
     static char* pEDIBuffer;
     static bool bLoadRes;
 };

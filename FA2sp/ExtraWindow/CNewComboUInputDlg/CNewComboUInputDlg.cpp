@@ -44,19 +44,21 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 	case COMBOUINPUT_MANUAL:
 		if (!ReadValue && UseStrictOrder) {
 			if (LoadFrom == 1 || LoadFrom == 2) {
-				const auto& indicies = LoadFrom == 1 ? Variables::GetRulesSection(m_Section) : Variables::GetRulesMapSection(m_Section);
-				int idx = 0;
-				for (auto& pair : indicies)
+				if (const auto& indicies = LoadFrom == 1 ? Variables::GetRulesSection(m_Section) : Variables::GetRulesMapSection(m_Section))
 				{
-					ppmfc::CString output;
-					output.Format("%d - %s", idx, pair.second);
-					ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-					if (uiname != pair.second && uiname != "" && uiname != "MISSING")
-						output.Format("%s - %s", output, uiname);
+					int idx = 0;
+					for (auto& pair : *indicies)
+					{
+						ppmfc::CString output;
+						output.Format("%d - %s", idx, pair.second);
+						ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+						if (uiname != pair.second && uiname != "" && uiname != "MISSING")
+							output.Format("%s - %s", output, uiname);
 
-					m_ManualStrings.push_back(output);
-					box->AddString(m_ManualStrings.back());
-					idx++;
+						m_ManualStrings.push_back(output);
+						box->AddString(m_ManualStrings.back());
+						idx++;
+					}
 				}
 			}
 			else {

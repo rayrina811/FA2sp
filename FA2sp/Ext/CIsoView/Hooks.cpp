@@ -205,7 +205,7 @@ DEFINE_HOOK(472F33, CIsoView_Draw_LayerVisible_Units, 9)
 		{
 			const auto& filter = CIsoViewExt::VisibleUnits;
 			if (!CIsoViewExt::DrawUnitsFilter
-				|| std::find(filter.begin(), filter.end(), celldata.Unit) != filter.end())
+				|| filter.find(celldata.Unit) != filter.end())
 			{
 				CUnitData data;
 				CMapData::Instance->GetUnitData(celldata.Unit, data);
@@ -240,7 +240,7 @@ DEFINE_HOOK(47371A, CIsoView_Draw_LayerVisible_Aircrafts, 9)
 		{
 			const auto& filter = CIsoViewExt::VisibleAircrafts;
 			if (!CIsoViewExt::DrawAircraftsFilter
-				|| std::find(filter.begin(), filter.end(), celldata.Aircraft) != filter.end())
+				|| filter.find(celldata.Aircraft) != filter.end())
 			{
 				CAircraftData data;
 				CMapData::Instance->GetAircraftData(celldata.Aircraft, data);
@@ -304,7 +304,7 @@ DEFINE_HOOK(473DAA, CIsoView_Draw_LayerVisible_Infantries, 9)
 		{
 			const auto& filter = CIsoViewExt::VisibleInfantries;
 			if (!CIsoViewExt::DrawInfantriesFilter
-				|| std::find(filter.begin(), filter.end(), celldata.Infantry[subPos]) != filter.end())
+				|| filter.find(celldata.Infantry[subPos]) != filter.end())
 			{
 				CInfantryData data;
 				CMapData::Instance->GetInfantryData(celldata.Infantry[subPos], data);
@@ -872,14 +872,18 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 		CLoading::Instance->FreeTMPs();
 		CLoading::Instance->InitTMPs();
 		int oli = 0;
-		for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
+		if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
 		{
-			auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
-			if (it != CLoadingExt::LoadedOverlays.end()) {
-				CLoading::Instance->DrawOverlay(ol.second, oli);
+			for (const auto& ol : *section)
+			{
+				auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
+				if (it != CLoadingExt::LoadedOverlays.end()) {
+					CLoading::Instance->DrawOverlay(ol.second, oli);
+				}
+				oli++;
 			}
-			oli++;
 		}
+
 		PalettesManager::RestoreCurrentIso();
 		PalettesManager::ManualReloadTMP = false;
 		LightingSourceTint::CalculateMapLamps();

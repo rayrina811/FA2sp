@@ -13,8 +13,8 @@
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-std::map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
-std::vector<ppmfc::CString> CLoadingExt::LoadedObjects;
+std::unordered_map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
@@ -100,7 +100,7 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 		return;
 
     Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
-	LoadedObjects.push_back(ID);
+	LoadedObjects.insert(ID);
 
 	// GlobalVars::CMapData->UpdateCurrentDocument();
 	auto eItemType = GetItemType(ID);
@@ -157,7 +157,7 @@ void CLoadingExt::ClearItemTypes()
 
 bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
 {
-	return std::find(LoadedObjects.begin(), LoadedObjects.end(), pRegName) != LoadedObjects.end();
+	return LoadedObjects.find(pRegName) != LoadedObjects.end();
 }
 
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
@@ -1844,7 +1844,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
 			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pal);
-			LoadedObjects.push_back(ImageID);
+			LoadedObjects.insert(ImageID);
 		}
 	}
 }
@@ -1913,7 +1913,7 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileNam
 				pData->Flag = ImageDataFlag::SurfaceData;
 
 				CIsoView::SetColorKey(pData->lpSurface, -1);
-				LoadedObjects.push_back(ImageID);
+				LoadedObjects.insert(ImageID);
 			}	
 		}
 	}
@@ -1971,6 +1971,6 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer
 		pData->Flag = ImageDataFlag::SurfaceData;
 
 		CIsoView::SetColorKey(pData->lpSurface, -1);
-		LoadedObjects.push_back(ImageID);
+		LoadedObjects.insert(ImageID);
 	}	
 }

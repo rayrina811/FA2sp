@@ -1,5 +1,5 @@
 house = "none"
-if message_box("需要将修改限制到制定所属方吗？", "限制所属方", 2) == 0 then
+if message_box("需要将修改限制到制定所属方吗？", "限制所属方", 2) == 1 then
 	box = select_box:new("选择所属方")
 	house_section = "Houses"
 	load_from = "map"

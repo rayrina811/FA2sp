@@ -12,7 +12,7 @@
 #include "../CMapData/Body.h"
 #include "../../Miscs/MultiSelection.h"
 
-std::map<int, ConnectedTileInfo> CViewObjectsExt::TreeView_ConnectedTileMap;
+std::unordered_map<int, ConnectedTileInfo> CViewObjectsExt::TreeView_ConnectedTileMap;
 int CViewObjectsExt::CurrentConnectedTileType;
 
 void CViewObjectsExt::ConnectedTile_Initialize() 

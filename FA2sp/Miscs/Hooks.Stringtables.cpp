@@ -11,9 +11,10 @@
 #include <fstream>
 #include "../Helpers/TheaterHelpers.h"
 
+
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
-std::map<CString, CString> StringtableLoader::CSFFiles_Stringtable;
+std::unordered_map<CString, CString> StringtableLoader::CSFFiles_Stringtable;
 
 DEFINE_HOOK(4B2633, QueryUIName_init, 5)
 {
@@ -29,18 +30,17 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
     mmh.AddINI(&CINI::Rules());
     mmh.AddINI(&CINI::CurrentDocument());
 
-    auto uiname = std::string(mmh.GetString(pRegName, "UIName", ""));
-    std::transform(uiname.begin(), uiname.end(), uiname.begin(), [](unsigned char c) { return std::tolower(c); });
+    auto uiname = mmh.GetString(pRegName, "UIName", "");
+    uiname.MakeLower();
     ppmfc::CString ccstring = "";
     if (uiname != "")
-        ccstring = StringtableLoader::CSFFiles_Stringtable[uiname.c_str()];
+        ccstring = StringtableLoader::CSFFiles_Stringtable[uiname.m_pchData];
     if (ccstring == "")
         ccstring = mmh.GetString(pRegName, "Name", "");
     if (ccstring == "")
         ccstring = "MISSING";
 
-    ppmfc::CString uiname2 = uiname.c_str();
-    if (uiname2.Find("nostr:") == 0) {
+    if (uiname.Find("nostr:") == 0) {
         ccstring = mmh.GetString(pRegName, "UIName", "").Mid(6);
     }
 

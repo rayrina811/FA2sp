@@ -2,8 +2,9 @@
 
 #include "../Body.h"
 
-#include <map>
+#include <unordered_map>
 #include <vector>
+#include <unordered_set>
 
 class TagSort
 {
@@ -37,17 +38,17 @@ public:
     HWND GetHwnd() const;
     operator HWND() const;
 
-    static std::vector<ppmfc::CString>attachedTriggers;
+    static std::unordered_set<ppmfc::CString>attachedTriggers;
 
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>BuildingTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>AircraftTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>UnitTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>InfantryTags;
-    static std::map<ppmfc::CString, ppmfc::CString>TagTriggers;
-    static std::map<ppmfc::CString, ppmfc::CString>TriggerTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>TriggerTagsParent;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>CellTagTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>TeamTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>BuildingTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>AircraftTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>UnitTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>InfantryTags;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString>TagTriggers;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString>TriggerTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>TriggerTagsParent;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>CellTagTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>TeamTags;
     static std::vector<ppmfc::CString> TreeViewTexts;
     static std::vector<std::vector<ppmfc::CString>> TreeViewTextsVector;
 

@@ -8,6 +8,8 @@
 #include <MFC/ppmfc_cstring.h>
 
 #include <map>
+#include <unordered_map>
+#include <optional>
 
 typedef unsigned char byte;
 
@@ -159,16 +161,31 @@ public:
     static ppmfc::CString Waypoint_SkipCheckList;
 };
 
+namespace std {
+    template<>
+    struct hash<ppmfc::CString> {
+        size_t operator()(const ppmfc::CString& str) const {
+            return hash<string_view>()(string_view(str, str.GetLength()));
+        }
+    };
+    template<>
+    struct hash<CString> {
+        size_t operator()(const CString& str) const {
+            return hash<string_view>()(string_view(str, str.GetLength()));
+        }
+    };
+}
+
 class Variables
 {
 public:
     static MultimapHelper Rules;
     static MultimapHelper FAData;
     static MultimapHelper Rules_FAData;
-    static std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesMapIndicies;
-    static std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesIndicies;
+    static std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesMapIndicies;
+    static std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesIndicies;
 
-    static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>>& GetRulesSection(ppmfc::CString section)
+    static std::optional<std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> GetRulesSection(ppmfc::CString section)
     {
         static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
         auto it = OrderedRulesIndicies.find(section);
@@ -178,7 +195,7 @@ public:
         }
         return empty;
     }
-    static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>>& GetRulesMapSection(ppmfc::CString section)
+    static std::optional<std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> GetRulesMapSection(ppmfc::CString section)
     {
         static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
         auto it = OrderedRulesMapIndicies.find(section);

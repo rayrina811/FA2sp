@@ -5,6 +5,8 @@
 #include <CShpFile.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <CPalette.h>
 
 class ImageDataClass;
@@ -110,8 +112,8 @@ private:
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
-	static std::map<ppmfc::CString, ObjectType> ObjectTypes;
-	static std::vector<ppmfc::CString> LoadedObjects;
+	static std::unordered_map<ppmfc::CString, ObjectType> ObjectTypes;
+	static std::unordered_set<ppmfc::CString> LoadedObjects;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 };

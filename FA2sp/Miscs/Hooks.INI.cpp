@@ -1,5 +1,6 @@
 #include "Hooks.INI.h"
 
+
 /*
 * Codes imported from Ares
 */
@@ -11,11 +12,12 @@ int INIIncludes::LastReadIndex = -1;
 bool INIIncludes::IsFirstINI = true;
 bool INIIncludes::IsMapINI = false;
 bool INIIncludes::MapINIWarn = false;
-vector<CINIExt*> INIIncludes::LoadedINIs;
+vector<CINI*> INIIncludes::LoadedINIs;
 vector<char*> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
 map<ppmfc::CString, unsigned int> INIIncludes::CurrentINIIdxHelper;
-map<ppmfc::CString, map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
+std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
+std::unordered_map<CINI*, CINIExt> CINIManager::propertyMap;
 
 DEFINE_HOOK(4530F7, CLoading_ParseINI_PlusSupport, 8)
 {
@@ -50,11 +52,11 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI_IncludeSupport_1, 7)
 {
 
     GET_STACK(const char*, pFile, 0x4);
-    GET_STACK(CINIExt*, pINI, 0x8);
+    GET_STACK(CINI*, pINI, 0x8);
 
     INIIncludes::LoadedINIs.push_back(pINI);
     INIIncludes::LoadedINIFiles.push_back(_strdup(pFile));
-    pINI->FileName = _strdup(pFile);
+    CINIManager::GetInstance().SetProperty(pINI, { pFile });
 
     return 0;
 }
@@ -63,7 +65,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 {
     if (INIIncludes::LoadedINIs.size() == 0)
         return 0;
-    CINIExt* xINI = INIIncludes::LoadedINIs.back();
+    CINI* xINI = INIIncludes::LoadedINIs.back();
     if (!xINI)
         return 0;
 
@@ -91,7 +93,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
     char buffer[0x80]{0};
 
-    auto fullPath = ppmfc::CString(xINI->FileName);
+    ppmfc::CString fullPath = CINIManager::GetInstance().GetProperty(xINI).Name;
     std::vector<ppmfc::CString> folders;
     for (auto& f : STDHelpers::SplitString(fullPath, "\\")) {
         if (f != "") {
@@ -129,7 +131,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     for (size_t j = 0; j < INIIncludes::RulesIncludeFiles.size(); ++j) {
         std::string name1 = toLower(INIIncludes::RulesIncludeFiles[j]);
         std::string name2 = toLower(std::string(fullPath));
-        //MessageBox(0, name1.c_str(), name2.c_str(), 0);
 
         if (name1 == name2) {
             isPartOfRulesIni = true;
@@ -315,7 +316,12 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     }
 
     if (INIIncludes::LoadedINIs.size() > 0)
-        INIIncludes::LoadedINIs.erase(INIIncludes::LoadedINIs.end() - 1);
+    {
+        auto ini_to_remove = INIIncludes::LoadedINIs.end() - 1;
+        CINIManager::GetInstance().RemoveInstance(*ini_to_remove);
+        INIIncludes::LoadedINIs.erase(ini_to_remove);
+    }
+
     if (!INIIncludes::LoadedINIs.size()) {
         for (int j = INIIncludes::LoadedINIFiles.size() - 1; j >= 0; --j) {
             if (char* ptr = INIIncludes::LoadedINIFiles[j]) {

@@ -15,6 +15,8 @@
 
 #include <CObjectDatas.h>
 #include <CMapData.h>
+#include <unordered_set>
+#include <unordered_map>
 
 class NOVTABLE CFinalSunDlgExt : CFinalSunDlg
 {
@@ -200,19 +202,19 @@ public:
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
         Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000
     };
-    static std::map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
+    static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
     static int RedrawCalledCount;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::set<ppmfc::CString> IgnoreSet;
-    static std::set<ppmfc::CString> ForceName;
-    static std::map<ppmfc::CString, ppmfc::CString> RenameString;
-    static std::set<ppmfc::CString> ExtSets[Set_Count];
-    static std::map<ppmfc::CString, int[10]> KnownItem;
-    static std::map<ppmfc::CString, int> Owners;
-    static std::set<ppmfc::CString> AddOnceSet;
+    static std::unordered_set<ppmfc::CString> IgnoreSet;
+    static std::unordered_set<ppmfc::CString> ForceName;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString> RenameString;
+    static std::unordered_set<ppmfc::CString> ExtSets[Set_Count];
+    static std::unordered_map<ppmfc::CString, int[10]> KnownItem;
+    static std::unordered_map<ppmfc::CString, int> Owners;
+    static std::unordered_set<ppmfc::CString> AddOnceSet;
     static int AddedItemCount;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 

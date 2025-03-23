@@ -20,13 +20,13 @@
 
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
-std::set<ppmfc::CString> CViewObjectsExt::IgnoreSet;
-std::set<ppmfc::CString> CViewObjectsExt::ForceName;
-std::map<ppmfc::CString, ppmfc::CString> CViewObjectsExt::RenameString;
-std::set<ppmfc::CString> CViewObjectsExt::ExtSets[Set_Count];
-std::map<ppmfc::CString, int[10]> CViewObjectsExt::KnownItem;
-std::map<ppmfc::CString, int> CViewObjectsExt::Owners;
-std::set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
+std::unordered_set<ppmfc::CString> CViewObjectsExt::IgnoreSet;
+std::unordered_set<ppmfc::CString> CViewObjectsExt::ForceName;
+std::unordered_map<ppmfc::CString, ppmfc::CString> CViewObjectsExt::RenameString;
+std::unordered_set<ppmfc::CString> CViewObjectsExt::ExtSets[Set_Count];
+std::unordered_map<ppmfc::CString, int[10]> CViewObjectsExt::KnownItem;
+std::unordered_map<ppmfc::CString, int> CViewObjectsExt::Owners;
+std::unordered_set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
 
@@ -543,7 +543,8 @@ void CViewObjectsExt::Redraw_Owner()
     }
 }
 
-std::vector<int> GetUnique(std::vector<int> input) {
+static std::vector<int> GetUnique(std::vector<int> input) 
+{
     std::sort(input.begin(), input.end());
     auto last = std::unique(input.begin(), input.end());
     input.erase(last, input.end());
@@ -1030,14 +1031,14 @@ void CViewObjectsExt::Redraw_Terrain()
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
     {
         int index = RandomTree;
-        for (auto pKey : pSection->GetEntities())
+        for (const auto& pKey : pSection->GetEntities())
         {
             if (auto pSection2 = CINI::FAData().GetSection(pKey.second))
             {
                 bool add = true;
                 auto banned = STDHelpers::SplitString(CINI::FAData().GetString(pKey.second, "BannedTheater", ""));
                 if (banned.size() > 0)
-                    for (auto ban : banned)
+                    for (auto& ban : banned)
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
@@ -1822,7 +1823,7 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
         {
             if (datas[0].SubCell == "-1")
             {
-                auto temp = datas[1].SubCell;
+                auto& temp = datas[1].SubCell;
                 datas[1].SubCell = datas[2].SubCell;
                 datas[2].SubCell = temp;
 
@@ -1831,7 +1832,7 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
             }
             else if (datas[1].SubCell == "-1")
             {
-                auto temp = datas[0].SubCell;
+                auto& temp = datas[0].SubCell;
                 datas[0].SubCell = datas[2].SubCell;
                 datas[2].SubCell = temp;
 
@@ -1840,7 +1841,7 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
             }
             else if (datas[2].SubCell == "-1")
             {
-                auto temp = datas[0].SubCell;
+                auto& temp = datas[0].SubCell;
                 datas[0].SubCell = datas[1].SubCell;
                 datas[1].SubCell = temp;
 
@@ -1850,7 +1851,7 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
         }
         else if (count == 3)
         {
-            auto temp = datas[1].SubCell;
+            auto& temp = datas[1].SubCell;
             datas[1].SubCell = datas[2].SubCell;
             datas[2].SubCell = temp;
 

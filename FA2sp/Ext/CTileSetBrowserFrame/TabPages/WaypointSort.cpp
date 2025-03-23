@@ -16,11 +16,8 @@
 #include "../../../ExtraWindow/CNewScript/CNewScript.h"
 
 WaypointSort WaypointSort::Instance;
-std::map<int, std::string> EventHolder; 
-std::map<int, std::string> ActionHolder; 
 std::vector<ppmfc::CString> WaypointSort::TreeViewTexts;
 std::vector<std::vector<ppmfc::CString>> WaypointSort::TreeViewTextsVector;
-
 
 void WaypointSort::LoadAllTriggers()
 {
@@ -229,7 +226,7 @@ void WaypointSort::Menu_AddTrigger()
 
         ppmfc::CString buffer;
         prefix += "[";
-        for (auto group : this->GetGroup(pID, buffer))
+        for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
         if (prefix[prefix.GetLength() - 1] == '.')
         {

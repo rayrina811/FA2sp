@@ -151,8 +151,8 @@ ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
 MultimapHelper Variables::Rules = { &CINI::Rules(), &CINI::CurrentDocument() };
 MultimapHelper Variables::FAData = { &CINI::FAData() };
 MultimapHelper Variables::Rules_FAData = { &CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData() };
-std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesMapIndicies;
-std::map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesIndicies;
+std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesMapIndicies;
+std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> Variables::OrderedRulesIndicies;
 
 void FA2sp::ExtConfigsInitialize()
 {	

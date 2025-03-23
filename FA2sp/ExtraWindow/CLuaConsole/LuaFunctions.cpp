@@ -104,17 +104,20 @@ namespace LuaFunctions
 			{3, MB_YESNOCANCEL},              // Yes/No/Cancel buttons
 			{4, MB_RETRYCANCEL},              // Retry/Cancel buttons
 			{5, MB_ABORTRETRYIGNORE},         // Abort/Retry/Ignore buttons
-			{6, MB_CANCELTRYCONTINUE},        // Cancel/Try Again/Continue buttons
+			{6, MB_CANCELTRYCONTINUE},        // Cancel/Retry/Continue buttons
 
-			{10, MB_OK | MB_ICONINFORMATION}, // OK button with Information icon
-			{11, MB_OK | MB_ICONWARNING},     // OK button with Warning icon
-			{12, MB_OK | MB_ICONERROR},       // OK button with Error icon
-			{13, MB_OK | MB_ICONQUESTION},    // OK button with Question icon
+			{7, MB_OK | MB_ICONINFORMATION}, // OK button with Information icon
+			{8, MB_OK | MB_ICONWARNING},     // OK button with Warning icon
+			{9, MB_OK | MB_ICONERROR},       // OK button with Error icon
+			{10, MB_YESNO | MB_ICONQUESTION}, // Yes/No buttons with Question icon
 
-			{14, MB_YESNO | MB_ICONQUESTION}, // Yes/No buttons with Question icon
+			{11, MB_OKCANCEL | MB_ICONINFORMATION}, // OK/Cancel with Information icon
+			{12, MB_OKCANCEL | MB_ICONWARNING},     // OK/Cancel with Warning icon
+			{13, MB_OKCANCEL | MB_ICONERROR},       // OK/Cancel with Error icon
+			{14, MB_OKCANCEL | MB_ICONQUESTION},    // OK/Cancel with Question icon
+
 			{15, MB_RETRYCANCEL | MB_ICONERROR}, // Retry/Cancel buttons with Error icon
-			{16, MB_YESNO | MB_ICONWARNING},  // Yes/No buttons with Warning icon
-			{17, MB_ABORTRETRYIGNORE | MB_ICONERROR} // Abort/Retry/Ignore buttons with Error icon
+			{16, MB_ABORTRETRYIGNORE | MB_ICONERROR} // Abort/Retry/Ignore buttons with Error icon
 		};
 
 		static const std::unordered_map<int, std::vector<int>> returnValueMap = {
@@ -137,7 +140,7 @@ namespace LuaFunctions
 			const std::vector<int>& buttons = returnIt->second;
 			for (size_t i = 0; i < buttons.size(); ++i) {
 				if (result == buttons[i]) {
-					return static_cast<int>(i);
+					return static_cast<int>(i+1); // to fit lua
 				}
 			}
 		}
@@ -2265,8 +2268,9 @@ namespace LuaFunctions
 		CLuaConsole::needRedraw = true;
 	}
 
-	static void place_wall(int y, int x, int wall, int damageStage = 0)
+	static void place_wall(int y, int x, int wall, int damageStage)
 	{
+		damageStage--; // to fit lua
 		if (!CMapData::Instance->IsCoordInMap(x, y))
 			return;
 		auto& walls = CViewObjectsExt::WallDamageStages;
@@ -2277,7 +2281,7 @@ namespace LuaFunctions
 			else if (damageStage >= walls[wall])
 			{
 				std::ostringstream oss;
-				oss << "Invalid Wall Damage Stage: " << wall << ", " << damageStage;
+				oss << "Wall: " << wall << ", Invalid Damage Stage:" << damageStage + 1;
 				write_lua_console(oss.str());
 				return;
 			}	
@@ -2294,16 +2298,16 @@ namespace LuaFunctions
 		CMapDataExt::PlaceWallAt(pos, wall, damageStage);
 	}
 
-	static void place_waypoint(int y, int x, int index = -1)
+	static int place_waypoint(int y, int x, int index = -1)
 	{
 		if (!CMapData::Instance->IsCoordInMap(x, y))
-			return;
+			return -1;
 		int oldWp = CMapData::Instance->GetCellAt(x, y)->Waypoint;
 		if (oldWp > -1)
 		{
 			write_lua_console(std::format("Waypoint {} already exists at ({},{}), abort.", 
 				CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp).m_pchData, x, y));
-			return;
+			return atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", oldWp));
 		}
 
 		CLuaConsole::needRedraw = true;
@@ -2317,6 +2321,7 @@ namespace LuaFunctions
 		value.Format("%d", x * 1000 + y);
 		CINI::CurrentDocument->WriteString("Waypoints", key, value);
 		CMapData::Instance->UpdateFieldWaypointData(false);
+		return index;
 	}
 
 	static void remove_waypoint(int index)
@@ -2676,12 +2681,14 @@ namespace LuaFunctions
 		}
 		else if (loadFrom == "rules" || loadFrom == "rules+map")
 		{
-			auto& indicies = loadFrom == "rules" ? Variables::GetRulesSection(section.c_str()) : Variables::GetRulesMapSection(section.c_str());
-			int idx = 0;
-			for (auto& pair : indicies)
+			if (auto indicies = loadFrom == "rules" ? Variables::GetRulesSection(section.c_str()) : Variables::GetRulesMapSection(section.c_str()))
 			{
-				ret.push_back(std::make_pair(idx, pair.second.m_pchData));
-				idx++;
+				int idx = 0;
+				for (auto& pair : *indicies)
+				{
+					ret.push_back(std::make_pair(idx, pair.second.m_pchData));
+					idx++;
+				}
 			}
 		}
 		else
@@ -3327,11 +3334,11 @@ namespace LuaFunctions
 	{
 		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
 		auto cell = CMapData::Instance->GetCellAt(x, y);
-		if (type == 0)
+		if (type == 1)
 			cell->Flag.IsHiddenCell = true;
-		else if (type == 1)
-			cell->Flag.IsHiddenCell = false;
 		else if (type == 2)
+			cell->Flag.IsHiddenCell = false;
+		else if (type == 3)
 			cell->Flag.IsHiddenCell ^= 1;
 		CLuaConsole::needRedraw = true;
 	}
@@ -3340,13 +3347,13 @@ namespace LuaFunctions
 	{
 		if (index >= 0 && index < CMapDataExt::TileSet_starts.size() - 1) {
 			for (int i = CMapDataExt::TileSet_starts[index]; i < CMapDataExt::TileSet_starts[index + 1]; i++) {
-				if (type == 0) {
+				if (type == 1) {
 					(*CTileTypeClass::Instance)[i].IsHidden = 1;
 				}
-				else if (type == 1) {
+				else if (type == 2) {
 					(*CTileTypeClass::Instance)[i].IsHidden = 0;
 				}
-				else if (type == 2) {
+				else if (type == 3) {
 					(*CTileTypeClass::Instance)[i].IsHidden ^= 1;
 				}
 			}
@@ -3357,13 +3364,13 @@ namespace LuaFunctions
 	static void multi_select_tile(int y, int x, int type = 0)
 	{
 		if (!CMapData::Instance->IsCoordInMap(x, y)) return;
-		if (type == 0) {
+		if (type == 1) {
 			MultiSelection::AddCoord(x, y);
 		}
-		else if (type == 1) {
+		else if (type == 2) {
 			MultiSelection::RemoveCoord(x, y);
 		}
-		else if (type == 2) {
+		else if (type == 3) {
 			MultiSelection::ReverseStatus(x, y);
 		}
 		CLuaConsole::needRedraw = true;
@@ -3378,13 +3385,13 @@ namespace LuaFunctions
 					auto cell = CMapData::Instance->GetCellAt(x, y);
 					int tileIdx = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 					if (tileIdx >= CMapDataExt::TileSet_starts[index] && tileIdx < CMapDataExt::TileSet_starts[index + 1]) {
-						if (type == 0) {
+						if (type == 1) {
 							MultiSelection::AddCoord(x, y);
 						}
-						else if (type == 1) {
+						else if (type == 2) {
 							MultiSelection::RemoveCoord(x, y);
 						}
-						else if (type == 2) {
+						else if (type == 3) {
 							MultiSelection::ReverseStatus(x, y);
 						}
 					}
@@ -3526,7 +3533,7 @@ namespace LuaFunctions
 		snapshot.fileName = CFinalSunApp::MapPath();
 		if (snapshot.fileName == "")
 			snapshot.fileName = "New map";
-		write_lua_console(std::format("Script has just created snapshot #{}.\n   To restore, type and run \"restore_snapshot({}).\"", version, version));
+		write_lua_console(std::format("Script has just created snapshot #{}.\n   To restore, type and run \"restore_snapshot({})\".", version, version));
 		return version;
 	}
 

@@ -1,7 +1,7 @@
 #include <CINI.h>
 #include <CFinalSunApp.h>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include "../Helpers/STDHelpers.h"
 #include "../ExtraWindow/Common.h"
 #include "../FA2sp.h"
@@ -19,7 +19,7 @@ public:
     static bool EditVaribale;
     static bool EditParams;
     static bool NeedRedraw;
-    static std::map<ppmfc::CString, ppmfc::CString> VariablePool;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString> VariablePool;
     static std::vector<ppmfc::CString> Temps;
     static ppmfc::CString ParamsTemp[10];
 
@@ -76,7 +76,7 @@ int UserScriptExt::ParamCount = -1;
 bool UserScriptExt::EditVaribale = false;
 bool UserScriptExt::EditParams = false;
 bool UserScriptExt::NeedRedraw = false;
-std::map<ppmfc::CString, ppmfc::CString> UserScriptExt::VariablePool;
+std::unordered_map<ppmfc::CString, ppmfc::CString> UserScriptExt::VariablePool;
 std::vector<ppmfc::CString> UserScriptExt::Temps;
 ppmfc::CString UserScriptExt::ParamsTemp[10];
 

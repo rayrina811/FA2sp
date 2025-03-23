@@ -1,6 +1,7 @@
 #include "Body.h"
 #include "../../FA2sp.h"
 
+#include <unordered_map>
 #include <Drawing.h>
 #include <CINI.h>
 #include <CMapData.h>
@@ -582,7 +583,7 @@ static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 	}
 }
 
-static void FindConnectedTiles(std::map<int, bool>& process, int startX, int startY)
+static void FindConnectedTiles(std::unordered_map<int, bool>& process, int startX, int startY)
 {
 	const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} }; // do not calculate 4 corners
 	for (auto pair : loop)
@@ -1225,7 +1226,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 
 	// using pathfinding algorithm to enable brushes to be separated by non-Morphable tiles
 	// first = map pos, second = should be precessed
-	std::map<int, bool> process; 
+	std::unordered_map<int, bool> process; 
 
 	if (!tiledataClick.Morphable) // skip top half for flattening from cliffs
 	{

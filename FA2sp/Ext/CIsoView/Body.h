@@ -4,6 +4,8 @@
 
 #include <CIsoView.h>
 #include "../FA2Expand.h"
+#include <unordered_map>
+#include <unordered_set>
 
 struct CellData;
 
@@ -118,12 +120,12 @@ public:
     static float drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
-    static std::map<MapCoord, ppmfc::CString> WaypointsToDraw;
-    static std::map<MapCoord, DrawBuildings> BuildingsToDraw;
-    static std::vector<short> VisibleStructures;
-    static std::vector<short> VisibleInfantries;
-    static std::vector<short> VisibleUnits;
-    static std::vector<short> VisibleAircrafts;
+    static std::vector<std::pair<MapCoord, ppmfc::CString>> WaypointsToDraw;
+    static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
+    static std::unordered_set<short> VisibleStructures;
+    static std::unordered_set<short> VisibleInfantries;
+    static std::unordered_set<short> VisibleUnits;
+    static std::unordered_set<short> VisibleAircrafts;
     static std::vector<DrawVeterancies> DrawVeterancies;
 
     static bool IsPressingALT;

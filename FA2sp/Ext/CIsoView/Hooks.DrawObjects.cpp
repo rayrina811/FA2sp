@@ -19,13 +19,13 @@ static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static int HorizontalLoopIndex;
 
-std::map<MapCoord, ppmfc::CString> CIsoViewExt::WaypointsToDraw;
-std::map<MapCoord, DrawBuildings> CIsoViewExt::BuildingsToDraw;
-std::vector<short> CIsoViewExt::VisibleStructures;
-std::vector<short> CIsoViewExt::VisibleInfantries;
-std::vector<short> CIsoViewExt::VisibleUnits;
-std::vector<short> CIsoViewExt::VisibleAircrafts;
-std::vector<short> DrawnBuildings;
+std::vector<std::pair<MapCoord, ppmfc::CString>> CIsoViewExt::WaypointsToDraw;
+std::vector<std::pair<MapCoord, DrawBuildings>> CIsoViewExt::BuildingsToDraw;
+std::unordered_set<short> CIsoViewExt::VisibleStructures;
+std::unordered_set<short> CIsoViewExt::VisibleInfantries;
+std::unordered_set<short> CIsoViewExt::VisibleUnits;
+std::unordered_set<short> CIsoViewExt::VisibleAircrafts;
+std::unordered_set<short> DrawnBuildings;
 std::vector<BaseNodeDataExt> DrawnBaseNodes;
 
 #define EXTRA_BORDER 15
@@ -81,7 +81,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 					CheckValue(1307, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
 					CheckValue(1308, CViewObjectsExt::InfantryBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
 					CheckValue(1309, CViewObjectsExt::InfantryBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleInfantries.push_back(idx);
+					CIsoViewExt::VisibleInfantries.insert(idx);
 			}
 			idx++;
 		}
@@ -116,7 +116,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 					CheckValue(1308, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
 					CheckValue(1309, CViewObjectsExt::VehicleBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
 					CheckValue(1310, CViewObjectsExt::VehicleBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleUnits.push_back(idx);
+					CIsoViewExt::VisibleUnits.insert(idx);
 			}
 		}
 	}
@@ -147,7 +147,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 					CheckValue(1306, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateNoRecruitable, data.AutoNORecruitType) &&
 					CheckValue(1307, CViewObjectsExt::AircraftBrushDlgF->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType) &&
 					CheckValue(1308, CViewObjectsExt::AircraftBrushDlgF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleAircrafts.push_back(idx);
+					CIsoViewExt::VisibleAircrafts.insert(idx);
 			}
 		}
 	}	
@@ -183,7 +183,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 					CheckValue(1311, CViewObjectsExt::BuildingBrushDlgBF->CString_AIRepairs, data.AIRepairable) &&
 					CheckValue(1312, CViewObjectsExt::BuildingBrushDlgBF->CString_ShowName, data.Nominal) &&
 					CheckValue(1313, CViewObjectsExt::BuildingBrushDlgBF->CString_Tag, data.Tag))
-					CIsoViewExt::VisibleStructures.push_back(idx);
+					CIsoViewExt::VisibleStructures.insert(idx);
 			}
 		}
 	}	
@@ -505,7 +505,7 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 
 				if (id != "")
 				{
-					for (auto name : CViewObjectsExt::ObjectFilterCT)
+					for (auto& name : CViewObjectsExt::ObjectFilterCT)
 					{
 						if (name == id)
 						{
@@ -630,9 +630,9 @@ DEFINE_HOOK(474DDF, CIsoView_Draw_WaypointTexts, 5)
 
 		for (const auto& [coord, index] : CIsoViewExt::WaypointsToDraw)
 		{
-			MapCoord mc = coord;
-			if (IsCoordInWindow(mc.X, mc.Y))
+			if (IsCoordInWindow(coord.X, coord.Y))
 			{
+				MapCoord mc = coord;
 				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
 				int drawX = mc.X - drawOffsetX + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
 				int drawY = mc.Y - drawOffsetY - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
@@ -737,7 +737,8 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 			}
 			if (cell->Waypoint != -1)
 			{
-				CIsoViewExt::WaypointsToDraw[{X, Y}] = CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint);
+				CIsoViewExt::WaypointsToDraw.push_back(std::make_pair(MapCoord{ X, Y },
+					CINI::CurrentDocument->GetKeyAt("Waypoints", cell->Waypoint)));
 			}
 			if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 			{
@@ -746,12 +747,12 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 				{
 					const auto& filter = CIsoViewExt::VisibleStructures;
 					if (!CIsoViewExt::DrawStructuresFilter
-						|| std::find(filter.begin(), filter.end(), StrINIIndex) != filter.end())
+						|| filter.find(StrINIIndex) != filter.end())
 					{
 						const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
 						if (std::find(DrawnBuildings.begin(), DrawnBuildings.end(), StrINIIndex) == DrawnBuildings.end())
 						{
-							DrawnBuildings.push_back(StrINIIndex);
+							DrawnBuildings.insert(StrINIIndex);
 							MapCoord objCenter;
 							const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(objRender.ID);
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
@@ -804,8 +805,8 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 									}
 								}
 							}
-							CIsoViewExt::BuildingsToDraw[{objRender.X, objRender.Y}] =
-							{ StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex };
+							CIsoViewExt::BuildingsToDraw.push_back(std::make_pair( MapCoord{ objRender.X, objRender.Y },
+							 DrawBuildings { StrINIIndex , (short)objCenter.X, (short)objCenter.Y, (short)BuildingIndex }));
 
 							if (shadow && CIsoViewExt::DrawStructures)
 							{

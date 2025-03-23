@@ -170,14 +170,17 @@ void CNewAITrigger::Update(HWND& hWnd)
     
     idx = 0;
     while (SendMessage(hCountry, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    const auto& indicies = Variables::GetRulesMapSection("Countries");
-    SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
-    for (auto& pair : indicies)
+    if (const auto& indicies = Variables::GetRulesMapSection("Countries"))
     {
-        if (pair.second == "GDI" || pair.second == "Nod")
-            continue;
-        SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(pair.second, true).m_pchData);
+        SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
+        for (auto& pair : *indicies)
+        {
+            if (pair.second == "GDI" || pair.second == "Nod")
+                continue;
+            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(pair.second, true).m_pchData);
+        }
     }
+
     
     idx = 0;
     while (SendMessage(hComparator, CB_DELETESTRING, 0, NULL) != CB_ERR);

@@ -309,20 +309,22 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                     {
                         // rules
                         if (loadFrom == "1" || loadFrom == "2") {
-                            auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName);
-                            int idx = 0;
-                            for (auto& pair : indicies)
+                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName))
                             {
-                                ppmfc::CString output;
-                                output.Format("%d - %s", idx, pair.second);
-                                if (showUIName == "1")
+                                int idx = 0;
+                                for (auto& pair : *indicies)
                                 {
-                                    ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-                                    if (uiname != pair.second && uiname != "")
-                                        output.Format("%s - %s", output, uiname);
+                                    ppmfc::CString output;
+                                    output.Format("%d - %s", idx, pair.second);
+                                    if (showUIName == "1")
+                                    {
+                                        ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                                        if (uiname != pair.second && uiname != "")
+                                            output.Format("%s - %s", output, uiname);
+                                    }
+                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.m_pchData);
+                                    idx++;
                                 }
-                                SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.m_pchData);
-                                idx++;
                             }
                         }
                         else {
@@ -421,22 +423,25 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
 
     int idx = 0;
     int rIdx = 0;
-    auto& indicies = Variables::GetRulesMapSection("Countries");
-    for (auto& pair : indicies)
+    if (const auto& indicies = Variables::GetRulesMapSection("Countries"))
     {
-        if (pair.second == "Nod" || pair.second == "GDI") {
-            rIdx++;
-            continue;
-        }
-        ppmfc::CString output;
-        output.Format("%d - %s", rIdx, pair.second);
-        ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-        if (uiname != pair.second && uiname != "")
-            output.Format("%s - %s", output, uiname);
+        for (auto& pair : *indicies)
+        {
+            if (pair.second == "Nod" || pair.second == "GDI") {
+                rIdx++;
+                continue;
+            }
+            ppmfc::CString output;
+                output.Format("%d - %s", rIdx, pair.second);
+                ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                if (uiname != pair.second && uiname != "")
+                    output.Format("%s - %s", output, uiname);
 
-        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
-        rIdx++;
+            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
+            rIdx++;
+        }
     }
+
 }
 
 void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style, bool sort)
@@ -445,28 +450,30 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
 
     auto addValueList = [&](const char* secName)
         {
-            auto& indicies = Variables::GetRulesMapSection(secName);
-            for (auto& pair : indicies)
+            if (const auto& indicies = Variables::GetRulesMapSection(secName))
             {
-                ppmfc::CString output;
-                output.Format("%s", pair.second);
-                ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-                switch (style)
+                for (auto& pair : *indicies)
                 {
-                case 0:
-                    output.Format("%s - %s", output, uiname);
-                    break;
-                case 1:
-                    output.Format("%s (%s)", output, uiname);
-                    break;
-                default:
-                    break;
-                }
+                    ppmfc::CString output;
+                    output.Format("%s", pair.second);
+                    ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                    switch (style)
+                    {
+                    case 0:
+                        output.Format("%s - %s", output, uiname);
+                        break;
+                    case 1:
+                        output.Format("%s (%s)", output, uiname);
+                        break;
+                    default:
+                        break;
+                    }
 
-                if (sort)
-                    SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.m_pchData);
-                else
-                    SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
+                    if (sort)
+                        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.m_pchData);
+                    else
+                        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
+                }
             }
         };
 

@@ -3,6 +3,8 @@
 #include "../Body.h"
 
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class TriggerSort
@@ -10,8 +12,8 @@ class TriggerSort
 public:
     static TriggerSort Instance;
 
-    static std::map<ppmfc::CString, ppmfc::CString>TriggerTags;
-    static std::map<ppmfc::CString, std::vector<ppmfc::CString>>TriggerTagsParent;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString>TriggerTags;
+    static std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>>TriggerTagsParent;
 
     TriggerSort() : m_hWnd{ NULL } {}
 
@@ -40,7 +42,7 @@ public:
     HWND GetHwnd() const;
     operator HWND() const;
 
-    static std::vector<ppmfc::CString>attachedTriggers;
+    static std::unordered_set<ppmfc::CString>attachedTriggers;
     static std::vector<ppmfc::CString>TreeViewTexts;
     static std::vector< std::vector<ppmfc::CString>>TreeViewTextsVector;
 

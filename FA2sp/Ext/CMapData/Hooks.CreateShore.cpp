@@ -67,7 +67,6 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 		}
 	}
 
-
 	// a trick to avoid affecting other shorelines
 	// ignore the working shore
 	auto tileNameHasShore = [&](int setIdx)
@@ -75,7 +74,8 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 			if (setIdx == shorePieces)
 				return false;
 			auto& ret = CMapDataExt::ShoreTileSets;
-			if (std::find(ret.begin(), ret.end(), setIdx) != ret.end())
+			
+			if (ret.find(setIdx) != ret.end())
 				return true;
 			return false;
 		};

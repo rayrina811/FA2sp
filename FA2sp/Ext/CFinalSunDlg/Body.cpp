@@ -230,13 +230,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CLoading::Instance->FreeTMPs();
 			CLoading::Instance->InitTMPs();
 			int oli = 0;
-			for (const auto& ol : Variables::GetRulesMapSection("OverlayTypes"))
+			if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
 			{
-				auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
-				if (it != CLoadingExt::LoadedOverlays.end()) {
-					CLoading::Instance->DrawOverlay(ol.second, oli);
+				for (const auto& ol : *section)
+				{
+					auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
+					if (it != CLoadingExt::LoadedOverlays.end()) {
+						CLoading::Instance->DrawOverlay(ol.second, oli);
+					}
+					oli++;
 				}
-				oli++;
 			}
 			PalettesManager::RestoreCurrentIso();
 			PalettesManager::ManualReloadTMP = false;

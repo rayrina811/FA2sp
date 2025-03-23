@@ -12,9 +12,9 @@
 using namespace std;
 
 TriggerSort TriggerSort::Instance;
-std::map<ppmfc::CString, ppmfc::CString> TriggerSort::TriggerTags;
-std::map<ppmfc::CString, std::vector<ppmfc::CString>> TriggerSort::TriggerTagsParent;
-std::vector<ppmfc::CString> TriggerSort::attachedTriggers;
+std::unordered_map<ppmfc::CString, ppmfc::CString> TriggerSort::TriggerTags;
+std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TriggerSort::TriggerTagsParent;
+std::unordered_set<ppmfc::CString> TriggerSort::attachedTriggers;
 std::vector<ppmfc::CString> TriggerSort::TreeViewTexts;
 std::vector<std::vector<ppmfc::CString>> TriggerSort::TreeViewTextsVector;
 
@@ -183,7 +183,7 @@ void TriggerSort::Menu_AddTrigger()
 
         ppmfc::CString buffer;
         prefix += "[";
-        for (auto group : this->GetGroup(pID, buffer))
+        for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
         if (prefix[prefix.GetLength() - 1] == '.')
         {
@@ -239,27 +239,26 @@ HTREEITEM TriggerSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 }
 void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, ppmfc::CString triggerID, ppmfc::CString parentName) const
 {
-    for (auto id : attachedTriggers)
-    {
-        if (TriggerTags[triggerID] == id)
-        {
-            if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
-            {
-                ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
-                TreeViewTexts.push_back(pTrigger2);
-                hParent = hNode;
-                TVINSERTSTRUCT tvis;
-                tvis.hInsertAfter = TVI_SORT;
-                tvis.hParent = hParent;
-                tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-                tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                TreeView_InsertItem(this->GetHwnd(), &tvis);
 
-                return;
-            }
+    if (attachedTriggers.find(TriggerTags[triggerID]) != attachedTriggers.end())
+    {
+        if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
+        {
+            ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+            TreeViewTexts.push_back(pTrigger2);
+            hParent = hNode;
+            TVINSERTSTRUCT tvis;
+            tvis.hInsertAfter = TVI_SORT;
+            tvis.hParent = hParent;
+            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+            tvis.item.pszText = TreeViewTexts.back().m_pchData;
+            tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
+            TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+            return;
         }
     }
+
     
     if (TriggerTags[triggerID] != "")
         if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
@@ -285,7 +284,7 @@ void TriggerSort::AddAttachedTrigger(HTREEITEM hParent, ppmfc::CString triggerID
 
 
                 ppmfc::CString element = TriggerTags[triggerID];
-                attachedTriggers.push_back(element);
+                attachedTriggers.insert(element);
                 AddAttachedTrigger(hParent, TriggerTags[triggerID], TreeViewTexts.back());
 
             }
@@ -301,27 +300,23 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString tr
         {
             if (HTREEITEM hNode = this->FindLabel(hParent2, parentName))
             {
-                for (auto id : attachedTriggers)
+                if (attachedTriggers.find(parentTrigger) != attachedTriggers.end())
                 {
-                    if (parentTrigger == id)
+                    if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
                     {
-                        if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
-                        {
-                            ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
-                            TreeViewTexts.push_back(pTrigger2);
-                            hParent = hNode;
-                            TVINSERTSTRUCT tvis;
-                            tvis.hInsertAfter = TVI_SORT;
-                            tvis.hParent = hParent;
-                            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis);
+                        ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+                        TreeViewTexts.push_back(pTrigger2);
+                        hParent = hNode;
+                        TVINSERTSTRUCT tvis;
+                        tvis.hInsertAfter = TVI_SORT;
+                        tvis.hParent = hParent;
+                        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
+                        tvis.item.pszText = TreeViewTexts.back().m_pchData;
+                        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
+                        TreeView_InsertItem(this->GetHwnd(), &tvis);
 
-                            return;
-                        }
+                        return;
                     }
-
                 }
 
                 auto pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
@@ -343,13 +338,12 @@ void TriggerSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString tr
                     TreeView_InsertItem(this->GetHwnd(), &tvis);
 
                     ppmfc::CString element = parentTrigger;
-                    attachedTriggers.push_back(element);
+                    attachedTriggers.insert(element);
 
                     AddAttachedTriggerReverse(hParent, parentTrigger, TreeViewTexts.back());
                 }
             }
         }
-
 
 }
 
@@ -436,13 +430,13 @@ void TriggerSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString n
             auto hParent2 = hParent;
             attachedTriggers.clear();
             ppmfc::CString element = id;
-            attachedTriggers.push_back(element);
+            attachedTriggers.insert(element);
             AddAttachedTrigger(hParent2, element, text);
 
             hParent2 = hParent;
             attachedTriggers.clear();
             element = id;
-            attachedTriggers.push_back(element);
+            attachedTriggers.insert(element);
             AddAttachedTriggerReverse(hParent2, element, text);
         }
     }

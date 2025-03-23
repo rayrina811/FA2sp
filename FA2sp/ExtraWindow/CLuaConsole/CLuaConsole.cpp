@@ -104,6 +104,13 @@ void CLuaConsole::Initialize(HWND& hWnd)
         };
 
     Translate(1005, "LuaScriptConsoleDescription");
+    HWND hDesc = GetDlgItem(hWnd, 1005);
+    buffer = Translations::TranslateOrDefault("LuaScriptConsoleDescription",
+        "Click 'execute' to execute the selected Lua script, and click 'run' to execute the code in the input window. "
+        "Scripts may damage the map, please save it or execute the snapshot function before running. "
+        "Please refer to the documentation for available functions.");
+    SetWindowText(hDesc, buffer);
+
     Translate(1006, "LuaScriptConsoleOuput");
     Translate(1007, "LuaScriptConsoleInput");
     Translate(1008, "LuaScriptConsoleScripts");
@@ -207,7 +214,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("message_box", message_box);
     Lua.new_usertype<multi_select_box>("multi_select_box",
         sol::constructors<multi_select_box(std::string)>(),
-        "options", &multi_select_box::options,
+        //"options", sol::readonly(&multi_select_box::options),
         "caption", &multi_select_box::caption,
         "selected_keys", &multi_select_box::selected_keys,
         "selected_values", &multi_select_box::selected_values,
@@ -217,7 +224,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
     Lua.new_usertype<select_box>("select_box",
         sol::constructors<select_box(std::string)>(),
-        "options", &select_box::options,
+        //"options", sol::readonly(&select_box::options),
         "caption", &select_box::caption,
         "selected_key", &select_box::selected_key,
         "selected_value", &select_box::selected_value,
@@ -246,7 +253,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         if (!index) {
             index = -1;
         }
-        place_waypoint(y, x, index.value());
+        return place_waypoint(y, x, index.value());
         });
     Lua.set_function("remove_waypoint", remove_waypoint);
     Lua.set_function("remove_waypoint_at", remove_waypoint_at);
@@ -454,16 +461,16 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("get_multi_selected_cells", get_multi_selected_cells);
     Lua.set_function("get_hidden_cells", get_hidden_cells);
     Lua.new_usertype<tile>("tile",
-        "x", &tile::RelativeY,
-        "y", &tile::RelativeX,
-        "valid", &tile::Valid,
-        "tile_index", &tile::TileIndex,
-        "tile_sub_index", &tile::TileSubIndex,
-        "height", &tile::Height,
-        "alt_count", &tile::AltCount,
-        "tile_set", &tile::TileSet,
-        "ramp_type", &tile::RampType,
-        "land_type", &tile::LandType
+        "x", sol::readonly(&tile::RelativeY),
+        "y", sol::readonly(&tile::RelativeX),
+        "valid", sol::readonly(&tile::Valid),
+        "tile_index", sol::readonly(&tile::TileIndex),
+        "tile_sub_index", sol::readonly(&tile::TileSubIndex),
+        "height", sol::readonly(&tile::Height),
+        "alt_count", sol::readonly(&tile::AltCount),
+        "tile_set", sol::readonly(&tile::TileSet),
+        "ramp_type", sol::readonly(&tile::RampType),
+        "land_type", sol::readonly(&tile::LandType)
     );
     Lua["tile"]["new"] = []() {
         write_lua_console("Creation of tile instances is forbidden.");
@@ -484,25 +491,25 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("set_height", set_height);
     Lua.set_function("hide_cell", [](int y, int x, sol::optional<int> type) {
         if (!type) {
-            type = 0;
+            type = 1;
         }
         hide_tile(y, x, type.value());
         });
     Lua.set_function("hide_tile_set", [](int index, sol::optional<int> type) {
         if (!type) {
-            type = 0;
+            type = 1;
         }
         hide_tile_set(index, type.value());
         });
     Lua.set_function("multi_select_cell", [](int y, int x, sol::optional<int> type) {
         if (!type) {
-            type = 0;
+            type = 1;
         }
         multi_select_tile(y, x, type.value());
         });
     Lua.set_function("multi_select_tile_set", [](int index, sol::optional<int> type) {
         if (!type) {
-            type = 0;
+            type = 1;
         }
         multi_select_tile_set(index, type.value());
         });
