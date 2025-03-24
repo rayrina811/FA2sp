@@ -287,7 +287,7 @@ namespace LuaFunctions
 
 	static std::string input_box(std::string message)
 	{
-		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaInputBoxTitle", "Please enter")).m_pchData;
+		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaConsole.InputBoxTitle", "Please enter")).m_pchData;
 	}
 	
 	static std::string read_input()
