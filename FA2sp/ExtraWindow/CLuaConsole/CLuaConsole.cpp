@@ -666,6 +666,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "name", &tag::Name,
         "type", &tag::RepeatType
     );
+    Lua["tag"]["new"] = []() {
+        write_lua_console("Creation of tag instances is forbidden.");
+        return sol::nil;
+        };
     Lua.new_usertype<trigger>("trigger",
         sol::constructors<trigger(std::string), trigger()>(),
         "id", sol::readonly(&trigger::ID),
@@ -707,12 +711,12 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "tech_level", &ai_trigger::TechLevel,
         "condition", &ai_trigger::ConditionType,
         "object", &ai_trigger::ComparisonObject,
-        "comparators", sol::readonly(&ai_trigger::Comparators),
+        //"comparators", sol::readonly(&ai_trigger::Comparators),
         "init_weight", &ai_trigger::InitialWeight,
         "min_weight", &ai_trigger::MinWeight,
         "max_weight", &ai_trigger::MaxWeight,
         "is_for_skirmish", &ai_trigger::IsForSkirmish,
-        "unused", &ai_trigger::unused,
+        //"unused", &ai_trigger::unused,
         "side", &ai_trigger::Side,
         "is_base_defense", &ai_trigger::IsBaseDefense,
         "team2", &ai_trigger::Team2,

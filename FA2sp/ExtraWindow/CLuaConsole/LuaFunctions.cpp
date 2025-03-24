@@ -1943,7 +1943,7 @@ namespace LuaFunctions
 		bool EnabledInM = true;
 		bool EnabledInH = true;
 		std::string Comparator = "0";
-		std::string Amount = "0";
+		int Amount = 0;
 
 		bool Enabled = true;
 
@@ -1988,6 +1988,8 @@ namespace LuaFunctions
 				ret.EnabledInE = atoms[15] == "0" ? false : true;
 				ret.EnabledInM = atoms[16] == "0" ? false : true;
 				ret.EnabledInH = atoms[17] == "0" ? false : true;
+				ret.Amount = ret.Comparators[0];
+				ret.Comparator = std::to_string(ret.Comparators[1]);
 
 				ret.Enabled = CINI::CurrentDocument().GetBool("AITriggerTypesEnable", id.c_str());
 				return sol::make_object(CLuaConsole::Lua, ret);
@@ -2000,7 +2002,7 @@ namespace LuaFunctions
 		}
 		void apply()
 		{
-			Comparators[0] = atoi(Amount.c_str());
+			Comparators[0] = Amount;
 			if (Comparator == "<" || Comparator == "0")
 				Comparators[1] = 0;
 			else if (Comparator == "<=" || Comparator == "1")

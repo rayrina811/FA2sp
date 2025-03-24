@@ -9,157 +9,27 @@
 #include <CTileTypeClass.h>
 #include <CIsoView.h>
 #include <CInputMessageBox.h>
-
 #include <MFC/ppmfc_cstring.h>
-
 #include "../FA2sp.h"
-
 #include "../Helpers/STDHelpers.h"
 #include <CPropertyInfantry.h>
 #include "../Ext/CMapData/Body.h"
 
-bool changedNLen = false;
-int oldNLen = 0;
-DEFINE_HOOK(555D7C, CString_AllocBuffer1, 6)
+DEFINE_HOOK(555D97, CString_AllocBuffer, 7)
 {
-	if (!ExtConfigs::StringBufferFixedAllocation)
-		return 0;
-
-	GET_STACK(int, nLen, 0x4);
-
-	
-	if (nLen > 0 && nLen <= 512)
+	if (!ExtConfigs::StringBufferStackAllocation)
 	{
-		changedNLen = true;
-		oldNLen = nLen;
-		R->Stack(0x4, 513);
+		if (R->ESI() > R->EDI())
+			return 0x555DA8;
+		else
+		{
+			R->ECX(0x8862A8);
+			return 0x555D9E;
+		}
 	}
 
-	return 0;
+	return 0x555DD8;
 }
-
-DEFINE_HOOK(555DE5, CString_AllocBuffer2, 6)
-{
-	if (!ExtConfigs::StringBufferFixedAllocation)
-		return 0;
-
-	if (changedNLen)
-	{
-		R->ESI(oldNLen);
-		
-	}
-	changedNLen = false;
-
-	return 0;
-}
-
-
-//DEFINE_HOOK(555D9E, CString_AllocBuffer, 5)
-//{
-//
-//	return 0x555DD8;
-//}
-//DEFINE_HOOK(555DFE, CString_FreeData, 6)
-//{
-//	GET(ppmfc::CStringData*, pData, ECX);
-//	if ((BYTE*)pData)
-//		GameDelete((BYTE*)pData);
-//	return 0x555E45;
-//
-//	//if (pData == nullptr)
-//	//	return 0x555E45;
-//	//return 0;
-//}
-//
-//DEFINE_HOOK(536106, sub_536106, 5)
-//{
-//	GET_STACK(LPVOID, lpMem, 0x8);
-//	if (lpMem)
-//		return 0;
-//	return 0x5361EE;
-//}
-//DEFINE_HOOK(555D97, CString_AllocBuffer, 7)
-//{
-//
-//	return 0x555DD8;
-//}
-//DEFINE_HOOK(555E01, CString_FreeData, 5)
-//{
-//	return 0x555E30;
-//}
-//DEFINE_HOOK(555E38, CString_FreeData2, 5)
-//{
-//	return 0x555E3F;
-//}
-//DEFINE_HOOK(555E07, CString_FreeData, 5)
-//{
-//	R->EAX(1024);
-//	return 0;
-//	//return 0x555E3F;
-//}
-//DEFINE_HOOK(555E3F, CString_FreeData2, 5)
-//{
-//	GET(int, nX, EAX);
-//	MessageBox(NULL, std::to_string(nX).c_str(), "Error", MB_OK);
-//	return 0;
-//
-//}
-
-//DEFINE_HOOK_AGAIN(4641B2, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_1, 5)
-//DEFINE_HOOK(4641C5, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_1, 5)
-//{
-//	GET(int, pos, ESI);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//		return 0x46423F;
-//	return 0;
-//}
-//
-//DEFINE_HOOK_AGAIN(4642E8, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_2, 5)
-//DEFINE_HOOK(4642FB, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN_2, 6)
-//{
-//	GET(int, pos, EAX);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//		return 0x46439F;
-//	return 0;
-//}
-//
-//DEFINE_HOOK_AGAIN(464C7C, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_1, 6)
-//DEFINE_HOOK(464C66, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_1, 6)
-//{
-//	GET(int, pos, EAX);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//		return 0x464CF1;
-//	return 0;
-//}
-//
-//DEFINE_HOOK_AGAIN(464DAA, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_2, 6)
-//DEFINE_HOOK(464D97, CIsoView_OnLButtonDown_ACTIONMODE_LOWER_2, 5)
-//{
-//	GET(int, pos, EAX);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//		return 0x464E49;
-//	return 0;
-//}
-
-//DEFINE_HOOK(4655E8, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 7)
-//{
-//	GET(int, pos, EAX);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//		return 0x46561B;
-//	return 0;
-//}
-//
-//DEFINE_HOOK(465D36, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
-//{
-//	GET(int, pos, EAX);
-//	if (pos < 0 || pos > CMapData::Instance->CellDataCount)
-//	{
-//		
-//		return 0x465D60;
-//	}
-//		
-//	return 0;
-//}
 
 // FA2 will no longer automatically change the extension of map
 DEFINE_HOOK(42700A, CFinalSunDlg_SaveMap_Extension, 9)

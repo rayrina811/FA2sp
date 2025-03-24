@@ -144,7 +144,7 @@ public:
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
     static bool INIEditor_IgnoreTeams;
-    static bool StringBufferFixedAllocation;
+    static bool StringBufferStackAllocation;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static int NewTheaterType;
