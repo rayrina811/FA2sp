@@ -31,6 +31,16 @@ DEFINE_HOOK(555D97, CString_AllocBuffer, 7)
 	return 0x555DD8;
 }
 
+DEFINE_HOOK(555DFE, CString_FreeData, 6)
+{
+	if (!ExtConfigs::StringBufferStackAllocation)
+		return 0;
+
+	GET(LPVOID, lpMem, ECX);
+	FAMemory::Deallocate(lpMem);
+	return 0x555E45;
+}
+
 // FA2 will no longer automatically change the extension of map
 DEFINE_HOOK(42700A, CFinalSunDlg_SaveMap_Extension, 9)
 {

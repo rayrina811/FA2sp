@@ -1827,24 +1827,31 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     int finalHeight = sheight + 2 * borderWidth;
 
     auto src = new BGRStruct[finalWidth * finalHeight];
-    for (int i = 0; i < finalWidth * finalHeight; i++) {
-        src[i] = BGRStruct(bgColor & 0xFF, (bgColor >> 8) & 0xFF, (bgColor >> 16) & 0xFF);
+
+    BGRStruct bgbgr;
+    bgbgr.B = (bgColor >> 16) & 0xFF;
+    bgbgr.G = (bgColor >> 8) & 0xFF;
+    bgbgr.R = bgColor & 0xFF;
+    
+    BGRStruct textbgr;
+    textbgr.B = (textColor >> 16) & 0xFF;
+    textbgr.G = (textColor >> 8) & 0xFF;
+    textbgr.R = textColor & 0xFF;
+
+    // bgColor border
+    for (int y = 0; y < finalHeight; y++) {
+        for (int x = 0; x < finalWidth; x++) {
+            if (x <= 2 || x >= finalWidth - 3 || y <= 2 || y >= finalHeight - 3) {
+                src[y * finalWidth + x] = bgbgr;
+            }
+        }
     }
 
     // textColor border
     for (int y = 0; y < finalHeight; y++) {
         for (int x = 0; x < finalWidth; x++) {
-            if (x == 0 || x == finalWidth - 1 || y == 0 || y == finalHeight - 1) {
-                src[y * finalWidth + x] = BGRStruct((textColor >> 16) & 0xFF, (textColor >> 8) & 0xFF, textColor & 0xFF);
-            }
-        }
-    }
-
-    // bgColor border
-    for (int y = 1; y < finalHeight - 1; y++) {
-        for (int x = 1; x < finalWidth - 1; x++) {
-            if (x <= 2 || x >= finalWidth - 3 || y <= 2 || y >= finalHeight - 3) {
-                src[y * finalWidth + x] = BGRStruct((bgColor >> 16) & 0xFF, (bgColor >> 8) & 0xFF, bgColor & 0xFF);
+            if (x == 0 || x == finalWidth || y == 0 || y == finalHeight - 1) {
+                src[y * finalWidth + x] = textbgr;
             }
         }
     }
@@ -1928,7 +1935,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
 
             if (dest >= dst) {
                 if (dest + bpp < surfaceEnd) {
-                    if (alpha < 255 && !(c.B == textBGR.B && c.G == textBGR.G && c.R == textBGR.R))
+                    if (alpha < 255 && c != textBGR)
                     {
                         BGRStruct oriColor;
                         memcpy(&oriColor, dest, bpp);
