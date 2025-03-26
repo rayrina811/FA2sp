@@ -57,19 +57,6 @@ DEFINE_HOOK(4617E8, CIsoView_OnLButtonDown_DragInfantry, 8)
 	}
 	R->EAX(-1);
 	pIsoView->CurrentCellObjectIndex = -1;
-	bool hasSomethingElse = false;
-	auto cell = CMapData::Instance().TryGetCellAt(pos);
-	if (cell->Aircraft > -1) hasSomethingElse = true;
-	if (cell->Unit > -1) hasSomethingElse = true;
-	if (cell->Structure > -1) hasSomethingElse = true;
-	if (cell->Terrain > -1) hasSomethingElse = true;
-	if (CMapDataExt::HasAnnotation(pos)) hasSomethingElse = true;
-	if (!hasSomethingElse)
-	{
-		pIsoView->Drag = FALSE;
-		pIsoView->Moved = TRUE;
-		return 0x461964;
-	}
 	return 0x4617FC;
 }
 

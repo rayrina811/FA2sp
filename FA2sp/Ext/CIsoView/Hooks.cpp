@@ -964,12 +964,47 @@ DEFINE_HOOK(4B1B50, CIsoView_OnLButtonDown_IsGroundObjectAt, 8)
 {
 	GET_STACK(int, pos, 0x4);
 
-	if (CMapDataExt::HasAnnotation(pos))
+	int id = -1;
+	int x = CMapData::Instance->GetXFromCoordIndex(pos);
+	int y = CMapData::Instance->GetYFromCoordIndex(pos);
+	auto cell = CMapData::Instance->TryGetCellAt(pos);
+	if (!ExtConfigs::InfantrySubCell_Edit)
+	{
+		id = CMapDataExt::GetInfantryAt(pos);
+	}
+	else
+	{
+		id = CIsoViewExt::GetSelectedSubcellInfantryIdx(x, y);
+	}
+	if (id < 0)
+	{
+		id = cell->Structure;
+	}
+	if (id < 0)
+	{
+		id = cell->Unit;
+	}
+	if (id < 0)
+	{
+		id = cell->Aircraft;
+	}
+	if (id < 0)
+	{
+		id = cell->Terrain;
+	}
+	if (id < 0)
+	{
+		id = CMapDataExt::HasAnnotation(pos) ? 1 : -1;
+	}
+	if (id < 0)
+	{
+		R->EAX(0);
+	}
+	else
 	{
 		R->EAX(1);
-		return 0x4B1BBE;
 	}
-	return 0;
+	return 0x4B1BBE;
 }
 
 
