@@ -9,6 +9,7 @@
 #include "../CNewTeamTypes/CNewTeamTypes.h"
 #include "../CNewScript/CNewScript.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
+#include "../CObjectSearch/CObjectSearch.h"
 
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
@@ -658,6 +659,13 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_redo", save_redo);
+    Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
+    Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {
+        if (!x) {
+            x = -1;
+        }
+        move_to(yindex, x.value()); 
+        });
 
     // triggers & teams
     Lua.new_usertype<tag>("tag",

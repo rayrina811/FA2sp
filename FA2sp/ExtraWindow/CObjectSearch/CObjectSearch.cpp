@@ -808,7 +808,22 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
     }
     else if (CObjectSearch::bWaypoints)
     {
-        auto pWP = CINI::CurrentDocument->GetString("Waypoints", buffer, "-1");
+        std::string wp(buffer);
+        int start = 0, end = wp.size();
+        while (start < end && std::isspace(wp[start])) {
+            start++;
+        }
+        while (start < end && wp[start] == '0') {
+            start++;
+        }
+        while (end > start && std::isspace(wp[end - 1])) {
+            end--;
+        }
+        if (start == end) {
+            wp = "0";
+        }
+        wp = wp.substr(start, end - start);
+        auto pWP = CINI::CurrentDocument->GetString("Waypoints", wp.c_str(), "-1");
         auto second = atoi(pWP);
         if (second >= 0)
         {
@@ -824,7 +839,7 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
                 "NavigateCoordInvalidTitle", "Error!"
             );
-            ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+            ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
         }
     }
     else if (CObjectSearch::bMapCoords)
@@ -844,7 +859,7 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
                 "NavigateCoordInvalidTitle", "Error!"
             );
-            ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+            ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
         }
     }
 }
@@ -1580,7 +1595,7 @@ void CObjectSearch::MoveToMapCoord(int x, int y)
         const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
             "NavigateCoordInvalidTitle", "Error!"
         );
-        ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+        ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
         return;
     }
     CMapDataExt::CellDataExt_FindCell.X = x;

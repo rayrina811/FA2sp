@@ -1167,21 +1167,23 @@ namespace LuaFunctions
 			}
 			Actions.push_back(value);
 		}
-		void delete_tag(int index)
+		void delete_tag(int index, bool removeIni)
 		{
 			index--;
 			if (0 <= index && index < Tags.size())
 			{
-				CINI::CurrentDocument->DeleteKey("Tags", Tags[index].ID.c_str());
+				if (removeIni)
+					CINI::CurrentDocument->DeleteKey("Tags", Tags[index].ID.c_str());
 				UsedINIIndices.erase(Tags[index].ID);
 				Tags.erase(Tags.begin() + index);
 			}
 		}		
-		void delete_tags()
+		void delete_tags(bool removeIni)
 		{
 			for (int i = 0; i < Tags.size(); ++i)
 			{
-				CINI::CurrentDocument->DeleteKey("Tags", Tags[i].ID.c_str());
+				if (removeIni)
+					CINI::CurrentDocument->DeleteKey("Tags", Tags[i].ID.c_str());
 				UsedINIIndices.erase(Tags[i].ID);
 			}
 			Tags.clear();
@@ -1441,9 +1443,8 @@ namespace LuaFunctions
 				team ret;
 				ret.ID = id;
 				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New Teamtype").m_pchData;
-				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "NewTeamtype").m_pchData;
 				ret.House = CINI::CurrentDocument->GetString(id.c_str(), "House").m_pchData;
-				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "Taskforce").m_pchData;
+				ret.Taskforce = CINI::CurrentDocument->GetString(id.c_str(), "TaskForce").m_pchData;
 				ret.Script = CINI::CurrentDocument->GetString(id.c_str(), "Script").m_pchData;
 				ret.Tag = CINI::CurrentDocument->GetString(id.c_str(), "Tag").m_pchData;
 				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").m_pchData;
@@ -1503,9 +1504,9 @@ namespace LuaFunctions
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "House", House.c_str());
 			if (Taskforce == "")
-				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Taskforce");
+				CINI::CurrentDocument->DeleteKey(ID.c_str(), "TaskForce");
 			else
-				CINI::CurrentDocument->WriteString(ID.c_str(), "Taskforce", Taskforce.c_str());
+				CINI::CurrentDocument->WriteString(ID.c_str(), "TaskForce", Taskforce.c_str());
 			if (Script == "")
 				CINI::CurrentDocument->DeleteKey(ID.c_str(), "Script");
 			else
@@ -3632,6 +3633,42 @@ namespace LuaFunctions
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 		CMapData::Instance->DoUndo();
 	}
+
+	static void move_to(int y, int x = -1)
+	{
+		if (x == -1)
+		{
+			ppmfc::CString wp;
+			wp.Format("%d", y);
+			auto pWP = CINI::CurrentDocument->GetString("Waypoints", wp, "-1");
+			auto second = atoi(pWP);
+			if (second >= 0)
+			{
+				int y = second % 1000;
+				int x = second / 1000;
+				if (CMapData::Instance->IsCoordInMap(x, y))
+				{
+					CMapDataExt::CellDataExt_FindCell.X = x;
+					CMapDataExt::CellDataExt_FindCell.Y = y;
+					CMapDataExt::CellDataExt_FindCell.drawCell = true;
+					CIsoView::GetInstance()->MoveToMapCoord(y, x);
+					CMapDataExt::CellDataExt_FindCell.drawCell = false;
+				}
+			}
+		}
+		else
+		{
+			if (CMapData::Instance->IsCoordInMap(x, y))
+			{
+				CMapDataExt::CellDataExt_FindCell.X = x;
+				CMapDataExt::CellDataExt_FindCell.Y = y;
+				CMapDataExt::CellDataExt_FindCell.drawCell = true;
+				CIsoView::GetInstance()->MoveToMapCoord(y, x);
+				CMapDataExt::CellDataExt_FindCell.drawCell = false;
+			}
+		}
+	}
+
 
 	static void redraw_window()
 	{
