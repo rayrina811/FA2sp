@@ -406,8 +406,11 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
     }
     case WM_SHOWWINDOW:
     {
-        WindowShown = true;
-        AdjustActionHeight();
+        if (!WindowShown)
+        {
+            WindowShown = true;
+            OnSelchangeTrigger();
+        }
         return TRUE;
     }
     case WM_COMMAND:
@@ -791,12 +794,12 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
         }
         SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)"");
 
-        ActionParamsCount = 4;
         if (WindowShown)
         {
+            ActionParamsCount = 4;
             AdjustActionHeight();
+            LastActionParamsCount = ActionParamsCount;
         }
-        LastActionParamsCount = ActionParamsCount;
 
         return;
     }
@@ -905,7 +908,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
         ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerAttachedTriggerSelf",
             "A trigger's attached trigger CANNOT be itself. \nDo you want to continue?");
 
-        int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_YESNO);
+        int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_YESNO | MB_ICONWARNING);
         if (nResult == IDNO)
         {
             int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).m_pchData);
@@ -1466,7 +1469,7 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
 
     int nResult = IDYES;
     if (value.GetLength() >= 512)
-        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO);
+        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
@@ -1503,7 +1506,7 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 
     int nResult = IDYES;
     if (value.GetLength() >= 512)
-        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO);
+        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
@@ -1572,7 +1575,7 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
 
     int nResult = IDYES;
     if (value.GetLength() >= 512)
-        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO);
+        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
@@ -1608,7 +1611,7 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
 
     int nResult = IDYES;
     if (value.GetLength() >= 512)
-        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO);
+        nResult = ::MessageBox(hWnd, pMessage, Translations::TranslateOrDefault("TriggerLengthExceededTitle", "Length Exceeded"), MB_YESNO | MB_ICONWARNING);
 
     if (nResult == IDYES)
     {
@@ -1918,15 +1921,13 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         ExtraWindow::AdjustDropdownWidth(hActionParameter[i]);
     }
 
-    if (ActionParamsCount < 4)
-        ActionParamsCount = 4;
-
     if (WindowShown)
     {
+        if (ActionParamsCount < 4)
+            ActionParamsCount = 4;
         AdjustActionHeight();
+        LastActionParamsCount = ActionParamsCount;
     }
-    
-    LastActionParamsCount = ActionParamsCount;
 
     if (changedAction >= 0)
         CurrentTrigger->Save();

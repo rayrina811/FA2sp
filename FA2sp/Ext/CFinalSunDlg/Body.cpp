@@ -497,7 +497,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_format = Translations::TranslateOrDefault(
 					"NavigateCoordInvalidFormat", "Invalid format!"
 				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_format, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_format, invalid_title, MB_OK | MB_ICONWARNING);
 				continue;
 			}
 
@@ -509,7 +509,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
 					"NavigateCoordInvalidCoord", "Invalid coordinate!"
 				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
 				continue;
 			}
 
@@ -795,7 +795,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
 						"SearchObjectParseFailed", "Cannot parse your input ID!"
 					);
-					::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+					::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
 					SearchObjectIndex.first = "";
 					SearchObjectIndex.second = -1;
 					break;
@@ -963,7 +963,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
 					"SearchObjectNotFoundMessage", "Cannot find matching object!"
 				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
 				SearchObjectIndex.first = "";
 				SearchObjectIndex.second = -1;
 				SearchObjectType = -1;
@@ -976,7 +976,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
 					"NavigateCoordInvalidCoord", "Invalid coordinate!"
 				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONERROR);
+				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
 				break;
 			}
 			CMapDataExt::CellDataExt_FindCell.X = location.second;
