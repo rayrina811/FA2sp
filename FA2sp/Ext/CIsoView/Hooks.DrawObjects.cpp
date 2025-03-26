@@ -350,18 +350,6 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 	if (tileIndex >= CMapDataExt::TileDataCount)
 		return 0x4700BA;
 
-	cell->Flag.RedrawTerrain = false;
-	for (int i = 1; i <= 2; i++)
-	{
-		if (CMapData::Instance->IsCoordInMap(X - i, Y - i))
-		{
-			auto blockedCell = CMapData::Instance->GetCellAt(X - i, Y - i);
-			if (cell->Height - blockedCell->Height >= 2 * i
-				|| i == 1 && blockedCell->Flag.RedrawTerrain && cell->Height > blockedCell->Height)
-				cell->Flag.RedrawTerrain = true;
-		}
-	}
-
 	if (cell->Flag.RedrawTerrain)
 	{
 		if (CFinalSunApp::Instance->FrameMode)
