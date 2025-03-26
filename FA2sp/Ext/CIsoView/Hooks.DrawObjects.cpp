@@ -309,6 +309,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					x -= DrawOffsetX;
 					y -= DrawOffsetY;
+					x -= 60;
+					y -= 30;
 
 					if (subTile.HasValidImage)
 					{
@@ -323,7 +325,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 						}
 
 						CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
-							x - subTile.BlockWidth, y - subTile.BlockHeight, &subTile, pal,
+							x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 							cell->IsHidden() ? 128 : 255);
 					}
 				}
@@ -381,6 +383,8 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 			CIsoView::MapCoord2ScreenCoord(x, y);
 			x -= DrawOffsetX;
 			y -= DrawOffsetY;
+			x -= 60;
+			y -= 30;
 
 			if (subTile.HasValidImage)
 			{
@@ -395,7 +399,7 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 				}
 
 				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
-					x - subTile.BlockWidth, y - subTile.BlockHeight, &subTile, pal,
+					x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 					cell->IsHidden() ? 128 : 255);
 			}
 		}
@@ -403,7 +407,6 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 
 	return 0x4700BA;
 }
-
 
 DEFINE_HOOK(46F604, CIsoView_Draw_Loop2_HorizontalLoop_1, 8)
 {
