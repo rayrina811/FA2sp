@@ -531,7 +531,7 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 
 		if (CMapDataExt::HasAnnotation(CMapData::Instance->GetCoordIndex(cellX, cellY)))
 		{
-			pThis->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap("FA2spAnnotation")->lpSurface, X + 5, Y, -1, -1);
+			pThis->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap("FA2spAnnotation")->lpSurface, X + 5, Y - 2, -1, -1);
 		}
 	}
 
