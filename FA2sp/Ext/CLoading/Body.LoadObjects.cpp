@@ -1829,6 +1829,25 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 	CShpFile::LoadFrame(nFrame, nFrameCount, ppBuffer);
 }
 
+void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
+{
+	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+	pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
+	DDSURFACEDESC2 desc;
+	memset(&desc, 0, sizeof(DDSURFACEDESC2));
+	desc.dwSize = sizeof(DDSURFACEDESC2);
+	desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+	pData->lpSurface->GetSurfaceDesc(&desc);
+	pData->ValidHeight = desc.dwHeight;
+	pData->ValidWidth = desc.dwWidth;
+	pData->FullWidth = desc.dwWidth;
+	pData->FullHeight = desc.dwHeight;
+	pData->Flag = ImageDataFlag::SurfaceData;
+	CIsoView::SetColorKey(pData->lpSurface, -1);
+	LoadedObjects.insert(ImageID);
+}
+
 void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();

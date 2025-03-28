@@ -70,5 +70,6 @@ BEGIN
 END
 
 101 RT_MANIFEST "FA2sp.manifest"
+1001 BITMAP "Resources/annotation.bmp"
 
 

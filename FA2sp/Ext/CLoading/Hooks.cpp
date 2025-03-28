@@ -235,3 +235,14 @@ DEFINE_HOOK(4F35CE, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 6)
 	}
 	return 0;
 }
+
+DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
+{
+	HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1001),
+		IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+	CBitmap cBitmap;
+	cBitmap.Attach(hBmp);
+	CLoadingExt::LoadBitMap("FA2spAnnotation", cBitmap);
+
+	return 0;
+}
