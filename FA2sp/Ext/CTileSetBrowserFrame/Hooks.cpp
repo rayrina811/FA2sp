@@ -11,6 +11,12 @@
 #include "TabPages/WaypointSort.h"
 #include "TabPages/TagSort.h"
 
+#include <windows.h>
+#include <shellscalingapi.h>
+#include <iostream>
+
+#pragma comment(lib, "User32.lib")
+
 DEFINE_HOOK(4F1A40, CTileSetBrowserFrame_CreateContent, 5)
 {
     GET(CTileSetBrowserFrameExt*, pThis, ECX);
@@ -51,15 +57,36 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
 
     ::GetClientRect(CTileSetBrowserFrameExt::hTabCtrl, &tabRect);
 
+    int highDPIHeightOffset = 0;
+    HMODULE hShcore = LoadLibraryA("Shcore.dll");
+    if (hShcore) {
+        typedef HRESULT(WINAPI* GetProcessDpiAwareness_t)(HANDLE, PROCESS_DPI_AWARENESS*);
+        GetProcessDpiAwareness_t pGetProcessDpiAwareness =
+            (GetProcessDpiAwareness_t)GetProcAddress(hShcore, "GetProcessDpiAwareness");
+
+        if (pGetProcessDpiAwareness) {
+            PROCESS_DPI_AWARENESS dpiAwareness;
+            if (SUCCEEDED(pGetProcessDpiAwareness(NULL, &dpiAwareness))) {
+                switch (dpiAwareness) {
+                case PROCESS_SYSTEM_DPI_AWARE:
+                case PROCESS_PER_MONITOR_DPI_AWARE:
+                    highDPIHeightOffset = ExtConfigs::VerticalLayout ? 40 : 10;
+                    break;
+                }
+            }
+        }
+        FreeLibrary(hShcore);
+    }
+
     if (ExtConfigs::VerticalLayout)
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, 110, FALSE);
-        pThis->View.MoveWindow(2, 139, tabRect.right - tabRect.left - 6, tabRect.bottom - 145, FALSE);
+        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, 110 + highDPIHeightOffset, FALSE);
+        pThis->View.MoveWindow(2, 139 + highDPIHeightOffset, tabRect.right - tabRect.left - 6, tabRect.bottom - 145 - highDPIHeightOffset, FALSE);
     }
     else
     {
-        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, 49, FALSE);
-        pThis->View.MoveWindow(2, 78, tabRect.right - tabRect.left - 6, tabRect.bottom - 54, FALSE);
+        pThis->DialogBar.MoveWindow(2, 29, tabRect.right - tabRect.left - 6, 49 + highDPIHeightOffset, FALSE);
+        pThis->View.MoveWindow(2, 78 + highDPIHeightOffset, tabRect.right - tabRect.left - 6, tabRect.bottom - 54 - highDPIHeightOffset, FALSE);
     }
 
     SIZE sz{ tabRect.right,pThis->View.ScrollWidth };
