@@ -215,7 +215,7 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             break;
         case Controls::NewTaskforce:
             if (CODE == BN_CLICKED)
-                OnClickNewTaskforce(hWnd);
+                OnClickNewTaskforce();
             break;
         case Controls::DelTaskforce:
             if (CODE == BN_CLICKED)
@@ -546,13 +546,16 @@ void CNewTaskforce::OnCloseupTaskforce()
         OnSelchangeTaskforce();
 }
 
-void CNewTaskforce::OnClickNewTaskforce(HWND& hWnd)
+void CNewTaskforce::OnClickNewTaskforce()
 {
     ppmfc::CString key = CINI::GetAvailableKey("TaskForces");
     ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     ppmfc::CString buffer2;
 
-    const char* newName = "New task force";
+    ppmfc::CString newName = "";
+    if (TaskforceSort::CreateFromTaskForceSort)
+        newName = TaskforceSort::Instance.GetCurrentPrefix();
+    newName += "New task force";
     map.WriteString("TaskForces", key, value);
     map.WriteString(value, "Name", newName);
     map.WriteString(value, "Group", "-1");

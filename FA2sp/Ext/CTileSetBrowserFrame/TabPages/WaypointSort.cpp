@@ -202,44 +202,6 @@ bool WaypointSort::IsVisible() const
     return this->IsValid() && ::IsWindowVisible(this->m_hWnd);
 }
 
-void WaypointSort::Menu_AddTrigger()
-{
-    HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
-    ppmfc::CString prefix = "";
-    if (hItem != NULL)
-    {
-        const char* pID = nullptr;
-        while (true)
-        {
-            TVITEM tvi;
-            tvi.hItem = hItem;
-            TreeView_GetItem(this->GetHwnd(), &tvi);
-            if (pID = reinterpret_cast<const char*>(tvi.lParam))
-                break;
-            hItem = TreeView_GetChild(this->GetHwnd(), hItem);
-            if (hItem == NULL)
-            {
-                this->m_strPrefix = prefix;
-                return;
-            }
-        }
-
-        ppmfc::CString buffer;
-        prefix += "[";
-        for (auto& group : this->GetGroup(pID, buffer))
-            prefix += group + ".";
-        if (prefix[prefix.GetLength() - 1] == '.')
-        {
-            prefix.SetAt(prefix.GetLength() - 1, ']');
-            if (prefix.GetLength() == 2)
-                prefix = "";
-        }
-        else
-            prefix = "";
-    }
-    this->m_strPrefix = prefix;
-}
-
 const ppmfc::CString& WaypointSort::GetCurrentPrefix() const
 {
     return this->m_strPrefix;

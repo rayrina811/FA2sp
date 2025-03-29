@@ -14,7 +14,7 @@ public:
 
     enum class MenuItem : int
     {
-        AddTrigger = 0x2000,
+        AddTrigger = 0x1003,
         Refresh = 0x3000
     };
 
@@ -36,6 +36,7 @@ public:
     const ppmfc::CString& GetCurrentPrefix() const;
     HWND GetHwnd() const;
     operator HWND() const;
+    static bool CreateFromTaskForceSort;
 
 private:
     HTREEITEM FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const;

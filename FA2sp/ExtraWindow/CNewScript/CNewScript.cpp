@@ -277,7 +277,7 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
             break;
         case Controls::NewScript:
             if (CODE == BN_CLICKED)
-                OnClickNewScript(hWnd);
+                OnClickNewScript();
             break;
         case Controls::DelScript:
             if (CODE == BN_CLICKED)
@@ -774,13 +774,16 @@ void CNewScript::OnCloseupScript()
     }
 }
 
-void CNewScript::OnClickNewScript(HWND& hWnd)
+void CNewScript::OnClickNewScript()
 {
     ppmfc::CString key = CINI::GetAvailableKey("ScriptTypes");
     ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     ppmfc::CString buffer2;
 
-    const char* newName = "New script";
+    ppmfc::CString newName = "";
+    if (ScriptSort::CreateFromScriptSort)
+        newName = ScriptSort::Instance.GetCurrentPrefix();
+    newName += "New script";
     map.WriteString("ScriptTypes", key, value);
     map.WriteString(value, "Name", newName);
 

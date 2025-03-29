@@ -12,6 +12,7 @@
 TeamSort TeamSort::Instance;
 std::vector<ppmfc::CString> TeamSort::TreeViewTexts;
 std::vector<std::vector<ppmfc::CString>> TeamSort::TreeViewTextsVector;
+bool TeamSort::CreateFromTeamSort = false;
 
 void TeamSort::LoadAllTriggers()
 {
@@ -150,6 +151,8 @@ void TeamSort::HideWindow() const
 void TeamSort::ShowMenu(POINT pt) const
 {
     HMENU hPopupMenu = ::CreatePopupMenu();
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::AddTrigger,
+        Translations::TranslateOrDefault("TeamSortNewTeam", "New Team from this group"));
     ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::Refresh, Translations::TranslateOrDefault("Refresh", "Refresh"));
     ::TrackPopupMenu(hPopupMenu, TPM_VERTICAL | TPM_HORIZONTAL, pt.x, pt.y, NULL, this->GetHwnd(), nullptr);
 }
@@ -167,7 +170,7 @@ bool TeamSort::IsVisible() const
 void TeamSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
-    ppmfc::CString prefix = "";
+    std::string prefix = "";
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -181,25 +184,25 @@ void TeamSort::Menu_AddTrigger()
             hItem = TreeView_GetChild(this->GetHwnd(), hItem);
             if (hItem == NULL)
             {
-                this->m_strPrefix = prefix;
+                this->m_strPrefix = prefix.c_str();
                 return;
             }
         }
 
         ppmfc::CString buffer;
         prefix += "[";
-        for (auto group : this->GetGroup(pID, buffer))
+        for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
-        if (prefix[prefix.GetLength() - 1] == '.')
+        if (prefix[prefix.length() - 1] == '.')
         {
-            prefix.SetAt(prefix.GetLength() - 1, ']');
-            if (prefix.GetLength() == 2)
+            prefix[prefix.length() - 1] = ']';
+            if (prefix.length() == 2)
                 prefix = "";
         }
         else
             prefix = "";
     }
-    this->m_strPrefix = prefix;
+    this->m_strPrefix = prefix.c_str();
 }
 
 const ppmfc::CString& TeamSort::GetCurrentPrefix() const

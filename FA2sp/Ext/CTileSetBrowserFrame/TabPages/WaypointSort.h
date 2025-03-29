@@ -31,7 +31,6 @@ public:
     void ShowMenu(POINT pt) const;
     bool IsValid() const;
     bool IsVisible() const;
-    void Menu_AddTrigger();
     void DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent = TVI_ROOT) const;
     void AddTrigger(ppmfc::CString triggerId, ppmfc::CString x, ppmfc::CString y) const;
     const ppmfc::CString& GetCurrentPrefix() const;

@@ -325,6 +325,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
         SendMessage(hMindControlDecision, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)decision.m_pchData);
 
     Autodrop = false;
+    ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
     OnSelchangeTeamtypes();
 }
 
@@ -354,7 +355,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         {
         case Controls::NewTeam:
             if (CODE == BN_CLICKED)
-                OnClickNewTeam(hWnd);
+                OnClickNewTeam();
             break;
         case Controls::DelTeam:
             if (CODE == BN_CLICKED)
@@ -392,6 +393,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 SendMessage(hSelectedTeam, CB_DELETESTRING, SelectedTeamIndex, NULL);
                 SendMessage(hSelectedTeam, CB_INSERTSTRING, SelectedTeamIndex, (LPARAM)(LPCSTR)name.m_pchData);
                 SendMessage(hSelectedTeam, CB_SETCURSEL, SelectedTeamIndex, NULL);
+
+                ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
             }
             break;
         case Controls::House:
@@ -1143,14 +1146,17 @@ void CNewTeamTypes::OnCloseupTeamtypes()
 }
 
 
-void CNewTeamTypes::OnClickNewTeam(HWND& hWnd)
+void CNewTeamTypes::OnClickNewTeam()
 {
     ppmfc::CString key = CINI::GetAvailableKey("TeamTypes");
     ppmfc::CString value = CMapDataExt::GetAvailableIndex();
     char buffer[512];
     ppmfc::CString buffer2;
 
-    const char* newName = "New Teamtype";
+    ppmfc::CString newName = "";
+    if (TeamSort::CreateFromTeamSort)
+        newName = TeamSort::Instance.GetCurrentPrefix();
+    newName += "New Teamtype";
     map.WriteString("TeamTypes", key, value);
     map.WriteString(value, "Max", "5");
     map.WriteString(value, "Full", "no");

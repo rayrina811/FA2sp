@@ -37,14 +37,13 @@ public:
     static bool OnEnterKeyDown(HWND& hWnd);
     static void OnSelchangeTaskforce(bool edited = false, int specificIdx = -1);
     static void OnSelchangeUnitType(bool edited = false);
-
+    static void OnClickNewTaskforce();
 
 protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
 
     static void OnSeldropdownTaskforce(HWND& hWnd);
-    static void OnClickNewTaskforce(HWND& hWnd);
     static void OnClickDelTaskforce(HWND& hWnd);
     static void OnClickCloTaskforce(HWND& hWnd);
     static void OnClickAddUnit(HWND& hWnd);

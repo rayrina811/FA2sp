@@ -54,7 +54,7 @@ void CTileSetBrowserFrameExt::OnBNSearchClicked()
 		::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
 		::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
 	}
-		
+
 
 }
 void CTileSetBrowserFrameExt::OnBNTerrainGeneratorClicked()
@@ -76,20 +76,75 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		auto nID = LOWORD(pMsg->wParam);
 		auto nHi = HIWORD(pMsg->wParam);
 
-		//if (nID == (UINT)TriggerSort::MenuItem::AddTrigger)
-		//{
-		//	if (IsWindowVisible(CNewTrigger::GetHandle()))
-		//	{
-		//		//CTriggerFrameExt::CreateFromTriggerSort = true;
-		//		TriggerSort::Instance.Menu_AddTrigger();
-		//		CNewTrigger::OnClickNewTrigger(); // doesn't work for no reason
-		//		//CFinalSunDlg::Instance->TriggerFrame.OnBNNewTriggerClicked();
-		//		//CTriggerFrameExt::CreateFromTriggerSort = false;
-		//	}
-		//
-		//	return TRUE;
-		//}
-		if (nID == (UINT)TriggerSort::MenuItem::Refresh )
+		if (nID == (UINT)TriggerSort::MenuItem::AddTrigger)
+		{
+			if (IsWindowVisible(CNewTrigger::GetHandle()))
+			{
+				TriggerSort::CreateFromTriggerSort = true;
+				TriggerSort::Instance.Menu_AddTrigger();
+				CNewTrigger::OnClickNewTrigger();
+				TriggerSort::CreateFromTriggerSort = false;
+				return TRUE;
+			}
+		}
+		if (nID == (UINT)TagSort::MenuItem::AddTrigger)
+		{
+			if (CFinalSunDlg::Instance->Tags && IsWindowVisible(CFinalSunDlg::Instance->Tags))
+			{
+				TagSort::Instance.Menu_AddTrigger();
+				ppmfc::CString name;
+				ppmfc::CString value;
+				ppmfc::CString key = CMapDataExt::GetAvailableIndex();
+				name = TagSort::Instance.GetCurrentPrefix() + "New Tag";
+				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
+					CINI::CurrentDocument->GetKeyAt("Triggers", 0).m_pchData : "01000000");
+				CINI::CurrentDocument->WriteString("Tags", key, value);
+				CFinalSunDlg::Instance->Tags.UpdateDialog();
+				auto hTag = ::GetDlgItem(CFinalSunDlg::Instance->Tags, 1083);
+				CComboBox& cTag = *(CComboBox*)CWnd::FromHandle(hTag);
+				auto idx = cTag.FindStringExact(0, key + " (" + name + ")");
+				if (idx != CB_ERR)
+				{
+					cTag.SetCurSel(idx);
+					CFinalSunDlg::Instance->Tags.OnCBCurrentTagSelectedChanged();
+				}
+				return TRUE;
+			}
+		}
+		if (nID == (UINT)TeamSort::MenuItem::AddTrigger)
+		{
+			if (IsWindowVisible(CNewTeamTypes::GetHandle()))
+			{
+				TeamSort::CreateFromTeamSort = true;
+				TeamSort::Instance.Menu_AddTrigger();
+				CNewTeamTypes::OnClickNewTeam();
+				TeamSort::CreateFromTeamSort = false;
+				return TRUE;
+			}
+		}
+		if (nID == (UINT)ScriptSort::MenuItem::AddTrigger)
+		{
+			if (IsWindowVisible(CNewScript::GetHandle()))
+			{
+				ScriptSort::CreateFromScriptSort = true;
+				ScriptSort::Instance.Menu_AddTrigger();
+				CNewScript::OnClickNewScript();
+				ScriptSort::CreateFromScriptSort = false;
+				return TRUE;
+			}
+		}
+		if (nID == (UINT)TaskforceSort::MenuItem::AddTrigger)
+		{
+			if (IsWindowVisible(CNewTaskforce::GetHandle()))
+			{
+				TaskforceSort::CreateFromTaskForceSort = true;
+				TaskforceSort::Instance.Menu_AddTrigger();
+				CNewTaskforce::OnClickNewTaskforce();
+				TaskforceSort::CreateFromTaskForceSort = false;
+				return TRUE;
+			}
+		}
+		if (nID == (UINT)TriggerSort::MenuItem::Refresh)
 		{
 			if (TriggerSort::Instance.IsVisible())
 			{

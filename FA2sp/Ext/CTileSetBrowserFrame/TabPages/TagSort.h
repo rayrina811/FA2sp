@@ -15,7 +15,7 @@ public:
 
     enum class MenuItem : int
     {
-        AddTrigger = 0x1000,
+        AddTrigger = 0x1001,
         Refresh = 0x2000
     };
 

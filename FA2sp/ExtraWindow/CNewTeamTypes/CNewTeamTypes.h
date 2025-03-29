@@ -65,6 +65,7 @@ public:
     static void OnSelchangeTaskForce(bool edited = false);
     static void OnSelchangeScript(bool edited = false);
     static void OnSelchangeTag(bool edited = false);
+    static void OnClickNewTeam();
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -77,7 +78,6 @@ protected:
     static void OnSelchangeTechlevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeMindControlDecision(HWND& hWnd, bool edited = false);
     static void OnSelchangeGroup(HWND& hWnd, bool edited = false);
-    static void OnClickNewTeam(HWND& hWnd);
     static void OnClickDelTeam(HWND& hWnd);
     static void OnClickCloTeam(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);

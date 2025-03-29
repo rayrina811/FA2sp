@@ -46,13 +46,13 @@ public:
     static void OnSelchangeActionType(bool edited = false);
     static void OnSelchangeActionParam(bool edited = false);
     static void OnSelchangeActionExtraParam(bool edited = false);
+    static void OnClickNewScript();
 
 protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
 
     static void OnSeldropdownScript(HWND& hWnd);
-    static void OnClickNewScript(HWND& hWnd);
     static void OnClickDelScript(HWND& hWnd);
     static void OnClickCloScript(HWND& hWnd);
     static void OnClickAddAction(HWND& hWnd);

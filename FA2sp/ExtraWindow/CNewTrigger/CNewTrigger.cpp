@@ -16,7 +16,6 @@
 #include "../../Ext/CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CNewScript/CNewScript.h"
 #include <numeric>
-#include "../../Ext/CTriggerFrame/Body.h"
 #include "../CSearhReference/CSearhReference.h"
 #include "../CCsfEditor/CCsfEditor.h"
 
@@ -1324,8 +1323,8 @@ void CNewTrigger::OnClickNewTrigger()
         house = "Americans";
 
     ppmfc::CString newName =
-        //CTriggerFrameExt::CreateFromTriggerSort ?
-        //TriggerSort::Instance.GetCurrentPrefix() + "New Trigger" :
+        TriggerSort::CreateFromTriggerSort ?
+        TriggerSort::Instance.GetCurrentPrefix() + "New Trigger" :
         ppmfc::CString("New Trigger");
 
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);

@@ -42,9 +42,10 @@ public:
     HWND GetHwnd() const;
     operator HWND() const;
 
-    static std::unordered_set<ppmfc::CString>attachedTriggers;
-    static std::vector<ppmfc::CString>TreeViewTexts;
-    static std::vector< std::vector<ppmfc::CString>>TreeViewTextsVector;
+    static std::unordered_set<ppmfc::CString> attachedTriggers;
+    static std::vector<ppmfc::CString> TreeViewTexts;
+    static std::vector<std::vector<ppmfc::CString>> TreeViewTextsVector;
+    static bool CreateFromTriggerSort;
 
 private:
     HTREEITEM FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const;

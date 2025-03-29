@@ -17,6 +17,7 @@ std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TriggerSort::Tri
 std::unordered_set<ppmfc::CString> TriggerSort::attachedTriggers;
 std::vector<ppmfc::CString> TriggerSort::TreeViewTexts;
 std::vector<std::vector<ppmfc::CString>> TriggerSort::TreeViewTextsVector;
+bool TriggerSort::CreateFromTriggerSort = false;
 
 void TriggerSort::LoadAllTriggers()
 {
@@ -145,6 +146,8 @@ void TriggerSort::HideWindow() const
 void TriggerSort::ShowMenu(POINT pt) const
 {
     HMENU hPopupMenu = ::CreatePopupMenu();
+    ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::AddTrigger, 
+        Translations::TranslateOrDefault("TriggerSortNewTrigger", "New Trigger from this group"));
     ::AppendMenu(hPopupMenu, MF_STRING, (UINT_PTR)MenuItem::Refresh, Translations::TranslateOrDefault("Refresh", "Refresh"));
     ::TrackPopupMenu(hPopupMenu, TPM_VERTICAL | TPM_HORIZONTAL, pt.x, pt.y, NULL, this->GetHwnd(), nullptr);
 }
@@ -162,7 +165,7 @@ bool TriggerSort::IsVisible() const
 void TriggerSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
-    ppmfc::CString prefix = "";
+    std::string prefix = "";
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -176,7 +179,7 @@ void TriggerSort::Menu_AddTrigger()
             hItem = TreeView_GetChild(this->GetHwnd(), hItem);
             if (hItem == NULL)
             {
-                this->m_strPrefix = prefix;
+                this->m_strPrefix = prefix.c_str();
                 return;
             }
         }
@@ -185,16 +188,16 @@ void TriggerSort::Menu_AddTrigger()
         prefix += "[";
         for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
-        if (prefix[prefix.GetLength() - 1] == '.')
+        if (prefix[prefix.length() - 1] == '.')
         {
-            prefix.SetAt(prefix.GetLength() - 1, ']');
-            if (prefix.GetLength() == 2)
+            prefix[prefix.length() - 1] =  ']';
+            if (prefix.length() == 2)
                 prefix = "";
         }
         else
             prefix = "";
     }
-    this->m_strPrefix = prefix;
+    this->m_strPrefix = prefix.c_str();
 }
 
 const ppmfc::CString& TriggerSort::GetCurrentPrefix() const
