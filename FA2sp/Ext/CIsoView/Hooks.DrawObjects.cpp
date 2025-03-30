@@ -209,6 +209,12 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	return 0;
 }
 
+DEFINE_HOOK(46DF20, CIsoView_Draw_BackgroundColor, 6)
+{
+	R->Stack(STACK_OFFS(0xD20, 0x020), ExtConfigs::DrawMapBackground_Color);
+	return 0;
+}
+
 DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 {
 	Left = R->Stack<int>(STACK_OFFS(0xD18, 0xC10)) - EXTRA_BORDER;

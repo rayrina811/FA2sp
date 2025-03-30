@@ -44,6 +44,7 @@ bool ExtConfigs::DisplayTriggerID;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
+int ExtConfigs::DrawMapBackground_Color;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
 int ExtConfigs::WeaponRangeBound_Color;
@@ -193,6 +194,12 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
 	ExtConfigs::AdjustDropdownWidth_Max = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Max", 360);
+
+	ExtConfigs::DrawMapBackground_Color =
+		CINI::FAData->GetColor("ExtConfigs", "DrawMapBackgroundColor", 0xFFFFFF);
+	ExtConfigs::DrawMapBackground_Color = ((ExtConfigs::DrawMapBackground_Color & 0xFF0000) >> 16) |
+		(ExtConfigs::DrawMapBackground_Color & 0x00FF00) |
+		((ExtConfigs::DrawMapBackground_Color & 0x0000FF) << 16);
 
 	ExtConfigs::CopySelectionBound_Color = 
 		CINI::FAData->GetColor("ExtConfigs", "CopySelectionBound.Color", 0x0000FF);

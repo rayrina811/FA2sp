@@ -568,4 +568,3 @@ DEFINE_HOOK(432829, CFinalSunDlg_QuitProgram_End, 5)
 }
 
 
-
