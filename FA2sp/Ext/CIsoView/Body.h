@@ -129,4 +129,5 @@ public:
     static std::vector<DrawVeterancies> DrawVeterancies;
 
     static bool IsPressingALT;
+    static ppmfc::CString CurrentCellObjectHouse;
 };

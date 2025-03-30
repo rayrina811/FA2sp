@@ -613,6 +613,8 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
         return;
     }
 
+    ExtraWindow::bComboLBoxSelected = false;
+
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 

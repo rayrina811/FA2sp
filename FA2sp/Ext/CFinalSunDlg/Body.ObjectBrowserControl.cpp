@@ -1263,7 +1263,7 @@ void CViewObjectsExt::Redraw_Basenode()
 
     this->InsertTranslatedString("NodeMoveUP", Const_BaseNode + MoveUp, hBasenode);
     this->InsertTranslatedString("NodeMoveDown", Const_BaseNode + MoveDown, hBasenode);
-    this->InsertTranslatedString("NodeMove", Const_BaseNode + Move, hBasenode);
+    //this->InsertTranslatedString("NodeMove", Const_BaseNode + Move, hBasenode);
 
 }
 

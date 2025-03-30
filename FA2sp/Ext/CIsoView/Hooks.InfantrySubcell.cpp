@@ -37,29 +37,6 @@ DEFINE_HOOK(45ECB0, CIsoView_OnCommand_InfantryPropertyPopup, 6)
 	return 0x45EDA6;
 }
 
-DEFINE_HOOK(4617E8, CIsoView_OnLButtonDown_DragInfantry, 8)
-{
-	if (!ExtConfigs::InfantrySubCell_Edit)
-		return 0;
-
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	auto currentMapCoord = pIsoView->StartCell;
-	int pos = CMapData::Instance().GetCoordIndex(currentMapCoord.X, currentMapCoord.Y);
-	if (CMapDataExt::GetInfantryAt(pos) != -1)
-	{
-		int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx();
-		if (idx > -1)
-		{
-			pIsoView->CurrentCellObjectIndex = idx;
-			pIsoView->CurrentCellObjectType = 0;
-			return 0x461834;
-		}
-	}
-	R->EAX(-1);
-	pIsoView->CurrentCellObjectIndex = -1;
-	return 0x4617FC;
-}
-
 DEFINE_HOOK(466E07, CIsoView_OnLButtonUp_DragInfantrySubcell, 5)
 {
 	if (!ExtConfigs::InfantrySubCell_Edit || !ExtConfigs::InfantrySubCell_Edit_Drag)

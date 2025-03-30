@@ -54,6 +54,7 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
+ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
 
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 

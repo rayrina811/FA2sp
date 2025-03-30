@@ -69,7 +69,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		for (const auto& data : CMapData::Instance->InfantryDatas)
 		{
 			const auto& filter = CViewObjectsExt::ObjectFilterI;
-			if (std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
 			{
 				if (CheckValue(1300, CViewObjectsExt::InfantryBrushDlgF->CString_House, data.House) &&
 					CheckValue(1301, CViewObjectsExt::InfantryBrushDlgF->CString_HealthPoint, data.Health) &&
@@ -103,7 +103,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 			CUnitData data;
 			CMapData::Instance->GetUnitData(idx, data);
 			const auto& filter = CViewObjectsExt::ObjectFilterV;
-			if (std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
 			{
 				if (CheckValue(1300, CViewObjectsExt::VehicleBrushDlgF->CString_House, data.House) &&
 					CheckValue(1301, CViewObjectsExt::VehicleBrushDlgF->CString_HealthPoint, data.Health) &&
@@ -136,7 +136,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 			CAircraftData data;
 			CMapData::Instance->GetAircraftData(idx, data);
 			const auto& filter = CViewObjectsExt::ObjectFilterA;
-			if (std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
 			{
 				if (CheckValue(1300, CViewObjectsExt::AircraftBrushDlgF->CString_House, data.House) &&
 					CheckValue(1301, CViewObjectsExt::AircraftBrushDlgF->CString_HealthPoint, data.Health) &&
@@ -167,7 +167,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 			CBuildingData data;
 			CMapDataExt::GetBuildingDataByIniID(idx, data);
 			const auto& filter = CViewObjectsExt::ObjectFilterB;
-			if (std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
+			if (filter.empty() || std::find(filter.begin(), filter.end(), data.TypeID) != filter.end())
 			{
 				if (CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBF->CString_House, data.House) &&
 					CheckValue(1301, CViewObjectsExt::BuildingBrushDlgBF->CString_HealthPoint, data.Health) &&
@@ -204,7 +204,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		}
 		INIIncludes::MapINIWarn = false;
 	}
-
 
 	return 0;
 }
@@ -1298,7 +1297,7 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 							}
 							return true;
 						};
-					if (std::find(filter.begin(), filter.end(), node.ID) != filter.end())
+					if (filter.empty() || std::find(filter.begin(), filter.end(), node.ID) != filter.end())
 					{
 						if (!CheckValue(1300, CViewObjectsExt::BuildingBrushDlgBNF->CString_House, node.House))
 							continue;
