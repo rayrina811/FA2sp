@@ -162,6 +162,10 @@ struct CellDataExt
     std::vector<BaseNodeDataExt> BaseNodes;
     // first = index of StructureIndexMap, second = index in GetBuildingTypeID 
     std::unordered_map<short, short> Structures;
+
+    // first = index, second = type 
+    std::unordered_map<short, short> Terrains;
+    std::unordered_map<short, short> Smudges;
 };
 
 class CMapDataExt : public CMapData
@@ -204,7 +208,7 @@ public:
     void SetHeightAt(int X, int Y, int height);
 
     //void InitializeBuildingTypesExt(const char* ID);
-    static void InitializeAllHdmEdition(bool updateMinimap = true);
+    static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
     static void UpdateTriggers();
     static ppmfc::CString AddTrigger(std::shared_ptr<Trigger> trigger);
     static ppmfc::CString AddTrigger(ppmfc::CString id);

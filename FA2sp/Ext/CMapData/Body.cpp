@@ -1403,14 +1403,17 @@ void CMapDataExt::UpdateIncludeIniInMap()
 	}
 }
 
-void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap)
+void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 
-	CMapDataExt::CellDataExts.clear();
-	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+	if (reloadCellDataExt)
+	{
+		CMapDataExt::CellDataExts.clear();
+		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+	}
 
 	Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
 	for (auto& section : CINI::CurrentDocument->Dict) {

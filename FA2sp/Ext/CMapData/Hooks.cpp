@@ -1173,6 +1173,7 @@ DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 
 	return 0;
 }
+
 DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 {
 	GET_STACK(RGBTRIPLE*, Color_r, STACK_OFFS(0x78, 0x68));
@@ -1221,3 +1222,96 @@ DEFINE_HOOK(4A28B1, CMapData_UpdateMapPreviewAt_Terrain, 7)
 
 	return CMapData::Instance->IsMultiOnly() ? 0x4A28C0 : 0x4A2968;
 }
+
+DEFINE_HOOK(4C9EFB, CMapData_AddSmudge, 6)
+{
+	GET(int, pos, EBP);
+	GET(uintptr_t, smudgeType, EDI);
+	pos >>= 6;
+	uint32_t value = *reinterpret_cast<uint32_t*>(smudgeType + 16);
+
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	cellExt.Smudges[CMapData::Instance->CellDatas[pos].Smudge] = value;
+
+	return 0;
+}
+
+DEFINE_HOOK(4CA41E, CMapData_UpdateSmudge, 8)
+{
+	GET(int, pos, EBP);
+	GET(int, smudgeType, ECX);
+	pos >>= 6;
+
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	cellExt.Smudges[CMapData::Instance->CellDatas[pos].Smudge] = smudgeType;
+
+	return 0;
+}
+
+DEFINE_HOOK(4C9F78, CMapData_DeleteSmudge, 6)
+{
+	GET(int, pos, EAX);
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto cell = CMapData::Instance->GetCellAt(pos);
+	cellExt.Smudges.erase(cell->Smudge);
+	if (cellExt.Smudges.empty())
+	{
+		cell->Smudge = -1;
+		cell->SmudgeType = -1;
+	}
+	else
+	{
+		cell->Smudge = cellExt.Smudges.begin()->first;
+		cell->SmudgeType = cellExt.Smudges.begin()->second;
+	}
+
+	return 0x4C9F93;
+}
+
+DEFINE_HOOK(4B1B1F, CMapData_AddTerrain, 8)
+{
+	GET(int, pos, EDI);
+	pos >>= 6;
+	auto cell = CMapData::Instance->GetCellAt(pos);
+	if (cell->Terrain > -1)
+	{
+		auto& cellExt = CMapDataExt::CellDataExts[pos];
+		cellExt.Terrains[cell->Terrain] = cell->TerrainType;
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(4A5C63, CMapData_UpdateTerrain, 8)
+{
+	GET(int, pos, EDI);
+	GET(int, terrainType, ECX);
+	pos >>= 6;
+
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	cellExt.Terrains[CMapData::Instance->CellDatas[pos].Terrain] = terrainType;
+
+	return 0;
+}
+
+DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
+{
+	GET(int, pos, EAX);
+
+	auto& cellExt = CMapDataExt::CellDataExts[pos];
+	auto cell = CMapData::Instance->GetCellAt(pos);
+	cellExt.Terrains.erase(cell->Terrain);
+	if (cellExt.Terrains.empty())
+	{
+		cell->Terrain = -1;
+		cell->TerrainType = -1;
+	}
+	else
+	{
+		cell->Terrain = cellExt.Terrains.begin()->first;
+		cell->TerrainType = cellExt.Terrains.begin()->second;
+	}
+
+	return 0x4C9F93;
+}
+
