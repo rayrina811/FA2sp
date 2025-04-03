@@ -31,7 +31,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 
 	int tileStart = CMapDataExt::TileSet_starts[shorePieces];
 	int tileEnd = CMapDataExt::TileSet_starts[shorePieces + 1] - 1;
-	if (tileEnd - tileStart < 41 || tileEnd >= CMapDataExt::TileDataCount)
+	if (tileEnd - tileStart < 39 || tileEnd >= CMapDataExt::TileDataCount)
 		return 0x4C2FC5;
 
 	int waterSetStart = CMapDataExt::TileSet_starts[waterSet];
@@ -44,7 +44,7 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 	std::vector<int> SpecialShores;
 	for (int i = 8; i < 13; i++)
 		SmallWaterTiles.push_back(i + CMapDataExt::TileSet_starts[waterSet]);
-	for (int i = 40; i < 42; i++)
+	for (int i = 40; i <= tileEnd - tileStart; i++)
 		SpecialShores.push_back(i + tileStart);
 	if (waterBridge >= 0)
 	{

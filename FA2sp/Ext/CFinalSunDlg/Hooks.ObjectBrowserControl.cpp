@@ -287,7 +287,7 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
         {
             if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomRock)))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater")
                     {
@@ -315,7 +315,7 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
         {
             if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomTerrain)))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater")
                     {
@@ -341,7 +341,7 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
         {
             if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomSmudge)))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater")
                     {
@@ -367,10 +367,10 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
-            auto section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomInfantry);
+            auto& section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomInfantry);
             if (auto pSection2 = CINI::FAData().GetSection(section))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
@@ -397,10 +397,10 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
-            auto section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomStructure);
+            auto& section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomStructure);
             if (auto pSection2 = CINI::FAData().GetSection(section))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs" )
                     {
@@ -428,10 +428,10 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
-            auto section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomAircraft);
+            auto& section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomAircraft);
             if (auto pSection2 = CINI::FAData().GetSection(section))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {
@@ -458,10 +458,10 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
-            auto section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomVehicle);
+            auto& section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomVehicle);
             if (auto pSection2 = CINI::FAData().GetSection(section))
             {
-                for (auto pKey : pSection2->GetEntities())
+                for (auto& pKey : pSection2->GetEntities())
                 {
                     if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
                     {

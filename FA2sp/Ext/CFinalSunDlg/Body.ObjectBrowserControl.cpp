@@ -1372,6 +1372,8 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionBatchDelete", Const_MultiSelection + batchDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionTileSetAdd", Const_MultiSelection + TileSetAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionTileSetDelete", Const_MultiSelection + TileSetDelete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionConnectedAdd", Const_MultiSelection + ConnectedAdd, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionConnectedDelete", Const_MultiSelection + ConnectedDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
 
 }
@@ -2784,57 +2786,20 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 13) // MultiSelection
     {
-        if (nData == Add)
-        {
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = Add;
-
-            return true;
-        }
-        if (nData == Delete)
-        {
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = Delete;
-            return true;
-        }
-        if (nData == batchAdd)
-        {
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = batchAdd;
-            return true;
-        }
-        if (nData == batchDelete)
-        {
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = batchDelete;
-            return true;
-        }
-        if (nData == TileSetAdd)
-        {
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = TileSetAdd;
-            return true;
-        }
-        if (nData == TileSetDelete)
-        {
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
-            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
-            CIsoView::CurrentCommand->Type = TileSetDelete;
-            return true;
-        }
         if (nData == AllDelete)
         {
             CIsoView::CurrentCommand->Command = 0;
             CIsoView::CurrentCommand->Type = 0;
             MultiSelection::Clear2();
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return true;
+        }
+        else
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = nData;
             return true;
         }
     }

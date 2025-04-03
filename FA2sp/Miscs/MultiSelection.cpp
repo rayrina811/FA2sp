@@ -143,6 +143,30 @@ bool MultiSelection::IsSelected(int X, int Y)
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();
 }
 
+void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, int tileSet)
+{
+    const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
+    for (auto pair : loop)
+    {
+        int newX = pair[0] + startX;
+        int newY = pair[1] + startY;
+        if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
+        int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
+        if (process.find(pos) != process.end())
+            continue;
+        auto cell = CMapData::Instance->GetCellAt(pos);
+        if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
+            continue;
+        int ground = cell->TileIndex;
+        if (ground == 0xFFFF) ground = 0;
+        if (CMapDataExt::TileData[ground].TileSet == tileSet)
+        {
+            process.insert(pos);
+            FindConnectedTiles(process, newX, newY, tileSet);
+        }
+    }
+}
+
 void MultiSelection::Copy()
 {
     std::vector<MyClipboardData> data;
@@ -331,6 +355,34 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
                     if (CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(scCell->TileIndex)].TileSet == tileset) {
                         MultiSelection::RemoveCoord(sc.X, sc.Y);
                     }
+                }
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+            if (CIsoView::CurrentCommand->Type == 7)
+            {
+                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
+                std::unordered_set<int> coords;
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tileset);
+                for (auto& coord : coords)
+                {
+                    int x = CMapData::Instance->GetXFromCoordIndex(coord);
+                    int y = CMapData::Instance->GetYFromCoordIndex(coord);
+                    MultiSelection::AddCoord(x, y);
+                }
+                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            }
+            if (CIsoView::CurrentCommand->Type == 8)
+            {
+                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                int tileset = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
+                std::unordered_set<int> coords;
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tileset);
+                for (auto& coord : coords)
+                {
+                    int x = CMapData::Instance->GetXFromCoordIndex(coord);
+                    int y = CMapData::Instance->GetYFromCoordIndex(coord);
+                    MultiSelection::RemoveCoord(x, y);
                 }
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
