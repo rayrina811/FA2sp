@@ -28,7 +28,7 @@ std::array<std::pair<std::string, std::string>, 7> CFinalSunAppExt::ExternalLink
 	std::make_pair("https://phobos.readthedocs.io/zh-cn/latest/", ""),
 	std::make_pair("https://www.ppmforums.com/", ""),
 	std::make_pair("https://modenc.renegadeprojects.com/Main_Page", ""),
-	std::make_pair("https://ra2map.github.io/", ""),
+	std::make_pair("https://ra2map.com/", ""),
 	std::make_pair("", "")
 };
 
