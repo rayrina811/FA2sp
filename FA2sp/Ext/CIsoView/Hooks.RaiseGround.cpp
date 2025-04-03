@@ -669,10 +669,8 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 			matchTiles.push_back(tileSet);
 			for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
 			{
-				int iSmoothSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][0], -1);
-				int iLatSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][1], -1);
-				iSmoothSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][0], iSmoothSet);
-				iLatSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][1], iLatSet);
+				int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
+				int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
 
 				if (tileSet == iSmoothSet) matchTiles.push_back(iLatSet);
 				if (tileSet == iLatSet) matchTiles.push_back(iSmoothSet);
@@ -839,10 +837,8 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 			matchTiles.push_back(tileSet);
 			for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
 			{
-				int iSmoothSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][0], -1);
-				int iLatSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][1], -1);
-				iSmoothSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][0], iSmoothSet);
-				iLatSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][1], iLatSet);
+				int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
+				int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
 
 				if (tileSet == iSmoothSet) matchTiles.push_back(iLatSet);
 				if (tileSet == iLatSet) matchTiles.push_back(iSmoothSet);

@@ -125,6 +125,7 @@ bool ExtConfigs::TriggerList_AttachedTriggers;
 bool ExtConfigs::TagList_AttachedObjects;
 bool ExtConfigs::SaveMaps_BetterMapPreview;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
+bool ExtConfigs::MultiSelect_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
@@ -208,8 +209,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::CursorSelectionBound_HeightColor = 
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.HeightIndicatorColor", 0x3C3C3C);
 	ExtConfigs::CursorSelectionBound_AutoColor = CINI::FAData->GetBool("ExtConfigs", "CursorSelectionBound.AutoHeightColor");
-	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT");
-	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater");
+	ExtConfigs::MultiSelect_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "MultiSelect.ConsiderLAT", true);
+	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT", true);
+	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater", true);
 
 	ExtConfigs::DPIAware = CINI::FAData->GetBool("ExtConfigs", "DPIAware");
 

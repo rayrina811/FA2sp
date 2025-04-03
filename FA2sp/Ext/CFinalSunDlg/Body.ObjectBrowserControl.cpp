@@ -1374,6 +1374,7 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionTileSetDelete", Const_MultiSelection + TileSetDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionConnectedAdd", Const_MultiSelection + ConnectedAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionConnectedDelete", Const_MultiSelection + ConnectedDelete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionHide", Const_MultiSelection + ReplaceHide, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
 
 }
@@ -2791,6 +2792,23 @@ bool CViewObjectsExt::UpdateEngine(int nData)
             CIsoView::CurrentCommand->Command = 0;
             CIsoView::CurrentCommand->Type = 0;
             MultiSelection::Clear2();
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return true;
+        }
+        else if (nData == ReplaceHide)
+        {
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0;
+            CIsoView::CurrentCommand->Type = 0;
+            for (auto& coord : MultiSelection::SelectedCoords)
+            {
+                if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+                {
+                    auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                    cell->Flag.IsHiddenCell = true;
+                }
+            }
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
             return true;
         }

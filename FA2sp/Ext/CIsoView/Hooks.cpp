@@ -810,7 +810,7 @@ DEFINE_HOOK(46D620, CIsoView_FillArea, 9)
 	GET_STACK(int, dwID, 0xC);
 	GET_STACK(byte, bSubTile, 0x10);
 
-	CIsoViewExt::FillArea(dwX, dwY, dwID, bSubTile);
+	CIsoViewExt::FillArea(dwX, dwY, dwID, bSubTile, dwX, dwY);
 
 	return 0x46D808;
 }

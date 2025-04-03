@@ -71,7 +71,7 @@ Palette CMapDataExt::Palette_ISO;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
-std::vector<std::vector<ppmfc::CString>> CMapDataExt::Tile_to_lat;
+std::vector<std::vector<int>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
@@ -685,13 +685,8 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 		loopLimit = 7;
 	for (int latidx = 0; latidx < loopLimit; ++latidx)
 	{
-		int iSmoothSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][0], -1);
-		int iLatSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][1], -1);
-		//int iTargetSet = fadata.GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][2], -1);
-
-		iSmoothSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][0], iSmoothSet);
-		iLatSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][1], iLatSet);
-		//iTargetSet = ini->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][2], iTargetSet);
+		int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
+		int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
 
 		if (iLatSet >= 0 && iSmoothSet >= 0 && iSmoothSet < CMapDataExt::TileSet_starts.size() && iLatSet < CMapDataExt::TileSet_starts.size() &&//iTargetSet >= 0 &&
 			(CMapDataExt::TileData[GetSafeTileIndex(cell->TileIndex)].TileSet == iSmoothSet ||
@@ -732,18 +727,11 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 			}
 			
 			if (!gameLAT)
-				if (CMapDataExt::Tile_to_lat[latidx].size() == 3)
+				if (CMapDataExt::Tile_to_lat[latidx].size() >= 3)
 				{
-					auto noLatTiles = fadata.GetString("LATSettings", CMapDataExt::Tile_to_lat[latidx][2]);
-					if (noLatTiles != "")
+					for (int i = 2; i < CMapDataExt::Tile_to_lat[latidx].size(); ++i)
 					{
-						for (auto& noLatTile : STDHelpers::SplitString(noLatTiles))
-						{
-							int noLatTileIdx = atoi(noLatTile);
-							if (noLatTileIdx < CMapDataExt::TileSet_starts.size() - 1)
-								for (int slIdx = CMapDataExt::TileSet_starts[noLatTileIdx]; slIdx < CMapDataExt::TileSet_starts[noLatTileIdx + 1]; slIdx++)
-									SmoothLatList.push_back(slIdx);
-						}
+						SmoothLatList.push_back(CMapDataExt::Tile_to_lat[latidx][i]);
 					}
 				}
 
@@ -882,10 +870,8 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	// take LAT into consideration
 	for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
 	{
-		int iSmoothSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][0], -1);
-		int iLatSet = CINI::FAData().GetInteger("LATSettings", CMapDataExt::Tile_to_lat[latidx][1], -1);
-		iSmoothSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][0], iSmoothSet);
-		iLatSet = CINI::CurrentTheater->GetInteger("General", CMapDataExt::Tile_to_lat[latidx][1], iLatSet);
+		int iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
+		int iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
 
 		if (CMapDataExt::TileData[groundClick].TileSet == iLatSet)
 		{
@@ -1596,37 +1582,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
 	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
 
-
-	CMapDataExt::Tile_to_lat.clear();
-	CMapDataExt::Tile_to_lat = {
-	{"SandTile", "ClearToSandLat"},
-	{"GreenTile", "ClearToGreenLat"},
-	{"RoughTile", "ClearToRoughLat"},
-	{"PaveTile", "ClearToPaveLat"},
-	{"BlueMoldTile", "ClearToBlueMoldLat"},
-	{"CrystalTile", "ClearToCrystalLat"},
-	{"SwampTile", "WaterToSwampLat"}
-	};
-
-	if (auto pLAT = CINI::FAData().GetSection("LATGroups"))
-	{
-		for (auto& pair : pLAT->GetEntities())
-		{
-			auto atoms = STDHelpers::SplitString(pair.second);
-			if (atoms.size() >= 3)
-			{
-				std::vector<ppmfc::CString> group;
-				if (CINI::CurrentDocument().GetString("Map", "Theater") != atoms[0])
-					continue;
-				group.push_back(atoms[1]);
-				group.push_back(atoms[2]);
-				if (atoms.size() >= 4)
-					group.push_back(atoms[3]);
-				CMapDataExt::Tile_to_lat.push_back(group);
-			}
-		}
-	}
-
 	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
 	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
 	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
@@ -1746,6 +1701,63 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	}
 
 	CViewObjectsExt::ConnectedTile_Initialize();
+
+	CMapDataExt::Tile_to_lat.clear();
+
+	std::vector<std::vector<ppmfc::CString>> lats = {
+	{"SandTile", "ClearToSandLat"},
+	{"GreenTile", "ClearToGreenLat"},
+	{"RoughTile", "ClearToRoughLat"},
+	{"PaveTile", "ClearToPaveLat"},
+	{"BlueMoldTile", "ClearToBlueMoldLat"},
+	{"CrystalTile", "ClearToCrystalLat"},
+	{"SwampTile", "WaterToSwampLat"}
+	};
+
+	if (auto pLAT = CINI::FAData().GetSection("LATGroups"))
+	{
+		for (auto& pair : pLAT->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(pair.second);
+			if (atoms.size() >= 3)
+			{
+				std::vector<ppmfc::CString> group;
+				if (CINI::CurrentDocument().GetString("Map", "Theater") != atoms[0])
+					continue;
+				group.push_back(atoms[1]);
+				group.push_back(atoms[2]);
+				if (atoms.size() >= 4)
+					group.push_back(atoms[3]);
+				lats.push_back(group);
+			}
+		}
+	}
+
+	for (int latidx = 0; latidx < lats.size(); ++latidx)
+	{
+		int iSmoothSet = CINI::FAData->GetInteger("LATSettings", lats[latidx][0], -1);
+		int iLatSet = CINI::FAData->GetInteger("LATSettings", lats[latidx][1], -1);
+		iSmoothSet = CINI::CurrentTheater->GetInteger("General", lats[latidx][0], iSmoothSet);
+		iLatSet = CINI::CurrentTheater->GetInteger("General", lats[latidx][1], iLatSet);
+		auto& lat = CMapDataExt::Tile_to_lat.emplace_back();
+		lat.push_back(iSmoothSet);
+		lat.push_back(iLatSet);
+
+		if (lats[latidx].size() == 3)
+		{
+			auto noLatTiles = CINI::FAData->GetString("LATSettings", lats[latidx][2]);
+			if (noLatTiles != "")
+			{
+				for (auto& noLatTile : STDHelpers::SplitString(noLatTiles))
+				{
+					int noLatTileIdx = atoi(noLatTile);
+					if (noLatTileIdx < CMapDataExt::TileSet_starts.size() - 1)
+						for (int slIdx = CMapDataExt::TileSet_starts[noLatTileIdx]; slIdx < CMapDataExt::TileSet_starts[noLatTileIdx + 1]; slIdx++)
+							lat.push_back(slIdx);
+				}
+			}
+		}
+	}
 
 	// already done in UpdateTriggers()
 	//if (TriggerSort::Instance.IsVisible())

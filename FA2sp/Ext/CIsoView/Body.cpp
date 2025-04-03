@@ -1670,7 +1670,7 @@ void CIsoViewExt::DrawTube(CellData* pData, int X, int Y)
     }
 }
 
-void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
+void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY)
 {
     auto& map = CMapData::Instance;
     if (ID > CMapDataExt::TileDataCount || ID < 0) return;
@@ -1689,7 +1689,7 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
     if (cell->IsHidden())
         return;
 
-    if (MultiSelection::SelectedCoords.size() > 0) {
+    if (MultiSelection::SelectedCoords.size() > 0 && MultiSelection::IsSelected(oriX, oriY)) {
         bool skip = true;
         for (const auto& coord : MultiSelection::SelectedCoords) {
             if (coord.X == X && coord.Y == Y) {
@@ -1734,10 +1734,8 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
             {
                 for (auto& latPair : CMapDataExt::Tile_to_lat)
                 {
-                    int iSmoothSet = CINI::FAData->GetInteger("LATSettings", latPair[0], -1);
-                    int iLatSet = CINI::FAData->GetInteger("LATSettings", latPair[1], -1);
-                    iSmoothSet = CINI::CurrentTheater->GetInteger("General", latPair[0], iSmoothSet);
-                    iLatSet = CINI::CurrentTheater->GetInteger("General", latPair[1], iLatSet);
+                    int iSmoothSet = latPair[0];
+                    int iLatSet = latPair[1];
 
                     if (iLatSet >= 0 && iSmoothSet >= 0 && iSmoothSet < CMapDataExt::TileSet_starts.size() && iLatSet < CMapDataExt::TileSet_starts.size() &&
                         (CMapDataExt::TileData[tileIndex_cell2].TileSet == iSmoothSet || CMapDataExt::TileData[tileIndex_cell2].TileSet == iLatSet) &&
@@ -1769,7 +1767,7 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile)
 
             if (tileIndex_cell2 != ID && match)
             {
-                FillArea(cur_x, cur_y, ID, Subtile);
+                FillArea(cur_x, cur_y, ID, Subtile, oriX, oriY);
             }
 
         }

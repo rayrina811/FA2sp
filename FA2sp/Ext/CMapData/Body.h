@@ -253,7 +253,7 @@ public:
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;
     static std::vector<int> deletedKeys;
-    static std::vector<std::vector<ppmfc::CString>> Tile_to_lat;
+    static std::vector<std::vector<int>> Tile_to_lat;
     static std::vector<int> TileSet_starts;
 
     static CellDataExt CellDataExt_FindCell;

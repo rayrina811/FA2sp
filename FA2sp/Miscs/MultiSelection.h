@@ -18,7 +18,7 @@ public:
     static void Clear2();
     static void ReverseStatus(int X, int Y);
     static bool IsSelected(int X, int Y);
-    static void FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, int tileSet);
+    static void FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, std::unordered_set<int> tileSet);
     
     struct MyClipboardData
     {

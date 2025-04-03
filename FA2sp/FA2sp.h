@@ -140,6 +140,7 @@ public:
     static bool TagList_AttachedObjects;
     static bool SaveMaps_BetterMapPreview;
     static bool CursorSelectionBound_AutoColor;
+    static bool MultiSelect_ConsiderLAT;
     static bool FillArea_ConsiderLAT;
     static bool FillArea_ConsiderWater;
     static bool DPIAware;
