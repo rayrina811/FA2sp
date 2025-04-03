@@ -143,7 +143,7 @@ bool MultiSelection::IsSelected(int X, int Y)
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();
 }
 
-void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, std::unordered_set<int> tileSet)
+void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, std::unordered_set<int> tileSet, bool isCliff)
 {
     const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
     for (auto pair : loop)
@@ -155,14 +155,24 @@ void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int st
         if (process.find(pos) != process.end())
             continue;
         auto cell = CMapData::Instance->GetCellAt(pos);
-        if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
-            continue;
         int ground = cell->TileIndex;
         if (ground == 0xFFFF) ground = 0;
+        if (ground >= CMapDataExt::TileDataCount)
+            continue;
+
+        if (isCliff)
+        {
+            auto cellCenter = CMapData::Instance->GetCellAt(startX, startY);
+            int groundCenter = CMapDataExt::GetSafeTileIndex(cellCenter->TileIndex);
+            if (cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
+                != cellCenter->Height - CMapDataExt::TileData[groundCenter].TileBlockDatas[cellCenter->TileSubIndex].Height)
+                continue;
+        }
+
         if (tileSet.find(CMapDataExt::TileData[ground].TileSet) != tileSet.end())
         {
             process.insert(pos);
-            FindConnectedTiles(process, newX, newY, tileSet);
+            FindConnectedTiles(process, newX, newY, tileSet, isCliff);
         }
     }
 }
@@ -413,8 +423,15 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
                         }
                     }
                 }
+                bool isCliff = false;
+                ppmfc::CString sec;
+                sec.Format("TileSet%04d", *tilesets.begin());
+                auto setName = CINI::CurrentTheater->GetString(sec, "SetName");
+                setName.MakeLower();
+                if (setName.Find("cliff") != -1)
+                    isCliff = true;
                 std::unordered_set<int> coords;
-                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets);
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, isCliff);
                 for (auto& coord : coords)
                 {
                     int x = CMapData::Instance->GetXFromCoordIndex(coord);
@@ -444,8 +461,15 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
                         }
                     }
                 }
+                bool isCliff = false;
+                ppmfc::CString sec;
+                sec.Format("TileSet%04d", *tilesets.begin());
+                auto setName = CINI::CurrentTheater->GetString(sec, "SetName");
+                setName.MakeLower();
+                if (setName.Find("cliff") != -1)
+                    isCliff = true;
                 std::unordered_set<int> coords;
-                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets);
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, isCliff);
                 for (auto& coord : coords)
                 {
                     int x = CMapData::Instance->GetXFromCoordIndex(coord);

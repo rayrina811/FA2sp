@@ -1230,6 +1230,47 @@ DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
 	return 0x461CE1;
 }
 
+DEFINE_HOOK(45C0C8, CIsoView_OnMouseMove_PlayerLocation, 6)
+{
+	auto deleteWaypoint = [](ppmfc::CString key)
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			{
+				if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+				{
+					auto&& value = pSection->GetString(key);
+					int x = atoi(value) / 1000;
+					int y = atoi(value) % 1000;
+					CINI::CurrentDocument->DeleteKey(pSection, key);
+					CMapData::Instance->UpdateFieldWaypointData(false);
+
+					if (CMapData::Instance->IsMultiOnly())
+					{
+						int k, l;
+						for (k = -1; k < 2; k++)
+							for (l = -1; l < 2; l++)
+								CMapData::Instance->UpdateMapPreviewAt(x + k, y + l);
+					}
+				}
+			}
+		};
+	
+
+	if (CMapData::Instance->IsMultiOnly())
+	{
+		GET_STACK(int, waypoint, STACK_OFFS(0x3D528, 0x3D518));
+		ppmfc::CString key;
+		key.Format("%d", waypoint);
+		deleteWaypoint(key);
+	}
+	else
+	{
+		deleteWaypoint("98");
+		deleteWaypoint("99");
+	}
+
+	return 0;
+}
 
 //DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
 //{
