@@ -59,8 +59,6 @@ HWND CNewTrigger::hActionParameter[ACTION_PARAM_COUNT];
 HWND CNewTrigger::hActionParameterDesc[ACTION_PARAM_COUNT];
 int CNewTrigger::CurrentCSFActionParam;
 int CNewTrigger::CurrentTriggerActionParam;
-
-
 int CNewTrigger::SelectedTriggerIndex = -1;
 int CNewTrigger::SelectedEventIndex = -1;
 int CNewTrigger::SelectedActionIndex = -1;
@@ -78,6 +76,8 @@ std::map<int, ppmfc::CString> CNewTrigger::ActionParamLabels[ACTION_PARAM_COUNT]
 std::map<int, ppmfc::CString> CNewTrigger::EventParamLabels[EVENT_PARAM_COUNT];
 std::pair<bool, int> CNewTrigger::EventParamsUsage[EVENT_PARAM_COUNT];
 std::pair<bool, int> CNewTrigger::ActionParamsUsage[ACTION_PARAM_COUNT];
+std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
+std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
 bool CNewTrigger::Autodrop;
 bool CNewTrigger::DropNeedUpdate;
 bool CNewTrigger::ActionParamUsesFloat;
@@ -85,6 +85,7 @@ WNDPROC CNewTrigger::OriginalListBoxProcEvent;
 WNDPROC CNewTrigger::OriginalListBoxProcAction;
 RECT CNewTrigger::rectComboLBox = { 0 };
 HWND CNewTrigger::hComboLBox = NULL;
+
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -293,10 +294,28 @@ void CNewTrigger::Update(HWND& hWnd)
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
+    ActionParamAffectedParams.clear();
+    EventParamAffectedParams.clear();
+    if (auto pSection = CINI::FAData->GetSection("ParamAffectedParams"))
+    {
+        for (const auto& [_, value] : pSection->GetEntities())
+        {
+            auto atoms = STDHelpers::SplitString(value, 5);
+            auto& list = atoms[0] == "Event" ? EventParamAffectedParams : ActionParamAffectedParams;
+            auto& target = list.emplace_back();
+            target.Index = atoi(atoms[1]);
+            target.SourceParam = atoi(atoms[2]);
+            target.AffectedParam = atoi(atoms[3]);
+            for (int i = 4; i < atoms.size() - 1; i = i + 2)
+            {
+                target.ParamMap[atoms[i]] = atoms[i + 1];
+            }
+        }
+    }
+
     Autodrop = false;
 
     OnSelchangeTrigger();
-
 }
 
 void CNewTrigger::Close(HWND& hWnd)
@@ -1128,6 +1147,8 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
 
     CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second] = text;
     CurrentTrigger->Save();
+
+    UpdateParamAffectedParam_Event(index);
 }
 
 void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
@@ -1178,6 +1199,84 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
 
     CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second] = text;
     CurrentTrigger->Save();
+
+    UpdateParamAffectedParam_Action(index);
+}
+
+void CNewTrigger::UpdateParamAffectedParam_Action(int index)
+{
+    auto& affList = ActionParamAffectedParams;
+    for (auto& target : affList)
+    {
+        if (target.Index == atoi(CurrentTrigger->Actions[SelectedActionIndex].ActionNum) && target.SourceParam == index)
+        {
+            auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
+            if (target.ParamMap.find(text) != target.ParamMap.end())
+            {
+                auto paramType = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1]);
+                //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
+                if (paramType[1] == "10") // stringtables
+                {
+                    CurrentCSFActionParam = target.AffectedParam;
+                }
+                else if (paramType[1] == "9") // triggers
+                {
+                    CurrentTriggerActionParam = target.AffectedParam;
+                }
+                ExtraWindow::AdjustDropdownWidth(hActionParameter[target.AffectedParam]);
+
+                auto& targetText = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[target.AffectedParam].second];
+                int paramIdx = ExtraWindow::FindCBStringExactStart(hActionParameter[target.AffectedParam], targetText + " ");
+                if (paramIdx == CB_ERR)
+                    paramIdx = SendMessage(hActionParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.m_pchData);
+
+                if (paramIdx != CB_ERR)
+                {
+                    SendMessage(hActionParameter[target.AffectedParam], CB_SETCURSEL, paramIdx, NULL);
+                }
+                else
+                {
+                    SendMessage(hActionParameter[target.AffectedParam], CB_SETCURSEL, -1, NULL);
+                    SendMessage(hActionParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.m_pchData);
+                }
+            } 
+        }
+    }
+}
+
+void CNewTrigger::UpdateParamAffectedParam_Event(int index)
+{
+    auto& affList = EventParamAffectedParams;
+    for (auto& target : affList)
+    {
+        if (target.Index == atoi(CurrentTrigger->Events[SelectedEventIndex].EventNum) && target.SourceParam == index)
+        {
+            auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
+            if (target.ParamMap.find(text) != target.ParamMap.end())
+            {
+                auto paramType = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1]);
+                //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
+                ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
+
+                auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
+                int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
+                if (paramIdx == CB_ERR)
+                    paramIdx = SendMessage(hEventParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.m_pchData);
+
+                if (paramIdx != CB_ERR)
+                {
+                    SendMessage(hEventParameter[target.AffectedParam], CB_SETCURSEL, paramIdx, NULL);
+                }
+                else
+                {
+                    SendMessage(hEventParameter[target.AffectedParam], CB_SETCURSEL, -1, NULL);
+                    SendMessage(hEventParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.m_pchData);
+                }
+            }
+        }
+    }
 }
 
 void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionListCur)
@@ -1774,6 +1873,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             }
         }
         ExtraWindow::AdjustDropdownWidth(hEventParameter[i]);
+        UpdateParamAffectedParam_Event(i);
     }
 
     if (changedEvent >= 0)
@@ -1814,7 +1914,6 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         else
             SendMessage(hActiontype, CB_SETCURSEL, idx, NULL);
     }
-
 
     ppmfc::CString paramType[7];
     for (int i = 0; i < 7; i++)
@@ -1918,6 +2017,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
         }
         ExtraWindow::AdjustDropdownWidth(hActionParameter[i]);
+        UpdateParamAffectedParam_Action(i);
     }
 
     if (WindowShown)

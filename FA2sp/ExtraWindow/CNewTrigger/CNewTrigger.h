@@ -12,6 +12,14 @@
 #define EVENT_PARAM_COUNT 2
 #define ACTION_PARAM_COUNT 6
 
+struct ParamAffectedParams
+{
+    int Index;
+    int SourceParam;
+    int AffectedParam;
+    std::map<ppmfc::CString, ppmfc::CString> ParamMap;
+};
+
 struct EventParams
 {
     ppmfc::CString EventNum;
@@ -348,6 +356,8 @@ protected:
     static void UpdateEventAndParam(int changedEvent = -1, bool changeCursel = true);
     static void UpdateActionAndParam(int changedAction = -1, bool changeCursel = true);
     static void AdjustActionHeight();
+    static void UpdateParamAffectedParam_Action(int index);
+    static void UpdateParamAffectedParam_Event(int index);
 
     static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
     static void OnDropdownCComboBox(int index);
@@ -422,6 +432,8 @@ private:
     static std::map<int, ppmfc::CString> ActionParamLabels[ACTION_PARAM_COUNT];
     static std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
     static std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
+    static std::vector<ParamAffectedParams> ActionParamAffectedParams;
+    static std::vector<ParamAffectedParams> EventParamAffectedParams;
 
     static bool Autodrop;
     static bool DropNeedUpdate;
