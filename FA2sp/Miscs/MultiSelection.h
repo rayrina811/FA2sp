@@ -46,6 +46,7 @@ public:
         }
     }
 
+    static bool IsSquareSelecting;
     static bool ShiftKeyIsDown;
     static bool IsPasting;
     static BGRStruct ColorHolder[0x1000];

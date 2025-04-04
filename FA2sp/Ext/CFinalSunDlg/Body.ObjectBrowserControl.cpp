@@ -1370,6 +1370,8 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionDelete", Const_MultiSelection + Delete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionBatchAdd", Const_MultiSelection + batchAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionBatchDelete", Const_MultiSelection + batchDelete, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionSquareBatchAdd", Const_MultiSelection + squareBatchAdd, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionSquareBatchDelete", Const_MultiSelection + squareBatchDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionTileSetAdd", Const_MultiSelection + TileSetAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionTileSetDelete", Const_MultiSelection + TileSetDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionConnectedAdd", Const_MultiSelection + ConnectedAdd, hMultiSelection);
@@ -1425,96 +1427,116 @@ bool CViewObjectsExt::DoPropertyBrush_Infantry()
 
 void CViewObjectsExt::BatchAddMultiSelection(int X, int Y, bool add)
 {
-    if (add)
+    MultiSelection::IsSquareSelecting = false;
+    if (MultiSelection::LastAddedCoord.X > -1)
     {
-        if (MultiSelection::LastAddedCoord.X > -1 &&
-            MultiSelection::LastAddedCoord.X != X &&
-            MultiSelection::LastAddedCoord.Y != Y
-            )
+        int x1, x2, y1, y2;
+
+        if (MultiSelection::LastAddedCoord.X < X)
         {
-            int x1, x2, y1, y2;
+            x1 = MultiSelection::LastAddedCoord.X;
+            x2 = X;
+        }
+        else
+        {
+            x1 = X;
+            x2 = MultiSelection::LastAddedCoord.X;
+        }
+        if (MultiSelection::LastAddedCoord.Y < Y)
+        {
+            y1 = MultiSelection::LastAddedCoord.Y;
+            y2 = Y;
+        }
+        else
+        {
+            y1 = Y;
+            y2 = MultiSelection::LastAddedCoord.Y;
+        }
 
-            if (MultiSelection::LastAddedCoord.X < X)
+        for (int i = x1; i <= x2; i++)
+        {
+            for (int j = y1; j <= y2; j++)
             {
-                x1 = MultiSelection::LastAddedCoord.X;
-                x2 = X;
-            }
-            else
-            {
-                x1 = X;
-                x2 = MultiSelection::LastAddedCoord.X;
-            }
-            if (MultiSelection::LastAddedCoord.Y < Y)
-            {
-                y1 = MultiSelection::LastAddedCoord.Y;
-                y2 = Y;
-            }
-            else
-            {
-                y1 = Y;
-                y2 = MultiSelection::LastAddedCoord.Y;
-            }
-
-            for (int i = x1; i <= x2; i++)
-            {
-                for (int j = y1; j <= y2; j++)
+                if (add)
                 {
                     MultiSelection::AddCoord(i, j);
                 }
-            }
-
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
-        }
-        else
-            MultiSelection::LastAddedCoord = { X,Y };
-    }
-    else
-    {
-        MultiSelection::RemoveCoord(X, Y);
-        if (MultiSelection::LastAddedCoord.X > -1 &&
-            MultiSelection::LastAddedCoord.X != X &&
-            MultiSelection::LastAddedCoord.Y != Y
-            )
-        {
-            int x1, x2, y1, y2;
-
-            if (MultiSelection::LastAddedCoord.X < X)
-            {
-                x1 = MultiSelection::LastAddedCoord.X;
-                x2 = X;
-            }
-            else
-            {
-                x1 = X;
-                x2 = MultiSelection::LastAddedCoord.X;
-            }
-            if (MultiSelection::LastAddedCoord.Y < Y)
-            {
-                y1 = MultiSelection::LastAddedCoord.Y;
-                y2 = Y;
-            }
-            else
-            {
-                y1 = Y;
-                y2 = MultiSelection::LastAddedCoord.Y;
-            }
-
-            for (int i = x1; i <= x2; i++)
-            {
-                for (int j = y1; j <= y2; j++)
+                else
                 {
                     MultiSelection::RemoveCoord(i, j);
                 }
             }
-
-            MultiSelection::LastAddedCoord.X = -1;
-            MultiSelection::LastAddedCoord.Y = -1;
         }
-        else
-            MultiSelection::LastAddedCoord = { X,Y };
-        
+
+        MultiSelection::LastAddedCoord.X = -1;
+        MultiSelection::LastAddedCoord.Y = -1;
     }
+    else
+        MultiSelection::LastAddedCoord = { X,Y };
+        
+    CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
+{
+    MultiSelection::IsSquareSelecting = true;
+    if (MultiSelection::LastAddedCoord.X > -1)
+    {
+        int& x1 = X;
+        int& x2 = MultiSelection::LastAddedCoord.X;
+        int& y1 = Y;
+        int& y2 = MultiSelection::LastAddedCoord.Y;
+
+        int top, bottom, left, right;
+        top = x1 + y1;
+        bottom = x2 + y2;
+        left = y1 - x1;
+        right = y2 - x2;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+        auto IsCoordInSelect = [&](int X, int Y)
+            {
+                return
+                    X + Y >= top &&
+                    X + Y <= bottom &&
+                    Y - X >= left &&
+                    Y - X <= right;
+            };
+
+        for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
+        {
+            for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
+            {
+                if (IsCoordInSelect(i, j))
+                {
+                    if (add)
+                    {
+                        MultiSelection::AddCoord(i, j);
+                    }
+                    else
+                    {
+                        MultiSelection::RemoveCoord(i, j);
+                    }
+                }
+            }
+        }
+
+        MultiSelection::LastAddedCoord.X = -1;
+        MultiSelection::LastAddedCoord.Y = -1;
+    }
+    else
+        MultiSelection::LastAddedCoord = { X,Y };
+
     CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 

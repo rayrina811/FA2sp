@@ -25,6 +25,7 @@
 std::set<MapCoord> MultiSelection::SelectedCoords;
 std::set<MapCoord> MultiSelection::SelectedCoordsTemp;
 MapCoord MultiSelection::LastAddedCoord;
+bool MultiSelection::IsSquareSelecting = false;
 bool MultiSelection::ShiftKeyIsDown = false;
 bool MultiSelection::IsPasting = false;
 BGRStruct MultiSelection::ColorHolder[0x1000];

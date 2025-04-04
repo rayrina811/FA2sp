@@ -191,7 +191,8 @@ public:
 
 
     enum {
-        Add = 0, Delete, AllDelete, batchAdd, batchDelete, TileSetAdd, TileSetDelete, ConnectedAdd, ConnectedDelete, ReplaceHide
+        Add = 0, Delete, AllDelete, batchAdd, batchDelete, TileSetAdd, TileSetDelete,
+        ConnectedAdd, ConnectedDelete, ReplaceHide, squareBatchAdd, squareBatchDelete
     };
 
     enum
@@ -382,6 +383,7 @@ public:
     static void AddAnnotation(int X, int Y);
     static void RemoveAnnotation(int X, int Y);
     static void BatchAddMultiSelection(int X, int Y, bool add);
+    static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
     
     static bool IsIgnored(const char* pItem);

@@ -620,6 +620,18 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
         return 0x466860;
     }
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 10)
+    {
+        CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, true);
+
+        return 0x466860;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 11)
+    {
+        CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, false);
+
+        return 0x466860;
+    }
 
     return 0;
 }
@@ -677,6 +689,18 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 4)
     {
         CViewObjectsExt::BatchAddMultiSelection(X, Y, false);
+
+        return 0x45CD6D;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 10)
+    {
+        CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, true);
+
+        return 0x45CD6D;
+    }        
+    else if (CIsoView::CurrentCommand->Command == 0x1D && CIsoView::CurrentCommand->Type == 11)
+    {
+        CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, false);
 
         return 0x45CD6D;
     }

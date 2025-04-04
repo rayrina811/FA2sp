@@ -28,20 +28,102 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
 
     if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
     {
-        int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
-        if (CMapData::Instance().IsCoordInMap(X, Y))
+        if (MultiSelection::IsSquareSelecting)
         {
-            int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
-            int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
-            if (X > point.X)
-                X = point.X;
-            if (Y > point.Y)
-                Y = point.Y;
+            int& x1 = point.X; 
+            int& x2 = MultiSelection::LastAddedCoord.X;
+            int& y1 = point.Y; 
+            int& y2 = MultiSelection::LastAddedCoord.Y;
 
-            CIsoView::MapCoord2ScreenCoord(X, Y);
+            int top, bottom, left, right;
+            top = x1 + y1;
+            bottom = x2 + y2;
+            left = y1 - x1;
+            right = y2 - x2;
+            if (top > bottom)
+            {
+                int tmp = top;
+                top = bottom;
+                bottom = tmp;
+            }
+            if (left > right)
+            {
+                int tmp = left;
+                left = right;
+                right = tmp;
+            }
+            auto IsCoordInSelect = [&](int X, int Y)
+                {
+                    return
+                        X + Y >= top &&
+                        X + Y <= bottom &&
+                        Y - X >= left &&
+                        Y - X <= right;
+                };
+            std::vector<MapCoord> coords;
+            for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
+            {
+                for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
+                {
+                    if (IsCoordInSelect(i, j))
+                    {
+                        coords.push_back({ i,j });
+                    }
+                }
+            }
+            for (auto& mc : coords)
+            {
+                int x = mc.X;
+                int y = mc.Y;
+                CIsoView::MapCoord2ScreenCoord(x, y);
+                int drawX = x - CIsoViewExt::drawOffsetX;
+                int drawY = y - CIsoViewExt::drawOffsetY;
 
-            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
+                bool s1 = true;
+                bool s2 = true;
+                bool s3 = true;
+                bool s4 = true;
 
+                for (auto& coord : coords)
+                {
+                    if (coord.X == mc.X - 1 && coord.Y == mc.Y)
+                    {
+                        s1 = false;
+                    }
+                    if (coord.X == mc.X + 1 && coord.Y == mc.Y)
+                    {
+                        s3 = false;
+                    }
+                    if (coord.X == mc.X && coord.Y == mc.Y - 1)
+                    {
+                        s4 = false;
+                    }
+
+                    if (coord.X == mc.X && coord.Y == mc.Y + 1)
+                    {
+                        s2 = false;
+                    }
+                }
+                pIsoView->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
+            }
+        }
+        else
+        {
+            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
+            if (CMapData::Instance().IsCoordInMap(X, Y))
+            {
+                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
+                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
+                if (X > point.X)
+                    X = point.X;
+                if (Y > point.Y)
+                    Y = point.Y;
+
+                CIsoView::MapCoord2ScreenCoord(X, Y);
+
+                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
+
+            }
         }
     }
     if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
@@ -59,7 +141,6 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
             CIsoView::MapCoord2ScreenCoord(X, Y);
 
             pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
-
         }
     }
 
