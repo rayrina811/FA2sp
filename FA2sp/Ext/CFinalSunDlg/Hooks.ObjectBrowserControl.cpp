@@ -237,6 +237,8 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         int damageLevel = CViewObjectsExt::PlacingWall % 5 - 1;
         if (damageLevel == 3)
             damageLevel = -2;
+        if (damageLevel == -1)
+            damageLevel = 0;
 
         for (int i = 0; i < CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeX; i++)
             for (int j = 0; j < CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeY; j++)
@@ -492,11 +494,8 @@ DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
         //CFinalSunDlg::Instance->BrushSize.UpdateData(FALSE);
         //CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeX = 1;
         //CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeY = 1;
-        if (CViewObjectsExt::PlacingWall % 5 == 0)
-        {
-            CIsoView::CurrentCommand->Command = 0;
-        }
-        else if (CViewObjectsExt::PlacingWall % 5 == 4)
+
+        if (CViewObjectsExt::PlacingWall % 5 == 4 || CViewObjectsExt::PlacingWall % 5 == 0)
         {
             CIsoView::CurrentCommand->OverlayData = 0;
         }

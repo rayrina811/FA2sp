@@ -6,6 +6,7 @@
 #include "../../Helpers/Translations.h"
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
+bool CLoadingExt::IsLoadingObjectView = false;
 std::vector<ppmfc::CString> CLoadingExt::SwimableInfantries;
 
 bool CLoadingExt::InitMixFilesFix()

@@ -217,6 +217,12 @@ private:
     static std::unordered_map<ppmfc::CString, int> Owners;
     static std::unordered_set<ppmfc::CString> AddOnceSet;
     static int AddedItemCount;
+    static CImageList m_ImageList;
+    static int InsertingTileIndex;
+    static int InsertingOverlay;
+    static int InsertingOverlayData;
+    static bool InsertingSpecialBitmap;
+    static CBitmap SpecialBitmap;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
@@ -249,6 +255,9 @@ private:
     bool DoPropertyBrush_Infantry();
     bool DoPropertyBrush_Vehicle();
     bool DoPropertyBrush_Aircraft();
+
+    int PropagateFirstNonZeroIcon(HTREEITEM hItem);
+    void UpdateTreeIconsForSubtree(HTREEITEM hItem);
 
 public:
     enum ObjectTerrainType

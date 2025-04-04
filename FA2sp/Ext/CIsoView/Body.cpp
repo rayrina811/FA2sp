@@ -2571,6 +2571,102 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     }
 }
 
+void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo)
+{
+    if (!pBitmap || maxSize <= 0) return;
+
+    BITMAP bmpInfo = {};
+    pBitmap->GetBitmap(&bmpInfo);
+    int srcW = bmpInfo.bmWidth;
+    int srcH = bmpInfo.bmHeight;
+
+    BITMAPINFO bmi = {};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = srcW;
+    bmi.bmiHeader.biHeight = -srcH;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    std::vector<DWORD> srcPixels(srcW * srcH);
+    {
+        HDC hdc = GetDC(NULL);
+        GetDIBits(hdc, (HBITMAP)(*pBitmap), 0, srcH, srcPixels.data(), &bmi, DIB_RGB_COLORS);
+        ReleaseDC(NULL, hdc);
+    }
+
+    int left = srcW, right = 0, top = srcH, bottom = 0;
+    DWORD bgRGB = RGB(GetBValue(bgColor), GetGValue(bgColor), GetRValue(bgColor));
+
+    for (int y = 0; y < srcH; ++y)
+    {
+        for (int x = 0; x < srcW; ++x)
+        {
+            DWORD px = srcPixels[y * srcW + x];
+            COLORREF pxColor = RGB(px & 0xFF, (px >> 8) & 0xFF, (px >> 16) & 0xFF);
+            if (pxColor != bgRGB)
+            {
+                if (x < left) left = x;
+                if (x > right) right = x;
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+            }
+        }
+    }
+
+    if (left > right || top > bottom)
+        return;
+
+    int cropW = right - left + 1;
+    int cropH = bottom - top + 1;
+    float scale = std::min((float)maxSize / cropW, (float)maxSize / cropH);
+    int newW = int(cropW * scale);
+    int newH = int(cropH * scale);
+    int offsetX = (maxSize - newW) / 2;
+    int offsetY = (maxSize - newH) / 2;
+
+    bmi.bmiHeader.biWidth = maxSize;
+    bmi.bmiHeader.biHeight = -maxSize;
+
+    void* pDstBits = nullptr;
+    HBITMAP hNewBmp = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, &pDstBits, NULL, 0);
+    if (!hNewBmp || !pDstBits) return;
+
+    DWORD* dst = (DWORD*)pDstBits;
+
+    DWORD bgARGB = 0xFF000000 | (GetRValue(bgColor) << 16) | (GetGValue(bgColor) << 8) | GetBValue(bgColor);
+    std::fill(dst, dst + maxSize * maxSize, bgARGB);
+
+    for (int y = 0; y < newH; ++y)
+    {
+        for (int x = 0; x < newW; ++x)
+        {
+            int srcX = left + int(x / scale);
+            int srcY = top + int(y / scale);
+            DWORD px = srcPixels[srcY * srcW + srcX];
+
+            int dx = offsetX + x;
+            int dy = offsetY + y;
+            dst[dy * maxSize + dx] = px;
+        }
+    }
+
+    if (removeHalo)
+    {
+        for (int i = 0; i < maxSize * maxSize; ++i)
+        {
+            DWORD& px = dst[i];
+            COLORREF c = RGB(px & 0xFF, (px >> 8) & 0xFF, (px >> 16) & 0xFF);
+            if (c == bgRGB)
+            {
+                px = 0x00000000 | (GetRValue(bgColor) << 16) | (GetGValue(bgColor) << 8) | GetBValue(bgColor);
+            }
+        }
+    }
+    pBitmap->DeleteObject();
+    pBitmap->Attach(hNewBmp);
+    return;
+}
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)
 {

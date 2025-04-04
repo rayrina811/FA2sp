@@ -4,7 +4,8 @@
 #include <CMapData.h>
 #include <CMixFile.h>
 #include <Drawing.h>
-
+#include <iostream>
+#include <fstream>
 #include "../../Miscs/VoxelDrawer.h"
 #include "../../Miscs/Palettes.h"
 #include "../../FA2sp.h"
@@ -100,7 +101,8 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 		return;
 
     Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
-	LoadedObjects.insert(ID);
+	if (!IsLoadingObjectView)
+		LoadedObjects.insert(ID);
 
 	// GlobalVars::CMapData->UpdateCurrentDocument();
 	auto eItemType = GetItemType(ID);
@@ -256,6 +258,8 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	}
 
 	LoadBuilding_Normal(ID);
+	if (IsLoadingObjectView)
+		return;
 	LoadBuilding_Damaged(ID);
 	LoadBuilding_Rubble(ID);
 
@@ -362,7 +366,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			}
 		}
 
-		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);
+		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY);;
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -483,6 +487,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 				for (int i = 0; i < 8; ++i)
 				{
+					if (IsLoadingObjectView && i != 0)
+						continue;
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 					UnionSHP_Add(pTempBuf, width, height);
@@ -542,6 +548,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 				bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 				for (int i = 0; i < 8; ++i)
 				{
+					if (IsLoadingObjectView && i != 0)
+						continue;
 					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 					UnionSHP_Add(pTempBuf, width, height);
@@ -1107,6 +1115,9 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 		CShpFile::GetSHPHeader(&header);
 		for (int i = 0; i < 8; ++i)
 		{
+			if (IsLoadingObjectView && i != 5)
+				continue;
+
 			CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers, header);
 			ppmfc::CString DictName;
 			DictName.Format("%s%d", ID, i);
@@ -1333,6 +1344,8 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 			for (int i = 0; i < 8; ++i)
 			{
+				if (IsLoadingObjectView && i != 2)
+					continue;
 				ppmfc::CString DictName;
 				DictName.Format("%s%d", ID, i);
 				//DictName.Format("%s%d", ImageID, i);
@@ -1376,6 +1389,8 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		{
 			for (int i = 0; i < 8; ++i)
 			{
+				if (IsLoadingObjectView && i != 2)
+					continue;
 				ppmfc::CString DictName;
 				DictName.Format("%s%d", ID, i);
 				// DictName.Format("%s%d", ImageID, i);
@@ -1441,6 +1456,8 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			CShpFile::GetSHPHeader(&header);
 			for (int i = 0; i < 8; ++i)
 			{
+				if (IsLoadingObjectView && i != 2)
+					continue;
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 				ppmfc::CString DictName;
 				DictName.Format("%s%d", ID, i);
@@ -1868,7 +1885,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 	}
 }
 
-void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
+void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	loadingExt->GetFullPaletteName(PalName);
@@ -1933,12 +1950,13 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileNam
 
 				CIsoView::SetColorKey(pData->lpSurface, -1);
 				LoadedObjects.insert(ImageID);
+				memDC.DeleteDC();
 			}	
 		}
 	}
 }
 
-void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal)
+void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	CBitmap bitmap;
@@ -1991,5 +2009,155 @@ void CLoadingExt::LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer
 
 		CIsoView::SetColorKey(pData->lpSurface, -1);
 		LoadedObjects.insert(ImageID);
+		memDC.DeleteDC();
 	}	
+}
+
+bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	if (outBitmap.CreateBitmap(pData->FullWidth, pData->FullHeight, 1, 32, NULL))
+	{
+		CDC memDC;
+		memDC.CreateCompatibleDC(NULL);
+		CBitmap* pOldBitmap = memDC.SelectObject(&outBitmap);
+
+		LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
+		pLogPalette->palVersion = 0x300;
+		pLogPalette->palNumEntries = 256;
+
+		// magenta bg
+		pLogPalette->palPalEntry[0].peRed = 255;
+		pLogPalette->palPalEntry[0].peGreen = 0;
+		pLogPalette->palPalEntry[0].peBlue = 255;
+		pLogPalette->palPalEntry[0].peFlags = 0;
+		for (int i = 1; i < 256; i++)
+		{
+			// black hack
+			if (pData->pPalette->Data[i].R == 0 && pData->pPalette->Data[i].G == 0 && pData->pPalette->Data[i].B == 0)
+			{
+				pLogPalette->palPalEntry[i].peRed = 1;
+				pLogPalette->palPalEntry[i].peGreen = 1;
+				pLogPalette->palPalEntry[i].peBlue = 1;
+				pLogPalette->palPalEntry[i].peFlags = pData->pPalette->Data[i].Zero;
+				continue;
+			}
+			
+			pLogPalette->palPalEntry[i].peRed = pData->pPalette->Data[i].R;
+			pLogPalette->palPalEntry[i].peGreen = pData->pPalette->Data[i].G;
+			pLogPalette->palPalEntry[i].peBlue = pData->pPalette->Data[i].B;
+			pLogPalette->palPalEntry[i].peFlags = pData->pPalette->Data[i].Zero;
+		}
+		CPalette paletteObj;
+		paletteObj.CreatePalette(pLogPalette);
+		free(pLogPalette);
+		CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
+		memDC.RealizePalette();
+		for (int y = 0; y < pData->FullHeight; y++)
+		{
+			for (int x = 0; x < pData->FullWidth; x++)
+			{
+				memDC.SetPixel(x, y, PALETTEINDEX(pData->pImageBuffer[y * pData->FullWidth + x]));
+			}
+		}
+		memDC.SelectPalette(pOldPalette, FALSE);
+		memDC.SelectObject(pOldBitmap);
+		memDC.DeleteDC();
+		return true;
+	}	
+	return false;
+}
+
+bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, COLORREF bgColor)
+{
+	if (!pBitmap) return false;
+
+	BITMAP bmp;
+	pBitmap->GetBitmap(&bmp);
+	if (bmp.bmBitsPixel != 32) return false;  // 确保是32位位图（包含 Alpha）
+
+	int width = bmp.bmWidth;
+	int height = bmp.bmHeight;
+
+	BITMAPINFO bmi = {};
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth = width;
+	bmi.bmiHeader.biHeight = -height; // **确保 DIB 方向正确**
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+
+	// **用 CreateDIBSection 直接创建 32bpp DIB**
+	HDC hDC = GetDC(nullptr);
+	void* pDIBPixels = nullptr;
+	HBITMAP hDIB = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, &pDIBPixels, nullptr, 0);
+	ReleaseDC(nullptr, hDC);
+
+	if (!hDIB || !pDIBPixels) return false;
+
+	// **将 CBitmap 复制到 DIB**
+	HDC hMemDC = CreateCompatibleDC(nullptr);
+	SelectObject(hMemDC, hDIB);
+	HDC hSrcDC = CreateCompatibleDC(nullptr);
+	SelectObject(hSrcDC, *pBitmap);
+	BitBlt(hMemDC, 0, 0, width, height, hSrcDC, 0, 0, SRCCOPY);
+	DeleteDC(hMemDC);
+	DeleteDC(hSrcDC);
+
+	// **获取 DIB 数据**
+	std::vector<DWORD> pixels(width * height);
+	GetDIBits(GetDC(nullptr), hDIB, 0, height, pixels.data(), &bmi, DIB_RGB_COLORS);
+
+	// **获取背景色 RGB**
+	BYTE bgR = GetRValue(bgColor);
+	BYTE bgG = GetGValue(bgColor);
+	BYTE bgB = GetBValue(bgColor);
+	for (int i = 0; i < width * height; ++i)
+	{
+		BYTE alpha = (pixels[i] >> 24) & 0xFF;
+		if (pixels[i] == 0x00000000)
+		{
+			pixels[i] = (0x00 << 24) | (bgR << 16) | (bgG << 8) | bgB;  // **替换成背景色**
+		}
+		else
+		{
+			pixels[i] &= 0x00FFFFFF;
+			pixels[i] |= 0xFF << 24;
+		}
+	}
+
+	BITMAPFILEHEADER bmfHeader;
+	DWORD dwBmpSize = width * height * 4;
+	DWORD dwSizeofDIB = dwBmpSize + sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+	bmfHeader.bfType = 0x4D42;  // 'BM'
+	bmfHeader.bfSize = dwSizeofDIB;
+	bmfHeader.bfReserved1 = 0;
+	bmfHeader.bfReserved2 = 0;
+	bmfHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+
+	HANDLE hFile = CreateFile(filePath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (hFile == INVALID_HANDLE_VALUE) return false;
+
+	DWORD dwWritten;
+	WriteFile(hFile, &bmfHeader, sizeof(BITMAPFILEHEADER), &dwWritten, nullptr);
+	WriteFile(hFile, &bmi.bmiHeader, sizeof(BITMAPINFOHEADER), &dwWritten, nullptr);
+	WriteFile(hFile, pixels.data(), dwBmpSize, &dwWritten, nullptr);
+
+	CloseHandle(hFile);
+
+	DeleteObject(hDIB); // 释放 DIB
+
+	return true;
+}
+
+bool CLoadingExt::LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap)
+{
+	HBITMAP hBmp = (HBITMAP)::LoadImage(nullptr, filePath,
+		IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+	if (!hBmp)
+		return false;
+
+	outBitmap.Attach(hBmp);
+	return true;
 }

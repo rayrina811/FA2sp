@@ -135,6 +135,8 @@ bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 int ExtConfigs::NewTheaterType;
+int ExtConfigs::TreeViewCameo_Size;
+bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
 bool ExtConfigs::InGameDisplay_Shadow;
@@ -258,6 +260,13 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
 	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
+
+	ExtConfigs::TreeViewCameo_Size = CINI::FAData->GetInteger("ExtConfigs", "TreeViewCameo.Size", 32);
+	if (ExtConfigs::TreeViewCameo_Size > 50)
+		ExtConfigs::TreeViewCameo_Size = 50;
+	if (ExtConfigs::TreeViewCameo_Size < 16)
+		ExtConfigs::TreeViewCameo_Size = 16;
+	ExtConfigs::TreeViewCameo_Display = CINI::FAData->GetBool("ExtConfigs", "TreeViewCameo.Display");
 
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);

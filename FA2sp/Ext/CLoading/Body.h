@@ -21,6 +21,11 @@ public:
 
 	//static void ProgramStartupInit();
 
+	static CLoadingExt* GetExtension()
+	{
+		return (CLoadingExt*)CLoading::Instance();
+	}
+
 	static bool HasFile_ReadyToReadFromFolder;
 
 	bool InitMixFilesFix();
@@ -42,8 +47,9 @@ public:
 	static void ClearItemTypes();
 	void GetFullPaletteName(ppmfc::CString& PaletteName);
 	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
-	static void LoadShpToBitmap(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
-	static void LoadShpToBitmap(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+	static void LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
+	static void LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
@@ -78,6 +84,7 @@ private:
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
 
+public:
 	enum class ObjectType{
 		Unknown = -1,
 		Infantry = 0,
@@ -88,7 +95,6 @@ private:
 		Smudge = 5
 	};
 
-public:
 	static ppmfc::CString GetArtID(ppmfc::CString ID);
 	ppmfc::CString GetVehicleOrAircraftFileID(ppmfc::CString ID);
 	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
@@ -96,9 +102,12 @@ public:
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
 	static std::vector<ppmfc::CString> LoadedOverlays;
 	static Palette TempISOPalette;
+	static bool IsLoadingObjectView;
 	static std::vector<ppmfc::CString> SwimableInfantries;
-private:
 	ObjectType GetItemType(ppmfc::CString ID);
+	static bool SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, COLORREF bgColor);
+	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
+private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, ppmfc::CString name);
 	

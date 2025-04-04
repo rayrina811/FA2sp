@@ -17,7 +17,11 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CTileManager/CTileManager.h"
 #include "../../ExtraWindow/CAnnotationDlg/CAnnotationDlg.h"
+#include "../CLoading/Body.h"
+#include <Miscs/Miscs.h>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
 std::unordered_set<ppmfc::CString> CViewObjectsExt::IgnoreSet;
@@ -29,7 +33,12 @@ std::unordered_map<ppmfc::CString, int> CViewObjectsExt::Owners;
 std::unordered_set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
-
+int CViewObjectsExt::InsertingTileIndex = -1;
+int CViewObjectsExt::InsertingOverlay = -1;
+int CViewObjectsExt::InsertingOverlayData = 0;
+bool CViewObjectsExt::InsertingSpecialBitmap = false;
+CBitmap CViewObjectsExt::SpecialBitmap;
+CImageList CViewObjectsExt::m_ImageList;
 
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlg;
 std::unique_ptr<CPropertyInfantry> CViewObjectsExt::InfantryBrushDlg;
@@ -93,12 +102,148 @@ bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
-
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
 {
     AddedItemCount++;
-    return this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
+    auto item =  this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
+
+    if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::TreeViewCameo_Display)
+    {
+        if (InsertingTileIndex > -1)
+        {
+            auto& tile = CMapDataExt::TileData[InsertingTileIndex];
+            auto& subTile = tile.TileBlockDatas[0];
+            ImageDataClass data;
+            data.pImageBuffer = subTile.ImageData;
+            data.FullHeight = subTile.BlockHeight;
+            data.FullWidth = subTile.BlockWidth;
+            Palette* pal = &CMapDataExt::Palette_ISO;
+            if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[InsertingTileIndex].TileSet])
+            {
+                ppmfc::CString section;
+                section.Format("TileSet%04d", CMapDataExt::TileData[InsertingTileIndex].TileSet);
+                auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
+                if (auto pPal = PalettesManager::LoadPalette(custom))
+                    pal = pPal;
+            }
+            data.pPalette = pal;
+            CBitmap cBitmap;
+            CLoadingExt::LoadShpToBitmap(&data, cBitmap);
+            CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+            int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
+            this->GetTreeCtrl().SetItemImage(item, index, index);
+            return item;
+        }
+
+        if (InsertingSpecialBitmap)
+        {
+            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+            int index = m_ImageList.Add(&SpecialBitmap, RGB(255, 255, 255));
+            this->GetTreeCtrl().SetItemImage(item, index, index);
+            return item;
+        }
+        ppmfc::CString name = pString;
+        int begin = name.ReverseFind('(');
+        int end = name.ReverseFind(')');
+        if (begin < end && begin > -1)
+            name = name.Mid(begin + 1, end - begin - 1);
+        ppmfc::CString imageName;
+
+        auto eItemType = CLoadingExt::GetExtension()->GetItemType(name);
+        switch (eItemType)
+        {
+        case CLoadingExt::ObjectType::Infantry:
+            imageName = CLoadingExt::GetImageName(name, 5);
+            break;
+        case CLoadingExt::ObjectType::Terrain: 
+        case CLoadingExt::ObjectType::Smudge:
+            imageName = CLoadingExt::GetImageName(name, 0);
+            break;
+        case CLoadingExt::ObjectType::Vehicle:
+        case CLoadingExt::ObjectType::Aircraft:
+            imageName = CLoadingExt::GetImageName(name, 2);
+            break;
+        case CLoadingExt::ObjectType::Building:
+            imageName = CLoadingExt::GetBuildingImageName(name, 0, 0);
+            break;
+        case CLoadingExt::ObjectType::Unknown:
+        default:
+            
+            if (InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
+            {
+                this->GetTreeCtrl().SetItemImage(item, 0, 0);
+                return item;
+            }
+            break;
+        }
+
+        std::string path = CFinalSunApp::ExePath();
+        path += "\\thumbnails";
+
+        if (!fs::exists(path) || !fs::is_directory(path))
+        {
+            fs::create_directories(path);
+        }
+        ppmfc::CString fileName;
+        fileName.Format("%s-%s-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"), imageName, ExtConfigs::TreeViewCameo_Size);
+        if (InsertingOverlay > -1)
+        {
+            fileName.Format("%s-overlay-%d-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"), 
+                InsertingOverlay, InsertingOverlayData, ExtConfigs::TreeViewCameo_Size);
+        }
+        path += "\\";
+        path += fileName.m_pchData;
+        if (fs::exists(path))
+        {
+            CBitmap cBitmap;
+            if (CLoadingExt::LoadBMPToCBitmap(path.c_str(), cBitmap))
+            {
+                int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
+                this->GetTreeCtrl().SetItemImage(item, index, index);
+                return item;
+            }
+        }
+
+        auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+        if (InsertingOverlay > -1)
+        {
+            CLoading::Instance()->DrawOverlay(*CINI::Rules->GetSection("OverlayTypes")->GetValueAt(InsertingOverlay), InsertingOverlay);
+            CIsoView::GetInstance()->UpdateDialog(false);
+
+            pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];
+        }
+
+        if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(name) 
+            && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
+        {
+            bool temp = ExtConfigs::InGameDisplay_Shadow;
+            bool temp2 = ExtConfigs::InGameDisplay_Deploy;
+            bool temp3 = ExtConfigs::InGameDisplay_Water;
+            ExtConfigs::InGameDisplay_Shadow = false;
+            CLoadingExt::IsLoadingObjectView = true;
+            CLoading::Instance->LoadObjects(name);
+            CLoadingExt::IsLoadingObjectView = false;
+            ExtConfigs::InGameDisplay_Shadow = temp;
+            ExtConfigs::InGameDisplay_Deploy = temp2;
+            ExtConfigs::InGameDisplay_Water = temp3;
+        }
+
+        if (pData && pData->pImageBuffer)
+        {
+            CBitmap cBitmap;
+            CLoadingExt::LoadShpToBitmap(pData, cBitmap);
+            CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+            int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
+            this->GetTreeCtrl().SetItemImage(item, index, index);
+
+            CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
+
+            return item;
+        }
+        this->GetTreeCtrl().SetItemImage(item, 0, 0);
+    }
+    return item;
 }
 
 HTREEITEM CViewObjectsExt::InsertTranslatedString(const char* pOriginString, DWORD dwItemData,
@@ -148,6 +293,47 @@ std::vector<int> SplitCommaIntArray(ppmfc::CString input)
     }
     return result;
 }
+int CViewObjectsExt::PropagateFirstNonZeroIcon(HTREEITEM hItem)
+{
+    if (!hItem) return 0;
+    auto& tree = this->GetTreeCtrl();
+
+    int image = 0, selected = 0;
+    tree.GetItemImage(hItem, image, selected);
+
+    if (image != 0)
+        return image;
+
+    HTREEITEM hChild = tree.GetChildItem(hItem);
+    while (hChild)
+    {
+        int childIcon = PropagateFirstNonZeroIcon(hChild);
+        if (childIcon != 0)
+        {
+            tree.SetItemImage(hItem, childIcon, childIcon);
+            return childIcon;
+        }
+
+        hChild = tree.GetNextSiblingItem(hChild);
+    }
+    return 0;
+}
+
+void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
+{
+    if (!hItem) return;
+    auto& tree = this->GetTreeCtrl();
+
+    HTREEITEM hChild = tree.GetChildItem(hItem);
+    while (hChild)
+    {
+        UpdateTreeIconsForSubtree(hChild);
+        hChild = tree.GetNextSiblingItem(hChild);
+    }
+
+    PropagateFirstNonZeroIcon(hItem);
+}
+
 
 void CViewObjectsExt::Redraw()
 {
@@ -173,6 +359,15 @@ void CViewObjectsExt::Redraw()
     Redraw_ViewObjectInfo();
     Redraw_MultiSelection();
     Redraw_ConnectedTile(this);
+
+    HTREEITEM hItem = this->GetTreeCtrl().GetRootItem();
+    while (hItem)
+    {
+        UpdateTreeIconsForSubtree(hItem);
+        hItem = this->GetTreeCtrl().GetNextSiblingItem(hItem);
+    }
+
+    //CLoadingExt::ClearItemTypes();
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
 }
 
@@ -313,6 +508,16 @@ void CViewObjectsExt::Redraw_Initialize()
 
 void CViewObjectsExt::Redraw_MainList()
 {
+    if (ExtConfigs::TreeViewCameo_Display)
+    {
+        m_ImageList.Create(ExtConfigs::TreeViewCameo_Size, ExtConfigs::TreeViewCameo_Size, ILC_COLOR24 | ILC_MASK, 4, 4);
+        HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1002),
+            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        CBitmap cBitmap;
+        cBitmap.Attach(hBmp);
+        m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+        this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
+    }
     ExtNodes[Root_Nothing] = this->InsertTranslatedString("NothingObList", -2);
     ExtNodes[Root_Ground] = this->InsertTranslatedString("GroundObList", 13);
     ExtNodes[Root_Owner] = this->InsertTranslatedString("ChangeOwnerObList");
@@ -352,20 +557,54 @@ void CViewObjectsExt::Redraw_Ground()
     if (theater != "")
         suffix = theater.Mid(0, 3);
 
+    auto setTileIndex = [](int tileSet)
+        {
+            if (CMapData::Instance->MapWidthPlusHeight)
+            {
+                if (tileSet < 0)
+                    InsertingTileIndex = -1;
+                else
+                    InsertingTileIndex = CMapDataExt::TileSet_starts[tileSet];
+            }
+        };
+    auto setTileIndexByName = [setTileIndex](ppmfc::CString name)
+        {           
+            if (CMapData::Instance->MapWidthPlusHeight)
+            {
+                setTileIndex(CINI::CurrentTheater->GetInteger("General", name, -1));
+            }
+        };
+
+    setTileIndexByName("ClearTile");
     this->InsertTranslatedString("GroundClearObList" + suffix, 61, hGround);
     if (suffix != "LUN")
+    {
+        setTileIndexByName("SandTile");
         this->InsertTranslatedString("GroundSandObList" + suffix, 62, hGround);
-
+    }
     if (suffix != "URB")
+    {
+        setTileIndexByName("RoughTile");
         this->InsertTranslatedString("GroundRoughObList" + suffix, 63, hGround);
+    }
+    setTileIndexByName("GreenTile");
     this->InsertTranslatedString("GroundGreenObList" + suffix, 65, hGround);
     if (suffix != "UBN")
+    {
+        setTileIndexByName("PaveTile");
         this->InsertTranslatedString("GroundPaveObList" + suffix, 66, hGround);
+    }
     
     if (suffix != "LUN")
+    {
+        setTileIndexByName("WaterSet");
         this->InsertTranslatedString("GroundWaterObList", 64, hGround);
+    }
     else if (suffix == "LUN" && ExtConfigs::LoadLunarWater)
+    {
+        setTileIndexByName("WaterSet");
         this->InsertTranslatedString("GroundWaterObList", 64, hGround);
+    }
 
     if (CINI::CurrentTheater)
     {
@@ -378,6 +617,7 @@ void CViewObjectsExt::Redraw_Ground()
                 FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
                 ppmfc::CString buffer;
                 Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
+                setTileIndex(nTileset);
                 return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
             };
 
@@ -409,6 +649,7 @@ void CViewObjectsExt::Redraw_Ground()
                     FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
                     ppmfc::CString buffer;
                     Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
+                    setTileIndex(nTileset);
                     return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
                 };
 
@@ -425,6 +666,7 @@ void CViewObjectsExt::Redraw_Ground()
                 i++;
         }
     }
+    InsertingTileIndex = -1;
 }
 
 void CViewObjectsExt::Redraw_Owner()
@@ -448,16 +690,32 @@ void CViewObjectsExt::Redraw_Owner()
                     ppmfc::CString uiname = itr->second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
-                    for (auto& pair : countries)
-                    {
-                        if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
-                        else
-                            translated = CMapData::GetUIName(pair.second);
+                        for (auto& pair : countries)
+                        {
+                            if (ExtConfigs::BetterHouseNameTranslation)
+                                translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                            else
+                                translated = CMapData::GetUIName(pair.second);
 
-                        uiname.Replace(pair.second, translated);
+                            uiname.Replace(pair.second, translated);
+                        }
+
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+
+                        InsertingSpecialBitmap = true;
+                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
+                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr->second));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
                     }
                     this->InsertString(uiname, Const_House + i, hOwner);
+                    InsertingSpecialBitmap = false;
                 }
                     
         }
@@ -481,7 +739,22 @@ void CViewObjectsExt::Redraw_Owner()
 
                         uiname.Replace(pair.second, translated);
                     }
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+
+                        InsertingSpecialBitmap = true;
+                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
+                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
+                    }
                     this->InsertString(uiname, Const_House + i, hOwner);
+                    InsertingSpecialBitmap = false;
                     i++;
                 }
                     
@@ -510,7 +783,22 @@ void CViewObjectsExt::Redraw_Owner()
 
                         uiname.Replace(pair.second, translated);
                     }
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+
+                        InsertingSpecialBitmap = true;
+                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
+                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
+                    }
                     this->InsertString(uiname, Const_House + i, hOwner);
+                    InsertingSpecialBitmap = false;
                     i++;
                 }
             }
@@ -535,7 +823,22 @@ void CViewObjectsExt::Redraw_Owner()
 
                         uiname.Replace(pair.second, translated);
                     }
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+
+                        InsertingSpecialBitmap = true;
+                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
+                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
+                    }
                     this->InsertString(uiname, Const_House + i, hOwner);
+                    InsertingSpecialBitmap = false;
                     i++;
                 }
             }
@@ -613,7 +916,6 @@ void CViewObjectsExt::Redraw_Infantry()
                 }
             }   
         }
-
     }
     
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomInfantryObList", -1, hInfantry);
@@ -1136,17 +1438,31 @@ void CViewObjectsExt::Redraw_Overlay()
     this->InsertTranslatedString("DelOvrl3ObList", 60103, hTemp);
 
     hTemp = this->InsertTranslatedString("GrTibObList", -1, hOverlay);
+    InsertingOverlay = 112;
+    InsertingOverlayData = 11;
     this->InsertTranslatedString("DrawTibObList", 60210, hTemp);
+    InsertingOverlay = 30;
     this->InsertTranslatedString("DrawTib2ObList", 60310, hTemp);
+    InsertingOverlay = -1;
 
     this->InsertTranslatedString("AddOreObList", Const_Overlay + AddOre, hTemp);
     this->InsertTranslatedString("ReduceOreObList", Const_Overlay + ReduceOre, hTemp);
 
     hTemp = this->InsertTranslatedString("BridgesObList", -1, hOverlay);
+
+    InsertingOverlay = 24;
+    InsertingOverlayData = 0;
     this->InsertTranslatedString("BigBridgeObList", 60500, hTemp);
+    InsertingOverlay = 74;
+    InsertingOverlayData = 1;
     this->InsertTranslatedString("SmallBridgeObList", 60501, hTemp);
+    InsertingOverlay = 237;
+    InsertingOverlayData = 0;
     this->InsertTranslatedString("BigTrackBridgeObList", 60502, hTemp);
+    InsertingOverlay = 205;
+    InsertingOverlayData = 1;
     this->InsertTranslatedString("SmallConcreteBridgeObList", 60503, hTemp);
+    InsertingOverlay = -1;
 
     // Walls
     HTREEITEM hWalls = this->InsertTranslatedString("WallsObList", -1, hOverlay);
@@ -1160,9 +1476,11 @@ void CViewObjectsExt::Redraw_Overlay()
         return;
 
     // a rough support for tracks
+
+    InsertingOverlay = 39;
+    InsertingOverlayData = 0;
     this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
-
-
+    InsertingOverlay = -1;
     
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules());
@@ -1181,11 +1499,14 @@ void CViewObjectsExt::Redraw_Overlay()
         {
             int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels", 1);
             CViewObjectsExt::WallDamageStages[i] = damageLevel;
+            InsertingOverlay = i;
+            InsertingOverlayData = 5;
             auto thisWall = this->InsertString(
                 QueryUIName(overlays[i]),
                 Const_Overlay + i * 5 + indexWall,
                 hWalls
             );
+
             for (int s = 1; s < damageLevel + 1; s++)
             {
                 ppmfc::CString damage;
@@ -1195,7 +1516,9 @@ void CViewObjectsExt::Redraw_Overlay()
                     Const_Overlay + i * 5 + s + indexWall,
                     thisWall
                 );
+                InsertingOverlayData += 16;
             }
+            InsertingOverlay = -1;
             if (damageLevel > 1)
             {
                 this->InsertString(
@@ -1206,7 +1529,15 @@ void CViewObjectsExt::Redraw_Overlay()
         }
 
         if (IgnoreSet.find(overlays[i]) == IgnoreSet.end())
+        {
+            InsertingOverlay = i;
+            if (CMapDataExt::IsOre(i))
+                InsertingOverlayData = 10;
+            else
+                InsertingOverlayData = 0;
             this->InsertString(id, Const_Overlay + i, hTemp);
+        }
+        InsertingOverlay = -1;
     }
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
@@ -2401,6 +2732,8 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1;
             PlacingWall = nData - 3000 - Wall;
+
+            Logger::Raw("%d === \n", CViewObjectsExt::PlacingWall);
             return true;
         }
         else if (nData - 3000 == AddOre)

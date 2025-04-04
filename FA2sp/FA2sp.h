@@ -150,6 +150,8 @@ public:
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static int NewTheaterType;
+    static int TreeViewCameo_Size;
+    static bool TreeViewCameo_Display;
     static float LightingSource[3];
     static bool UseStrictNewTheater;
     static bool InGameDisplay_Shadow;
