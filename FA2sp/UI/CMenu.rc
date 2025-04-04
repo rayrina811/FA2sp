@@ -166,6 +166,8 @@ POPUP "Paste Options"
 	MENUITEM SEPARATOR
 	MENUITEM "Paste Terrains", 34007
 	MENUITEM "Paste Smudges", 34008
+	MENUITEM SEPARATOR
+	MENUITEM "Show Outline",  34052
 }
 POPUP "Online"
 {

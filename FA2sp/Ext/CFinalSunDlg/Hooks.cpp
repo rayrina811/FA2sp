@@ -75,6 +75,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34007, CIsoViewExt::PasteTerrains);
     SetItemCheckStatus(34008, CIsoViewExt::PasteSmudges);
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
+    SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
     SetItemCheckStatus(32001, CIsoViewExt::AutoPropertyBrush[1]);
@@ -264,6 +265,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(34008, "Menu.Paste.Smudges");
     translateMenuItem(34050, "Menu.Paste.All");
     translateMenuItem(34051, "Menu.Paste.Overriding");
+    translateMenuItem(34052, "Menu.Paste.ShowOutline");
 
 
     if (!ExtConfigs::InGameDisplay_Shadow) {

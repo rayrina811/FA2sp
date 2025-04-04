@@ -105,6 +105,7 @@ public:
     static bool PasteSmudges;
     static bool PasteGround;
     static bool PasteOverriding;
+    static bool PasteShowOutline;
 
     static bool DrawStructuresFilter;
     static bool DrawInfantriesFilter;

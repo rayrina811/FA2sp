@@ -439,6 +439,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	case 34051:
 		SetLayerStatus(34051, CIsoViewExt::PasteOverriding);
 		return TRUE;
+	case 34052:
+		SetLayerStatus(34052, CIsoViewExt::PasteShowOutline);
+		return TRUE;
 	case 34050:
 		SetMenuStatusTrue(34001, CIsoViewExt::PasteGround);
 		SetMenuStatusTrue(34002, CIsoViewExt::PasteOverlays);

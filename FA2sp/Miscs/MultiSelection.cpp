@@ -1407,10 +1407,9 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         int drawY2 = y2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
         pThis->DrawTopRealBorder(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
-
     }
 
-    if (!MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
+    if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
     {
         GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
         auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
@@ -1425,7 +1424,6 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         int copyx = MultiSelection::CopiedX;
         int copyy = MultiSelection::CopiedY;
 
-        //&& startP.Y > 0 && startP.X + MultiSelection::CopiedX < length && startP.Y + MultiSelection::CopiedY < length
         while (startP.X < 0)
         {
             startP.X++;
@@ -1454,7 +1452,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         pThis2->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
 
     }
-    else if (!MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
+    else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
     {
         GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
         auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
@@ -1478,7 +1476,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
                 if (dwpos < mapData.CellDataCount &&  CMapData::Instance->IsCoordInMap(i, j))
                 {
                     bool found = false;
-                    for (auto coord : MultiSelection::SelectedCoordsTemp)
+                    for (auto& coord : MultiSelection::SelectedCoordsTemp)
                     {
                         if (coord.X == cell.X && coord.Y == cell.Y)
                         {

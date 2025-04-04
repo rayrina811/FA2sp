@@ -44,6 +44,7 @@ bool CIsoViewExt::PasteTerrains = false;
 bool CIsoViewExt::PasteSmudges = false;
 bool CIsoViewExt::PasteGround = true;
 bool CIsoViewExt::PasteOverriding = false;
+bool CIsoViewExt::PasteShowOutline = true;
 
 bool CIsoViewExt::DrawStructuresFilter = false;
 bool CIsoViewExt::DrawInfantriesFilter = false;
