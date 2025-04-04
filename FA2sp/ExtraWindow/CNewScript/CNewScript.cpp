@@ -479,9 +479,9 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     int extraParam = atoi(text);
 
     int ActionParam = atoi(atoms[1]);
-    int high = extraParam;
-    int low = ActionParam % 0x10000;
-    int newParam = low + high * 0x10000;
+    int low = LOWORD(ActionParam);
+    WORD high = extraParam;
+    int newParam = MAKELONG(low, high);
     value.Format("%s,%d", atoms[0], newParam);
     map.WriteString(CurrentScriptID, key, value);
     text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
@@ -549,9 +549,9 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     if (ActionHasExtraParam[atoms[0]])
     {
         int actionParam = atoi(atoms[1]);
-        int high = actionParam / 0x10000;
-        int low = param;
-        int newParam = low + high * 0x10000;
+        WORD low = param;
+        int high = HIWORD(actionParam);
+        int newParam = MAKELONG(low, high);
         value.Format("%s,%d", atoms[0], newParam);
         map.WriteString(CurrentScriptID, key, value);
         text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
@@ -631,9 +631,8 @@ void CNewScript::OnSelchangeActionType(bool edited)
     if (ActionHasExtraParam[atoms[0]])
     {
         int actionParam = atoi(atoms[1]);
-        int high = actionParam / 0x10000;
-        int low = actionParam % 0x10000;
-
+        int low = LOWORD(actionParam);
+        int high = HIWORD(actionParam);
         text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
     }
     else
@@ -735,8 +734,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             if (ActionHasExtraParam[atoms[0]])
             {
                 int param = atoi(atoms[1]);
-                int high = param / 0x10000;
-                int low = param % 0x10000;
+                int low = LOWORD(param);
+                int high = HIWORD(param);
                 text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
             }
             else
@@ -1133,8 +1132,8 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                     SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2].m_pchData);
                     ExtraWindow::LoadParams(hActionExtraParam, param[3]);
                     int actionParam = atoi(atoms[1]);
-                    int high = actionParam / 0x10000;
-                    int low = actionParam % 0x10000;
+                    int low = LOWORD(actionParam);
+                    int high = HIWORD(actionParam);
 
                     buffer.Format("%d - ", low);
                     int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer.m_pchData);
