@@ -2,11 +2,8 @@
 
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
-
 #include "../../Miscs/TheaterInfo.h"
-
 #include "../../FA2sp.h"
-
 #include <CINI.h>
 #include <CMapData.h>
 #include <CIsoView.h>
@@ -138,7 +135,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
 
         if (InsertingSpecialBitmap)
         {
-            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
             int index = m_ImageList.Add(&SpecialBitmap, RGB(255, 255, 255));
             this->GetTreeCtrl().SetItemImage(item, index, index);
             return item;
@@ -785,15 +782,17 @@ void CViewObjectsExt::Redraw_Owner()
 
                     if (ExtConfigs::TreeViewCameo_Display)
                     {
-
                         InsertingSpecialBitmap = true;
-                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
                         CDC dc;
                         dc.CreateCompatibleDC(NULL);
                         CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
-                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr->second));
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr->second));
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
@@ -824,15 +823,17 @@ void CViewObjectsExt::Redraw_Owner()
                     }
                     if (ExtConfigs::TreeViewCameo_Display)
                     {
-
                         InsertingSpecialBitmap = true;
-                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
                         CDC dc;
                         dc.CreateCompatibleDC(NULL);
                         CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
-                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr.second));
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
@@ -868,15 +869,17 @@ void CViewObjectsExt::Redraw_Owner()
                     }
                     if (ExtConfigs::TreeViewCameo_Display)
                     {
-
                         InsertingSpecialBitmap = true;
-                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
                         CDC dc;
                         dc.CreateCompatibleDC(NULL);
                         CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
-                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr.second));
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
@@ -908,15 +911,17 @@ void CViewObjectsExt::Redraw_Owner()
                     }
                     if (ExtConfigs::TreeViewCameo_Display)
                     {
-
                         InsertingSpecialBitmap = true;
-                        SpecialBitmap.CreateBitmap(64, 64, 1, 32, NULL);
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
                         CDC dc;
                         dc.CreateCompatibleDC(NULL);
                         CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, 64, 64, RGB(255, 255, 255));
-                        dc.FillSolidRect(16, 16, 32, 32, Miscs::GetColorRef(itr.second));
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr.second));
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }

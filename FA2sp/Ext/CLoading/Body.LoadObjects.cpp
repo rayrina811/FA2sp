@@ -2016,6 +2016,20 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	if (pData->FullWidth == 0)
+	{
+		if (outBitmap.CreateBitmap(32, 32, 1, 32, NULL))
+		{
+			CDC dc;
+			dc.CreateCompatibleDC(NULL);
+			CBitmap* pOldBitmap = dc.SelectObject(&outBitmap);
+			dc.FillSolidRect(0, 0, 32, 32, RGB(255, 0, 255));
+			dc.SelectObject(pOldBitmap);
+			dc.DeleteDC();
+			return true;
+		}
+		return false;
+	}
 	if (outBitmap.CreateBitmap(pData->FullWidth, pData->FullHeight, 1, 32, NULL))
 	{
 		CDC memDC;

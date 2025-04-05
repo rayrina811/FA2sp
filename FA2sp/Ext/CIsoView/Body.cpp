@@ -2571,7 +2571,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     }
 }
 
-void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo)
+void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo, bool trim)
 {
     if (!pBitmap || maxSize <= 0) return;
 
@@ -2579,6 +2579,9 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     pBitmap->GetBitmap(&bmpInfo);
     int srcW = bmpInfo.bmWidth;
     int srcH = bmpInfo.bmHeight;
+
+    if (bmpInfo.bmWidth == maxSize && bmpInfo.bmHeight == maxSize)
+        return;
 
     BITMAPINFO bmi = {};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -2598,24 +2601,41 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     int left = srcW, right = 0, top = srcH, bottom = 0;
     DWORD bgRGB = RGB(GetBValue(bgColor), GetGValue(bgColor), GetRValue(bgColor));
 
-    for (int y = 0; y < srcH; ++y)
+    if (trim)
     {
-        for (int x = 0; x < srcW; ++x)
+        for (int y = 0; y < srcH; ++y)
         {
-            DWORD px = srcPixels[y * srcW + x];
-            COLORREF pxColor = RGB(px & 0xFF, (px >> 8) & 0xFF, (px >> 16) & 0xFF);
-            if (pxColor != bgRGB)
+            for (int x = 0; x < srcW; ++x)
             {
-                if (x < left) left = x;
-                if (x > right) right = x;
-                if (y < top) top = y;
-                if (y > bottom) bottom = y;
+                DWORD px = srcPixels[y * srcW + x];
+                COLORREF pxColor = RGB(px & 0xFF, (px >> 8) & 0xFF, (px >> 16) & 0xFF);
+                if (pxColor != bgRGB)
+                {
+                    if (x < left) left = x;
+                    if (x > right) right = x;
+                    if (y < top) top = y;
+                    if (y > bottom) bottom = y;
+                }
             }
         }
     }
+    else
+    {
+        left = 0;
+        top = 0;
+        right = srcW;
+        bottom = srcH;
+    }
 
+    bool empty = false;
     if (left > right || top > bottom)
-        return;
+    {
+        empty = true;
+        left = 0;
+        top = 0;
+        right = srcW;
+        bottom = srcH;
+    }
 
     int cropW = right - left + 1;
     int cropH = bottom - top + 1;
@@ -2633,6 +2653,15 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     if (!hNewBmp || !pDstBits) return;
 
     DWORD* dst = (DWORD*)pDstBits;
+
+    if (empty)
+    {
+        DWORD bgARGB = 0xFF000000 | (GetRValue(bgColor) << 16) | (GetGValue(bgColor) << 8) | GetBValue(bgColor);
+        std::fill(dst, dst + maxSize * maxSize, bgARGB);
+        pBitmap->DeleteObject();
+        pBitmap->Attach(hNewBmp);
+        return;
+    }
 
     DWORD bgARGB = 0xFF000000 | (GetRValue(bgColor) << 16) | (GetGValue(bgColor) << 8) | GetBValue(bgColor);
     std::fill(dst, dst + maxSize * maxSize, bgARGB);
