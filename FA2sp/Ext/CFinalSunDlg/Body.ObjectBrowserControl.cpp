@@ -243,6 +243,16 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
         }
         this->GetTreeCtrl().SetItemImage(item, 0, 0);
     }
+
+    if (!ExtConfigs::TreeViewCameo_Display)
+    {
+        TVITEM tvi = {};
+        tvi.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+        tvi.hItem = item;
+        tvi.iImage = I_IMAGENONE;
+        tvi.iSelectedImage = I_IMAGENONE;
+        this->GetTreeCtrl().SetItem(&tvi);
+    }
     return item;
 }
 
@@ -337,6 +347,21 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
 void CViewObjectsExt::Redraw()
 {
+    if (ExtConfigs::TreeViewCameo_Display)
+    {
+        m_ImageList.Create(ExtConfigs::TreeViewCameo_Size, ExtConfigs::TreeViewCameo_Size, ILC_COLOR24 | ILC_MASK, 4, 4);
+        HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1002),
+            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        CBitmap cBitmap;
+        cBitmap.Attach(hBmp);
+        m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+        this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
+    }
+    else
+    {
+        this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
+    }
+
     Redraw_Initialize();
     Redraw_MainList();
     Redraw_Ground();
@@ -360,14 +385,16 @@ void CViewObjectsExt::Redraw()
     Redraw_MultiSelection();
     Redraw_ConnectedTile(this);
 
-    HTREEITEM hItem = this->GetTreeCtrl().GetRootItem();
-    while (hItem)
+    if (ExtConfigs::TreeViewCameo_Display)
     {
-        UpdateTreeIconsForSubtree(hItem);
-        hItem = this->GetTreeCtrl().GetNextSiblingItem(hItem);
+        HTREEITEM hItem = this->GetTreeCtrl().GetRootItem();
+        while (hItem)
+        {
+            UpdateTreeIconsForSubtree(hItem);
+            hItem = this->GetTreeCtrl().GetNextSiblingItem(hItem);
+        }
     }
 
-    //CLoadingExt::ClearItemTypes();
     Logger::Raw("[CViewObjectsExt] Redraw TreeView_ViewObjects done. %d labels loaded.\n", AddedItemCount);
 }
 
@@ -508,16 +535,6 @@ void CViewObjectsExt::Redraw_Initialize()
 
 void CViewObjectsExt::Redraw_MainList()
 {
-    if (ExtConfigs::TreeViewCameo_Display)
-    {
-        m_ImageList.Create(ExtConfigs::TreeViewCameo_Size, ExtConfigs::TreeViewCameo_Size, ILC_COLOR24 | ILC_MASK, 4, 4);
-        HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1002),
-            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-        CBitmap cBitmap;
-        cBitmap.Attach(hBmp);
-        m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
-        this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
-    }
     ExtNodes[Root_Nothing] = this->InsertTranslatedString("NothingObList", -2);
     ExtNodes[Root_Ground] = this->InsertTranslatedString("GroundObList", 13);
     ExtNodes[Root_Owner] = this->InsertTranslatedString("ChangeOwnerObList");
@@ -528,19 +545,85 @@ void CViewObjectsExt::Redraw_MainList()
     ExtNodes[Root_Terrain] = this->InsertTranslatedString("TerrainObList", 4);
     ExtNodes[Root_Smudge] = this->InsertTranslatedString("SmudgesObList", 10);
     ExtNodes[Root_Overlay] = this->InsertTranslatedString("OverlayObList", 5);
+
+    HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1003),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Waypoint] = this->InsertTranslatedString("WaypointsObList", 6);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1004),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Celltag] = this->InsertTranslatedString("CelltagsObList", 7);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1010),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Basenode] = this->InsertTranslatedString("BaseNodesObList", 8);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1005),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Tunnel] = this->InsertTranslatedString("TunnelObList", 9);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1003),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_PlayerLocation] = this->InsertTranslatedString("StartpointsObList", 12);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1006),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_PropertyBrush] = this->InsertTranslatedString("PropertyBrushObList", 14);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1007),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Annotation] = this->InsertTranslatedString("AnnotationObList", 19);
-    //ExtNodes[Root_InfantrySubCell] = this->InsertTranslatedString("InfantrySubCellObList", 15);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1008),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_View] = this->InsertTranslatedString("ViewObjObList", 16);
+    InsertingSpecialBitmap = false;
+
     if (ExtConfigs::EnableMultiSelection)
-    ExtNodes[Root_MultiSelection] = this->InsertTranslatedString("MultiSelectionObjObList", 17);
+    {
+        hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1009),
+            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        SpecialBitmap.Attach(hBmp);
+        InsertingSpecialBitmap = true;
+        ExtNodes[Root_MultiSelection] = this->InsertTranslatedString("MultiSelectionObjObList", 17);
+        InsertingSpecialBitmap = false;
+    }
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1012),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Cliff] = this->InsertTranslatedString("CliffObjObList", 18);
+    InsertingSpecialBitmap = false;
+
+    hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1011),
+        IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+    SpecialBitmap.Attach(hBmp);
+    InsertingSpecialBitmap = true;
     ExtNodes[Root_Delete] = this->InsertTranslatedString("DelObjObList", 10);
+    InsertingSpecialBitmap = false;
 }
 
 void CViewObjectsExt::Redraw_Ground()

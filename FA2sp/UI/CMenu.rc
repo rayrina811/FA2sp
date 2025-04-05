@@ -102,6 +102,7 @@ POPUP "Options"
 	MENUITEM "Disable AutoLat\tCtrl+L",  40105
     // MENUITEM "Disable Slope Correction",  40120
 	MENUITEM "Select AutoShore Type",  40157
+	MENUITEM "Show Object View Cameo",  40159
 }
 
 POPUP "Layers"

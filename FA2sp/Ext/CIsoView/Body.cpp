@@ -2641,13 +2641,69 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     {
         for (int x = 0; x < newW; ++x)
         {
-            int srcX = left + int(x / scale);
-            int srcY = top + int(y / scale);
-            DWORD px = srcPixels[srcY * srcW + srcX];
+            float fx = left + x / scale;
+            float fy = top + y / scale;
 
-            int dx = offsetX + x;
-            int dy = offsetY + y;
-            dst[dy * maxSize + dx] = px;
+            int x0 = (int)fx;
+            int y0 = (int)fy;
+            int x1 = std::min(x0 + 1, srcW - 1);
+            int y1 = std::min(y0 + 1, srcH - 1);
+
+            float dx = fx - x0;
+            float dy = fy - y0;
+
+            DWORD c00 = srcPixels[y0 * srcW + x0];
+            DWORD c10 = srcPixels[y0 * srcW + x1];
+            DWORD c01 = srcPixels[y1 * srcW + x0];
+            DWORD c11 = srcPixels[y1 * srcW + x1];
+
+            auto extractRGB = [](DWORD c) {
+                return std::tuple<int, int, int>(
+                    c & 0xFF,
+                    (c >> 8) & 0xFF,
+                    (c >> 16) & 0xFF
+                );
+                };
+
+            COLORREF cBG = bgRGB;
+
+            auto isBG = [=](DWORD c) {
+                COLORREF pxColor = RGB(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+                return pxColor == cBG;
+                };
+
+            int r = 0, g = 0, b = 0;
+            float totalWeight = 0.0f;
+
+            auto blend = [&](DWORD color, float weight) {
+                if (!isBG(color))
+                {
+                    int cr, cg, cb;
+                    std::tie(cb, cg, cr) = extractRGB(color);
+                    r += int(cr * weight);
+                    g += int(cg * weight);
+                    b += int(cb * weight);
+                    totalWeight += weight;
+                }
+                };
+
+            blend(c00, (1 - dx) * (1 - dy));
+            blend(c10, dx * (1 - dy));
+            blend(c01, (1 - dx) * dy);
+            blend(c11, dx * dy);
+
+            DWORD result = bgARGB;
+            if (totalWeight > 0.0f)
+            {
+                r = int(r / totalWeight);
+                g = int(g / totalWeight);
+                b = int(b / totalWeight);
+                result = 0xFF000000 | (r << 16) | (g << 8) | b;
+            }
+
+            int dxDst = offsetX + x;
+            int dyDst = offsetY + y;
+            dst[dyDst * maxSize + dxDst] = result;
         }
     }
 

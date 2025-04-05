@@ -72,5 +72,15 @@ END
 101 RT_MANIFEST "FA2sp.manifest"
 1001 BITMAP "Resources/annotation.bmp"
 1002 BITMAP "Resources/empty.bmp"
+1003 BITMAP "Resources/waypoint.bmp"
+1004 BITMAP "Resources/celltag.bmp"
+1005 BITMAP "Resources/tunnel.bmp"
+1006 BITMAP "Resources/brush.bmp"
+1007 BITMAP "Resources/annotationcameo.bmp"
+1008 BITMAP "Resources/search.bmp"
+1009 BITMAP "Resources/multiselect.bmp"
+1010 BITMAP "Resources/node.bmp"
+1011 BITMAP "Resources/delete.bmp"
+1012 BITMAP "Resources/connected.bmp"
 
 

@@ -166,7 +166,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	this->NoSounds = ini.GetBool("UserInterface", "NoSounds");
 	this->DisableSlopeCorrection = ini.GetBool("UserInterface", "DisableSlopeCorrection");
 	this->ShowBuildingCells = ini.GetBool("UserInterface", "ShowBuildingCells");
-	
+
+	ExtConfigs::TreeViewCameo_Display = ini.GetBool("UserInterface", "ShowTreeViewCameo");
+
 	// recent files
 	this->RecentFilesExt.resize(ExtConfigs::RecentFileLimit);
 	for (size_t i = 0; i < this->RecentFilesExt.size(); ++i)

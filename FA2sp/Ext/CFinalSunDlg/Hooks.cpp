@@ -76,6 +76,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34008, CIsoViewExt::PasteSmudges);
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
+    SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
     SetItemCheckStatus(32001, CIsoViewExt::AutoPropertyBrush[1]);
@@ -195,6 +196,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
+    translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
 
     translateMenuItem(40004, "Menu.Options.Settings");
     translateMenuItem(40024, "Menu.Options.ShowMinimap");

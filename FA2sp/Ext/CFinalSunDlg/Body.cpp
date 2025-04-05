@@ -452,6 +452,20 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusTrue(34007, CIsoViewExt::PasteTerrains);
 		SetMenuStatusTrue(34008, CIsoViewExt::PasteSmudges);
 		return TRUE;
+	case 40159:
+	{
+		SetLayerStatus(40159, ExtConfigs::TreeViewCameo_Display);
+		((CViewObjectsExt*)(this->MyViewFrame.pViewObjects))->Redraw();
+
+		CINI ini;
+		ppmfc::CString path = CFinalSunApp::ExePath();
+		path += "\\FinalAlert.ini";
+		ini.ClearAndLoad(path);
+		ini.WriteString("UserInterface", "ShowTreeViewCameo", ExtConfigs::TreeViewCameo_Display ? "1" : "0");
+		ini.WriteToFile(path);
+
+		return TRUE;
+	}
 	default:
 		break;
 	}

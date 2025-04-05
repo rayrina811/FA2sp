@@ -262,11 +262,10 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 
 	ExtConfigs::TreeViewCameo_Size = CINI::FAData->GetInteger("ExtConfigs", "TreeViewCameo.Size", 32);
-	if (ExtConfigs::TreeViewCameo_Size > 50)
-		ExtConfigs::TreeViewCameo_Size = 50;
+	if (ExtConfigs::TreeViewCameo_Size > 64)
+		ExtConfigs::TreeViewCameo_Size = 64;
 	if (ExtConfigs::TreeViewCameo_Size < 16)
 		ExtConfigs::TreeViewCameo_Size = 16;
-	ExtConfigs::TreeViewCameo_Display = CINI::FAData->GetBool("ExtConfigs", "TreeViewCameo.Display");
 
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
