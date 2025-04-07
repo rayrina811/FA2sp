@@ -105,7 +105,7 @@ public:
 	static bool IsLoadingObjectView;
 	static std::vector<ppmfc::CString> SwimableInfantries;
 	ObjectType GetItemType(ppmfc::CString ID);
-	static bool SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, COLORREF bgColor);
+	static bool SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
 private:
 

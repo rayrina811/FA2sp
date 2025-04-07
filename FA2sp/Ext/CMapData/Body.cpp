@@ -75,6 +75,7 @@ std::vector<std::vector<int>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
 std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
+std::vector<TubeData> CMapDataExt::Tubes;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -1437,6 +1438,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			item.Wall = Variables::Rules.GetBool(ol.second, "Wall");
 			item.WallPaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
 			item.TerrainRock = Variables::Rules.GetString(ol.second, "Land", "") == "Rock";
+			auto name = Variables::Rules.GetString(ol.second, "Name", "");
+			name.MakeLower();
+			item.RailRoad = Variables::Rules.GetString(ol.second, "Land", "") == "Railroad" 
+				|| name.Find("track") > -1 || name.Find("rail") > -1;
 			std::vector<ppmfc::CString> colors;
 
 			if (RIPARIUS_BEGIN <= ovrIdx && ovrIdx <= RIPARIUS_END && Variables::Rules.KeyExists("Riparius", "MinimapColor"))
@@ -1810,4 +1815,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	CLoadingExt::ClearItemTypes();
+	CIsoViewExt::IsPressingTube = false;
+	CIsoViewExt::TubeNodes.clear();
 }

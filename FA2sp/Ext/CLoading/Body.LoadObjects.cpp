@@ -2016,7 +2016,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
-	if (pData->FullWidth == 0)
+	if (pData->FullWidth == 0 || pData->FullHeight == 0)
 	{
 		if (outBitmap.CreateBitmap(32, 32, 1, 32, NULL))
 		{
@@ -2082,13 +2082,13 @@ bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)
 	return false;
 }
 
-bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, COLORREF bgColor)
+bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor)
 {
 	if (!pBitmap) return false;
 
 	BITMAP bmp;
 	pBitmap->GetBitmap(&bmp);
-	if (bmp.bmBitsPixel != 32) return false;  // 确保是32位位图（包含 Alpha）
+	if (bmp.bmBitsPixel != 32) return false; 
 
 	int width = bmp.bmWidth;
 	int height = bmp.bmHeight;
@@ -2096,12 +2096,11 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, C
 	BITMAPINFO bmi = {};
 	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bmi.bmiHeader.biWidth = width;
-	bmi.bmiHeader.biHeight = -height; // **确保 DIB 方向正确**
+	bmi.bmiHeader.biHeight = -height; 
 	bmi.bmiHeader.biPlanes = 1;
 	bmi.bmiHeader.biBitCount = 32;
 	bmi.bmiHeader.biCompression = BI_RGB;
 
-	// **用 CreateDIBSection 直接创建 32bpp DIB**
 	HDC hDC = GetDC(nullptr);
 	void* pDIBPixels = nullptr;
 	HBITMAP hDIB = CreateDIBSection(hDC, &bmi, DIB_RGB_COLORS, &pDIBPixels, nullptr, 0);
@@ -2109,7 +2108,6 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, C
 
 	if (!hDIB || !pDIBPixels) return false;
 
-	// **将 CBitmap 复制到 DIB**
 	HDC hMemDC = CreateCompatibleDC(nullptr);
 	SelectObject(hMemDC, hDIB);
 	HDC hSrcDC = CreateCompatibleDC(nullptr);
@@ -2118,11 +2116,9 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, C
 	DeleteDC(hMemDC);
 	DeleteDC(hSrcDC);
 
-	// **获取 DIB 数据**
 	std::vector<DWORD> pixels(width * height);
 	GetDIBits(GetDC(nullptr), hDIB, 0, height, pixels.data(), &bmi, DIB_RGB_COLORS);
 
-	// **获取背景色 RGB**
 	BYTE bgR = GetRValue(bgColor);
 	BYTE bgG = GetGValue(bgColor);
 	BYTE bgB = GetBValue(bgColor);
@@ -2131,7 +2127,7 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, C
 		BYTE alpha = (pixels[i] >> 24) & 0xFF;
 		if (pixels[i] == 0x00000000)
 		{
-			pixels[i] = (0x00 << 24) | (bgR << 16) | (bgG << 8) | bgB;  // **替换成背景色**
+			pixels[i] = (0x00 << 24) | (bgR << 16) | (bgG << 8) | bgB;
 		}
 		else
 		{
@@ -2159,8 +2155,7 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const CString& filePath, C
 	WriteFile(hFile, pixels.data(), dwBmpSize, &dwWritten, nullptr);
 
 	CloseHandle(hFile);
-
-	DeleteObject(hDIB); // 释放 DIB
+	DeleteObject(hDIB);
 
 	return true;
 }

@@ -551,7 +551,74 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
 	pThis->lpDDBackBufferSurface->Unlock(nullptr);
-
+	if (CIsoViewExt::DrawTubes)
+	{
+		for (const auto& tube : CMapDataExt::Tubes)
+		{
+			int color = tube.PositiveFacing ? RGB(255, 0, 0) : RGB(0, 0, 255);
+			int height = std::min(CMapData::Instance->TryGetCellAt(tube.StartCoord.X, tube.StartCoord.Y)->Height,
+				CMapData::Instance->TryGetCellAt(tube.EndCoord.X, tube.EndCoord.Y)->Height);
+			height *= 15;
+			if (CFinalSunApp::Instance->FlatToGround)
+				height = 0;
+			for (int i = 0; i < tube.PathCoords.size() - 1; ++i)
+			{
+				int x1, x2, y1, y2;
+				x1 = tube.PathCoords[i].X;
+				y1 = tube.PathCoords[i].Y;
+				x2 = tube.PathCoords[i + 1].X;
+				y2 = tube.PathCoords[i + 1].Y;
+				CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+				CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
+				x1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				y1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+				x2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+				y2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+				if (tube.PositiveFacing)
+				{
+					x1 += 1;
+					y1 += 1;
+					x2 += 1;
+					y2 += 1;
+				}
+				else
+				{
+					x1 -= 1;
+					y1 -= 1;
+					x2 -= 1;
+					y2 -= 1;
+				}
+				pThis->DrawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color, false, false, lpDesc);
+			}
+			int x1, x2, y1, y2;
+			x1 = tube.StartCoord.X;
+			y1 = tube.StartCoord.Y;
+			x2 = tube.EndCoord.X;
+			y2 = tube.EndCoord.Y;
+			CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+			CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
+			x1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			y1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+			x2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+			y2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+			if (tube.PositiveFacing)
+			{
+				x1 += 1;
+				y1 += 1;
+				x2 += 1;
+				y2 += 1;
+			}
+			else
+			{
+				x1 -= 1;
+				y1 -= 1;
+				x2 -= 1;
+				y2 -= 1;
+			}
+			pThis->DrawLockedCellOutline(x1, y1 - height, 1, 1, color, true, false, lpDesc);
+			pThis->DrawLockedCellOutlineX(x2, y2 - height, 1, 1, color, color, false, false, lpDesc, true);
+		}
+	}
 	if (CIsoViewExt::RockCells)
 	{
 		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
@@ -601,7 +668,6 @@ DEFINE_HOOK(474AE3, CIsoView_Draw_DrawCelltagAndWaypointAndTube_EarlyUnlock, 6)
 				int drawY = Y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
 				pThis->DrawLockedCellOutline(drawX, drawY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, false, lpDesc);
-
 			}
 		}
 		else
@@ -651,17 +717,6 @@ DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 	return 0x46BF98;
 }
 
-DEFINE_HOOK(4676CB, CIsoView_OnLeftButtonUp_AddTube, 6)
-{
-	GET(CIsoViewExt*, pThis, ESI);
-	GET(const int, nDestX, EBX);
-	GET(const int, nDestY, EDI);
-
-	pThis->AddTube(pThis->StartCell.X, pThis->StartCell.Y, nDestX, nDestY);
-
-	return 0x468548;
-}
-
 DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 {
 	REF_STACK(const CellData, cell, STACK_OFFS(0xD18, 0xC60));
@@ -686,7 +741,9 @@ DEFINE_HOOK(470502, CIsoView_Draw_OverlayOffset, 5)
 			nOffset += 15;
 		else if (nOverlay < CMapDataExt::OverlayTypeDatas.size())
 		{
-			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock || CMapDataExt::OverlayTypeDatas[nOverlay].TerrainRock)
+			if (CMapDataExt::OverlayTypeDatas[nOverlay].Rock 
+				//|| CMapDataExt::OverlayTypeDatas[nOverlay].TerrainRock // for compatibility of blockages
+				|| CMapDataExt::OverlayTypeDatas[nOverlay].RailRoad)
 				nOffset += 15;
 		}
 	}
@@ -1269,6 +1326,19 @@ DEFINE_HOOK(45C0C8, CIsoView_OnMouseMove_PlayerLocation, 6)
 		deleteWaypoint("99");
 	}
 
+	return 0;
+}
+
+DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
+{
+	if (CIsoViewExt::IsPressingTube)
+	{
+		((CIsoViewExt*)CIsoView::GetInstance())->ConfirmTube(CIsoView::CurrentCommand->Type == 0);
+
+		CIsoViewExt::IsPressingTube = false;
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+		return 0x45EDB6;
+	}
 	return 0;
 }
 

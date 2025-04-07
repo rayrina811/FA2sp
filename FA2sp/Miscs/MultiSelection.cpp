@@ -1363,7 +1363,7 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 
 DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
 {
-    GET(CIsoViewExt*, pThis, EDI);
+    GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
     GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
     REF_STACK(RECT, rect, STACK_OFFS(0xD18, 0xCCC));
     LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
@@ -1371,13 +1371,8 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
     ::SetBkMode(hDC, OPAQUE);
     ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
 
-
     if (CIsoViewExt::DrawBounds)
     {
-        GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
-
         auto& map = CINI::CurrentDocument();
         auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
         auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
@@ -1401,18 +1396,14 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         int drawX1 = x1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
         int drawY1 = y1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-        //MessageBox(NULL, std::to_string(R->Stack<float>(STACK_OFFS(0xD18, 0xCB0))).c_str(), std::to_string(R->Stack<float>(STACK_OFFS(0xD18, 0xCB8))).c_str(), 0);
-
         CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
         int drawX2 = x2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
         int drawY2 = y2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-        pThis->DrawTopRealBorder(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
+        pThis->DrawLine(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
     }
-
     if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
     {
-        GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
         auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
         MapCoord startP;
         auto& mapData = CMapData::Instance();
@@ -1450,12 +1441,11 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         CIsoView::MapCoord2ScreenCoord(x, y);
         int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
         int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-        pThis2->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
+        pThis->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
 
     }
     else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
     {
-        GET_STACK(CIsoViewExt*, pThis2, STACK_OFFS(0xD18, 0xCD4));
         auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
         MapCoord startP;
         auto& mapData = CMapData::Instance();
@@ -1492,9 +1482,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
                         int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
                         int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-
-                        pThis2->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
-
+                        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
                     }
                 }
                 idx++;
@@ -1502,17 +1490,13 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
         }
     }
 
-
-
     int leftIndex = 0;
 
     if (CIsoViewExt::DrawMoneyOnMap)
     {
-
         ppmfc::CString buffer;
         buffer.Format(Translations::TranslateOrDefault("MoneyOnMap", "Credits On Map: %d"), CMapData::Instance->MoneyCount);
         ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, buffer, buffer.GetLength());
-
 
         if (ExtConfigs::EnableMultiSelection)
         {
@@ -1542,7 +1526,6 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_MultiSelectionMoney, 5)
     }
 
     SetTextAlign(hDC, TA_LEFT);
-
     
     return 0x4750B0;
 }

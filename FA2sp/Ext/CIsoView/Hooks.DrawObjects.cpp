@@ -531,12 +531,12 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 
 		if (CIsoViewExt::DrawWaypoints && celldata.Waypoint != -1)
 			pThis->DrawWaypointFlag(X, Y);
-		if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
-			pThis->DrawTube(&celldata, X, Y);
+		//if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
+		//	pThis->DrawTube(&celldata, X, Y);
 
 		if (CMapDataExt::HasAnnotation(CMapData::Instance->GetCoordIndex(cellX, cellY)))
 		{
-			pThis->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap("FA2spAnnotation")->lpSurface, X + 5, Y - 2, -1, -1);
+			pThis->DrawBitmap("annotation", X + 5, Y - 2);
 		}
 	}
 

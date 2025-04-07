@@ -537,7 +537,6 @@ DEFINE_HOOK(4347B8, CFinalSunDlg_OnEditUndo, 6)
     return 0;
 }
 
-
 DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 {
     GET(const int, X, EDI);
@@ -630,6 +629,29 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, false);
 
         return 0x466860;
+    }	
+    else if (CIsoView::CurrentCommand->Command == 0x22)
+    {
+        if (!CIsoViewExt::IsPressingTube)
+        {
+            CIsoViewExt::TubeNodes.clear();
+        }
+        CIsoViewExt::IsPressingTube = true;
+        if (CIsoViewExt::TubeNodes.empty())
+        {
+            CIsoViewExt::TubeNodes.push_back({ X,Y });
+        }
+        else
+        {
+            if (CIsoViewExt::TubeNodes.back() != MapCoord{ X, Y })
+                CIsoViewExt::TubeNodes.push_back({ X,Y });
+        }
+        return 0x466860;
+    }	
+    else if (CIsoView::CurrentCommand->Command == 0x6)
+    {
+        CViewObjectsExt::DeleteTube(X, Y);
+        return 0x466860;
     }
 
     return 0;
@@ -701,6 +723,11 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     {
         CViewObjectsExt::SquareBatchAddMultiSelection(X, Y, false);
 
+        return 0x45CD6D;
+    }
+    else if (CIsoView::CurrentCommand->Command == 0x6)
+    {
+        CViewObjectsExt::DeleteTube(X, Y);
         return 0x45CD6D;
     }
 

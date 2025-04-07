@@ -391,6 +391,7 @@ public:
     static void ModifyOre(int X, int Y);
     static void AddAnnotation(int X, int Y);
     static void RemoveAnnotation(int X, int Y);
+    static void DeleteTube(int X, int Y);
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);

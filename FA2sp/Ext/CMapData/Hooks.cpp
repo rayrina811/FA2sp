@@ -1315,3 +1315,31 @@ DEFINE_HOOK(4AA111, CMapData_DeleteTerrain, 6)
 	return 0x4C9F93;
 }
 
+DEFINE_HOOK(4BAEE0, CMapData_UpdateFieldTubeData, 7)
+{
+	CMapDataExt::Tubes.clear();
+	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto atom = STDHelpers::SplitString(value, 5);
+			auto& tube = CMapDataExt::Tubes.emplace_back();
+			tube.StartCoord = { atoi(atom[1]),atoi(atom[0]) };
+			tube.EndCoord = { atoi(atom[4]),atoi(atom[3]) };
+			tube.StartFacing = atoi(atom[2]);
+			for (int i = 5; i < atom.size(); ++i)
+			{
+				int facing = atoi(atom[i]);
+				if (facing < 0) break;
+				tube.Facings.push_back(facing);
+			}
+			tube.PathCoords = CIsoViewExt::GetPathFromDirections(tube.StartCoord.X, tube.StartCoord.Y, tube.Facings);
+
+			int pos_start = tube.StartCoord.X * 1000 + tube.StartCoord.Y;
+			int pos_end = tube.EndCoord.X * 1000 + tube.EndCoord.Y;
+			tube.PositiveFacing = pos_end > pos_start;
+			tube.key = key;
+		}
+	}
+	return 0;
+}

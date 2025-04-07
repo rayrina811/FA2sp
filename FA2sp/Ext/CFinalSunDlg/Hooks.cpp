@@ -524,7 +524,7 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }   
-    else if (CIsoView::CurrentCommand->Command == 0x1F) {
+    if (CIsoView::CurrentCommand->Command == 0x1F) {
         CTerrainGenerator::RangeFirstCell.X = -1;
         CTerrainGenerator::RangeFirstCell.Y = -1;
         CTerrainGenerator::RangeSecondCell.X = -1;
@@ -532,7 +532,7 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }  
-    else if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
+    if (CViewObjectsExt::MoveBaseNode_SelectedObj.X > -1) {
         CViewObjectsExt::MoveBaseNode_SelectedObj.House = "";
         CViewObjectsExt::MoveBaseNode_SelectedObj.ID = "";
         CViewObjectsExt::MoveBaseNode_SelectedObj.Key = "";
@@ -541,6 +541,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+    if (CIsoViewExt::IsPressingTube)
+    {
+        CIsoViewExt::IsPressingTube = false;
+        CIsoViewExt::TubeNodes.clear();
     }
 
     return 0x45EBC5;

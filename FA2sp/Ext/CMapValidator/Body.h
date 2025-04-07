@@ -15,6 +15,7 @@ public:
 	void ValidateBaseNode(BOOL& result);
 	void ValidateValueLength(BOOL& result);
 	void ValidateEmptyTeamTrigger(BOOL& result);
+	void ValidateTubes(BOOL& result);
 
 	ppmfc::CString FetchLanguageString(const char* Key, const char* def);
 	void InsertStringAsError(const char* String);

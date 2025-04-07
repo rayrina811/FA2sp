@@ -319,7 +319,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
 	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
 
-	ExtConfigs::EnableMultiSelection = CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection");
+	ExtConfigs::EnableMultiSelection = true; // CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection");
 
 	ExtConfigs::ExtendedValidationNoError = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationNoError");
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");

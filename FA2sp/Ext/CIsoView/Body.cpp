@@ -55,6 +55,8 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
+bool CIsoViewExt::IsPressingTube = false;
+std::vector<MapCoord> CIsoViewExt::TubeNodes;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
 
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
@@ -86,129 +88,95 @@ void CIsoViewExt::ProgramStartupInit()
     // RunTime::ResetMemoryContentAt(0x594518, CIsoViewExt::PreTranslateMessageExt);
 }
 
-void CIsoViewExt::AddTube(int EnterX, int EnterY, int ExitX, int ExitY)
+void CIsoViewExt::ConfirmTube(bool addReverse)
 {
-    Logger::Raw("Generating tube from (%d, %d) to (%d, %d)\n", EnterX, EnterY, ExitX, ExitY);
-
-    CTubeData tube;
-    memset(tube.Directions, 0xFF, sizeof(tube.Directions));
-    tube.EnterX = EnterX;
-    tube.EnterY = EnterY;
-    tube.ExitX = ExitX;
-    tube.ExitY = ExitY;
-    
-    int nTubeSteps = 0;
-    MapCoord coordToMove = { tube.EnterX - tube.ExitX,tube.EnterY - tube.ExitY };
-    while (true)
-    {
-        if (coordToMove.Y < 0 && coordToMove.X < 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_SOUTH];
-            tube.Directions[nTubeSteps++] = FACING_SOUTH;
-        }
-        else if (coordToMove.Y < 0 && coordToMove.X > 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_EAST];
-            tube.Directions[nTubeSteps++] = FACING_EAST;
-        }
-        else if (coordToMove.Y < 0 && coordToMove.X == 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_SOUTHEAST];
-            tube.Directions[nTubeSteps++] = FACING_SOUTHEAST;
-        }
-        else if (coordToMove.Y > 0 && coordToMove.X < 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_WEST];
-            tube.Directions[nTubeSteps++] = FACING_WEST;
-        }
-        else if (coordToMove.Y > 0 && coordToMove.X > 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_NORTH];
-            tube.Directions[nTubeSteps++] = FACING_NORTH;
-        }
-        else if (coordToMove.Y > 0 && coordToMove.X == 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_NORTHWEST];
-            tube.Directions[nTubeSteps++] = FACING_NORTHWEST;
-        }
-        else if (coordToMove.Y == 0 && coordToMove.X < 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_SOUTHWEST];
-            tube.Directions[nTubeSteps++] = FACING_WEST;
-        }
-        else if (coordToMove.Y == 0 && coordToMove.X > 0)
-        {
-            coordToMove += MapCoord::Facings[FACING_NORTHEAST];
-            tube.Directions[nTubeSteps++] = FACING_NORTHEAST;
-        }
-        else
-        {
-            // coordToMove.Y == 0 && coordToMove.X == 0
-            break;
-        }
-
-        if (nTubeSteps > 100)
-        {
-            ::MessageBox(NULL, "Cannot generate a too long tube!", "Error", MB_OK);
-            return;
-        }
-    }
-    if (nTubeSteps == 0)
+    auto& nodes = CIsoViewExt::TubeNodes;
+    if (nodes.size() < 2)
         return;
-    tube.EnterFacing = tube.Directions[0];
-    CMapData::Instance->AddTube(&tube);
-    
-    // Add a reversed tube
-    std::swap(tube.EnterX, tube.ExitX);
-    std::swap(tube.EnterY, tube.ExitY);
-    
+
     auto GetOppositeFacing = [](int nFacing) -> char
-    {
-        switch (nFacing)
         {
-        case FACING_NORTHEAST:
-            return FACING_SOUTHWEST;
+            switch (nFacing)
+            {
+            case FACING_NORTHEAST:
+                return FACING_SOUTHWEST;
 
-        case FACING_EAST:
-            return FACING_WEST;
+            case FACING_EAST:
+                return FACING_WEST;
 
-        case FACING_SOUTHEAST:
-            return FACING_NORTHWEST;
+            case FACING_SOUTHEAST:
+                return FACING_NORTHWEST;
 
-        case FACING_SOUTH:
-            return FACING_NORTH;
+            case FACING_SOUTH:
+                return FACING_NORTH;
 
-        case FACING_SOUTHWEST:
-            return FACING_NORTHEAST;
+            case FACING_SOUTHWEST:
+                return FACING_NORTHEAST;
 
-        case FACING_WEST:
-            return FACING_EAST;
+            case FACING_WEST:
+                return FACING_EAST;
 
-        case FACING_NORTHWEST:
-            return FACING_SOUTHEAST;
+            case FACING_NORTHWEST:
+                return FACING_SOUTHEAST;
 
-        case FACING_NORTH:
-            return FACING_SOUTH;
+            case FACING_NORTH:
+                return FACING_SOUTH;
 
-        default:
-        case FACING_INVALID:
-            return FACING_INVALID;
-        }
-    };
+            default:
+            case FACING_INVALID:
+                return FACING_INVALID;
+            }
+        };
 
-    tube.EnterFacing = GetOppositeFacing(tube.EnterFacing);
-
-    for (char* p = tube.Directions, *q = tube.Directions + nTubeSteps - 1; p <= q; ++p, --q)
+    std::vector<int> AllDirections;
+    for (int j = 0; j < nodes.size() - 1; ++j)
     {
-        char tmp = *p;
-        *p = GetOppositeFacing(*q);
-        *q = GetOppositeFacing(tmp);
+        int x1, x2, y1, y2;
+        x1 = nodes[j].X;
+        y1 = nodes[j].Y;
+        x2 = nodes[j + 1].X;
+        y2 = nodes[j + 1].Y;
+        auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
+        auto directions = CIsoViewExt::GetTubeDirections(path);
+        AllDirections.insert(AllDirections.end(), directions.begin(), directions.end());
+    }
+    if (AllDirections.size() > 99)
+    {
+        ppmfc::CString pMessage = Translations::TranslateOrDefault("ErrorTooLongTube",
+            "Cannot generate a too long tube!");
+        ::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK);
+        return;
+    }
+    auto key = CINI::GetAvailableKey("Tubes");
+    ppmfc::CString value;
+    value.Format("%d,%d,%d,%d,%d", nodes.front().Y, nodes.front().X, AllDirections.front(), nodes.back().Y, nodes.back().X);
+    for (int i = 0; i < AllDirections.size(); ++i)
+    {
+        ppmfc::CString direc;
+        direc.Format(",%d", AllDirections[i]);
+        value += direc;
+    }
+    value += ",-1";
+    CINI::CurrentDocument->WriteString("Tubes", key, value);
+
+    if (addReverse)
+    {
+        key = CINI::GetAvailableKey("Tubes");
+        value.Format("%d,%d,%d,%d,%d", nodes.back().Y, nodes.back().X, GetOppositeFacing(AllDirections.back()), nodes.front().Y, nodes.front().X);
+        for (int i = AllDirections.size() - 1; i >= 0; --i)
+        {
+            ppmfc::CString direc;
+            direc.Format(",%d", GetOppositeFacing(AllDirections[i]));
+            value += direc;
+        }
+        value += ",-1";
+        CINI::CurrentDocument->WriteString("Tubes", key, value);
     }
 
-    CMapData::Instance->AddTube(&tube);
+    CMapData::Instance->UpdateFieldTubeData(false);
 }
 
-void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
+void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX)
 {
     X += 3;
     Y += 1;
@@ -582,66 +550,19 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
             ClipAndDrawLine2(x4 + 1 + 2 * inneroffset, y4 + 1, x1L + 1, y1L + inneroffset + 1);
         };
 
-    drawCellOutline2(0);
-    drawCellOutline2(-1);
+    if (onlyX)
+    {
+        ClipAndDrawLine(x1, y1, x1, y3);
+        ClipAndDrawLine(x4, y4, x2 , y4);
+    }
+    else
+    {
+        drawCellOutline2(0);
+        drawCellOutline2(-1);
 
-    drawCellOutline(0);
-    drawCellOutline(-1);
-
-
-    //   1
-    //  # #
-    // 4   2
-    //  # #
-    //   3'
-
-    //ÒõÓ°
-    //ClipAndDrawLine2(x1, y1+1, x2, y2+1);
-    //ClipAndDrawLine2(x2, y2+1, x3, y3+1);
-    //ClipAndDrawLine2(x3, y3+1, x4, y4+1);
-    //ClipAndDrawLine2(x4, y4+1, x1, y1+1);
-    //ClipAndDrawLine2(x1, y1+1, x3, y3+1);
-    //ClipAndDrawLine2(x2, y2+1, x4, y4+1);
-    //
-    //ClipAndDrawLine(x1, y1, x2, y2);
-    //ClipAndDrawLine(x2, y2, x3, y3);
-    //ClipAndDrawLine(x3, y3, x4, y4);
-    //ClipAndDrawLine(x4, y4, x1, y1);
-    //ClipAndDrawLine(x1, y1, x3, y3);
-    //ClipAndDrawLine(x2, y2, x4, y4);
-    //
-    ////ClipAndDrawLine(x1, y1-1, x2, y2-1);
-    ////ClipAndDrawLine(x2, y2-1, x3, y3-1);
-    ////ClipAndDrawLine(x3, y3-1, x4, y4-1);
-    ////ClipAndDrawLine(x4, y4-1, x1, y1-1);
-    ////ClipAndDrawLine(x1, y1-1, x3, y3-1);
-    ////ClipAndDrawLine(x2, y2-1, x4, y4-1);
-    //
-    //
-    //// thicker
-    //if (!bUseDot)
-    //{
-    //    ClipAndDrawLine(x1 + 1, y1, x2 + 1, y2);
-    //    ClipAndDrawLine(x1 - 1, y1, x2 - 1, y2);
-    //    ClipAndDrawLine(x1 + 2, y1, x2 + 2, y2);
-    //    ClipAndDrawLine(x1 - 2, y1, x2 - 2, y2);
-    //
-    //    ClipAndDrawLine(x2 + 1, y2, x3 + 1, y3);
-    //    ClipAndDrawLine(x2 - 1, y2, x3 - 1, y3);
-    //    ClipAndDrawLine(x2 + 2, y2, x3 + 2, y3);
-    //    ClipAndDrawLine(x2 - 2, y2, x3 - 2, y3);
-    //
-    //    ClipAndDrawLine(x3 + 1, y3, x4 + 1, y4);
-    //    ClipAndDrawLine(x3 - 1, y3, x4 - 1, y4);
-    //    ClipAndDrawLine(x3 + 2, y3, x4 + 2, y4);
-    //    ClipAndDrawLine(x3 - 2, y3, x4 - 2, y4);
-    //
-    //    ClipAndDrawLine(x4 + 1, y4, x1 + 1, y1);
-    //    ClipAndDrawLine(x4 - 1, y4, x1 - 1, y1);
-    //    ClipAndDrawLine(x4 + 2, y4, x1 + 2, y1);
-    //    ClipAndDrawLine(x4 - 2, y4, x1 - 2, y1);
-    //}
-
+        drawCellOutline(0);
+        drawCellOutline(-1);
+    }
 }
 
 void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool s1, bool s2, bool s3, bool s4)
@@ -887,7 +808,6 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
-
         PAINTSTRUCT ps;
         HPEN hPen;
         HPEN hPenOld;
@@ -899,7 +819,6 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         SelectObject(hdc, hPenOld);
         DeleteObject(hPen);
         EndPaint(hwnd, &ps);
-        
     };
     auto DrawLineInner = [hwnd, heightColor, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
@@ -1178,7 +1097,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
 
 }
 
-void CIsoViewExt::DrawTopRealBorder(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
+void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
 {
     if (lpDesc->lpSurface == nullptr)
         return;
@@ -1347,13 +1266,6 @@ void CIsoViewExt::DrawTopRealBorder(int x1, int y1, int x2, int y2, COLORREF col
         };
 
     ClipAndDrawLine(x1, y1, x2, y2);
-
-    //ClipAndDrawLine(x1, y1 - 1, x2, y2 - 1);
-    //ClipAndDrawLine(x1, y1 + 1, x2, y2 + 1);
-    //ClipAndDrawLine(x1, y1 - 2, x2, y2 - 2);
-    //ClipAndDrawLine(x1, y1 + 2, x2, y2 + 2);
-
-
 }
 
 void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
@@ -1650,12 +1562,14 @@ void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y)
 
 void CIsoViewExt::DrawCelltag(int X, int Y)
 {
-    this->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap("CELLTAG")->lpSurface, X, Y, -1, -1);
+    auto image = ImageDataMapHelper::GetImageDataFromMap("CELLTAG");
+    this->BltToBackBuffer(image->lpSurface, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::DrawWaypointFlag(int X, int Y)
 {
-    this->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap("FLAG")->lpSurface, X + 5, Y, -1, -1);
+    auto image = ImageDataMapHelper::GetImageDataFromMap("FLAG");
+    this->BltToBackBuffer(image->lpSurface, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::DrawTube(CellData* pData, int X, int Y)
@@ -1666,8 +1580,11 @@ void CIsoViewExt::DrawTube(CellData* pData, int X, int Y)
         if (pData->TubeDataIndex >= 2)
             suffix = pTubeData->Directions[pData->TubeDataIndex - 2] + 2;
         FA2sp::Buffer.Format("TUBE%d", suffix);
-        if (auto lpSurface = ImageDataMapHelper::GetImageDataFromMap(FA2sp::Buffer)->lpSurface)
-            this->BltToBackBuffer(lpSurface, X + 7, Y + 1, -1, -1);
+        if (auto image = ImageDataMapHelper::GetImageDataFromMap(FA2sp::Buffer))
+        {
+            if (auto lpSurface = image->lpSurface)
+                this->BltToBackBuffer(lpSurface, X + 7 + 24 - image->FullWidth / 2, Y + 1 + 12 - image->FullHeight / 2, -1, -1);
+        }
     }
 }
 
@@ -2678,6 +2595,11 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
             int x1 = std::min(x0 + 1, srcW - 1);
             int y1 = std::min(y0 + 1, srcH - 1);
 
+            x0 = std::clamp(x0, 0, srcW - 1);
+            x1 = std::clamp(x1, 0, srcW - 1);
+            y0 = std::clamp(y0, 0, srcH - 1);
+            y1 = std::clamp(y1, 0, srcH - 1);
+
             float dx = fx - x0;
             float dy = fy - y0;
 
@@ -2751,6 +2673,108 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     pBitmap->DeleteObject();
     pBitmap->Attach(hNewBmp);
     return;
+}
+
+std::vector<MapCoord> CIsoViewExt::GetTubePath(int x1, int y1, int x2, int y2, bool first)
+{
+    std::vector<MapCoord> path;
+    int x = x1, y = y1;
+    path.emplace_back(x, y);
+
+    while (x != x2 || y != y2) {
+        int dx = x2 - x;
+        int dy = y2 - y;
+
+        int step_x = (dx == 0 ? 0 : (dx > 0 ? 1 : -1));
+        int step_y = (dy == 0 ? 0 : (dy > 0 ? 1 : -1));
+
+        x += step_x;
+        y += step_y;
+
+        path.emplace_back(x, y);
+    }
+    int size = path.size();
+    if (size > 2)
+    {
+        if (first && !(path[size - 1].X != x2 && path[size - 1].Y != y2 || path[size - 2].X != x2 && path[size - 2].Y != y2))
+        {
+            if (abs(x1 - x2) >= abs(y1 - y2))
+            {
+                if (x1 >= x2)
+                {
+                    path = GetTubePath(x1 - 2, y1, x2, y2, false);
+                    path.insert(path.begin(), { x1 - 1,y1 });
+                    path.insert(path.begin(), { x1,y1 });
+                }
+                else
+                {
+                    path = GetTubePath(x1 + 2, y1, x2, y2, false);
+                    path.insert(path.begin(), { x1 + 1,y1 });
+                    path.insert(path.begin(), { x1,y1 });
+                }
+            }
+            else
+            {
+                if (y1 >= y2)
+                {
+                    path = GetTubePath(x1, y1 - 2, x2, y2, false);
+                    path.insert(path.begin(), { x1,y1 - 1 });
+                    path.insert(path.begin(), { x1,y1 });
+                }
+                else
+                {
+                    path = GetTubePath(x1, y1 + 2, x2, y2, false);
+                    path.insert(path.begin(), { x1,y1 + 1 });
+                    path.insert(path.begin(), { x1,y1 });
+                }
+            }
+            return path;
+        }
+    }
+    return path;
+}
+
+std::vector<int> CIsoViewExt::GetTubeDirections(const std::vector<MapCoord>& path)
+{
+    std::vector<int> directions;
+
+    for (size_t i = 1; i < path.size(); ++i) {
+        int dx = path[i].X - path[i - 1].X;
+        int dy = path[i].Y - path[i - 1].Y;
+
+        int dirCode = -1;
+        if (dx == -1 && dy == 0) dirCode = 0;
+        else if (dx == -1 && dy == 1) dirCode = 1;
+        else if (dx == 0 && dy == 1) dirCode = 2;
+        else if (dx == 1 && dy == 1) dirCode = 3;
+        else if (dx == 1 && dy == 0) dirCode = 4;
+        else if (dx == 1 && dy == -1) dirCode = 5;
+        else if (dx == 0 && dy == -1) dirCode = 6;
+        else if (dx == -1 && dy == -1) dirCode = 7;
+
+        directions.push_back(dirCode);
+    }
+
+    return directions;
+}
+
+std::vector<MapCoord> CIsoViewExt::GetPathFromDirections(int x0, int y0, const std::vector<int>& directions)
+{
+    std::vector<MapCoord> path;
+    path.emplace_back(x0, y0);
+
+    const int dx[8] = { -1, -1,  0,  1, 1, 1,  0, -1 };
+    const int dy[8] = { 0,  1,  1,  1, 0, -1, -1, -1 };
+
+    int x = x0, y = y0;
+
+    for (int dir : directions) {
+        x += dx[dir];
+        y += dy[dir];
+        path.emplace_back(x, y);
+    }
+
+    return path;
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

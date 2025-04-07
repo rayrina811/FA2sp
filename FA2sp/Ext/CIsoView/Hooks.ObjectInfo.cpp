@@ -19,12 +19,12 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 
 
-DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
+DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
 {
     GET_STACK(HDC, hDC, STACK_OFFS(0x3D52C, 0x3D510));
-    auto pIsoView = (CIsoViewExt*)reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-    auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-    auto cell = CMapData::Instance().GetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+    auto cell = CMapData::Instance->GetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
     if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
     {
@@ -147,6 +147,91 @@ DEFINE_HOOK(45ADDB, CIsoView_Draw_ObjectInfo, 5)
 
     int X = point.X, Y = point.Y;
     CIsoView::MapCoord2ScreenCoord(X, Y);
+
+    if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
+    {
+        int pos_start = CIsoViewExt::TubeNodes[0].X * 1000 + CIsoViewExt::TubeNodes[0].Y;
+        int pos_end = point.X * 1000 + point.Y;
+        int height = std::min(CMapData::Instance->TryGetCellAt(CIsoViewExt::TubeNodes[0].X, CIsoViewExt::TubeNodes[0].Y)->Height,
+            CMapData::Instance->TryGetCellAt(point.X, point.Y)->Height);
+        height *= 15;
+        if (CFinalSunApp::Instance->FlatToGround) 
+            height = 0;
+        int color = pos_end > pos_start ? RGB(255, 0, 0) : RGB(0, 0, 255);
+        auto drawLine = [pIsoView, hDC, color](int x1, int y1, int x2, int y2)
+            {
+                PAINTSTRUCT ps;
+                HPEN hPen;
+                HPEN hPenOld;
+                BeginPaint(pIsoView->m_hWnd, &ps);
+                hPen = CreatePen(PS_SOLID, 0, color);
+                hPenOld = (HPEN)SelectObject(hDC, hPen);
+                MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
+                LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
+                SelectObject(hDC, hPenOld);
+                DeleteObject(hPen);
+                EndPaint(pIsoView->m_hWnd, &ps);
+            };
+
+        int pathCount = 2;
+        for (int j = 0; j < CIsoViewExt::TubeNodes.size(); ++j)
+        {
+            int x1, x2, y1, y2;
+            x1 = CIsoViewExt::TubeNodes[j].X;
+            y1 = CIsoViewExt::TubeNodes[j].Y;
+            if (j == CIsoViewExt::TubeNodes.size() - 1)
+            {
+                x2 = point.X;
+                y2 = point.Y;
+            }
+            else
+            {
+                x2 = CIsoViewExt::TubeNodes[j + 1].X;
+                y2 = CIsoViewExt::TubeNodes[j + 1].Y;
+            }
+            auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
+            for (int i = 0; i < path.size() - 1; ++i)
+            {
+                int x1, x2, y1, y2;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                x2 = path[i + 1].X;
+                y2 = path[i + 1].Y;
+                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+                CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
+
+                drawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height);
+            }
+            ::SetBkMode(hDC, TRANSPARENT);
+            for (int i = 0; i < path.size(); ++i)
+            {
+                if (i == 0)
+                    pathCount--;
+                ppmfc::CString count;
+                count.Format("%d", pathCount);
+                int x1, y1;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+                TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY - height, count, strlen(count));
+                pathCount++;
+            }
+            ::SetBkMode(hDC, OPAQUE);
+            //auto directions = CIsoViewExt::GetTubeDirections(path);
+            //if (j == 0 && !directions.empty())
+            //{
+            //    ppmfc::CString direc;
+            //    direc.Format("%d", directions[0]);
+            //    int x1, y1;
+            //    x1 = path[0].X;
+            //    y1 = path[0].Y;
+            //    CIsoView::MapCoord2ScreenCoord(x1, y1);
+            //    TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY, direc, strlen(direc));
+            //}
+        }
+
+    }
+
     pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
 
     if (CIsoView::CurrentCommand->Command == 0x1B)

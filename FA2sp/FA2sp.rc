@@ -71,7 +71,7 @@ END
 
 101 RT_MANIFEST "FA2sp.manifest"
 1001 BITMAP "Resources/annotation.bmp"
-1002 BITMAP "Resources/empty.bmp"
+1002 BITMAP "Resources/default_cameo.bmp"
 1003 BITMAP "Resources/waypoint.bmp"
 1004 BITMAP "Resources/celltag.bmp"
 1005 BITMAP "Resources/tunnel.bmp"
@@ -82,5 +82,15 @@ END
 1010 BITMAP "Resources/node.bmp"
 1011 BITMAP "Resources/delete.bmp"
 1012 BITMAP "Resources/connected.bmp"
+1013 BITMAP "Resources/tile.bmp"
+1014 BITMAP "Resources/house.bmp"
+1015 BITMAP "Resources/infantry.bmp"
+1016 BITMAP "Resources/aircraft.bmp"
+1017 BITMAP "Resources/unit.bmp"
+1018 BITMAP "Resources/building.bmp"
+1019 BITMAP "Resources/terrain.bmp"
+1020 BITMAP "Resources/smudge.bmp"
+1021 BITMAP "Resources/overlay.bmp"
+1022 BITMAP "Resources/player.bmp"
 
 

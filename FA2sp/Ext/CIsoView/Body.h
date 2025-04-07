@@ -48,15 +48,15 @@ public:
     BOOL OnMouseWheelExt(UINT Flags, short zDelta, CPoint pt);
 
     void DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
-    void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
-    void DrawTopRealBorder(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
+    void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX = false);
+    void DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawCelltag(int X, int Y);
     void DrawBitmap(ppmfc::CString filename, int X, int Y);
     void DrawWaypointFlag(int X, int Y);
     void DrawTube(CellData* pData, int X, int Y);
 
-    void AddTube(int EnterX, int EnterY, int ExitX, int ExitY);
+    void ConfirmTube(bool addReverse = true);
 
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
@@ -77,6 +77,9 @@ public:
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
+    static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);
+    static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);
+    static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -131,5 +134,7 @@ public:
     static std::vector<DrawVeterancies> DrawVeterancies;
 
     static bool IsPressingALT;
+    static bool IsPressingTube;
+    static std::vector<MapCoord> TubeNodes;
     static ppmfc::CString CurrentCellObjectHouse;
 };

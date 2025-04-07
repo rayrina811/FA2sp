@@ -355,7 +355,10 @@ void CMapValidatorExt::ValidateValueLength(BOOL& result)
 		if (ExtConfigs::ExtendedValidationAres)
 			Length = 512;
 
-		if (!strcmp(section.first, "Actions") || !strcmp(section.first, "Events") || !strcmp(section.first, "AITriggerTypes"))
+		if (!strcmp(section.first, "Actions") 
+			|| !strcmp(section.first, "Events") 
+			|| !strcmp(section.first, "AITriggerTypes")
+			|| !strcmp(section.first, "Tubes"))
 			Length = 512; 
 
 		if (!strcmp(section.first, "Annotations"))
@@ -487,7 +490,92 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 			InsertStringAsError(tmp);
 		}
 	}
+}
 
+void CMapValidatorExt::ValidateTubes(BOOL& result)
+{
+	CMapDataExt::Tubes.clear();
+	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto atom = STDHelpers::SplitString(value, 5);
+			auto& tube = CMapDataExt::Tubes.emplace_back();
+			tube.StartCoord = { atoi(atom[1]),atoi(atom[0]) };
+			tube.EndCoord = { atoi(atom[4]),atoi(atom[3]) };
+			tube.StartFacing = atoi(atom[2]);
+			for (int i = 5; i < atom.size(); ++i)
+			{
+				int facing = atoi(atom[i]);
+				if (facing < 0) break;
+				tube.Facings.push_back(facing);
+			}
+			tube.PathCoords = CIsoViewExt::GetPathFromDirections(tube.StartCoord.X, tube.StartCoord.Y, tube.Facings);
+
+			int pos_start = tube.StartCoord.X * 1000 + tube.StartCoord.Y;
+			int pos_end = tube.EndCoord.X * 1000 + tube.EndCoord.Y;
+			tube.PositiveFacing = pos_end > pos_start;
+			tube.key = key;
+		}
+	}
+
+	ppmfc::CString Format1 = this->FetchLanguageString(
+		"MV_ValidateTubeTooLong", "Tunnel - %1 is longer than 100! Please check.");
+
+	ppmfc::CString Format2 = this->FetchLanguageString(
+		"MV_ValidateTubeUnidirection", "Tunnel - %1 is unidirectional! Please check.");
+
+	ppmfc::CString Format3 = this->FetchLanguageString(
+		"MV_ValidateTubeMultiShare", "Multiple tunnels share endpoints at %1. Please check.");
+
+	auto getTubeName = [](const TubeData& tube)
+		{
+			ppmfc::CString ret;
+			ret.Format("%s (%d, %d)->(%d, %d)", tube.key, tube.StartCoord.Y, tube.StartCoord.X, tube.EndCoord.Y, tube.EndCoord.X);
+			return ret;
+		};
+
+	std::map<MapCoord, char> start_end_coords;
+	std::set<ppmfc::CString> warnedTubes;
+	for (const auto& tube : CMapDataExt::Tubes)
+	{
+		if (tube.PathCoords.size() > 100)
+		{
+			ppmfc::CString tmp = Format1;
+			tmp.ReplaceNumString(1, getTubeName(tube));
+			InsertStringAsError(tmp);
+		}
+		start_end_coords[tube.StartCoord] += 1;
+		start_end_coords[tube.EndCoord] += 2;
+	}
+	for (auto& [coord, sum] : start_end_coords)
+	{
+		if (sum < 3)
+		{
+			for (const auto& tube : CMapDataExt::Tubes)
+			{
+				if (tube.StartCoord == coord || tube.EndCoord == coord)
+				{
+					if (warnedTubes.find(tube.key) == warnedTubes.end())
+					{
+						ppmfc::CString tmp = Format2;
+						tmp.ReplaceNumString(1, getTubeName(tube));
+						InsertStringAsError(tmp);
+						warnedTubes.insert(tube.key);
+						break;
+					}
+				}
+			}
+		}
+		else if (sum > 3)
+		{
+			ppmfc::CString tmp = Format3;
+			ppmfc::CString tmp2;
+			tmp2.Format("(%d, %d)", coord.Y, coord.X);
+			tmp.ReplaceNumString(1, tmp2);
+			InsertStringAsError(tmp);
+		}
+	}
 }
 
 ppmfc::CString CMapValidatorExt::FetchLanguageString(const char* Key, const char* def)

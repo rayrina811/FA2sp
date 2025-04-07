@@ -35,8 +35,20 @@ struct OverlayTypeData
     bool Rock;
     bool Wall;
     bool TerrainRock;
+    bool RailRoad;
     ppmfc::CString WallPaletteName;
     RGBClass RadarColor;
+};
+
+struct TubeData
+{
+    MapCoord StartCoord;
+    int StartFacing;
+    MapCoord EndCoord;
+    std::vector<int> Facings;
+    std::vector<MapCoord> PathCoords;
+    bool PositiveFacing;
+    ppmfc::CString key;
 };
 
 struct BuildingDataExt
@@ -291,4 +303,6 @@ public:
 
     static std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
+
+    static std::vector<TubeData> Tubes;
 };

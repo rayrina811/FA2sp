@@ -242,7 +242,44 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 		IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
 	CBitmap cBitmap;
 	cBitmap.Attach(hBmp);
-	CLoadingExt::LoadBitMap("FA2spAnnotation", cBitmap);
+	CLoadingExt::LoadBitMap("annotation.bmp", cBitmap);
+
+	return 0;
+}
+
+DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
+{
+	auto replace = [](const char* Ori, const char* New)
+		{
+			if (auto image_ori = ImageDataMapHelper::GetImageDataFromMap(Ori))
+			{
+				if (ImageDataMapHelper::IsImageLoaded(New))
+				{
+					auto image_new = ImageDataMapHelper::GetImageDataFromMap(New);
+					image_ori->lpSurface = image_new->lpSurface;
+				}
+				DDSURFACEDESC2 ddsd;
+				memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+				ddsd.dwSize = sizeof(DDSURFACEDESC2);
+				ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+				image_ori->lpSurface->GetSurfaceDesc(&ddsd);
+				image_ori->FullWidth = ddsd.dwWidth;
+				image_ori->FullHeight = ddsd.dwHeight;
+			}
+		};
+
+	replace("CELLTAG", "celltag.bmp");
+	replace("FLAG", "waypoint.bmp");
+	replace("TUBE0", "tube0.bmp");
+	replace("TUBE1", "tube1.bmp");
+	replace("TUBE2", "tube2.bmp");
+	replace("TUBE3", "tube3.bmp");
+	replace("TUBE4", "tube4.bmp");
+	replace("TUBE5", "tube5.bmp");
+	replace("TUBE6", "tube6.bmp");
+	replace("TUBE7", "tube7.bmp");
+	replace("TUBE8", "tube8.bmp");
+	replace("TUBE9", "tube9.bmp");
 
 	return 0;
 }

@@ -17,6 +17,7 @@ DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
 	pThis->ValidateBaseNode(result);
 	pThis->ValidateLoopTrigger(result);
 	pThis->ValidateEmptyTeamTrigger(result);
+	pThis->ValidateTubes(result);
 	return 0;
 }
 
