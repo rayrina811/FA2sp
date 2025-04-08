@@ -120,7 +120,7 @@ public:
 
     static bool AutoPropertyBrush[4];
 
-    static COLORREF _cell_hilight_colors[16];
+    static COLORREF CellHilightColors[16];
     static float drawOffsetX;
     static float drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;

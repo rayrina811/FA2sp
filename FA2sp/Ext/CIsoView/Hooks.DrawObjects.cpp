@@ -18,6 +18,7 @@ static RECT window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static int HorizontalLoopIndex;
+static ppmfc::CPoint ViewPosition;
 
 std::vector<std::pair<MapCoord, ppmfc::CString>> CIsoViewExt::WaypointsToDraw;
 std::vector<std::pair<MapCoord, DrawBuildings>> CIsoViewExt::BuildingsToDraw;
@@ -42,6 +43,7 @@ inline static bool IsCoordInWindow(int X, int Y)
 
 DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 {
+	auto pThis = CIsoView::GetInstance();
 	PalettesManager::CalculatedObjectPaletteFiles.clear();
 	CIsoViewExt::WaypointsToDraw.clear();
 	CIsoViewExt::BuildingsToDraw.clear();
@@ -53,6 +55,16 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::DrawVeterancies.clear();
 	DrawnBuildings.clear();
 	DrawnBaseNodes.clear();
+
+	RECT rect;
+	::GetClientRect(pThis->GetSafeHwnd(), &rect);
+	POINT topLeft = { rect.left, rect.top };
+	::ClientToScreen(pThis->GetSafeHwnd(), &topLeft);
+	double offsetX = 0.016795436849483363 * topLeft.x - 4.664099013466316;
+	double offsetY = 0.03362306232114938 * topLeft.y - 2.4360168849787662;
+	ViewPosition = pThis->ViewPosition;
+	pThis->ViewPosition.x += offsetX;
+	pThis->ViewPosition.y += offsetY;
 
 	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
 	{
@@ -205,6 +217,12 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		INIIncludes::MapINIWarn = false;
 	}
 
+	return 0;
+}
+
+DEFINE_HOOK(475187, CIsoView_Draw_End, 7)
+{
+	CIsoView::GetInstance()->ViewPosition = ViewPosition;
 	return 0;
 }
 

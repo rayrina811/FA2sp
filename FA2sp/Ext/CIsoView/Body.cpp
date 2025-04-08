@@ -64,23 +64,23 @@ Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 float CIsoViewExt::drawOffsetX;
 float CIsoViewExt::drawOffsetY;
 
-COLORREF CIsoViewExt::_cell_hilight_colors[16] = {
-RGB(255, 255, 255),	// level 0
-RGB(170, 0, 170),	// level 1
-RGB(0, 170, 170),	// level 2
-RGB(0, 170, 0),		// level 3
-RGB(90, 255, 90),	// level 4
-RGB(255, 255, 90),	// level 5
-RGB(255, 50, 50),	// level 6
-RGB(170, 85, 0),	// level 7
-RGB(170, 0, 0),		// level 8
-RGB(85, 255, 255),	// level 9
-RGB(80, 80, 255),	// level 10
-RGB(0, 0, 170),		// level 11
-RGB(0, 0, 0),		// level 12
-RGB(85,85 ,85),		// level 13
-RGB(170, 170, 170),	// level 14
-RGB(255, 255, 255)	// level 15
+COLORREF CIsoViewExt::CellHilightColors[16] = {
+    RGB(255, 255, 255),	// level 0
+    RGB(170, 0, 170),	// level 1
+    RGB(0, 170, 170),	// level 2
+    RGB(0, 170, 0),		// level 3
+    RGB(90, 255, 90),	// level 4
+    RGB(255, 255, 90),	// level 5
+    RGB(255, 50, 50),	// level 6
+    RGB(170, 85, 0),	// level 7
+    RGB(170, 0, 0),		// level 8
+    RGB(85, 255, 255),	// level 9
+    RGB(80, 80, 255),	// level 10
+    RGB(0, 0, 170),		// level 11
+    RGB(0, 0, 0),		// level 12
+    RGB(85,85 ,85),		// level 13
+    RGB(170, 170, 170),	// level 14
+    RGB(255, 255, 255)	// level 15
 };
 
 void CIsoViewExt::ProgramStartupInit()
@@ -803,7 +803,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     COLORREF heightColor = color;
     if (useHeightColor)
     {
-        heightColor = CIsoViewExt::_cell_hilight_colors[height];
+        heightColor = CIsoViewExt::CellHilightColors[height];
     }
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)

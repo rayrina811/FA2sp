@@ -1342,13 +1342,27 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 	return 0;
 }
 
-//DEFINE_HOOK(463F5E, CIsoView_OnLButtonDown_SkipPlaceTileUndoRedo2, 5)
-//{
-//	if (!IsPlacingTiles)
-//		return 0x4616C2;
-//	return 0x4616D8;
-//}
+DEFINE_HOOK(45E880, CIsoView_MapCoord2ScreenCoord_Height, 5)
+{
+	GET_STACK(int*, X, 0x4);
+	GET_STACK(int*, Y, 0x8);
+	*X = std::max(0, *X);
+	*Y = std::max(0, *Y);
+	*X = std::min(CMapData::Instance->MapWidthPlusHeight, *X);
+	*Y = std::min(CMapData::Instance->MapWidthPlusHeight, *Y);
+	return 0;
+}
 
+DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
+{
+	GET_STACK(int*, X, 0x4);
+	GET_STACK(int*, Y, 0x8);
+	*X = std::max(0, *X);
+	*Y = std::max(0, *Y);
+	*X = std::min(CMapData::Instance->MapWidthPlusHeight, *X);
+	*Y = std::min(CMapData::Instance->MapWidthPlusHeight, *Y);
+	return 0;
+}
 
 //LPDIRECTDRAWSURFACE7 lpDDBackBufferSurfaceZoom = nullptr;
 //DEFINE_HOOK(4750E7, CIsoView_Draw_Zoom, 5)
