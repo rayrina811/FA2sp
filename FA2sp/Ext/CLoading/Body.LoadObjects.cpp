@@ -72,6 +72,8 @@ ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing,
 
 CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)
 {
+	if (ID == "")
+		ObjectType::Unknown;
 	if (ObjectTypes.size() == 0)
 	{
 		auto load = [](ppmfc::CString type, ObjectType e)

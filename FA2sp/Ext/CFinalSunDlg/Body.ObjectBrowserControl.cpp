@@ -34,6 +34,7 @@ int CViewObjectsExt::InsertingTileIndex = -1;
 int CViewObjectsExt::InsertingOverlay = -1;
 int CViewObjectsExt::InsertingOverlayData = 0;
 bool CViewObjectsExt::InsertingSpecialBitmap = false;
+ppmfc::CString CViewObjectsExt::InsertingObjectID;
 CBitmap CViewObjectsExt::SpecialBitmap;
 CImageList CViewObjectsExt::m_ImageList;
 
@@ -142,29 +143,23 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 return item;
             }
 
-            ppmfc::CString name = pString;
-            int begin = name.ReverseFind('(');
-            int end = name.ReverseFind(')');
-            if (begin < end && begin > -1)
-                name = name.Mid(begin + 1, end - begin - 1);
             ppmfc::CString imageName;
-
-            auto eItemType = CLoadingExt::GetExtension()->GetItemType(name);
+            auto eItemType = CLoadingExt::GetExtension()->GetItemType(InsertingObjectID);
             switch (eItemType)
             {
             case CLoadingExt::ObjectType::Infantry:
-                imageName = CLoadingExt::GetImageName(name, 5);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, 5);
                 break;
             case CLoadingExt::ObjectType::Terrain:
             case CLoadingExt::ObjectType::Smudge:
-                imageName = CLoadingExt::GetImageName(name, 0);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
                 break;
             case CLoadingExt::ObjectType::Vehicle:
             case CLoadingExt::ObjectType::Aircraft:
-                imageName = CLoadingExt::GetImageName(name, 2);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, 2);
                 break;
             case CLoadingExt::ObjectType::Building:
-                imageName = CLoadingExt::GetBuildingImageName(name, 0, 0);
+                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
                 break;
             case CLoadingExt::ObjectType::Unknown:
             default:
@@ -213,7 +208,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];
             }
 
-            if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(name)
+            if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -221,7 +216,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 bool temp3 = ExtConfigs::InGameDisplay_Water;
                 ExtConfigs::InGameDisplay_Shadow = false;
                 CLoadingExt::IsLoadingObjectView = true;
-                CLoading::Instance->LoadObjects(name);
+                CLoading::Instance->LoadObjects(InsertingObjectID);
                 CLoadingExt::IsLoadingObjectView = false;
                 ExtConfigs::InGameDisplay_Shadow = temp;
                 ExtConfigs::InGameDisplay_Deploy = temp2;
@@ -933,6 +928,7 @@ void CViewObjectsExt::Redraw_Infantry()
         int index = STDHelpers::ParseToInt(inf.first, -1);
         if (index == -1)   continue;
 
+        InsertingObjectID = inf.second;
         auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
         if (!sides.empty())
         {
@@ -961,6 +957,7 @@ void CViewObjectsExt::Redraw_Infantry()
                 }
             }   
         }
+        InsertingObjectID = "";
     }
     
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomInfantryObList", -1, hInfantry);
@@ -978,7 +975,11 @@ void CViewObjectsExt::Redraw_Infantry()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Infantry + index, hTemp);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1029,6 +1030,7 @@ void CViewObjectsExt::Redraw_Vehicle()
         int index = STDHelpers::ParseToInt(veh.first, -1);
         if (index == -1)   continue;
 
+        InsertingObjectID = veh.second;
         auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
         if (!sides.empty())
         {
@@ -1057,6 +1059,7 @@ void CViewObjectsExt::Redraw_Vehicle()
                 }
             }   
         }
+        InsertingObjectID = "";
     }
 
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomVehicleObList", -1, hVehicle);
@@ -1074,7 +1077,11 @@ void CViewObjectsExt::Redraw_Vehicle()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Vehicle + index, hTemp);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1127,6 +1134,7 @@ void CViewObjectsExt::Redraw_Aircraft()
         int index = STDHelpers::ParseToInt(air.first, -1);
         if (index == -1)   continue;
         
+        InsertingObjectID = air.second;
         auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
         if (!sides.empty())
         {
@@ -1155,6 +1163,7 @@ void CViewObjectsExt::Redraw_Aircraft()
                 }
             }   
         }
+        InsertingObjectID = "";
     }
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomAircraftObList", -1, hAircraft);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
@@ -1171,7 +1180,11 @@ void CViewObjectsExt::Redraw_Aircraft()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Aircraft + index, hTemp);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1225,6 +1238,7 @@ void CViewObjectsExt::Redraw_Building()
         int index = STDHelpers::ParseToInt(bud.first, -1);
         if (index == -1)   continue;
 
+        InsertingObjectID = bud.second;
         auto sides = GetUnique(GuessSide(bud.second, Set_Building));
         if (!sides.empty())
         {
@@ -1253,6 +1267,7 @@ void CViewObjectsExt::Redraw_Building()
                 }
             }
         }
+        InsertingObjectID = "";
 #ifdef false
         if (ExtConfigs::ObjectBrowser_Foundation)
         {
@@ -1308,7 +1323,11 @@ void CViewObjectsExt::Redraw_Building()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Building + index, hTemp);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1358,6 +1377,7 @@ void CViewObjectsExt::Redraw_Terrain()
             if (FA2sp::Buffer != terrains[i])
                 FA2sp::Buffer += " (" + terrains[i] + ")";
             bool bNotOther = false;
+            InsertingObjectID = terrains[i];
             for (const auto& node : nodes)
             {
                 if (terrains[i].Find(node.second) >= 0)
@@ -1368,6 +1388,7 @@ void CViewObjectsExt::Redraw_Terrain()
             }
             if (!bNotOther)
                 this->InsertString(FA2sp::Buffer, Const_Terrain + i, hOther);
+            InsertingObjectID = "";
         }
     }
 
@@ -1389,7 +1410,11 @@ void CViewObjectsExt::Redraw_Terrain()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
                     this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Terrain + index, hTemp);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1435,7 +1460,11 @@ void CViewObjectsExt::Redraw_Smudge()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
-                this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Smudge + index, hRandomSmudge);
+                {
+                    InsertingObjectID = CINI::FAData().GetString(pKey.second, "0");
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Smudge + index, hRandomSmudge);
+                    InsertingObjectID = "";
+                }
                 index++;
             }
         }
@@ -1453,6 +1482,7 @@ void CViewObjectsExt::Redraw_Smudge()
             if (FA2sp::Buffer != smudges[i])
                 FA2sp::Buffer += " (" + smudges[i] + ")";
             bool bNotOther = false;
+            InsertingObjectID = smudges[i];
             for (const auto& node : nodes)
             {
                 if (smudges[i].Find(node.second) >= 0)
@@ -1463,6 +1493,7 @@ void CViewObjectsExt::Redraw_Smudge()
             }
             if (!bNotOther)
                 this->InsertString(FA2sp::Buffer, Const_Smudge + i, hOther);
+            InsertingObjectID = "";
         }
     }
 
@@ -1600,7 +1631,12 @@ void CViewObjectsExt::Redraw_Overlay()
                         if (ban == CINI::CurrentDocument().GetString("Map", "Theater"))
                             add = false;
                 if (add)
-                this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Overlay + index, hTemp2);
+                {
+                    InsertingOverlay = CINI::FAData().GetInteger(pKey.second, "0");
+                    InsertingOverlayData = 0;
+                    this->InsertString(CINI::FAData().GetString(pKey.second, "Name", "MISSING"), Const_Overlay + index, hTemp2);
+                    InsertingOverlay = -1;
+                }
                 index++;
             }
         }

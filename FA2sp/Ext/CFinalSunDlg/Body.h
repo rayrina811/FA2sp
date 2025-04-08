@@ -222,6 +222,7 @@ private:
     static int InsertingOverlay;
     static int InsertingOverlayData;
     static bool InsertingSpecialBitmap;
+    static ppmfc::CString InsertingObjectID;
     static CBitmap SpecialBitmap;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
