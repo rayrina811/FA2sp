@@ -3651,7 +3651,7 @@ namespace LuaFunctions
 					CMapDataExt::CellDataExt_FindCell.X = x;
 					CMapDataExt::CellDataExt_FindCell.Y = y;
 					CMapDataExt::CellDataExt_FindCell.drawCell = true;
-					CIsoView::GetInstance()->MoveToMapCoord(y, x);
+					CIsoViewExt::MoveToMapCoord(y, x);
 					CMapDataExt::CellDataExt_FindCell.drawCell = false;
 				}
 			}
@@ -3663,7 +3663,7 @@ namespace LuaFunctions
 				CMapDataExt::CellDataExt_FindCell.X = x;
 				CMapDataExt::CellDataExt_FindCell.Y = y;
 				CMapDataExt::CellDataExt_FindCell.drawCell = true;
-				CIsoView::GetInstance()->MoveToMapCoord(y, x);
+				CIsoViewExt::MoveToMapCoord(y, x);
 				CMapDataExt::CellDataExt_FindCell.drawCell = false;
 			}
 		}

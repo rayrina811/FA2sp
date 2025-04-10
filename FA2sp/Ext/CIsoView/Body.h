@@ -87,6 +87,8 @@ public:
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static void DrawCreditOnMap(HDC hDC);
+    static void MoveToMapCoord(int X, int Y);
+    static void Zoom(double offset);
 
     static bool DrawStructures;
     static bool DrawInfantries;

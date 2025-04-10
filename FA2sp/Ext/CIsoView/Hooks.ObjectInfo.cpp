@@ -59,7 +59,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
         mmh.AddINI(&CINI::Rules());
         mmh.AddINI(&CINI::CurrentDocument());
 
-        ppmfc::CString buffer2;
 
         if (!Map->IsCoordInMap(point.X, point.Y))
         {
@@ -67,14 +66,17 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
             return;
         }
 
-        buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
-            "Coordinates: %d, %d, Height: %d"), point.Y, point.X, cell->Height);
-
         int drawX = X - CIsoViewExt::drawOffsetX + 30;
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
 
         if (!isRange)
+        {
+            ppmfc::CString buffer2;
+            buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
+                "Coordinates: %d, %d, Height: %d"), point.Y, point.X, cell->Height);
             ::TextOut(hDC, drawX, drawY + lineHeight * i++, buffer2, buffer2.GetLength());
+        }
+
 
         bool bDrawRange = false;
         if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
@@ -89,6 +91,48 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 if (range <= 0) return;
                 range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
                 std::vector<MapCoord> mapCoordsInRange;
+
+                struct ColorEntry {
+                    COLORREF color;
+                    POINT offset;
+                };
+
+                bool defaultColors = false;
+                static const ColorEntry colorOffsets[] = {
+                    { RGB(255,255,0),{ 0, 0 } },
+                    { RGB(0,255,255),{ 1, 0 } },
+                    { RGB(0,200,200),{ -1, 0 } },
+                    { RGB(0,255,255),{ 0, 1 } },
+                    { RGB(0,200,200),{ 0, -1 } },
+                    { RGB(0,0,255),	 { 1, 1 } },
+                    { RGB(255,0,255),{ -1, 1 } },
+                    { RGB(255,0,0),	 { 1, -1 } },
+                    { RGB(255,255,0),{ -1, -1 } },
+                    { RGB(0,255,0),	 { 2, 0 } },
+                    { RGB(128,128,128),	 { 0, 2 } },
+                };
+
+                int offsetX;
+                int offsetY;
+                for (const auto& entry : colorOffsets) {
+                    if (entry.color == color)
+                    {
+                        defaultColors = true;
+                        offsetX = entry.offset.x;
+                        offsetY = entry.offset.y;
+                    }
+                }
+                if (!defaultColors)
+                {
+                    BYTE r = GetRValue(color);
+                    BYTE g = GetGValue(color);
+                    BYTE b = GetBValue(color);
+
+                    uint32_t hash = r * 73236093 ^ g * 19349663 ^ b * 83492791;
+
+                    offsetX = static_cast<int>((hash >> 1) % 5) - 2;
+                    offsetY = static_cast<int>((hash >> 3) % 5) - 2;
+                }
 
                 float ElevationIncrement = mmh.GetSingle("ElevationModel", "ElevationIncrement");
                 float ElevationIncrementBonus = mmh.GetSingle("ElevationModel", "ElevationIncrementBonus");
@@ -159,7 +203,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                             s2 = false;
                         }
                     }
-                    pIsoView->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, color, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
+                    pIsoView->DrawLockedCellOutlinePaint(drawX + offsetX, drawY + offsetY, 1, 1, color, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
                 }
             };
 
@@ -174,7 +218,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 if (secondary) {
                     weapon = mmh.GetString(ID, "Secondary");
 
-                    if (weapon == "")
+                    if (weapon == "" && !mmh.GetBool(ID, "Gunner"))
                     {
                         weapon = mmh.GetString(ID, "Weapon2");
                     }

@@ -638,6 +638,9 @@
     <ClCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">

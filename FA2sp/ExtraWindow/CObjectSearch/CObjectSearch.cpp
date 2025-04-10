@@ -1602,7 +1602,7 @@ void CObjectSearch::MoveToMapCoord(int x, int y)
     CMapDataExt::CellDataExt_FindCell.Y = y;
     CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
-    CIsoView::GetInstance()->MoveToMapCoord(y, x);
+    CIsoViewExt::MoveToMapCoord(y, x);
 
     CMapDataExt::CellDataExt_FindCell.drawCell = false;
 }

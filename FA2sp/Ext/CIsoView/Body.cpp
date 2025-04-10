@@ -2995,6 +2995,59 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     }
 }
 
+void CIsoViewExt::MoveToMapCoord(int X, int Y)
+{
+    if (!CMapData::Instance->IsCoordInMap(X, Y))
+        return;
+
+    auto pThis = CIsoView::GetInstance();
+    int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
+    RECT rect = GetScaledWindowRect();
+    int x = 30 * (CMapData::Instance->MapWidthPlusHeight + X - Y) - (rect.right - rect.left) / 2 - rect.left;
+    int y = 15 * (Y + X) - CMapData::Instance->CellDatas[nMapCoord].Height - (rect.bottom - rect.top) / 2 - rect.top;
+    pThis->MoveTo(x, y);
+    pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+void CIsoViewExt::Zoom(double offset)
+{
+    if (CMapData::Instance->MapWidthPlusHeight)
+    {
+        auto pThis = CIsoView::GetInstance();
+        double scaledOld = CIsoViewExt::ScaledFactor;
+        CRect oldRect = GetScaledWindowRect();
+        if (offset == 0.0)
+        {
+            CIsoViewExt::ScaledFactor = 1.0;
+        }
+        else
+        {
+            CIsoViewExt::ScaledFactor += offset;
+            CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
+            CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
+        }
+        if (abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.06)
+            CIsoViewExt::ScaledFactor = 1.0;
+        if (scaledOld != CIsoViewExt::ScaledFactor)
+        {
+            CRect newRect = GetScaledWindowRect();
+            CRect oriRect;
+            pThis->GetWindowRect(&oriRect);
+            double mousePosX;
+            double mousePosY;
+            mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x) / oriRect.Width();
+            mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y) / oriRect.Height();
+
+            pThis->ViewPosition.x += (oldRect.Width() - newRect.Width()) * mousePosX;
+            pThis->ViewPosition.y += (oldRect.Height() - newRect.Height()) * mousePosY;
+            pThis->MoveTo(pThis->ViewPosition.x, pThis->ViewPosition.y);
+            pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+            CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+    }
+}
+
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)
 {
     return CIsoView::PreTranslateMessage(pMsg);

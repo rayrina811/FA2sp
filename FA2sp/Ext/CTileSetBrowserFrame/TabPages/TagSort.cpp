@@ -363,7 +363,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                             CMapDataExt::CellDataExt_FindCell.Y = X;
                             CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
-                            CIsoView::GetInstance()->MoveToMapCoord(X, Y);
+                            CIsoViewExt::MoveToMapCoord(X, Y);
 
                             CMapDataExt::CellDataExt_FindCell.drawCell = false;
                         }
@@ -387,7 +387,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                                 CMapDataExt::CellDataExt_FindCell.Y = X;
                                 CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
-                                CIsoView::GetInstance()->MoveToMapCoord(X, Y);
+                                CIsoViewExt::MoveToMapCoord(X, Y);
 
                                 CMapDataExt::CellDataExt_FindCell.drawCell = false;
                             }

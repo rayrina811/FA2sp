@@ -365,41 +365,16 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		return TRUE;
 	case 30051:
-		if (CMapData::Instance->MapWidthPlusHeight)
-		{
-			CIsoViewExt::ScaledFactor = 1.0;
-			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-			this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-		}
+		CIsoViewExt::Zoom(0.0);
 		return TRUE;
 	case 30052:
 	{
-		if (CMapData::Instance->MapWidthPlusHeight)
-		{
-			double scaledOld = CIsoViewExt::ScaledFactor;
-			CIsoViewExt::ScaledFactor += 0.25;
-			CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
-			if (scaledOld != CIsoViewExt::ScaledFactor)
-			{
-				this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-				this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-			}
-		}
+		CIsoViewExt::Zoom(0.25);
 		return TRUE;
 	}
 	case 30053:
 	{
-		if (CMapData::Instance->MapWidthPlusHeight)
-		{
-			double scaledOld = CIsoViewExt::ScaledFactor;
-			CIsoViewExt::ScaledFactor -= 0.25;
-			CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
-			if (scaledOld != CIsoViewExt::ScaledFactor)
-			{
-				this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-				this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-			}
-		}
+		CIsoViewExt::Zoom(-0.25);
 		return TRUE;
 	}
 	case 31000:
@@ -572,7 +547,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CMapDataExt::CellDataExt_FindCell.Y = x;
 			CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
-			CIsoView::GetInstance()->MoveToMapCoord(x, y);
+			CIsoViewExt::MoveToMapCoord(x, y);
 
 			CMapDataExt::CellDataExt_FindCell.drawCell = false;
 			
@@ -1038,7 +1013,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CMapDataExt::CellDataExt_FindCell.Y = location.first;
 			CMapDataExt::CellDataExt_FindCell.drawCell = true;
 
-			CIsoView::GetInstance()->MoveToMapCoord(location.first, location.second);
+			CIsoViewExt::MoveToMapCoord(location.first, location.second);
 
 			CMapDataExt::CellDataExt_FindCell.drawCell = false;
 
@@ -1252,23 +1227,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	{
 		if (GetKeyState(VK_CONTROL) & 0x8000)
 		{
-			if (CMapData::Instance->MapWidthPlusHeight)
-			{
-				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
-				double scaledOld = CIsoViewExt::ScaledFactor;
-				if (zDelta < 0) {
-					CIsoViewExt::ScaledFactor += 0.1;
-					CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
-				}
-				else {
-					CIsoViewExt::ScaledFactor -= 0.1;
-					CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
-				}
-				if (scaledOld != CIsoViewExt::ScaledFactor)
-				{
-					this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-					this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-				}
+			int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+			if (zDelta < 0) {
+				CIsoViewExt::Zoom(0.1);
+			}
+			else {
+				CIsoViewExt::Zoom(-0.1);
 			}
 		}
 		break;

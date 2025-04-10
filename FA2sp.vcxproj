@@ -239,6 +239,7 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CLoading\Body.cpp" />
