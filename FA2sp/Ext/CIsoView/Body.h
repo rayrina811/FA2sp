@@ -63,7 +63,7 @@ public:
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
     static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
     static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
-    static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
+    static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255, LPDIRECTDRAWSURFACE7 surface = nullptr);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
@@ -80,6 +80,13 @@ public:
     static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);
     static std::vector<int> GetTubeDirections(const std::vector<MapCoord>& path);
     static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
+    static RECT GetScaledWindowRect();
+
+    static void MapCoord2ScreenCoord(int& X, int& Y);
+    static void DrawObjectInfo(HDC hDC, bool isRange);
+    static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
+    static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
+    static void DrawCreditOnMap(HDC hDC);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -137,4 +144,9 @@ public:
     static bool IsPressingTube;
     static std::vector<MapCoord> TubeNodes;
     static ppmfc::CString CurrentCellObjectHouse;
+
+    static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
+    static double ScaledFactor;
+    static double ScaledMax;
+    static double ScaledMin;
 };

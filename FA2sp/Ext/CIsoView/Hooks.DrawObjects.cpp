@@ -14,7 +14,7 @@
 #include <codecvt>
 
 static int Left, Right, Top, Bottom;
-static RECT window;
+static CRect window;
 static MapCoord VisibleCoordTL;
 static MapCoord VisibleCoordBR;
 static int HorizontalLoopIndex;
@@ -232,6 +232,15 @@ DEFINE_HOOK(46DF20, CIsoView_Draw_BackgroundColor, 6)
 	return 0;
 }
 
+DEFINE_HOOK(46DF49, CIsoView_Draw_ScaledBorder, 6)
+{
+	GET_STACK(CRect, viewRect, STACK_OFFS(0xD18, 0xCCC));
+	viewRect.right += viewRect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
+	viewRect.bottom += viewRect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
+	R->Stack(STACK_OFFS(0xD18, 0xCCC), viewRect);
+	return 0;
+}
+
 DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 {
 	Left = R->Stack<int>(STACK_OFFS(0xD18, 0xC10)) - EXTRA_BORDER;
@@ -240,6 +249,13 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 	Bottom = R->Stack<int>(STACK_OFFS(0xD18, 0xC18)) + EXTRA_BORDER_BOTTOM;
 	auto pThis = CIsoView::GetInstance();
 	pThis->GetWindowRect(&window);
+
+	double scale = CIsoViewExt::ScaledFactor;
+	if (scale < 1.0)
+		scale += 0.3;
+	window.right += window.Width() * (scale - 1.0);
+	window.bottom += window.Height() * (scale - 1.0);
+
 	VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
 	VisibleCoordTL.Y = window.top + pThis->ViewPosition.y;
 	VisibleCoordBR.X = window.right + pThis->ViewPosition.x;
@@ -549,8 +565,6 @@ DEFINE_HOOK(474B9D, CIsoView_Draw_DrawCelltagAndWaypointAndTube_DrawStuff, 9)
 
 		if (CIsoViewExt::DrawWaypoints && celldata.Waypoint != -1)
 			pThis->DrawWaypointFlag(X, Y);
-		//if (CIsoViewExt::DrawTubes && celldata.Tube != -1)
-		//	pThis->DrawTube(&celldata, X, Y);
 
 		if (CMapDataExt::HasAnnotation(CMapData::Instance->GetCoordIndex(cellX, cellY)))
 		{

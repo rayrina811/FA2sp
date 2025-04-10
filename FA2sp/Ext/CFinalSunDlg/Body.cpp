@@ -364,6 +364,44 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusFalse(30020, CIsoViewExt::DrawCellTagsFilter);
 		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		return TRUE;
+	case 30051:
+		if (CMapData::Instance->MapWidthPlusHeight)
+		{
+			CIsoViewExt::ScaledFactor = 1.0;
+			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		}
+		return TRUE;
+	case 30052:
+	{
+		if (CMapData::Instance->MapWidthPlusHeight)
+		{
+			double scaledOld = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor += 0.25;
+			CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
+			if (scaledOld != CIsoViewExt::ScaledFactor)
+			{
+				this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			}
+		}
+		return TRUE;
+	}
+	case 30053:
+	{
+		if (CMapData::Instance->MapWidthPlusHeight)
+		{
+			double scaledOld = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor -= 0.25;
+			CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
+			if (scaledOld != CIsoViewExt::ScaledFactor)
+			{
+				this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			}
+		}
+		return TRUE;
+	}
 	case 31000:
 	case 31001:
 	case 31002:
@@ -1210,6 +1248,31 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			ExtraWindow::bEnterSearch = false;
 		}
 		break;
+	case WM_MOUSEWHEEL:
+	{
+		if (GetKeyState(VK_CONTROL) & 0x8000)
+		{
+			if (CMapData::Instance->MapWidthPlusHeight)
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				double scaledOld = CIsoViewExt::ScaledFactor;
+				if (zDelta < 0) {
+					CIsoViewExt::ScaledFactor += 0.1;
+					CIsoViewExt::ScaledFactor = std::min(CIsoViewExt::ScaledMax, CIsoViewExt::ScaledFactor);
+				}
+				else {
+					CIsoViewExt::ScaledFactor -= 0.1;
+					CIsoViewExt::ScaledFactor = std::max(CIsoViewExt::ScaledMin, CIsoViewExt::ScaledFactor);
+				}
+				if (scaledOld != CIsoViewExt::ScaledFactor)
+				{
+					this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+					this->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				}
+			}
+		}
+		break;
+	}
 	}
 	return ppmfc::CDialog::PreTranslateMessage(pMsg);
 }

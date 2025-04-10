@@ -145,6 +145,8 @@ bool ExtConfigs::InGameDisplay_Water;
 bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::LightingPreview_MultUnitColor;
+bool ExtConfigs::DDrawScalingBilinear;
+int ExtConfigs::DisplayTextSize;
 
 
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -253,6 +255,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
 
+	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear");
+
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
@@ -261,6 +265,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 
+	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
 	ExtConfigs::TreeViewCameo_Size = CINI::FAData->GetInteger("ExtConfigs", "TreeViewCameo.Size", 32);
 	if (ExtConfigs::TreeViewCameo_Size > 64)
 		ExtConfigs::TreeViewCameo_Size = 64;
@@ -349,6 +354,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
 
 	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
+	CIsoViewExt::ScaledMax = CINI::FAData->GetDouble("ExtConfigs", "DDrawScalingMaximum", 1.5);
+	if (CIsoViewExt::ScaledMax < 1.0)
+		CIsoViewExt::ScaledMax = 1.0;
 
 	auto ls = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "LightingSource", "0.05,1,0.2"), 2);
 	ExtConfigs::LightingSource[0] = atof(ls[0]);

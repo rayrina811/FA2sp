@@ -160,6 +160,8 @@ public:
     static bool InGameDisplay_Hover;
     static bool InGameDisplay_AlphaImage;
     static bool LightingPreview_MultUnitColor;
+    static bool DDrawScalingBilinear;
+    static int DisplayTextSize;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

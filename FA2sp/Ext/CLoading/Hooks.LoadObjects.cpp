@@ -137,6 +137,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
                         //CINI::FALanguage().Release();
                         CINI::CurrentDocument().Release();
 
+                        CLoading::Instance()->Release();
                         strcpy_s(CFinalSunApp::FilePath, 260, folder);
                         Logger::Debug("CLoading::Load() Called. Reload all files from %s\n", folder);
                         CLoading::Instance()->Load();
@@ -175,6 +176,12 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
     }
 
     return 0x491FF1;
+}
+
+DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
+{
+    if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
+    return 0;
 }
 
 DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)

@@ -18,227 +18,18 @@
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 
-
-DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
+void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
 {
-    GET_STACK(HDC, hDC, STACK_OFFS(0x3D52C, 0x3D510));
+    int lineHeight = ExtConfigs::DisplayTextSize + 2;
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
-    auto cell = CMapData::Instance->GetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
-
-    if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
-    {
-        if (MultiSelection::IsSquareSelecting)
-        {
-            int& x1 = point.X; 
-            int& x2 = MultiSelection::LastAddedCoord.X;
-            int& y1 = point.Y; 
-            int& y2 = MultiSelection::LastAddedCoord.Y;
-
-            int top, bottom, left, right;
-            top = x1 + y1;
-            bottom = x2 + y2;
-            left = y1 - x1;
-            right = y2 - x2;
-            if (top > bottom)
-            {
-                int tmp = top;
-                top = bottom;
-                bottom = tmp;
-            }
-            if (left > right)
-            {
-                int tmp = left;
-                left = right;
-                right = tmp;
-            }
-            auto IsCoordInSelect = [&](int X, int Y)
-                {
-                    return
-                        X + Y >= top &&
-                        X + Y <= bottom &&
-                        Y - X >= left &&
-                        Y - X <= right;
-                };
-            std::vector<MapCoord> coords;
-            for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
-            {
-                for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
-                {
-                    if (IsCoordInSelect(i, j))
-                    {
-                        coords.push_back({ i,j });
-                    }
-                }
-            }
-            for (auto& mc : coords)
-            {
-                int x = mc.X;
-                int y = mc.Y;
-                CIsoView::MapCoord2ScreenCoord(x, y);
-                int drawX = x - CIsoViewExt::drawOffsetX;
-                int drawY = y - CIsoViewExt::drawOffsetY;
-
-                bool s1 = true;
-                bool s2 = true;
-                bool s3 = true;
-                bool s4 = true;
-
-                for (auto& coord : coords)
-                {
-                    if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-                    {
-                        s1 = false;
-                    }
-                    if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-                    {
-                        s3 = false;
-                    }
-                    if (coord.X == mc.X && coord.Y == mc.Y - 1)
-                    {
-                        s4 = false;
-                    }
-
-                    if (coord.X == mc.X && coord.Y == mc.Y + 1)
-                    {
-                        s2 = false;
-                    }
-                }
-                pIsoView->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
-            }
-        }
-        else
-        {
-            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
-            if (CMapData::Instance().IsCoordInMap(X, Y))
-            {
-                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
-                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
-                if (X > point.X)
-                    X = point.X;
-                if (Y > point.Y)
-                    Y = point.Y;
-
-                CIsoView::MapCoord2ScreenCoord(X, Y);
-
-                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
-
-            }
-        }
-    }
-    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
-    {
-        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
-        if (CMapData::Instance().IsCoordInMap(X, Y))
-        {
-            int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X) + 1;
-            int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
-            if (X > point.X)
-                X = point.X;
-            if (Y > point.Y)
-                Y = point.Y;
-
-            CIsoView::MapCoord2ScreenCoord(X, Y);
-
-            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
-        }
-    }
-
-
     int X = point.X, Y = point.Y;
-    CIsoView::MapCoord2ScreenCoord(X, Y);
-
-    if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
-    {
-        int pos_start = CIsoViewExt::TubeNodes[0].X * 1000 + CIsoViewExt::TubeNodes[0].Y;
-        int pos_end = point.X * 1000 + point.Y;
-        int height = std::min(CMapData::Instance->TryGetCellAt(CIsoViewExt::TubeNodes[0].X, CIsoViewExt::TubeNodes[0].Y)->Height,
-            CMapData::Instance->TryGetCellAt(point.X, point.Y)->Height);
-        height *= 15;
-        if (CFinalSunApp::Instance->FlatToGround) 
-            height = 0;
-        int color = pos_end > pos_start ? RGB(255, 0, 0) : RGB(0, 0, 255);
-        auto drawLine = [pIsoView, hDC, color](int x1, int y1, int x2, int y2)
-            {
-                PAINTSTRUCT ps;
-                HPEN hPen;
-                HPEN hPenOld;
-                BeginPaint(pIsoView->m_hWnd, &ps);
-                hPen = CreatePen(PS_SOLID, 0, color);
-                hPenOld = (HPEN)SelectObject(hDC, hPen);
-                MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
-                LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
-                SelectObject(hDC, hPenOld);
-                DeleteObject(hPen);
-                EndPaint(pIsoView->m_hWnd, &ps);
-            };
-
-        int pathCount = 2;
-        for (int j = 0; j < CIsoViewExt::TubeNodes.size(); ++j)
-        {
-            int x1, x2, y1, y2;
-            x1 = CIsoViewExt::TubeNodes[j].X;
-            y1 = CIsoViewExt::TubeNodes[j].Y;
-            if (j == CIsoViewExt::TubeNodes.size() - 1)
-            {
-                x2 = point.X;
-                y2 = point.Y;
-            }
-            else
-            {
-                x2 = CIsoViewExt::TubeNodes[j + 1].X;
-                y2 = CIsoViewExt::TubeNodes[j + 1].Y;
-            }
-            auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
-            for (int i = 0; i < path.size() - 1; ++i)
-            {
-                int x1, x2, y1, y2;
-                x1 = path[i].X;
-                y1 = path[i].Y;
-                x2 = path[i + 1].X;
-                y2 = path[i + 1].Y;
-                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-                CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
-
-                drawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height);
-            }
-            ::SetBkMode(hDC, TRANSPARENT);
-            for (int i = 0; i < path.size(); ++i)
-            {
-                if (i == 0)
-                    pathCount--;
-                ppmfc::CString count;
-                count.Format("%d", pathCount);
-                int x1, y1;
-                x1 = path[i].X;
-                y1 = path[i].Y;
-                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-                TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY - height, count, strlen(count));
-                pathCount++;
-            }
-            ::SetBkMode(hDC, OPAQUE);
-            //auto directions = CIsoViewExt::GetTubeDirections(path);
-            //if (j == 0 && !directions.empty())
-            //{
-            //    ppmfc::CString direc;
-            //    direc.Format("%d", directions[0]);
-            //    int x1, y1;
-            //    x1 = path[0].X;
-            //    y1 = path[0].Y;
-            //    CIsoView::MapCoord2ScreenCoord(x1, y1);
-            //    TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY, direc, strlen(direc));
-            //}
-        }
-
-    }
-
-    pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
-
+    CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+    auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
-
         RECT rect;
-        GetWindowRect(pIsoView->m_hWnd, &rect);
+        ::GetWindowRect(pIsoView->m_hWnd, &rect);
         int leftIndex = 0;
 
         if (CIsoViewExt::DrawMoneyOnMap)
@@ -273,7 +64,7 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
         if (!Map->IsCoordInMap(point.X, point.Y))
         {
             SetTextAlign(hDC, TA_LEFT);
-            return 0;
+            return;
         }
 
         buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
@@ -282,15 +73,19 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
         int drawX = X - CIsoViewExt::drawOffsetX + 30;
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
 
-        ::TextOut(hDC, drawX, drawY + 18 * i++, buffer2, buffer2.GetLength());
+        if (!isRange)
+            ::TextOut(hDC, drawX, drawY + lineHeight * i++, buffer2, buffer2.GetLength());
 
         bool bDrawRange = false;
         if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
             bDrawRange = true;
 
-        auto drawRange = [&](float XCenter, float YCenter, float range, COLORREF color, 
+        auto drawRange = [&](float XCenter, float YCenter, float range, COLORREF color,
             bool isBuilding, ppmfc::CString objectX, ppmfc::CString objectY, bool calculateElevation = false)
             {
+                if (!isRange)
+                    return;
+
                 if (range <= 0) return;
                 range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
                 std::vector<MapCoord> mapCoordsInRange;
@@ -425,13 +220,15 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     {
                         SetBkColor(hDC, ExtConfigs::WeaponRangeBound_Color);
                         leftLine = Translations::TranslateOrDefault("ViewWeaponRangeInfo", "Primary Range");
-                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + 18 * leftIndex++, leftLine, leftLine.GetLength());
+                        if (!isRange)
+                            ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
 
                         if (minimumRange > 0)
                         {
                             SetBkColor(hDC, ExtConfigs::WeaponRangeMinimumBound_Color);
                             leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
-                            ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine, leftLine.GetLength());
+                            if (!isRange)
+                                ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
                         drawRange(XCenter, YCenter, range, ExtConfigs::WeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
@@ -441,13 +238,15 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     {
                         SetBkColor(hDC, ExtConfigs::SecondaryWeaponRangeBound_Color);
                         leftLine = Translations::TranslateOrDefault("ViewSecondaryWeaponRangeInfo", "Secondary Range");
-                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + 18 * leftIndex++, leftLine, leftLine.GetLength());
+                        if (!isRange)
+                            ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
 
                         if (minimumRange > 0)
                         {
                             SetBkColor(hDC, ExtConfigs::SecondaryWeaponRangeMinimumBound_Color);
                             leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
-                            ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine, leftLine.GetLength());
+                            if (!isRange)
+                                ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
                         drawRange(XCenter, YCenter, range, ExtConfigs::SecondaryWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
@@ -532,7 +331,8 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     }
                     drawRange(XCenter, YCenter, range, color, isBuilding, objectX, objectY);
                     SetBkColor(hDC, color);
-                    ::TextOut(hDC, rect.left + tab, rect.top + 10 + 18 * leftIndex++, leftLine, leftLine.GetLength());
+                    if (!isRange)
+                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                     SetBkColor(hDC, 0xFFFFFF);
                 }
             };
@@ -574,7 +374,6 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
 
                 }
             };
-        
 
         if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Infantry || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || bDrawRange)
         {
@@ -597,15 +396,13 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
             }
             for (auto id : ids)
             {
-                //for (int subpos = 0; subpos < 3; subpos++)
-                //{
                 ppmfc::CString line1;
                 ppmfc::CString line2;
                 ppmfc::CString line3;
                 ppmfc::CString line4;
                 ppmfc::CString line5;
                 ppmfc::CString line6;
-                //auto id = cell->Infantry[subpos];
+
                 if (id > -1)
                 {
                     CInfantryData object;
@@ -614,11 +411,13 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
 
+                    if (isRange)
+                        continue;
+
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
                         ppmfc::CString leftLine1;
                         ppmfc::CString leftLine2;
-                        //int objCount = 0;
                         int objThisCount = 0;
 
                         for (auto& inf : mapIni.GetSection("Infantry")->GetEntities())
@@ -628,7 +427,6 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                             {
                                 if (atoms[0] == object.House)
                                 {
-                                    //objCount++;
                                     if (atoms[1] == object.TypeID)
                                         objThisCount++;
                                 }
@@ -643,8 +441,8 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Infantry",
                             "Infantry:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
-                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, leftLine1, leftLine1.GetLength());
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine2, leftLine2.GetLength());
+                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Infantry || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -670,32 +468,32 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         if (tag.size() > 1)
                             tagName = tag[1];
 
-                        line1.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.1", 
+                        line1.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.1",
                             "Infantry: %s (%s), ID: %d, Subcell: %s")
                             , CMapData::GetUIName(object.TypeID), object.TypeID, id, object.SubCell);
-                        line2.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.2", 
+                        line2.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.2",
                             "House: %s")
                             , house);
-                        line3.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.3", 
+                        line3.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.3",
                             "Strength: %d (%s), Mission: %s")
                             , strength, object.Health, object.Status);
-                        line4.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.4", 
+                        line4.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.4",
                             "Veterancy: %s (%s), Group: %s")
                             , veteran, object.VeterancyPercentage, object.Group);
-                        line5.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.5", 
+                        line5.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.5",
                             "Tag: %s (%s), RecruitA: %s, RecruitB: %s")
                             , tagName, object.Tag, object.AutoNORecruitType, object.AutoYESRecruitType);
-                        line6.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.6", 
+                        line6.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.6",
                             "On Bridge: %s")
                             , object.IsAboveGround);
                         ::SetBkColor(hDC, RGB(0, 255, 255));
-                        ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                        ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                         ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line5, line5.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line6, line6.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line3, line3.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line4, line4.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line5, line5.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line6, line6.GetLength());
 
                     }
                 }
@@ -729,7 +527,6 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                 ppmfc::CString line4;
                 ppmfc::CString line5;
                 ppmfc::CString line6;
-                //auto id = cell->Unit;
 
                 if (id > -1)
                 {
@@ -738,6 +535,9 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
 
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
+
+                    if (isRange)
+                        continue;
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -764,12 +564,12 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         Miscs::ParseHouseName(&house, object.House, true);
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
-                        leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle", 
+                        leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle",
                             "Vehicle:  %s (%s), Count: %d, Cost: %d")
                             , CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
-                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, leftLine1, leftLine1.GetLength());
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine2, leftLine2.GetLength());
+                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Vehicle || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -815,16 +615,16 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                             "On Bridge: %s, Follows: %s")
                             , object.IsAboveGround, object.FollowsIndex);
                         ::SetBkColor(hDC, RGB(0, 255, 255));
-                        ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                        ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                         ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line5, line5.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line6, line6.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line3, line3.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line4, line4.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line5, line5.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line6, line6.GetLength());
 
                     }
-                   
+
                 }
             }
         }
@@ -864,6 +664,9 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
 
+                    if (isRange)
+                        continue;
+
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
                         ppmfc::CString leftLine1;
@@ -889,11 +692,11 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         Miscs::ParseHouseName(&house, object.House, true);
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
-                        leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft", 
+                        leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft",
                             "Aircraft:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
-                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, leftLine1, leftLine1.GetLength());
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine2, leftLine2.GetLength());
+                        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Aircraft || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -936,12 +739,12 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                             "Tag: %s (%s), RecruitA: %s, RecruitB: %s")
                             , tagName, object.Tag, object.AutoNORecruitType, object.AutoYESRecruitType);
                         ::SetBkColor(hDC, RGB(0, 255, 255));
-                        ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                        ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                         ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line5, line5.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line3, line3.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line4, line4.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line5, line5.GetLength());
                     }
                 }
             }
@@ -1011,6 +814,9 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                 if (bDrawRange)
                     displayRanges(object.TypeID, object.X, object.Y, true);
 
+                if (isRange)
+                    continue;
+
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
                     ppmfc::CString leftLine1;
@@ -1053,24 +859,24 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         "Total Power: %d, Output: %d, Drain: %d"), housePower - houseLoad, housePower, houseLoad);
 
 
-                    ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, leftLine1, leftLine1.GetLength());
-                    ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine2, leftLine2.GetLength());
+                    ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
+                    ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
                     if (housePower - houseLoad >= 100)
                     {
                         ::SetBkColor(hDC, RGB(0, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else if (housePower - houseLoad >= 0)
                     {
                         ::SetBkColor(hDC, RGB(255, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else
                     {
                         ::SetBkColor(hDC, RGB(255, 0, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
 
@@ -1112,17 +918,17 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         "Upgrade 1: %s, Upgrade 2: %s, Upgrade 3: %s")
                         , object.Upgrade1, object.Upgrade2, object.Upgrade3);
                     ::SetBkColor(hDC, RGB(0, 255, 255));
-                    ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                     ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                    ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-                    ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-                    ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
+                    ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
+                    ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line3, line3.GetLength());
+                    ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line4, line4.GetLength());
                     if (!(object.Upgrade1 == "None" && object.Upgrade2 == "None" && object.Upgrade3 == "None" && object.Upgrades == "0"))
-                        ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line5, line5.GetLength());
+                        ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line5, line5.GetLength());
                 }
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1194,7 +1000,6 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
 
                                 }
                             }
-
                         }
                     }
                 }
@@ -1261,30 +1066,30 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     }
                     Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
-                    leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode", 
+                    leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
                         "Basenode:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(atoms[0]), atoms[0], objThisCount, objThisCount * cost);
 
-                    ::TextOut(hDC, rect.left + 10, rect.top + 10 + 18 * leftIndex++, leftLine1, leftLine1.GetLength());
-                    ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine2, leftLine2.GetLength());
+                    ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
+                    ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
 
-                    leftLine3.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Power", 
+                    leftLine3.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Power",
                         "Total Power: %d, Output: %d, Drain: %d"), housePowerTotal - houseLoadTotal, housePowerTotal, houseLoadTotal);
                     if (housePowerTotal - houseLoadTotal >= 100)
                     {
                         ::SetBkColor(hDC, RGB(0, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else if (housePowerTotal - houseLoadTotal >= 0)
                     {
                         ::SetBkColor(hDC, RGB(255, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else
                     {
                         ::SetBkColor(hDC, RGB(255, 0, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine3, leftLine3.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine3, leftLine3.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
 
@@ -1293,19 +1098,19 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     if (housePowerThis - houseLoadThis >= 100)
                     {
                         ::SetBkColor(hDC, RGB(0, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine4, leftLine4.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine4, leftLine4.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else if (housePowerThis - houseLoadThis >= 0)
                     {
                         ::SetBkColor(hDC, RGB(255, 255, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine4, leftLine4.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine4, leftLine4.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
                     else
                     {
                         ::SetBkColor(hDC, RGB(255, 0, 0));
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine4, leftLine4.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine4, leftLine4.GetLength());
                         ::SetBkColor(hDC, RGB(255, 255, 255));
                     }
 
@@ -1328,7 +1133,7 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                                 leftLine5 += ", " + bufferp;
                             }
                         }
-                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + 18 * leftIndex++, leftLine5, leftLine5.GetLength());
+                        ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine5, leftLine5.GetLength());
                     }
 
                 }
@@ -1342,14 +1147,14 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                         "House: %s")
                         , targetHouse);
                     ::SetBkColor(hDC, RGB(0, 255, 255));
-                    ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                     ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                    ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
+                    ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
                 }
 
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Tile || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Tile || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1454,11 +1259,11 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     , filename);
 
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
-                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line3, line3.GetLength());
-                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line4, line4.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line3, line3.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line4, line4.GetLength());
             }
             else
             {
@@ -1467,13 +1272,13 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     , "MISSING", tileIndex);
 
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
-                ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
+                ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
             }
 
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1503,11 +1308,11 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     "Terrain: %s (%s), ID: %d")
                     , name2, name, id);
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Smudge || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Smudge || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1542,11 +1347,11 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     "Smudge: %s, ID: %d")
                     , target.TypeID, id);
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Overlay || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Overlay || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1593,13 +1398,13 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     "Terrain Type: %s")
                     , ttype);
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
                 if (ttype != "")
-                    ::TextOut(hDC, drawX + tab, drawY + 18 * i++, line2, line2.GetLength());
+                    ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Celltag || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Celltag || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1624,11 +1429,11 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                     "Cell Tag: %s, ID: %s")
                     , name, id);
                 ::SetBkColor(hDC, RGB(0, 255, 255));
-                ::TextOut(hDC, drawX, drawY + 18 * i++, line1, line1.GetLength());
+                ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Waypoints || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
+        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Waypoints || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             SetTextAlign(hDC, TA_RIGHT);
 
@@ -1703,7 +1508,7 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                             pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
                                 "Event: %s (%s)")
                                 , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + 18 * i, pSrc, strlen(pSrc));
+                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                             pSrc = "";
                             i++;
                         }
@@ -1747,7 +1552,7 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                             pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
                                 "Action: %s (%s)")
                                 , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + 18 * i, pSrc, strlen(pSrc));
+                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                             pSrc = "";
                             i++;
                         }
@@ -1788,7 +1593,7 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                                 pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
                                     "Script: %s (%s)")
                                     , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                TextOut(hDC, drawX, drawY + 18 * i, pSrc, strlen(pSrc));
+                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                                 pSrc = "";
                                 i++;
                             }
@@ -1839,21 +1644,277 @@ DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                         "Team: %s (%s)")
                                         , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                    TextOut(hDC, drawX, drawY + 18 * i, pSrc, strlen(pSrc));
+                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                                     pSrc = "";
                                     i++;
                                 }
-
                             }
                         }
                     }
-
                 }
             }
         }
-
     }
-    return 0;
 }
 
+DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
+{
+    GET_STACK(HDC, hDC, STACK_OFFS(0x3D52C, 0x3D510));
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+    auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+    auto drawLine = [pIsoView, hDC](int x1, int y1, int x2, int y2, int color)
+        {
+            PAINTSTRUCT ps;
+            HPEN hPen;
+            HPEN hPenOld;
+            BeginPaint(pIsoView->m_hWnd, &ps);
+            hPen = CreatePen(PS_SOLID, 0, color);
+            hPenOld = (HPEN)SelectObject(hDC, hPen);
+            MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
+            LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
+            SelectObject(hDC, hPenOld);
+            DeleteObject(hPen);
+            EndPaint(pIsoView->m_hWnd, &ps);
+        };
 
+    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag)
+    {
+        int x1, x2, y1, y2;
+        x1 = pIsoView->StartCell.X;
+        y1 = pIsoView->StartCell.Y;
+        x2 = point.X;
+        y2 = point.Y;
+        CIsoView::MapCoord2ScreenCoord(x1, y1);
+        CIsoView::MapCoord2ScreenCoord(x2, y2);
+        if (pIsoView->CurrentCellObjectType == 0)
+        { 
+            CInfantryData infData;
+            CMapData::Instance->GetInfantryData(pIsoView->CurrentCellObjectIndex, infData);
+            switch (atoi(infData.SubCell))
+            {
+            case 2:
+                x1 += 15;
+                break;
+            case 3:
+                x1 -= 15;
+                break;
+            case 0:
+            case 1:
+                break;
+            case 4:
+                y1 += 8;
+                break;
+            }
+
+            if (ExtConfigs::InfantrySubCell_Edit && ExtConfigs::InfantrySubCell_Edit_Drag)
+            {
+                auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+
+                switch (CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y, true))
+                {
+                case 2:
+                    x2 += 15;
+                    break;
+                case 3:
+                    x2 -= 15;
+                    break;
+                case 0:
+                case 1:
+                    break;
+                case 4:
+                    y2 += 8;
+                    break;
+                }
+            }
+
+        }
+        
+        SetROP2(hDC, R2_NOT);
+        drawLine(x1 + 30, y1 - 15, x2 + 30, y2 - 15, RGB(255,0,0));
+        SetROP2(hDC, R2_COPYPEN);
+    }
+    if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
+    {
+        if (MultiSelection::IsSquareSelecting)
+        {
+            int& x1 = point.X; 
+            int& x2 = MultiSelection::LastAddedCoord.X;
+            int& y1 = point.Y; 
+            int& y2 = MultiSelection::LastAddedCoord.Y;
+
+            int top, bottom, left, right;
+            top = x1 + y1;
+            bottom = x2 + y2;
+            left = y1 - x1;
+            right = y2 - x2;
+            if (top > bottom)
+            {
+                int tmp = top;
+                top = bottom;
+                bottom = tmp;
+            }
+            if (left > right)
+            {
+                int tmp = left;
+                left = right;
+                right = tmp;
+            }
+            auto IsCoordInSelect = [&](int X, int Y)
+                {
+                    return
+                        X + Y >= top &&
+                        X + Y <= bottom &&
+                        Y - X >= left &&
+                        Y - X <= right;
+                };
+            std::vector<MapCoord> coords;
+            for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
+            {
+                for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
+                {
+                    if (IsCoordInSelect(i, j))
+                    {
+                        coords.push_back({ i,j });
+                    }
+                }
+            }
+            for (auto& mc : coords)
+            {
+                int x = mc.X;
+                int y = mc.Y;
+                CIsoView::MapCoord2ScreenCoord(x, y);
+                int drawX = x - CIsoViewExt::drawOffsetX;
+                int drawY = y - CIsoViewExt::drawOffsetY;
+
+                bool s1 = true;
+                bool s2 = true;
+                bool s3 = true;
+                bool s4 = true;
+
+                for (auto& coord : coords)
+                {
+                    if (coord.X == mc.X - 1 && coord.Y == mc.Y)
+                    {
+                        s1 = false;
+                    }
+                    if (coord.X == mc.X + 1 && coord.Y == mc.Y)
+                    {
+                        s3 = false;
+                    }
+                    if (coord.X == mc.X && coord.Y == mc.Y - 1)
+                    {
+                        s4 = false;
+                    }
+
+                    if (coord.X == mc.X && coord.Y == mc.Y + 1)
+                    {
+                        s2 = false;
+                    }
+                }
+                pIsoView->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
+            }
+        }
+        else
+        {
+            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
+            if (CMapData::Instance().IsCoordInMap(X, Y))
+            {
+                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
+                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
+                if (X > point.X)
+                    X = point.X;
+                if (Y > point.Y)
+                    Y = point.Y;
+
+                CIsoView::MapCoord2ScreenCoord(X, Y);
+
+                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
+
+            }
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
+    {
+        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
+        if (CMapData::Instance().IsCoordInMap(X, Y))
+        {
+            int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X) + 1;
+            int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+            if (X > point.X)
+                X = point.X;
+            if (Y > point.Y)
+                Y = point.Y;
+
+            CIsoView::MapCoord2ScreenCoord(X, Y);
+
+            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
+        }
+    }
+
+    int X = point.X, Y = point.Y;
+    CIsoView::MapCoord2ScreenCoord(X, Y);
+    if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
+    {
+        int pos_start = CIsoViewExt::TubeNodes[0].X * 1000 + CIsoViewExt::TubeNodes[0].Y;
+        int pos_end = point.X * 1000 + point.Y;
+        int height = std::min(CMapData::Instance->TryGetCellAt(CIsoViewExt::TubeNodes[0].X, CIsoViewExt::TubeNodes[0].Y)->Height,
+            CMapData::Instance->TryGetCellAt(point.X, point.Y)->Height);
+        height *= 15;
+        if (CFinalSunApp::Instance->FlatToGround) 
+            height = 0;
+        int color = pos_end > pos_start ? RGB(255, 0, 0) : RGB(0, 0, 255);
+        int pathCount = 2;
+        for (int j = 0; j < CIsoViewExt::TubeNodes.size(); ++j)
+        {
+            int x1, x2, y1, y2;
+            x1 = CIsoViewExt::TubeNodes[j].X;
+            y1 = CIsoViewExt::TubeNodes[j].Y;
+            if (j == CIsoViewExt::TubeNodes.size() - 1)
+            {
+                x2 = point.X;
+                y2 = point.Y;
+            }
+            else
+            {
+                x2 = CIsoViewExt::TubeNodes[j + 1].X;
+                y2 = CIsoViewExt::TubeNodes[j + 1].Y;
+            }
+            auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
+            for (int i = 0; i < path.size() - 1; ++i)
+            {
+                int x1, x2, y1, y2;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                x2 = path[i + 1].X;
+                y2 = path[i + 1].Y;
+                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+                CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
+
+                drawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color);
+            }
+            ::SetBkMode(hDC, TRANSPARENT);
+            for (int i = 0; i < path.size(); ++i)
+            {
+                if (i == 0)
+                    pathCount--;
+                ppmfc::CString count;
+                count.Format("%d", pathCount);
+                int x1, y1;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
+                TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY - height, count, strlen(count));
+                pathCount++;
+            }
+            ::SetBkMode(hDC, OPAQUE);
+        }
+    }
+    if (CMapData::Instance().IsCoordInMap(point.X, point.Y))
+    {
+        pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
+            cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
+    }
+    CIsoViewExt::DrawObjectInfo(hDC, true);
+    return 0;
+}

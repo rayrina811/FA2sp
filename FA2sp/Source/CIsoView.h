@@ -11,7 +11,7 @@ public:
     MapCoord GetCurrentMapCoord(const CPoint& point);
     MapCoord GetCurrentMapCoord(const CPoint& point, const CPoint& lt);
     MapCoord GetCurrentMapCoord(const CPoint& point, const CRect& rect);
-protected:
+
     static void ScreenCoord2MapCoord_Flat(int& X, int& Y);
     static void ScreenCoord2MapCoord_Height(int& X, int& Y);
 

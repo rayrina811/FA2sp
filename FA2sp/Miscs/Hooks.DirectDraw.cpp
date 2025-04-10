@@ -7,6 +7,7 @@
 
 #include "../Logger.h"
 #include "../FA2sp.h"
+#include "../Ext/CIsoView/Body.h"
 
 DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 {
@@ -143,9 +144,15 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	pIsoView->lpDDPrimarySurface->GetSurfaceDesc(&dds);
 	// In system memory to speedup the lock & unlock operations
 	dds.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN;
-	if (!ExtConfigs::DDrawInVideoMem)
-		dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
+	// In system memory to support scaling
+	//if (!ExtConfigs::DDrawInVideoMem)
+	dds.ddsCaps.dwCaps |= DDSCAPS_SYSTEMMEMORY;
 	dds.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+
+	int witdh = dds.dwWidth;
+	int height = dds.dwHeight;
+	dds.dwWidth *= CIsoViewExt::ScaledMax;
+	dds.dwHeight *= CIsoViewExt::ScaledMax;
 
 	hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDBackBufferSurface, nullptr);
 	if (FAILED(hr))
@@ -155,6 +162,21 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pThis->MessageBox("Backbuffer surface could not be initialized! Quitting...");
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
+		pIsoView->lpDD7->Release();
+		pIsoView->lpDD7 = nullptr;
+		exit(-4);
+	}
+
+	hr = pIsoView->lpDD7->CreateSurface(&dds, &CIsoViewExt::lpDDBackBufferZoomSurface, nullptr);
+	if(FAILED(hr))
+	{
+		Logger::Raw("CreateSurface() failed\n");
+		pThis->ShowWindow(SW_HIDE);
+		pThis->MessageBox("Backbuffer zoom surface could not be initialized! Quitting...");
+		pIsoView->lpDDPrimarySurface->Release();
+		pIsoView->lpDDPrimarySurface = nullptr;
+		pIsoView->lpDDBackBufferSurface->Release();
+		pIsoView->lpDDBackBufferSurface = nullptr;
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
 		exit(-4);
@@ -170,6 +192,8 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pIsoView->lpDDBackBufferSurface = nullptr;
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
+		CIsoViewExt::lpDDBackBufferZoomSurface->Release();
+		CIsoViewExt::lpDDBackBufferZoomSurface = nullptr;
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
 		exit(-4);
@@ -193,6 +217,8 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		pIsoView->lpDDBackBufferSurface = nullptr;
 		pIsoView->lpDDPrimarySurface->Release();
 		pIsoView->lpDDPrimarySurface = nullptr;
+		CIsoViewExt::lpDDBackBufferZoomSurface->Release();
+		CIsoViewExt::lpDDBackBufferZoomSurface = nullptr;
 		pIsoView->lpDD7->Release();
 		pIsoView->lpDD7 = nullptr;
 	}

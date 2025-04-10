@@ -64,6 +64,11 @@ Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 float CIsoViewExt::drawOffsetX;
 float CIsoViewExt::drawOffsetY;
 
+LPDIRECTDRAWSURFACE7 CIsoViewExt::lpDDBackBufferZoomSurface;
+double CIsoViewExt::ScaledFactor = 1.0;
+double CIsoViewExt::ScaledMax = 1.5;
+double CIsoViewExt::ScaledMin = 0.25;
+
 COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(255, 255, 255),	// level 0
     RGB(170, 0, 170),	// level 1
@@ -183,8 +188,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     if (lpDesc->lpSurface == nullptr)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
@@ -572,8 +576,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     if (lpDesc->lpSurface == nullptr)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
@@ -797,8 +800,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     if (!hwnd)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     COLORREF heightColor = color;
     if (useHeightColor)
@@ -963,9 +965,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
     if (!hwnd)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
-
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
@@ -1102,8 +1102,7 @@ void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool 
     if (lpDesc->lpSurface == nullptr)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
@@ -1273,8 +1272,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     if (lpDesc->lpSurface == nullptr)
         return;
 
-    RECT rect;
-    this->GetWindowRect(&rect);
+    RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
     auto nBytesPerPixel = *(int*)0x72A8C0;
@@ -1473,9 +1471,9 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
         int mouseY = mouse.y + rect.top + pIsoView->ViewPosition.y;
 
         int cX = currentMapCoord.X, cY = currentMapCoord.Y;
-        CIsoView::MapCoord2ScreenCoord(cX, cY);
-        int CellCenterX = cX + 36;
-        int CellCenterY = cY - 12;
+        CIsoViewExt::MapCoord2ScreenCoord(cX, cY);
+        int CellCenterX = cX + 36 / CIsoViewExt::ScaledFactor;
+        int CellCenterY = cY - 12 / CIsoViewExt::ScaledFactor;
         ppmfc::CString tmp;
 
         auto getSubcellInf = [&](int subpos)
@@ -1509,7 +1507,7 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
         }
         else
         {
-            int xDistance = mouseX - CellCenterX;
+            int xDistance = (mouseX - CellCenterX) * CIsoViewExt::ScaledFactor;
             if (xDistance >= -10 && xDistance <= 6)
             {
                 if (getSubcel)
@@ -1910,17 +1908,30 @@ IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitm
     return pSurface;
 }
 
-void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha)
+void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha, LPDIRECTDRAWSURFACE7 surface)
 {
     auto pThis = CIsoView::GetInstance();
     if (pic == NULL) return;
+
+    RECT r;
+    if (surface == nullptr)
+    {
+        r = CIsoViewExt::GetScaledWindowRect();
+        surface = pThis->lpDDBackBufferSurface;
+    }
+    else if (surface == pThis->lpDDBackBufferSurface)
+    {
+        r = CIsoViewExt::GetScaledWindowRect();
+    }
+    else
+    {
+        pThis->GetWindowRect(&r);
+    }
 
     x += 1;
     y += 1;
     y -= 30;
 
-    RECT r;
-    pThis->GetWindowRect(&r);
 
     if (width == -1 || height == -1)
     {
@@ -1970,12 +1981,12 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     memset(&srcDesc, 0, sizeof(DDSURFACEDESC2));
     srcDesc.dwSize = sizeof(DDSURFACEDESC2);
 
-    if (pThis->lpDDBackBufferSurface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
+    if (surface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
         return;
 
     if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
     {
-        pThis->lpDDBackBufferSurface->Unlock(NULL);
+        surface->Unlock(NULL);
         return;
     }
 
@@ -1983,7 +1994,7 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK)
     {
         pic->Unlock(NULL);
-        pThis->lpDDBackBufferSurface->Unlock(NULL);
+        surface->Unlock(NULL);
         return;
     }
 
@@ -2031,7 +2042,7 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
         }
     }
     pic->Unlock(NULL);
-    pThis->lpDDBackBufferSurface->Unlock(NULL);
+    surface->Unlock(NULL);
 }
 
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
@@ -2369,8 +2380,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
 void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
 {  
     auto pThis = CIsoView::GetInstance();
-    RECT window;
-    pThis->GetWindowRect(&window);
+    RECT window = CIsoViewExt::GetScaledWindowRect();
     DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
     CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
 }
@@ -2775,6 +2785,214 @@ std::vector<MapCoord> CIsoViewExt::GetPathFromDirections(int x0, int y0, const s
     }
 
     return path;
+}
+
+RECT CIsoViewExt::GetScaledWindowRect()
+{
+    CRect rect;
+    auto pThis = CIsoView::GetInstance();
+    pThis->GetWindowRect(&rect);
+    rect.right += rect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
+    rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
+    return rect;
+}
+
+void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y)
+{
+    CRect rect;
+    auto pThis = CIsoView::GetInstance();
+    pThis->GetWindowRect(&rect);
+    pThis->MapCoord2ScreenCoord(X, Y);
+    X = (X - pThis->ViewPosition.x - rect.left) / CIsoViewExt::ScaledFactor + pThis->ViewPosition.x + rect.left;
+    Y = (Y - pThis->ViewPosition.y - rect.top) / CIsoViewExt::ScaledFactor + pThis->ViewPosition.y + rect.top;
+}
+
+bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect)
+{
+    if (!ExtConfigs::DDrawScalingBilinear)
+    {
+        dstSurface->Blt(&dstRect, srcSurface, &srcRect, DDBLT_WAIT, 0);
+        return true;
+    }
+
+    DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
+    DDSURFACEDESC2 dstDesc = { sizeof(DDSURFACEDESC2) };
+
+    if (srcSurface->Lock(NULL, &srcDesc, DDLOCK_READONLY | DDLOCK_WAIT, NULL) != DD_OK)
+        return false;
+
+    if (dstSurface->Lock(NULL, &dstDesc, DDLOCK_WAIT, NULL) != DD_OK) {
+        srcSurface->Unlock(NULL);
+        return false;
+    }
+
+    uint8_t* srcBits = (uint8_t*)srcDesc.lpSurface;
+    uint8_t* dstBits = (uint8_t*)dstDesc.lpSurface;
+    int srcPitch = srcDesc.lPitch;
+    int dstPitch = dstDesc.lPitch;
+
+    int srcW = srcRect.right - srcRect.left;
+    int srcH = srcRect.bottom - srcRect.top;
+    int dstW = dstRect.right - dstRect.left;
+    int dstH = dstRect.bottom - dstRect.top;
+
+    for (int y = 0; y < dstH; ++y) {
+        float v = (y + 0.5f) * srcH / dstH - 0.5f;
+        int srcY0 = (int)floor(v);
+        int srcY1 = srcY0 + 1;
+        float fy = v - srcY0;
+
+        srcY0 = std::clamp(srcY0, 0, srcH - 1);
+        srcY1 = std::clamp(srcY1, 0, srcH - 1);
+
+        uint8_t* dstRow = dstBits + (dstRect.top + y) * dstPitch + dstRect.left * 4;
+
+        for (int x = 0; x < dstW; ++x) {
+            float u = (x + 0.5f) * srcW / dstW - 0.5f;
+            int srcX0 = (int)floor(u);
+            int srcX1 = srcX0 + 1;
+            float fx = u - srcX0;
+
+            srcX0 = std::clamp(srcX0, 0, srcW - 1);
+            srcX1 = std::clamp(srcX1, 0, srcW - 1);
+
+            uint32_t c00 = *(uint32_t*)(srcBits + (srcRect.top + srcY0) * srcPitch + (srcRect.left + srcX0) * 4);
+            uint32_t c10 = *(uint32_t*)(srcBits + (srcRect.top + srcY0) * srcPitch + (srcRect.left + srcX1) * 4);
+            uint32_t c01 = *(uint32_t*)(srcBits + (srcRect.top + srcY1) * srcPitch + (srcRect.left + srcX0) * 4);
+            uint32_t c11 = *(uint32_t*)(srcBits + (srcRect.top + srcY1) * srcPitch + (srcRect.left + srcX1) * 4);
+
+            auto unpack = [](uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b) {
+                r = (color >> 16) & 0xFF;
+                g = (color >> 8) & 0xFF;
+                b = color & 0xFF;
+                };
+
+            uint8_t r00, g00, b00;
+            uint8_t r10, g10, b10;
+            uint8_t r01, g01, b01;
+            uint8_t r11, g11, b11;
+
+            unpack(c00, r00, g00, b00);
+            unpack(c10, r10, g10, b10);
+            unpack(c01, r01, g01, b01);
+            unpack(c11, r11, g11, b11);
+
+            auto interp = [fx, fy](uint8_t c00, uint8_t c10, uint8_t c01, uint8_t c11) -> uint8_t {
+                float top = c00 * (1 - fx) + c10 * fx;
+                float bot = c01 * (1 - fx) + c11 * fx;
+                float value = top * (1 - fy) + bot * fy;
+                return static_cast<uint8_t>(value + 0.5f);
+                };
+
+            uint8_t r = interp(r00, r10, r01, r11);
+            uint8_t g = interp(g00, g10, g01, g11);
+            uint8_t b = interp(b00, b10, b01, b11);
+
+            *(uint32_t*)(dstRow + x * 4) = (r << 16) | (g << 8) | b;
+        }
+    }
+
+    srcSurface->Unlock(NULL);
+    dstSurface->Unlock(NULL);
+    return true;
+}
+
+void CIsoViewExt::DrawCreditOnMap(HDC hDC)
+{
+    auto pThis = CIsoView::GetInstance();
+    CRect rect;
+    pThis->GetWindowRect(&rect);
+    int leftIndex = 0;
+    int lineHeight = ExtConfigs::DisplayTextSize + 2;
+    ::SetBkMode(hDC, OPAQUE);
+    ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+    SetTextAlign(hDC, TA_LEFT);
+    if (CIsoViewExt::DrawMoneyOnMap)
+    {
+        ppmfc::CString buffer;
+        buffer.Format(Translations::TranslateOrDefault("MoneyOnMap", "Credits On Map: %d"), CMapData::Instance->MoneyCount);
+        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+
+        if (ExtConfigs::EnableMultiSelection)
+        {
+            if (MultiSelection::SelectedCoords.size())
+            {
+                int nCount = 0;
+                auto pExt = CMapDataExt::GetExtension();
+                pExt->InitOreValue();
+                MultiSelection::ApplyForEach(
+                    [&nCount, pExt](CellData& cell) {
+                        nCount += pExt->GetOreValueAt(cell);
+                    }
+                );
+
+                buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection", "MultiSelection Enabled. Selected Credits: %d"), nCount);
+                ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+            }
+        }
+    }
+    if (CFinalSunApp::Instance().FlatToGround)
+    {
+        ppmfc::CString buffer;
+        buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
+        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+    }
+}
+
+void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
+{
+    switch (specialDraw)
+    {
+    case 0:
+    {
+        auto pThis = CIsoView::GetInstance();
+        if (pThis->IsScrolling)
+        {
+            CRect rect;
+            pThis->GetWindowRect(&rect);
+            auto point = pThis->MoveCenterPosition;
+            point.x += rect.left - 16 - 18;
+            point.y += rect.top + 14 - 12;
+            auto cursor = ImageDataMapHelper::GetImageDataFromMap("scrollcursor.bmp");
+            CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
+        }
+
+        HDC hDC;
+        surface->GetDC(&hDC);
+        HFONT hFont = CreateFont(ExtConfigs::DisplayTextSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE, "Cambria");
+        HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
+
+        DrawCreditOnMap(hDC);
+
+        SelectObject(hDC, hOldFont);
+        DeleteObject(hFont);
+        surface->ReleaseDC(hDC);
+
+        break;
+    }
+    case 1:
+    {
+        HDC hDC;
+        surface->GetDC(&hDC);
+        HFONT hFont = CreateFont(ExtConfigs::DisplayTextSize, 0, 0, 0,  FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE, "Cambria");
+        HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
+
+        DrawObjectInfo(hDC, false);
+        DrawCreditOnMap(hDC);
+
+        SelectObject(hDC, hOldFont);
+        DeleteObject(hFont);
+
+        surface->ReleaseDC(hDC);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)
