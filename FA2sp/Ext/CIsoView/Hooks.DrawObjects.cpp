@@ -30,13 +30,12 @@ std::unordered_set<short> DrawnBuildings;
 std::vector<BaseNodeDataExt> DrawnBaseNodes;
 
 #define EXTRA_BORDER 15
-#define EXTRA_BORDER_BOTTOM 25
 
 inline static bool IsCoordInWindow(int X, int Y)
 {
 	return
 		X + Y > VisibleCoordTL.X + VisibleCoordTL.Y - EXTRA_BORDER &&
-		X + Y < VisibleCoordBR.X + VisibleCoordBR.Y + EXTRA_BORDER_BOTTOM &&
+		X + Y < VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM &&
 		X > Y + VisibleCoordBR.X - VisibleCoordBR.Y - EXTRA_BORDER &&
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
@@ -246,14 +245,16 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 	Left = R->Stack<int>(STACK_OFFS(0xD18, 0xC10)) - EXTRA_BORDER;
 	Right = R->Stack<int>(STACK_OFFS(0xD18, 0xC64)) + EXTRA_BORDER;
 	Top = R->Stack<int>(STACK_OFFS(0xD18, 0xCBC)) - EXTRA_BORDER;
-	Bottom = R->Stack<int>(STACK_OFFS(0xD18, 0xC18)) + EXTRA_BORDER_BOTTOM;
+	Bottom = R->Stack<int>(STACK_OFFS(0xD18, 0xC18)) + CIsoViewExt::EXTRA_BORDER_BOTTOM;
 	auto pThis = CIsoView::GetInstance();
 	pThis->GetWindowRect(&window);
 
 	double scale = CIsoViewExt::ScaledFactor;
-	if (scale < 1.0)
+	if (scale < 0.7)
 		scale += 0.3;
 	window.right += window.Width() * (scale - 1.0);
+	if (scale < 1.0)
+		scale = 1.0;
 	window.bottom += window.Height() * (scale - 1.0);
 
 	VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
@@ -486,7 +487,7 @@ DEFINE_HOOK(474ACF, CIsoView_Draw_Loop2_HorizontalLoop_3, 7)
 {
 	HorizontalLoopIndex++;
 	R->Stack(STACK_OFFS(0xD18, 0xCA8), R->EDI());
-	if (HorizontalLoopIndex >= VisibleCoordBR.X + VisibleCoordBR.Y + EXTRA_BORDER_BOTTOM)
+	if (HorizontalLoopIndex >= VisibleCoordBR.X + VisibleCoordBR.Y + CIsoViewExt::EXTRA_BORDER_BOTTOM)
 		return 0x474AE3;
 
 	return 0x46F604;
@@ -999,6 +1000,11 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 				imageName.Format("%s%d\233OVERLAYSHADOW", obj, cell->OverlayData);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
+				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(imageName))
+				{
+					CLoading::Instance->DrawOverlay(obj, cell->Overlay);
+				}
+
 				if (pData && pData->pImageBuffer)
 				{
 					int x1 = x;
@@ -1019,7 +1025,9 @@ DEFINE_HOOK(46F5FD, CIsoView_Draw_Shadows, 7)
 							y1 += 15;
 						else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock)
+							if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock
+								//|| CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock // for compatibility of blockages
+								|| CMapDataExt::OverlayTypeDatas[cell->Overlay].RailRoad)
 								y1 += 15;
 						}
 					}

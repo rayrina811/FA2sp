@@ -19,6 +19,7 @@ std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
+int CLoadingExt::TallestBuildingHeight = 0;
 
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
@@ -1581,6 +1582,9 @@ void CLoadingExt::SetImageData(unsigned char* pBuffer, ImageDataClass* pData, in
 	pData->ValidY = validFirstY;
 	pData->ValidWidth = validLastX - validFirstX + 1;
 	pData->ValidHeight = validLastY - validFirstY + 1;
+
+	CLoadingExt::TallestBuildingHeight = std::max(CLoadingExt::TallestBuildingHeight, (int)pData->ValidHeight);
+	CIsoViewExt::EXTRA_BORDER_BOTTOM = std::max(CLoadingExt::TallestBuildingHeight / 14, 25);
 
 	pData->Flag = ImageDataFlag::SHP;
 	pData->IsOverlay = false;

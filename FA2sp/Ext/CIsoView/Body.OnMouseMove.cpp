@@ -17,6 +17,7 @@
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+
 void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -113,25 +114,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 
-    auto drawLine = [pIsoView, hDC](int x1, int y1, int x2, int y2, int color)
-        {
-            x1 += 30 / CIsoViewExt::ScaledFactor;
-            x2 += 30 / CIsoViewExt::ScaledFactor;
-            y1 -= 15 / CIsoViewExt::ScaledFactor;
-            y2 -= 15 / CIsoViewExt::ScaledFactor;
-            PAINTSTRUCT ps;
-            HPEN hPen;
-            HPEN hPenOld;
-            BeginPaint(pIsoView->m_hWnd, &ps);
-            hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? 2 : 0, color);
-            hPenOld = (HPEN)SelectObject(hDC, hPen);
-            MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
-            LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
-            SelectObject(hDC, hPenOld);
-            DeleteObject(hPen);
-            EndPaint(pIsoView->m_hWnd, &ps);
-        };
-
     // delete overlay
     if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) 
     {
@@ -200,7 +182,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
 
         SetROP2(hDC, R2_NOT);
-        drawLine(x1, y1, x2, y2, RGB(255, 0, 0));
+        CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, RGB(255, 0, 0));
         SetROP2(hDC, R2_COPYPEN);
     }
     if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
@@ -323,7 +305,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
                 CIsoViewExt::MapCoord2ScreenCoord(x2, y2, 1);
 
-                drawLine(x1,
+                CIsoViewExt::DrawLineHDC(hDC, x1,
                     y1 - height,
                     x2,
                     y2 - height, color);

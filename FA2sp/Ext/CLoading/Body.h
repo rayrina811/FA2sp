@@ -107,6 +107,9 @@ public:
 	ObjectType GetItemType(ppmfc::CString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
+
+	static std::unordered_set<ppmfc::CString> LoadedObjects;
+	static int TallestBuildingHeight;
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, ppmfc::CString name);
@@ -123,7 +126,6 @@ private:
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
 	static std::unordered_map<ppmfc::CString, ObjectType> ObjectTypes;
-	static std::unordered_set<ppmfc::CString> LoadedObjects;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 };

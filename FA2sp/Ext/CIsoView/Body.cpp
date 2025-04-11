@@ -58,7 +58,7 @@ bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
-
+int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
 
 float CIsoViewExt::drawOffsetX;
@@ -3160,6 +3160,26 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
         }
         pThis->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, color, false, hDC, pThis->m_hWnd, s1, s2, s3, s4);
     }
+}
+
+void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color)
+{
+    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+    y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+    PAINTSTRUCT ps;
+    HPEN hPen;
+    HPEN hPenOld;
+    BeginPaint(pThis->m_hWnd, &ps);
+    hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? 2 : 0, color);
+    hPenOld = (HPEN)SelectObject(hDC, hPen);
+    MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
+    LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
+    SelectObject(hDC, hPenOld);
+    DeleteObject(hPen);
+    EndPaint(pThis->m_hWnd, &ps);
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

@@ -87,6 +87,7 @@ public:
     static void DrawMouseMove(HDC hDC);
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
+    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
@@ -150,6 +151,7 @@ public:
     static bool IsPressingTube;
     static std::vector<MapCoord> TubeNodes;
     static ppmfc::CString CurrentCellObjectHouse;
+    static int EXTRA_BORDER_BOTTOM;
 
     static LPDIRECTDRAWSURFACE7 lpDDBackBufferZoomSurface;
     static double ScaledFactor;

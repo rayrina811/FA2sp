@@ -121,6 +121,30 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             {
                 auto& tile = CMapDataExt::TileData[InsertingTileIndex];
                 auto& subTile = tile.TileBlockDatas[0];
+
+                ppmfc::CString fileName;
+                fileName.Format("%s-tile-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
+                    InsertingTileIndex, ExtConfigs::TreeViewCameo_Size);
+
+                std::string path = CFinalSunApp::ExePath();
+                path += "\\thumbnails";
+                if (!fs::exists(path) || !fs::is_directory(path))
+                {
+                    fs::create_directories(path);
+                }
+                path += "\\";
+                path += fileName.m_pchData;
+                if (fs::exists(path))
+                {
+                    CBitmap cBitmap;
+                    if (CLoadingExt::LoadBMPToCBitmap(path.c_str(), cBitmap))
+                    {
+                        int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
+                        this->GetTreeCtrl().SetItemImage(item, index, index);
+                        return item;
+                    }
+                }
+
                 ImageDataClass data;
                 data.pImageBuffer = subTile.ImageData;
                 data.FullHeight = subTile.BlockHeight;
@@ -135,31 +159,38 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                         pal = pPal;
                 }
                 data.pPalette = pal;
+
                 CBitmap cBitmap;
                 CLoadingExt::LoadShpToBitmap(&data, cBitmap);
                 CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
+                CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
                 return item;
             }
 
             ppmfc::CString imageName;
+            ppmfc::CString fileID;
             auto eItemType = CLoadingExt::GetExtension()->GetItemType(InsertingObjectID);
             switch (eItemType)
             {
             case CLoadingExt::ObjectType::Infantry:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 5);
+                fileID = CLoadingExt::GetExtension()->GetInfantryFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Terrain:
             case CLoadingExt::ObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
+                fileID = CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Vehicle:
             case CLoadingExt::ObjectType::Aircraft:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 2);
+                fileID = CLoadingExt::GetExtension()->GetVehicleOrAircraftFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Building:
                 imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
+                fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Unknown:
             default:
@@ -171,16 +202,14 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
                 break;
             }
-
             std::string path = CFinalSunApp::ExePath();
             path += "\\thumbnails";
-
             if (!fs::exists(path) || !fs::is_directory(path))
             {
                 fs::create_directories(path);
             }
             ppmfc::CString fileName;
-            fileName.Format("%s-%s-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"), imageName, ExtConfigs::TreeViewCameo_Size);
+            fileName.Format("%s-%d.bmp", fileID, ExtConfigs::TreeViewCameo_Size);
             if (InsertingOverlay > -1)
             {
                 fileName.Format("%s-overlay-%d-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
@@ -202,7 +231,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
             if (InsertingOverlay > -1)
             {
-                CLoading::Instance()->DrawOverlay(*CINI::Rules->GetSection("OverlayTypes")->GetValueAt(InsertingOverlay), InsertingOverlay);
+                CLoading::Instance()->DrawOverlay(Variables::GetRulesMapValueAt("OverlayTypes", InsertingOverlay), InsertingOverlay);
                 CIsoView::GetInstance()->UpdateDialog(false);
 
                 pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];

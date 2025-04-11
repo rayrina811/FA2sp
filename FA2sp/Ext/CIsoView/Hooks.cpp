@@ -1287,6 +1287,9 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 {
 	if (CIsoViewExt::IsPressingTube)
 	{
+		if (CIsoViewExt::TubeNodes.front() == CIsoViewExt::TubeNodes.back())
+			return 0;
+
 		((CIsoViewExt*)CIsoView::GetInstance())->ConfirmTube(CIsoView::CurrentCommand->Type == 0);
 
 		CIsoViewExt::IsPressingTube = false;
