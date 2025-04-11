@@ -995,12 +995,14 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
             ClipAndDrawLine(x3 + offset + 1, y3, x3 + offset + 1, y3 + height * 15 / CIsoViewExt::ScaledFactor, 2);
         };
 
-    drawHeightLine(0);
-    if (CIsoViewExt::ScaledFactor < 0.76)
-        drawHeightLine(1);
-    if (CIsoViewExt::ScaledFactor < 0.31)
-        drawHeightLine(-1);
-
+    if (!CFinalSunApp::Instance->FlatToGround)
+    {
+        drawHeightLine(0);
+        if (CIsoViewExt::ScaledFactor < 0.76)
+            drawHeightLine(1);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawHeightLine(-1);
+    }
 }
 
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)

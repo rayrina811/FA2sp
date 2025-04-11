@@ -181,7 +181,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             case CLoadingExt::ObjectType::Terrain:
             case CLoadingExt::ObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
-                fileID = CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
+                fileID = CINI::CurrentDocument->GetString("Map", "Theater") + "-" +
+                    CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Vehicle:
             case CLoadingExt::ObjectType::Aircraft:
