@@ -17,8 +17,94 @@
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+void CIsoViewExt::DrawBridgeLine(HDC hDC)
+{
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 
-void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
+    int x1, y1, x2, y2, startx, starty, width, height;
+    x1 = pIsoView->StartCell.X;
+    y1 = pIsoView->StartCell.Y;
+    x2 = point.X;
+    y2 = point.Y;
+    if (abs(x2 - x1) < 1 && abs(y2 - y1) < 1)
+        return;
+
+    if (x1 > x2)
+    {
+        int tmp = x1;
+        x1 = x2;
+        x2 = tmp;
+    }
+    if (y1 > y2)
+    {
+        int tmp = y1;
+        y1 = y2;
+        y2 = tmp;
+    }
+    if (x2 - x1 >= y2 - y1)
+    {
+        startx = x1;
+        starty = pIsoView->StartCell.Y - 1;
+        width = 3;
+        height = x2 - x1 + 1;
+    }
+    else
+    {
+        startx = pIsoView->StartCell.X - 1;
+        starty = y1;
+        width = y2 - y1 + 1;
+        height = 3;
+    }
+    
+    CIsoViewExt::MapCoord2ScreenCoord(startx, starty);
+
+    pIsoView->DrawLockedCellOutlinePaint(startx - CIsoViewExt::drawOffsetX, starty - CIsoViewExt::drawOffsetY,
+        width, height, ExtConfigs::CursorSelectionBound_Color, false, hDC, pIsoView->m_hWnd);
+
+
+}
+
+void CIsoViewExt::DrawCopyBound(HDC hDC)
+{
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+
+    int x1, y1, x2, y2;
+    x1 = pIsoView->StartCell.X;
+    y1 = pIsoView->StartCell.Y;
+    x2 = point.X;
+    y2 = point.Y;
+    if (x1 > x2)
+    {
+        int tmp = x1;
+        x1 = x2;
+        x2 = tmp;
+    }
+    if (y1 > y2)
+    {
+        int tmp = y1;
+        y1 = y2;
+        y2 = tmp;
+    }
+
+    for (int x = x1; x <= x2; ++x)
+    {
+        for (int y = y1; y <= y2; ++y)
+        {
+            int X = x;
+            int Y = y;
+            CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+
+            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
+                1, 1, ExtConfigs::CopySelectionBound_Color, false, hDC, pIsoView->m_hWnd);
+
+        }
+    }
+
+}
+
+void CIsoViewExt::DrawMouseMove(HDC hDC)
 {
     int lineHeight = ExtConfigs::DisplayTextSize + 2;
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -26,6 +112,240 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
     int X = point.X, Y = point.Y;
     CIsoViewExt::MapCoord2ScreenCoord(X, Y);
     auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+
+    auto drawLine = [pIsoView, hDC](int x1, int y1, int x2, int y2, int color)
+        {
+            x1 += 30 / CIsoViewExt::ScaledFactor;
+            x2 += 30 / CIsoViewExt::ScaledFactor;
+            y1 -= 15 / CIsoViewExt::ScaledFactor;
+            y2 -= 15 / CIsoViewExt::ScaledFactor;
+            PAINTSTRUCT ps;
+            HPEN hPen;
+            HPEN hPenOld;
+            BeginPaint(pIsoView->m_hWnd, &ps);
+            hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? 2 : 0, color);
+            hPenOld = (HPEN)SelectObject(hDC, hPen);
+            MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
+            LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
+            SelectObject(hDC, hPenOld);
+            DeleteObject(hPen);
+            EndPaint(pIsoView->m_hWnd, &ps);
+        };
+
+    // delete overlay
+    if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) 
+    {
+        int size = CIsoView::CurrentCommand->Overlay;
+        std::vector<MapCoord> cells;
+        for (int gx = point.X - size; gx <= point.X + size; gx++)
+        {
+            for (int gy = point.Y - size; gy <= point.Y + size; gy++)
+            {
+                cells.push_back({ gx, gy });
+            }
+        }
+        CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
+    }
+
+    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag)
+    {
+        int x1, x2, y1, y2;
+        x1 = pIsoView->StartCell.X;
+        y1 = pIsoView->StartCell.Y;
+        x2 = point.X;
+        y2 = point.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+        if (pIsoView->CurrentCellObjectType == 0)
+        {
+            CInfantryData infData;
+            CMapData::Instance->GetInfantryData(pIsoView->CurrentCellObjectIndex, infData);
+            switch (atoi(infData.SubCell))
+            {
+            case 2:
+                x1 += 15 / CIsoViewExt::ScaledFactor;
+                break;
+            case 3:
+                x1 -= 15 / CIsoViewExt::ScaledFactor;
+                break;
+            case 0:
+            case 1:
+                break;
+            case 4:
+                y1 += 8 / CIsoViewExt::ScaledFactor;
+                break;
+            }
+
+            if (ExtConfigs::InfantrySubCell_Edit && ExtConfigs::InfantrySubCell_Edit_Drag)
+            {
+                auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
+
+                switch (CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y, true))
+                {
+                case 2:
+                    x2 += 15 / CIsoViewExt::ScaledFactor;
+                    break;
+                case 3:
+                    x2 -= 15 / CIsoViewExt::ScaledFactor;
+                    break;
+                case 0:
+                case 1:
+                    break;
+                case 4:
+                    y2 += 8 / CIsoViewExt::ScaledFactor;
+                    break;
+                }
+            }
+
+        }
+
+        SetROP2(hDC, R2_NOT);
+        drawLine(x1, y1, x2, y2, RGB(255, 0, 0));
+        SetROP2(hDC, R2_COPYPEN);
+    }
+    if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
+    {
+        if (MultiSelection::IsSquareSelecting)
+        {
+            int& x1 = point.X;
+            int& x2 = MultiSelection::LastAddedCoord.X;
+            int& y1 = point.Y;
+            int& y2 = MultiSelection::LastAddedCoord.Y;
+
+            int top, bottom, left, right;
+            top = x1 + y1;
+            bottom = x2 + y2;
+            left = y1 - x1;
+            right = y2 - x2;
+            if (top > bottom)
+            {
+                int tmp = top;
+                top = bottom;
+                bottom = tmp;
+            }
+            if (left > right)
+            {
+                int tmp = left;
+                left = right;
+                right = tmp;
+            }
+            auto IsCoordInSelect = [&](int X, int Y)
+                {
+                    return
+                        X + Y >= top &&
+                        X + Y <= bottom &&
+                        Y - X >= left &&
+                        Y - X <= right;
+                };
+            std::vector<MapCoord> coords;
+            for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
+            {
+                for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
+                {
+                    if (IsCoordInSelect(i, j))
+                    {
+                        coords.push_back({ i,j });
+                    }
+                }
+            }
+            CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::MultiSelectionColor);
+        }
+        else
+        {
+            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
+            if (CMapData::Instance().IsCoordInMap(X, Y))
+            {
+                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
+                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
+                if (X > point.X)
+                    X = point.X;
+                if (Y > point.Y)
+                    Y = point.Y;
+
+                CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+
+                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
+
+            }
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
+    {
+        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
+        if (CMapData::Instance().IsCoordInMap(X, Y))
+        {
+            int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X) + 1;
+            int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
+            if (X > point.X)
+                X = point.X;
+            if (Y > point.Y)
+                Y = point.Y;
+
+            CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+
+            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
+    {
+        int pos_start = CIsoViewExt::TubeNodes[0].X * 1000 + CIsoViewExt::TubeNodes[0].Y;
+        int pos_end = point.X * 1000 + point.Y;
+        int height = std::min(CMapData::Instance->TryGetCellAt(CIsoViewExt::TubeNodes[0].X, CIsoViewExt::TubeNodes[0].Y)->Height,
+            CMapData::Instance->TryGetCellAt(point.X, point.Y)->Height);
+        height *= 15 / CIsoViewExt::ScaledFactor;
+        if (CFinalSunApp::Instance->FlatToGround)
+            height = 0;
+        int color = pos_end > pos_start ? RGB(255, 0, 0) : RGB(0, 0, 255);
+        int pathCount = 2;
+        for (int j = 0; j < CIsoViewExt::TubeNodes.size(); ++j)
+        {
+            int x1, x2, y1, y2;
+            x1 = CIsoViewExt::TubeNodes[j].X;
+            y1 = CIsoViewExt::TubeNodes[j].Y;
+            if (j == CIsoViewExt::TubeNodes.size() - 1)
+            {
+                x2 = point.X;
+                y2 = point.Y;
+            }
+            else
+            {
+                x2 = CIsoViewExt::TubeNodes[j + 1].X;
+                y2 = CIsoViewExt::TubeNodes[j + 1].Y;
+            }
+            auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
+            for (int i = 0; i < path.size() - 1; ++i)
+            {
+                int x1, x2, y1, y2;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                x2 = path[i + 1].X;
+                y2 = path[i + 1].Y;
+                CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+                CIsoViewExt::MapCoord2ScreenCoord(x2, y2, 1);
+
+                drawLine(x1,
+                    y1 - height,
+                    x2,
+                    y2 - height, color);
+            }
+            ::SetBkMode(hDC, TRANSPARENT);
+            for (int i = 0; i < path.size(); ++i)
+            {
+                if (i == 0)
+                    pathCount--;
+                ppmfc::CString count;
+                count.Format("%d", pathCount);
+                int x1, y1;
+                x1 = path[i].X;
+                y1 = path[i].Y;
+                CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+                TextOut(hDC, x1 + 30 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetX,
+                    y1 - 15 / CIsoViewExt::ScaledFactor - CIsoViewExt::drawOffsetY - height, count, strlen(count));
+                pathCount++;
+            }
+            ::SetBkMode(hDC, OPAQUE);
+        }
+    }
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
         RECT rect;
@@ -69,14 +389,11 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
         int drawX = X - CIsoViewExt::drawOffsetX + 30;
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
 
-        if (!isRange)
-        {
-            ppmfc::CString buffer2;
-            buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
-                "Coordinates: %d, %d, Height: %d"), point.Y, point.X, cell->Height);
-            ::TextOut(hDC, drawX, drawY + lineHeight * i++, buffer2, buffer2.GetLength());
-        }
 
+        ppmfc::CString buffer2;
+        buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
+            "Coordinates: %d, %d, Height: %d"), point.Y, point.X, cell->Height);
+        ::TextOut(hDC, drawX, drawY + lineHeight * i++, buffer2, buffer2.GetLength());
 
         bool bDrawRange = false;
         if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
@@ -85,9 +402,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
         auto drawRange = [&](float XCenter, float YCenter, float range, COLORREF color,
             bool isBuilding, ppmfc::CString objectX, ppmfc::CString objectY, bool calculateElevation = false)
             {
-                if (!isRange)
-                    return;
-
                 if (range <= 0) return;
                 range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
                 std::vector<MapCoord> mapCoordsInRange;
@@ -170,41 +484,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                         }
                     }
                 }
-                for (auto& mc : mapCoordsInRange)
-                {
-                    int x = mc.X;
-                    int y = mc.Y;
-                    CIsoView::MapCoord2ScreenCoord(x, y);
-                    int drawX = x - CIsoViewExt::drawOffsetX;
-                    int drawY = y - CIsoViewExt::drawOffsetY;
-
-                    bool s1 = true;
-                    bool s2 = true;
-                    bool s3 = true;
-                    bool s4 = true;
-
-                    for (auto& coord : mapCoordsInRange)
-                    {
-                        if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-                        {
-                            s1 = false;
-                        }
-                        if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-                        {
-                            s3 = false;
-                        }
-                        if (coord.X == mc.X && coord.Y == mc.Y - 1)
-                        {
-                            s4 = false;
-                        }
-
-                        if (coord.X == mc.X && coord.Y == mc.Y + 1)
-                        {
-                            s2 = false;
-                        }
-                    }
-                    pIsoView->DrawLockedCellOutlinePaint(drawX + offsetX, drawY + offsetY, 1, 1, color, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
-                }
+                CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color);
             };
 
         auto drawWeaponRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool secondary = false)
@@ -264,15 +544,13 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                     {
                         SetBkColor(hDC, ExtConfigs::WeaponRangeBound_Color);
                         leftLine = Translations::TranslateOrDefault("ViewWeaponRangeInfo", "Primary Range");
-                        if (!isRange)
-                            ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
 
                         if (minimumRange > 0)
                         {
                             SetBkColor(hDC, ExtConfigs::WeaponRangeMinimumBound_Color);
                             leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
-                            if (!isRange)
-                                ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+                            ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
                         drawRange(XCenter, YCenter, range, ExtConfigs::WeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
@@ -282,15 +560,13 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                     {
                         SetBkColor(hDC, ExtConfigs::SecondaryWeaponRangeBound_Color);
                         leftLine = Translations::TranslateOrDefault("ViewSecondaryWeaponRangeInfo", "Secondary Range");
-                        if (!isRange)
-                            ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
 
                         if (minimumRange > 0)
                         {
                             SetBkColor(hDC, ExtConfigs::SecondaryWeaponRangeMinimumBound_Color);
                             leftLine = Translations::TranslateOrDefault("WeaponMinimumRangeInfo", "Minimum Range");
-                            if (!isRange)
-                                ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+                            ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                         }
 
                         drawRange(XCenter, YCenter, range, ExtConfigs::SecondaryWeaponRangeBound_Color, isBuilding, objectX, objectY, useElevation);
@@ -375,8 +651,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                     }
                     drawRange(XCenter, YCenter, range, color, isBuilding, objectX, objectY);
                     SetBkColor(hDC, color);
-                    if (!isRange)
-                        ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
+                    ::TextOut(hDC, rect.left + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine, leftLine.GetLength());
                     SetBkColor(hDC, 0xFFFFFF);
                 }
             };
@@ -454,9 +729,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
 
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
-
-                    if (isRange)
-                        continue;
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -579,9 +851,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
 
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
-
-                    if (isRange)
-                        continue;
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -707,9 +976,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
 
                     if (bDrawRange)
                         displayRanges(object.TypeID, object.X, object.Y);
-
-                    if (isRange)
-                        continue;
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -858,9 +1124,6 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 if (bDrawRange)
                     displayRanges(object.TypeID, object.X, object.Y, true);
 
-                if (isRange)
-                    continue;
-
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
                     ppmfc::CString leftLine1;
@@ -972,7 +1235,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 }
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1198,7 +1461,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
 
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Tile || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Tile || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1322,7 +1585,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
             }
 
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1356,7 +1619,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Smudge || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Smudge || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1395,7 +1658,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Overlay || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Overlay || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
             ppmfc::CString line2;
@@ -1448,7 +1711,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                     ::TextOut(hDC, drawX + tab, drawY + lineHeight * i++, line2, line2.GetLength());
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Celltag || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Celltag || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             ppmfc::CString line1;
 
@@ -1477,7 +1740,7 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
                 ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
             }
         }
-        if (!isRange && (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Waypoints || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
+        if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Waypoints || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
             SetTextAlign(hDC, TA_RIGHT);
 
@@ -1699,266 +1962,9 @@ void CIsoViewExt::DrawObjectInfo(HDC hDC, bool isRange)
             }
         }
     }
-}
-
-DEFINE_HOOK(45ADDB, CIsoView_OnMouseMove_ObjectInfo, 5)
-{
-    GET_STACK(HDC, hDC, STACK_OFFS(0x3D52C, 0x3D510));
-    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
-    auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
-    auto cell = CMapData::Instance->TryGetCellAt(point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
-    auto drawLine = [pIsoView, hDC](int x1, int y1, int x2, int y2, int color)
-        {
-            PAINTSTRUCT ps;
-            HPEN hPen;
-            HPEN hPenOld;
-            BeginPaint(pIsoView->m_hWnd, &ps);
-            hPen = CreatePen(PS_SOLID, 0, color);
-            hPenOld = (HPEN)SelectObject(hDC, hPen);
-            MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
-            LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
-            SelectObject(hDC, hPenOld);
-            DeleteObject(hPen);
-            EndPaint(pIsoView->m_hWnd, &ps);
-        };
-
-    if (CIsoView::CurrentCommand->Command == 0 && pIsoView->Drag)
-    {
-        int x1, x2, y1, y2;
-        x1 = pIsoView->StartCell.X;
-        y1 = pIsoView->StartCell.Y;
-        x2 = point.X;
-        y2 = point.Y;
-        CIsoView::MapCoord2ScreenCoord(x1, y1);
-        CIsoView::MapCoord2ScreenCoord(x2, y2);
-        if (pIsoView->CurrentCellObjectType == 0)
-        { 
-            CInfantryData infData;
-            CMapData::Instance->GetInfantryData(pIsoView->CurrentCellObjectIndex, infData);
-            switch (atoi(infData.SubCell))
-            {
-            case 2:
-                x1 += 15;
-                break;
-            case 3:
-                x1 -= 15;
-                break;
-            case 0:
-            case 1:
-                break;
-            case 4:
-                y1 += 8;
-                break;
-            }
-
-            if (ExtConfigs::InfantrySubCell_Edit && ExtConfigs::InfantrySubCell_Edit_Drag)
-            {
-                auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-
-                switch (CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y, true))
-                {
-                case 2:
-                    x2 += 15;
-                    break;
-                case 3:
-                    x2 -= 15;
-                    break;
-                case 0:
-                case 1:
-                    break;
-                case 4:
-                    y2 += 8;
-                    break;
-                }
-            }
-
-        }
-        
-        SetROP2(hDC, R2_NOT);
-        drawLine(x1 + 30, y1 - 15, x2 + 30, y2 - 15, RGB(255,0,0));
-        SetROP2(hDC, R2_COPYPEN);
-    }
-    if (CIsoView::CurrentCommand->Command == 0x1D && MultiSelection::LastAddedCoord.X > -1)
-    {
-        if (MultiSelection::IsSquareSelecting)
-        {
-            int& x1 = point.X; 
-            int& x2 = MultiSelection::LastAddedCoord.X;
-            int& y1 = point.Y; 
-            int& y2 = MultiSelection::LastAddedCoord.Y;
-
-            int top, bottom, left, right;
-            top = x1 + y1;
-            bottom = x2 + y2;
-            left = y1 - x1;
-            right = y2 - x2;
-            if (top > bottom)
-            {
-                int tmp = top;
-                top = bottom;
-                bottom = tmp;
-            }
-            if (left > right)
-            {
-                int tmp = left;
-                left = right;
-                right = tmp;
-            }
-            auto IsCoordInSelect = [&](int X, int Y)
-                {
-                    return
-                        X + Y >= top &&
-                        X + Y <= bottom &&
-                        Y - X >= left &&
-                        Y - X <= right;
-                };
-            std::vector<MapCoord> coords;
-            for (int i = 0; i <= CMapData::Instance->MapWidthPlusHeight; i++)
-            {
-                for (int j = 0; j <= CMapData::Instance->MapWidthPlusHeight; j++)
-                {
-                    if (IsCoordInSelect(i, j))
-                    {
-                        coords.push_back({ i,j });
-                    }
-                }
-            }
-            for (auto& mc : coords)
-            {
-                int x = mc.X;
-                int y = mc.Y;
-                CIsoView::MapCoord2ScreenCoord(x, y);
-                int drawX = x - CIsoViewExt::drawOffsetX;
-                int drawY = y - CIsoViewExt::drawOffsetY;
-
-                bool s1 = true;
-                bool s2 = true;
-                bool s3 = true;
-                bool s4 = true;
-
-                for (auto& coord : coords)
-                {
-                    if (coord.X == mc.X - 1 && coord.Y == mc.Y)
-                    {
-                        s1 = false;
-                    }
-                    if (coord.X == mc.X + 1 && coord.Y == mc.Y)
-                    {
-                        s3 = false;
-                    }
-                    if (coord.X == mc.X && coord.Y == mc.Y - 1)
-                    {
-                        s4 = false;
-                    }
-
-                    if (coord.X == mc.X && coord.Y == mc.Y + 1)
-                    {
-                        s2 = false;
-                    }
-                }
-                pIsoView->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd, s1, s2, s3, s4);
-            }
-        }
-        else
-        {
-            int X = MultiSelection::LastAddedCoord.X, Y = MultiSelection::LastAddedCoord.Y;
-            if (CMapData::Instance().IsCoordInMap(X, Y))
-            {
-                int XW = abs(point.X - MultiSelection::LastAddedCoord.X) + 1;
-                int YW = abs(point.Y - MultiSelection::LastAddedCoord.Y) + 1;
-                if (X > point.X)
-                    X = point.X;
-                if (Y > point.Y)
-                    Y = point.Y;
-
-                CIsoView::MapCoord2ScreenCoord(X, Y);
-
-                pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::MultiSelectionColor, false, hDC, pIsoView->m_hWnd);
-
-            }
-        }
-    }
-    if (CIsoView::CurrentCommand->Command == 0x1F && CTerrainGenerator::RangeFirstCell.X > -1)
-    {
-        int X = CTerrainGenerator::RangeFirstCell.X, Y = CTerrainGenerator::RangeFirstCell.Y;
-        if (CMapData::Instance().IsCoordInMap(X, Y))
-        {
-            int XW = abs(point.X - CTerrainGenerator::RangeFirstCell.X) + 1;
-            int YW = abs(point.Y - CTerrainGenerator::RangeFirstCell.Y) + 1;
-            if (X > point.X)
-                X = point.X;
-            if (Y > point.Y)
-                Y = point.Y;
-
-            CIsoView::MapCoord2ScreenCoord(X, Y);
-
-            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, YW, XW, ExtConfigs::TerrainGeneratorColor, false, hDC, pIsoView->m_hWnd);
-        }
-    }
-
-    int X = point.X, Y = point.Y;
-    CIsoView::MapCoord2ScreenCoord(X, Y);
-    if (CIsoView::CurrentCommand->Command == 0x22 && CIsoViewExt::IsPressingTube && !CIsoViewExt::TubeNodes.empty())
-    {
-        int pos_start = CIsoViewExt::TubeNodes[0].X * 1000 + CIsoViewExt::TubeNodes[0].Y;
-        int pos_end = point.X * 1000 + point.Y;
-        int height = std::min(CMapData::Instance->TryGetCellAt(CIsoViewExt::TubeNodes[0].X, CIsoViewExt::TubeNodes[0].Y)->Height,
-            CMapData::Instance->TryGetCellAt(point.X, point.Y)->Height);
-        height *= 15;
-        if (CFinalSunApp::Instance->FlatToGround) 
-            height = 0;
-        int color = pos_end > pos_start ? RGB(255, 0, 0) : RGB(0, 0, 255);
-        int pathCount = 2;
-        for (int j = 0; j < CIsoViewExt::TubeNodes.size(); ++j)
-        {
-            int x1, x2, y1, y2;
-            x1 = CIsoViewExt::TubeNodes[j].X;
-            y1 = CIsoViewExt::TubeNodes[j].Y;
-            if (j == CIsoViewExt::TubeNodes.size() - 1)
-            {
-                x2 = point.X;
-                y2 = point.Y;
-            }
-            else
-            {
-                x2 = CIsoViewExt::TubeNodes[j + 1].X;
-                y2 = CIsoViewExt::TubeNodes[j + 1].Y;
-            }
-            auto path = CIsoViewExt::GetTubePath(x1, y1, x2, y2, j == 0);
-            for (int i = 0; i < path.size() - 1; ++i)
-            {
-                int x1, x2, y1, y2;
-                x1 = path[i].X;
-                y1 = path[i].Y;
-                x2 = path[i + 1].X;
-                y2 = path[i + 1].Y;
-                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-                CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
-
-                drawLine(x1 + 30, y1 - 15 - height, x2 + 30, y2 - 15 - height, color);
-            }
-            ::SetBkMode(hDC, TRANSPARENT);
-            for (int i = 0; i < path.size(); ++i)
-            {
-                if (i == 0)
-                    pathCount--;
-                ppmfc::CString count;
-                count.Format("%d", pathCount);
-                int x1, y1;
-                x1 = path[i].X;
-                y1 = path[i].Y;
-                CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-                TextOut(hDC, x1 + 30 - CIsoViewExt::drawOffsetX, y1 - 15 - CIsoViewExt::drawOffsetY - height, count, strlen(count));
-                pathCount++;
-            }
-            ::SetBkMode(hDC, OPAQUE);
-        }
-    }
     if (CMapData::Instance().IsCoordInMap(point.X, point.Y))
     {
         pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
             cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
     }
-    CIsoViewExt::DrawObjectInfo(hDC, true);
-    return 0;
 }

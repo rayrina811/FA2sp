@@ -82,8 +82,12 @@ public:
     static std::vector<MapCoord> GetPathFromDirections(int x0, int y0, const std::vector<int>& directions);
     static RECT GetScaledWindowRect();
 
-    static void MapCoord2ScreenCoord(int& X, int& Y);
-    static void DrawObjectInfo(HDC hDC, bool isRange);
+    // flatMode 0 = auto, 1 = flat, 2 = height
+    static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
+    static void DrawMouseMove(HDC hDC);
+    static void DrawCopyBound(HDC hDC);
+    static void DrawBridgeLine(HDC hDC);
+    static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static void DrawCreditOnMap(HDC hDC);

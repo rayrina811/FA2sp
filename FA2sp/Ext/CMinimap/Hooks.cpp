@@ -89,6 +89,37 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 
     return 0x4D1CE0;
 }
+
+DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
+{
+	GET(CMinimap*, pThis, ECX);
+	GET_STACK(UINT, nFlags, 0x4);
+	GET_STACK(ppmfc::CPoint, point, 0x8);
+
+	if (nFlags == MK_LBUTTON)
+	{
+		RECT cr;
+		pThis->GetClientRect(&cr);
+		RECT r = CIsoViewExt::GetScaledWindowRect();
+
+		float defaultXSize = (CMapData::Instance->Size.Width * 2);
+		float defaultYSize = (CMapData::Instance->Size.Height);
+		float resizedXScale = cr.right / defaultXSize;
+		float resizedYScale = cr.bottom / defaultYSize;
+
+		auto pIsoView = CIsoView::GetInstance();
+
+		int x = (point.x / resizedXScale) / 2 + CMapData::Instance->Size.Height / 2;
+		int y = (point.y / resizedYScale) + CMapData::Instance->Size.Width / 2;
+
+		pIsoView->MoveTo((x - r.right / 60 / 2) * 60, (y - r.bottom / 30 / 2) * 30);
+		pIsoView->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+		pThis->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
+
+	return 0x4D1F57;
+}
+
 //
 //DEFINE_HOOK(4D1E0F, CMinimap_UpdateDialog_Size, 8)
 //{

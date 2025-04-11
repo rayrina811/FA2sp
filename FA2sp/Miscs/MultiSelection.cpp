@@ -35,6 +35,7 @@ int MultiSelection::CopiedY;
 bool MultiSelection::AddBuildingOptimize = false;
 bool MultiSelection::SelectCellsChanged = false;
 std::map<int, int>  MultiSelection::CopiedCellsBuilding;
+CMultiSelectionOptionDlg MultiSelection::dlg;
 
 
 bool MultiSelection::AddCoord(int X, int Y)
@@ -144,8 +145,57 @@ bool MultiSelection::IsSelected(int X, int Y)
     return SelectedCoords.find(MapCoord{ X,Y }) != SelectedCoords.end();
 }
 
-void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY, std::unordered_set<int> tileSet, bool isCliff)
+void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int startX, int startY,
+    std::unordered_set<int>& tileSet, bool firstRun)
 {
+    const auto cell = CMapData::Instance->GetCellAt(startX, startY);
+    int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+
+    if (firstRun)
+    {
+        if (ground >= CMapDataExt::TileDataCount)
+            return;
+        tileSet.insert(CMapDataExt::TileData[ground].TileSet);
+        if (dlg.ConsiderLAT)
+        {
+            for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
+            {
+                int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
+                int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
+                if (iSmoothSet == *tileSet.begin())
+                {
+                    tileSet.insert(iLatSet);
+                }
+                else if (iLatSet == *tileSet.begin())
+                {
+                    tileSet.insert(iSmoothSet);
+                }
+            }
+        }
+        if (!dlg.Connected)
+        {
+            for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
+                int x = CMapData::Instance->GetXFromCoordIndex(j);
+                int y = CMapData::Instance->GetYFromCoordIndex(j);
+                if (!CMapData::Instance->IsCoordInMap(x, y))
+                    continue;
+                auto scCell = CMapData::Instance->GetCellAt(x, y);
+                int scGround = CMapDataExt::GetSafeTileIndex(scCell->TileIndex);
+                if (scGround >= CMapDataExt::TileDataCount)
+                    continue;
+                if (dlg.SameTileSet && tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
+                    continue;
+                if (dlg.SameHeight && scCell->Height != cell->Height)
+                    continue;
+                if (dlg.SameBaiscHeight && cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
+                    != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
+                    continue;
+                process.insert(j);
+            }
+            return;
+        }
+    }
+
     const int loop[5][2] = { {0, 0},{0, -1},{0, 1},{1, 0},{-1, 0} };
     for (auto pair : loop)
     {
@@ -155,26 +205,20 @@ void MultiSelection::FindConnectedTiles(std::unordered_set<int>& process, int st
         int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
         if (process.find(pos) != process.end())
             continue;
-        auto cell = CMapData::Instance->GetCellAt(pos);
-        int ground = cell->TileIndex;
-        if (ground == 0xFFFF) ground = 0;
-        if (ground >= CMapDataExt::TileDataCount)
+        auto scCell = CMapData::Instance->GetCellAt(pos);
+        int scGround = CMapDataExt::GetSafeTileIndex(scCell->TileIndex);
+        if (scGround >= CMapDataExt::TileDataCount)
             continue;
-
-        if (isCliff)
-        {
-            auto cellCenter = CMapData::Instance->GetCellAt(startX, startY);
-            int groundCenter = CMapDataExt::GetSafeTileIndex(cellCenter->TileIndex);
-            if (cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
-                != cellCenter->Height - CMapDataExt::TileData[groundCenter].TileBlockDatas[cellCenter->TileSubIndex].Height)
-                continue;
-        }
-
-        if (tileSet.find(CMapDataExt::TileData[ground].TileSet) != tileSet.end())
-        {
-            process.insert(pos);
-            FindConnectedTiles(process, newX, newY, tileSet, isCliff);
-        }
+        if (dlg.SameTileSet && tileSet.find(CMapDataExt::TileData[scGround].TileSet) == tileSet.end())
+            continue;
+        if (dlg.SameHeight && scCell->Height != cell->Height)
+            continue;
+        if (dlg.SameBaiscHeight && cell->Height - CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height
+            != scCell->Height - CMapDataExt::TileData[scGround].TileBlockDatas[scCell->TileSubIndex].Height)
+            continue;
+        
+        process.insert(pos);
+        FindConnectedTiles(process, newX, newY, tileSet, false);
     }
 }
 
@@ -338,101 +382,11 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
                 MultiSelection::Clear();
                 CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             }
-            if (CIsoView::CurrentCommand->Type == 5)
-            {
-                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                std::set<int> tileset;
-                tileset.insert(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet);
-                if (ExtConfigs::MultiSelect_ConsiderLAT)
-                {
-                    for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
-                    {
-                        int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                        int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
-                        if (iSmoothSet == *tileset.begin())
-                        {
-                            tileset.insert(iLatSet);
-                        }
-                        else if (iLatSet == *tileset.begin())
-                        {
-                            tileset.insert(iSmoothSet);
-                        }
-                    }
-                }
-                for (int j = 0; j < CMapData::Instance->CellDataCount; j++) {
-                    int x = CMapData::Instance->GetXFromCoordIndex(j);
-                    int y = CMapData::Instance->GetYFromCoordIndex(j);
-                    if (!CMapData::Instance->IsCoordInMap(x, y))
-                        continue;
-                    auto scCell = CMapData::Instance->GetCellAt(x, y);
-                    if (tileset.find(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(scCell->TileIndex)].TileSet) != tileset.end()) {
-                        MultiSelection::AddCoord(x, y);
-                    }
-                }
-                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-            }
-            if (CIsoView::CurrentCommand->Type == 6)
-            {
-                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                std::set<int> tileset;
-                tileset.insert(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet);
-                if (ExtConfigs::MultiSelect_ConsiderLAT)
-                {
-                    for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
-                    {
-                        int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                        int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
-                        if (iSmoothSet == *tileset.begin())
-                        {
-                            tileset.insert(iLatSet);
-                        }
-                        else if (iLatSet == *tileset.begin())
-                        {
-                            tileset.insert(iSmoothSet);
-                        }
-                    }
-                }
-                auto tempCoords = MultiSelection::SelectedCoords;
-                for (auto& sc : tempCoords){
-                    if (!CMapData::Instance->IsCoordInMap(sc.X, sc.Y))
-                        continue;
-                    auto scCell = CMapData::Instance->GetCellAt(sc.X, sc.Y);
-                    if (tileset.find(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(scCell->TileIndex)].TileSet) != tileset.end()) {
-                        MultiSelection::RemoveCoord(sc.X, sc.Y);
-                    }
-                }
-                CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-            }
             if (CIsoView::CurrentCommand->Type == 7)
             {
-                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                std::unordered_set<int> tilesets;
-                tilesets.insert(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet);
-                if (ExtConfigs::MultiSelect_ConsiderLAT)
-                {
-                    for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
-                    {
-                        int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                        int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
-                        if (iSmoothSet == *tilesets.begin())
-                        {
-                            tilesets.insert(iLatSet);
-                        }
-                        else if (iLatSet == *tilesets.begin())
-                        {
-                            tilesets.insert(iSmoothSet);
-                        }
-                    }
-                }
-                bool isCliff = false;
-                ppmfc::CString sec;
-                sec.Format("TileSet%04d", *tilesets.begin());
-                auto setName = CINI::CurrentTheater->GetString(sec, "SetName");
-                setName.MakeLower();
-                if (setName.Find("cliff") != -1)
-                    isCliff = true;
                 std::unordered_set<int> coords;
-                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, isCliff);
+                std::unordered_set<int> tilesets;
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, true);
                 for (auto& coord : coords)
                 {
                     int x = CMapData::Instance->GetXFromCoordIndex(coord);
@@ -443,34 +397,9 @@ DEFINE_HOOK(456EFC, CIsoView_OnMouseMove_MultiSelect_SelectStatus, 6)
             }
             if (CIsoView::CurrentCommand->Type == 8)
             {
-                const auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                std::unordered_set<int> tilesets;
-                tilesets.insert(CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet);
-                if (ExtConfigs::MultiSelect_ConsiderLAT)
-                {
-                    for (int latidx = 0; latidx < CMapDataExt::Tile_to_lat.size(); ++latidx)
-                    {
-                        int& iSmoothSet = CMapDataExt::Tile_to_lat[latidx][0];
-                        int& iLatSet = CMapDataExt::Tile_to_lat[latidx][1];
-                        if (iSmoothSet == *tilesets.begin())
-                        {
-                            tilesets.insert(iLatSet);
-                        }
-                        else if (iLatSet == *tilesets.begin())
-                        {
-                            tilesets.insert(iSmoothSet);
-                        }
-                    }
-                }
-                bool isCliff = false;
-                ppmfc::CString sec;
-                sec.Format("TileSet%04d", *tilesets.begin());
-                auto setName = CINI::CurrentTheater->GetString(sec, "SetName");
-                setName.MakeLower();
-                if (setName.Find("cliff") != -1)
-                    isCliff = true;
                 std::unordered_set<int> coords;
-                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, isCliff);
+                std::unordered_set<int> tilesets;
+                MultiSelection::FindConnectedTiles(coords, coord.X, coord.Y, tilesets, true);
                 for (auto& coord : coords)
                 {
                     int x = CMapData::Instance->GetXFromCoordIndex(coord);
@@ -1407,7 +1336,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_Bounds, 5)
         CIsoView::MapCoord2ScreenCoord(x, y);
         int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
         int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-        pThis->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
+        pThis->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
 
     }
     else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
@@ -1448,7 +1377,7 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_Bounds, 5)
                         int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
                         int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
 
-                        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CursorSelectionBound_Color, false, false, lpDesc);
+                        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
                     }
                 }
                 idx++;

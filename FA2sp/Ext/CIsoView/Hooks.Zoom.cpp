@@ -32,7 +32,7 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 	auto pThis = CIsoView::GetInstance();\
 	CRect dr;\
 	pThis->GetWindowRect(&dr);\
-	if (abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.01) {\
+	if (special_draw >= 1 || abs(CIsoViewExt::ScaledFactor - 1.0) <= 0.01) {\
 		if (special_draw > -1){\
 			CIsoViewExt::SpecialDraw(pThis->lpDDBackBufferSurface, special_draw);\
 		}\
@@ -51,11 +51,20 @@ DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 }
 
 BACK_BUFFER_TO_PRIMARY(475150, CIsoView_Draw_BackBufferToPrimary, 6, 0x47517B, 0);
-BACK_BUFFER_TO_PRIMARY(459FC8, CIsoView_OnMouseMove_BackBufferToPrimary_1, 6, 0x459FE7, -1);
-BACK_BUFFER_TO_PRIMARY(45D05E, CIsoView_OnMouseMove_BackBufferToPrimary_2, 6, 0x45D079, -1);
-BACK_BUFFER_TO_PRIMARY(45AEDB, CIsoView_OnMouseMove_BackBufferToPrimary_3, 6, 0x45AEF6, 1);
+BACK_BUFFER_TO_PRIMARY(459DEB, CIsoView_OnMouseMove_BackBufferToPrimary_Copy, 5, 0x459FE7, 2);
+BACK_BUFFER_TO_PRIMARY(45CDF2, CIsoView_OnMouseMove_BackBufferToPrimary_Bridge, 6, 0x45D079, 3);
+BACK_BUFFER_TO_PRIMARY(45AD6A, CIsoView_OnMouseMove_BackBufferToPrimary_Cursor, 9, 0x45AEF6, 1);
 
-DEFINE_HOOK(4750E7, CIsoView_Draw_SkipScroll, 5)
+DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_BltTempBuffer, 6)
+{
+	auto pThis = CIsoView::GetInstance(); 
+	CRect rect;
+	pThis->GetWindowRect(&rect);
+	pThis->lpDDBackBufferSurface->Blt(&rect, pThis->lpDDTempBufferSurface, &rect, DDBLT_WAIT, 0);
+	return 0x4572FC;
+}
+
+DEFINE_HOOK(4750CF, CIsoView_Draw_SkipScroll_SkipTempBufferBlt, 6)
 {
 	return 0x475150;
 }

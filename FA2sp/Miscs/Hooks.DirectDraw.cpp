@@ -167,6 +167,9 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 		exit(-4);
 	}
 
+	dds.dwWidth = witdh;
+	dds.dwHeight = height;
+
 	hr = pIsoView->lpDD7->CreateSurface(&dds, &CIsoViewExt::lpDDBackBufferZoomSurface, nullptr);
 	if(FAILED(hr))
 	{

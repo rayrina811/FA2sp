@@ -255,6 +255,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -566,7 +569,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp">
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.OnMouseMove.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp">
@@ -639,6 +642,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -761,6 +767,9 @@
       <Filter>资源文件</Filter>
     </ResourceCompile>
     <ResourceCompile Include="FA2sp\ExtraWindow\CAnnotationDlg\CAnnotationDlg.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>

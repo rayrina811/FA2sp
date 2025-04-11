@@ -1785,10 +1785,10 @@ void CViewObjectsExt::Redraw_MultiSelection()
     this->InsertTranslatedString("MultiSelectionBatchDelete", Const_MultiSelection + batchDelete, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionSquareBatchAdd", Const_MultiSelection + squareBatchAdd, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionSquareBatchDelete", Const_MultiSelection + squareBatchDelete, hMultiSelection);
-    this->InsertTranslatedString("MultiSelectionTileSetAdd", Const_MultiSelection + TileSetAdd, hMultiSelection);
-    this->InsertTranslatedString("MultiSelectionTileSetDelete", Const_MultiSelection + TileSetDelete, hMultiSelection);
-    this->InsertTranslatedString("MultiSelectionConnectedAdd", Const_MultiSelection + ConnectedAdd, hMultiSelection);
-    this->InsertTranslatedString("MultiSelectionConnectedDelete", Const_MultiSelection + ConnectedDelete, hMultiSelection);
+
+    this->InsertTranslatedString("MultiSelectionCustomAdd", Const_MultiSelection + ConnectedAdd, hMultiSelection);
+    this->InsertTranslatedString("MultiSelectionCustomDelete", Const_MultiSelection + ConnectedDelete, hMultiSelection);
+
     this->InsertTranslatedString("MultiSelectionHide", Const_MultiSelection + ReplaceHide, hMultiSelection);
     this->InsertTranslatedString("MultiSelectionAllDelete", Const_MultiSelection + AllDelete, hMultiSelection);
 
@@ -3276,6 +3276,15 @@ bool CViewObjectsExt::UpdateEngine(int nData)
                 }
             }
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return true;
+        }
+        else if (nData == ConnectedAdd || nData == ConnectedDelete)
+        {
+            MultiSelection::dlg.DoModal();
+            MultiSelection::LastAddedCoord.X = -1;
+            MultiSelection::LastAddedCoord.Y = -1;
+            CIsoView::CurrentCommand->Command = 0x1D; // MultiSelection
+            CIsoView::CurrentCommand->Type = nData;
             return true;
         }
         else

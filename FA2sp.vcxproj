@@ -208,6 +208,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
@@ -237,7 +238,7 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.InfantrySubcell.cpp" />
-    <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.ObjectInfo.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.OnMouseMove.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.RaiseGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.Zoom.cpp" />
     <ClCompile Include="FA2sp\Ext\CLighting\Body.cpp" />
@@ -337,6 +338,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
@@ -409,6 +411,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CCsfEditor\CCsfEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />

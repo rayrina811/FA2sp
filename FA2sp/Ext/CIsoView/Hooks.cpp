@@ -94,29 +94,6 @@ DEFINE_HOOK(459F4F, CIsoView_Draw_CopySelectionBoundColor, 6)
 	return 0;
 }
 
-bool skipThisDraw = false;
-DEFINE_HOOK(45AD6A, CIsoView_Draw_CursorSkip, 9)
-{
-    skipThisDraw = true;
-	return 0;
-}
-
-DEFINE_HOOK(469C60, CIsoView_DrawCellOutline_CursorSkip, 7)
-{
-    if (skipThisDraw)
-    {
-        skipThisDraw = false;
-        return 0x469E6A;
-    }
-	return 0;
-}
-
-DEFINE_HOOK(45ADD0, CIsoView_Draw_CursorSelectionBoundHeightColor, 6)
-{
-    R->Stack<COLORREF>(0x8, ExtConfigs::CursorSelectionBound_HeightColor);
-    return 0;
-}
-
 DEFINE_HOOK(470194, CIsoView_Draw_LayerVisible_Overlay, 8)
 {
 	return CIsoViewExt::DrawOverlays ? 0 : 0x470772;

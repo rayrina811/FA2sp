@@ -794,13 +794,16 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
 void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor)
 {   
-    X += 2;
+    X += 7 / CIsoViewExt::ScaledFactor - 7 + 2;
+    Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
     if (!hdc)
         return;
     if (!hwnd)
         return;
 
-    RECT rect = CIsoViewExt::GetScaledWindowRect();
+    CRect rect;
+    auto pThis = CIsoView::GetInstance();
+    pThis->GetWindowRect(&rect);
 
     COLORREF heightColor = color;
     if (useHeightColor)
@@ -808,23 +811,40 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         heightColor = CIsoViewExt::CellHilightColors[height];
     }
 
-    auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
-    {
-        PAINTSTRUCT ps;
-        HPEN hPen;
-        HPEN hPenOld;
-        BeginPaint(hwnd, &ps);
-        hPen = CreatePen(PS_SOLID, 0, color);
-        hPenOld = (HPEN)SelectObject(hdc, hPen);
-        MoveToEx(hdc, X1, Y1, NULL);
-        LineTo(hdc, X2, Y2);
-        SelectObject(hdc, hPenOld);
-        DeleteObject(hPen);
-        EndPaint(hwnd, &ps);
-    };
+    auto DrawLine = [hwnd, hdc, &color](int X1, int Y1, int X2, int Y2, int dashLen, int gapLen)
+        {
+            float dx = static_cast<float>(X2 - X1);
+            float dy = static_cast<float>(Y2 - Y1);
+            float lineLength = std::sqrt(dx * dx + dy * dy);
+
+            float ux = dx / lineLength;
+            float uy = dy / lineLength;
+
+            float totalDrawn = 0.0f;
+
+            HPEN hPen = CreatePen(PS_SOLID, 1, color);
+            HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+
+            while (totalDrawn < lineLength)
+            {
+                float startX = X1 + ux * totalDrawn;
+                float startY = Y1 + uy * totalDrawn;
+
+                float drawLength = std::min((float)dashLen, lineLength - totalDrawn);
+                float endX = startX + ux * drawLength;
+                float endY = startY + uy * drawLength;
+
+                MoveToEx(hdc, static_cast<int>(startX + 0.5f), static_cast<int>(startY + 0.5f), NULL);
+                LineTo(hdc, static_cast<int>(endX + 0.5f), static_cast<int>(endY + 0.5f));
+
+                totalDrawn += drawLength + gapLen;
+            }
+
+            SelectObject(hdc, hOldPen);
+            DeleteObject(hPen);
+        };
     auto DrawLineInner = [hwnd, heightColor, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
-
         PAINTSTRUCT ps;
         HPEN hPen;
         HPEN hPenOld;
@@ -838,7 +858,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         EndPaint(hwnd, &ps);
         
     };
-    auto ClipAndDrawLine = [&rect, DrawLine, DrawLineInner](int X1, int Y1, int X2, int Y2, bool inner = false)
+    auto ClipAndDrawLine = [&rect, DrawLine, DrawLineInner](int X1, int Y1, int X2, int Y2, int type)
     {
         auto encode = [&rect](int x, int y)
         {
@@ -897,43 +917,45 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         };
         if (clip(X1, Y1, X2, Y2))
         {
-            if (inner)
+            if (type == 0)
+                DrawLine(X1, Y1, X2, Y2, 1000, 0);
+            else if (type == 1)
                 DrawLineInner(X1, Y1, X2, Y2);
-            else
-                DrawLine(X1, Y1, X2, Y2);
+            else if (type == 2)
+                DrawLine(X1, Y1, X2, Y2, std::max(4 / CIsoViewExt::ScaledFactor, 1.0), std::max(2 / CIsoViewExt::ScaledFactor, 1.0));
         }
            
     };
 
-    int halfCellWidth = 30 * 1;
-    int quaterCellWidth = 15 * 1;
-    int fullCellHeight = 30 * 1;
-    int halfCellHeight = 15 * 1;
+    double halfCellWidth = 30 / CIsoViewExt::ScaledFactor;
+    double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor;
+    double fullCellHeight = 30 / CIsoViewExt::ScaledFactor;
+    double halfCellHeight = 15 / CIsoViewExt::ScaledFactor;
 
-    int y1 = Y - 30;
-    int x1 = X + 30;
+    double y1 = Y - 30 / CIsoViewExt::ScaledFactor;
+    double x1 = X + 30 / CIsoViewExt::ScaledFactor;
 
-    int x2 = halfCellWidth + X + 30 - 2;
-    int y2 = quaterCellWidth + y1 - 1;
+    double x2 = halfCellWidth + X + 30 / CIsoViewExt::ScaledFactor - 2;
+    double y2 = quaterCellWidth + y1 - 1;
 
-    int x3 = halfCellWidth - fullCellHeight + X + 29;
-    int y3 = halfCellHeight + quaterCellWidth + y1 - 1;
+    double x3 = halfCellWidth - fullCellHeight + X + 30 / CIsoViewExt::ScaledFactor - 1;
+    double y3 = halfCellHeight + quaterCellWidth + y1 - 1;
 
-    int x4 = X - fullCellHeight + 29;
-    int y4 = halfCellHeight + y1 - 1;
+    double x4 = X - fullCellHeight + 30 / CIsoViewExt::ScaledFactor - 1;
+    double y4 = halfCellHeight + y1 - 1;
 
     y1 -= 1;
     x1 -= 1;
-    int x1L = x1 + 1;
-    int x3L = x3 - 1;
-    int y1L = y1 - 1;
-    int y3L = y3;
+    double x1L = x1 + 1;
+    double x3L = x3 - 1;
+    double y1L = y1 - 1;
+    double y3L = y3;
     y3 += 1;
     x3 -= 2;
-    int x4B = x4 - 2;
-    int y4B = y4 - 1;
-    int x2T = x2 + 2;
-    int y2T = y2 + 1;
+    double x4B = x4 - 2;
+    double y4B = y4 - 1;
+    double x2T = x2 + 2;
+    double y2T = y2 + 1;
 
     //   1
     //  # #
@@ -941,7 +963,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     //  # #
     //   3
 
-
+    
     auto drawCellOutline = [&](int inneroffset, bool useheightcolor = false)
         {
             ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T, useheightcolor);
@@ -951,25 +973,51 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
         };
     drawCellOutline(0);
     drawCellOutline(1,true);
-    if (useHeightColor)
-        drawCellOutline(-1);
+    if (CIsoViewExt::ScaledFactor < 0.76)
+        drawCellOutline(2, true);
+    if (CIsoViewExt::ScaledFactor < 0.31)
+        drawCellOutline(3, true);
 
+    if (useHeightColor)
+    {
+        drawCellOutline(-1);
+        if (CIsoViewExt::ScaledFactor < 0.6)
+            drawCellOutline(-2);
+        if (CIsoViewExt::ScaledFactor < 0.31)
+            drawCellOutline(-3);
+    }
+
+    color = ExtConfigs::CursorSelectionBound_HeightColor;
+    auto drawHeightLine = [&](int offset)
+        {
+            ClipAndDrawLine(x2 + offset, y2, x2 + offset, y2 + height * 15 / CIsoViewExt::ScaledFactor, 2);
+            ClipAndDrawLine(x4 - offset, y4, x4 - offset, y4 + height * 15 / CIsoViewExt::ScaledFactor, 2);
+            ClipAndDrawLine(x3 + offset + 1, y3, x3 + offset + 1, y3 + height * 15 / CIsoViewExt::ScaledFactor, 2);
+        };
+
+    drawHeightLine(0);
+    if (CIsoViewExt::ScaledFactor < 0.76)
+        drawHeightLine(1);
+    if (CIsoViewExt::ScaledFactor < 0.31)
+        drawHeightLine(-1);
 
 }
 
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)
 {   
-    X += 1;
+    X += 7 / CIsoViewExt::ScaledFactor - 7 + 2;
+    Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
     if (!hdc)
         return;
     if (!hwnd)
         return;
 
-    RECT rect = CIsoViewExt::GetScaledWindowRect();
+    CRect rect;
+    auto pThis = CIsoView::GetInstance();
+    pThis->GetWindowRect(&rect);
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
-
         PAINTSTRUCT ps;
         HPEN hPen;
         HPEN hPenOld;
@@ -1044,35 +1092,35 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
             DrawLine(X1, Y1, X2, Y2);
     };
 
-    int halfCellWidth = 30 * W;
-    int quaterCellWidth = 15 * W;
-    int fullCellHeight = 30 * H;
-    int halfCellHeight = 15 * H;
+    double halfCellWidth = 30 / CIsoViewExt::ScaledFactor * W;
+    double quaterCellWidth = 15 / CIsoViewExt::ScaledFactor * W;
+    double fullCellHeight = 30 / CIsoViewExt::ScaledFactor * H;
+    double halfCellHeight = 15 / CIsoViewExt::ScaledFactor * H;
 
-    int y1 = Y - 30;
-    int x1 = X + 30;
+    double y1 = Y - 30 / CIsoViewExt::ScaledFactor;
+    double x1 = X + 30 / CIsoViewExt::ScaledFactor;
 
-    int x2 = halfCellWidth + X + 30 - 2;
-    int y2 = quaterCellWidth + y1 - 1;
+    double x2 = halfCellWidth + X + 30 / CIsoViewExt::ScaledFactor - 2;
+    double y2 = quaterCellWidth + y1 - 1;
 
-    int x3 = halfCellWidth - fullCellHeight + X + 29;
-    int y3 = halfCellHeight + quaterCellWidth + y1 - 1;
+    double x3 = halfCellWidth - fullCellHeight + X + 30 / CIsoViewExt::ScaledFactor - 1;
+    double y3 = halfCellHeight + quaterCellWidth + y1 - 1;
 
-    int x4 = X - fullCellHeight + 29;
-    int y4 = halfCellHeight + y1 - 1;
+    double x4 = X - fullCellHeight + 30 / CIsoViewExt::ScaledFactor - 1;
+    double y4 = halfCellHeight + y1 - 1;
 
     y1 -= 1;
     x1 -= 1;
-    int x1L = x1 + 1;
-    int x3L = x3 - 1;
-    int y1L = y1 - 1;
-    int y3L = y3;
+    double x1L = x1 + 1;
+    double x3L = x3 - 1;
+    double y1L = y1 - 1;
+    double y3L = y3;
     y3 += 1;
     x3 -= 2;
-    int x4B = x4 - 2;
-    int y4B = y4 - 1;
-    int x2T = x2 + 2;
-    int y2T = y2 + 1;
+    double x4B = x4 - 2;
+    double y4B = y4 - 1;
+    double x2T = x2 + 2;
+    double y2T = y2 + 1;
 
     //   1
     //  # #
@@ -1094,6 +1142,10 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
 
     drawCellOutline(0);
     drawCellOutline(-1);
+    if (CIsoViewExt::ScaledFactor < 0.6)
+        drawCellOutline(-2);
+    if (CIsoViewExt::ScaledFactor < 0.31)
+        drawCellOutline(-3);
 
 }
 
@@ -2797,12 +2849,17 @@ RECT CIsoViewExt::GetScaledWindowRect()
     return rect;
 }
 
-void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y)
+void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
 {
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
-    pThis->MapCoord2ScreenCoord(X, Y);
+    if (flatMode == 0)
+        pThis->MapCoord2ScreenCoord(X, Y);
+    else if (flatMode == 1)
+        pThis->MapCoord2ScreenCoord_Flat(X, Y);
+    else
+        pThis->MapCoord2ScreenCoord_Height(X, Y);
     X = (X - pThis->ViewPosition.x - rect.left) / CIsoViewExt::ScaledFactor + pThis->ViewPosition.x + rect.left;
     Y = (Y - pThis->ViewPosition.y - rect.top) / CIsoViewExt::ScaledFactor + pThis->ViewPosition.y + rect.top;
 }
@@ -2946,10 +3003,11 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     case 0:
     {
         auto pThis = CIsoView::GetInstance();
+        CRect rect;
+        pThis->GetWindowRect(&rect);
+        pThis->lpDDTempBufferSurface->Blt(&rect, surface, &rect, DDBLT_WAIT, 0);
         if (pThis->IsScrolling)
         {
-            CRect rect;
-            pThis->GetWindowRect(&rect);
             auto point = pThis->MoveCenterPosition;
             point.x += rect.left - 16 - 18;
             point.y += rect.top + 14 - 12;
@@ -2981,12 +3039,28 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-        DrawObjectInfo(hDC, false);
+        DrawMouseMove(hDC);
         DrawCreditOnMap(hDC);
 
         SelectObject(hDC, hOldFont);
         DeleteObject(hFont);
 
+        surface->ReleaseDC(hDC);
+        break;
+    }
+    case 2:
+    {
+        HDC hDC;
+        surface->GetDC(&hDC);
+        DrawCopyBound(hDC);
+        surface->ReleaseDC(hDC);
+        break;
+    }
+    case 3:
+    {
+        HDC hDC;
+        surface->GetDC(&hDC);
+        DrawBridgeLine(hDC);
         surface->ReleaseDC(hDC);
         break;
     }
@@ -3045,6 +3119,46 @@ void CIsoViewExt::Zoom(double offset)
             pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
             CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
         }
+    }
+}
+
+void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color)
+{
+    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    for (const auto& mc : coords)
+    {
+        int x = mc.X;
+        int y = mc.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x, y);
+        int drawX = x - CIsoViewExt::drawOffsetX;
+        int drawY = y - CIsoViewExt::drawOffsetY;
+
+        bool s1 = true;
+        bool s2 = true;
+        bool s3 = true;
+        bool s4 = true;
+
+        for (auto& coord : coords)
+        {
+            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
+            {
+                s1 = false;
+            }
+            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
+            {
+                s3 = false;
+            }
+            if (coord.X == mc.X && coord.Y == mc.Y - 1)
+            {
+                s4 = false;
+            }
+
+            if (coord.X == mc.X && coord.Y == mc.Y + 1)
+            {
+                s2 = false;
+            }
+        }
+        pThis->DrawLockedCellOutlinePaint(drawX, drawY, 1, 1, color, false, hDC, pThis->m_hWnd, s1, s2, s3, s4);
     }
 }
 
