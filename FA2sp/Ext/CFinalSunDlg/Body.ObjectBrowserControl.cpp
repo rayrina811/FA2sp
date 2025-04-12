@@ -617,7 +617,7 @@ void CViewObjectsExt::Redraw_MainList()
     LoadNodeWithCameo(Root_PlayerLocation, -1, "StartpointsObList", 1022);
     LoadNodeWithCameo(Root_PropertyBrush, -1, "PropertyBrushObList", 1006);
     LoadNodeWithCameo(Root_Annotation, -1, "AnnotationObList", 1007);
-    LoadNodeWithCameo(Root_View, -1, "ViewObjObList", 1008);
+    LoadNodeWithCameo(Root_View, Const_ViewObjectInfo + ObjectTerrainType::All, "ViewObjObList", 1008);
     if (ExtConfigs::EnableMultiSelection)
         LoadNodeWithCameo(Root_MultiSelection, -1, "MultiSelectionObjObList", 1009);
     LoadNodeWithCameo(Root_Cliff, -1, "CliffObjObList", 1012);
@@ -2758,12 +2758,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         }
     } while (false);
 
-    if (nData == 16) // view object info
-    {
-        CIsoView::CurrentCommand->Command = 0x1B; // view object info
-        CIsoView::CurrentCommand->Type = ObjectTerrainType::All;
-        return true;
-    }
     if (nData == 50) // add tube
     {
         CIsoView::CurrentCommand->Command = 0x22;
@@ -3138,6 +3132,13 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 12) // view object
     {
+        if (nData == ObjectTerrainType::All)
+        {
+            CIsoView::CurrentCommand->Command = 0x1B; // view object
+            CIsoView::CurrentCommand->Type = ObjectTerrainType::All;
+
+            return true;
+        }
         if (nData == ObjectTerrainType::Infantry)
         {
             CIsoView::CurrentCommand->Command = 0x1B; // view object

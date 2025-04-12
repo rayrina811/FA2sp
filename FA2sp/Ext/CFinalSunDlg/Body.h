@@ -35,9 +35,6 @@ public:
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
     BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
-
-
-
 };
 
 class ConnectedTiles
