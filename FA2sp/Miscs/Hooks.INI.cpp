@@ -1,4 +1,5 @@
 #include "Hooks.INI.h"
+#include "../Ext/CMapData/Body.h"
 
 
 /*
@@ -107,19 +108,52 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
     // to fit some mods that change these names
     std::string extraName = toLower(fileName);
-    bool isTheaterIni = false;
+    int theaterIniType = -1;
     bool isRulesIni = false;
     bool isPartOfRulesIni = false;
 
-    if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "SnowYR", "SnowMd.ini"))
-        || extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanYR", "UrbanMd.ini"))
-        || extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanNYR", "UrbanNMd.ini"))
-        || extraName == toLowerC(CINI::FAData->GetString("Filenames", "LunarYR", "lunarmd.ini"))
-        || extraName == toLowerC(CINI::FAData->GetString("Filenames", "DesertYR", "desertmd.ini"))
-        || extraName == toLowerC(CINI::FAData->GetString("Filenames", "TemperateYR", "TemperatMd.ini"))
-        )
+    auto getOriTileSetName = [xINI](int type)
+        {
+            ppmfc::CString sName = "";
+            for (int index = 0; index < 10000; index++)
+            {
+                sName.Format("TileSet%04d", index);
+                if (xINI->SectionExists(sName))
+                {
+                    auto setName = xINI->GetString(sName, "SetName");
+                    auto& set = CMapDataExt::TileSetOriginSetNames[type];
+                    if (set.find(index) == set.end())
+                    {
+                        set[index] = setName;
+                    }
+                }
+                else break;
+            }
+        };
+
+    if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "TemperateYR", "TemperatMd.ini")))
     {
-        isTheaterIni = true;
+        theaterIniType = 0;
+    }
+    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "SnowYR", "SnowMd.ini")))
+    {
+        theaterIniType = 1;
+    }
+    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanYR", "UrbanMd.ini")))
+    {
+        theaterIniType = 2;
+    }
+    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanNYR", "UrbanNMd.ini")))
+    {
+        theaterIniType = 3;
+    }
+    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "LunarYR", "lunarmd.ini")))
+    {
+        theaterIniType = 4;
+    }
+    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "DesertYR", "desertmd.ini")))
+    {
+        theaterIniType = 5;
     }
     else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "RulesYR", "rulesmd.ini"))) {
         isRulesIni = true;
@@ -137,6 +171,9 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
             break;
         }
     }
+
+    if (theaterIniType > -1)
+        getOriTileSetName(theaterIniType);
 
     if (fileName.find("fa2extra_") == std::string::npos)
         extraName = "fa2extra_" + extraName;
@@ -270,49 +307,48 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         }
     } 
 
-    if (isTheaterIni)
+    if (theaterIniType > -1)
     {
         int index;
-        vector<int> newMarbles;
-        vector<std::string> newMarblesSection;
+        std::map<int, ppmfc::CString> newMarbles;
         for (index = 0; index < 10000; index++)
         {
-            char sectionName[114];
-            sprintf(sectionName, "TileSet%04d", index);
-
+            ppmfc::CString sectionName;
+            sectionName.Format("TileSet%04d", index);
             if (!xINI->SectionExists(sectionName))
             {
                 break;
             }
             else
             {
-                auto temp = std::string(xINI->GetString(sectionName, "NewMarbleMadness"));
-                if (temp != "")
+                auto nmm = xINI->GetString(sectionName, "NewMarbleMadness");
+                if (nmm != "")
                 {
-                    newMarbles.push_back(index);
-                    newMarblesSection.push_back(temp);
+                    newMarbles[index] = nmm;
                 }
 
             }
         }
         if (index > 0 && newMarbles.size() > 0)
         {
-            for (size_t i = 0; i < newMarbles.size(); ++i) {
-                char sectionName[114];
-                char newSectionName[114];
-                sprintf(sectionName, "TileSet%04d", newMarbles[i]);
-                sprintf(newSectionName, "TileSet%04d", index);
-                xINI->WriteString(sectionName, "MarbleMadness", std::to_string(index).c_str());
+            for (auto& [i, secName] : newMarbles) {
 
-                auto section3 = xINI->AddOrGetSection(newMarblesSection[i].c_str());
-                for (auto& pair : section3->GetEntities())
+                ppmfc::CString oldSectionName;
+                ppmfc::CString newSectionName;
+                oldSectionName.Format("TileSet%04d", i);
+                newSectionName.Format("TileSet%04d", index);
+                xINI->WriteString(oldSectionName, "MarbleMadness", std::to_string(index).c_str());
+
+                auto section = xINI->AddOrGetSection(secName);
+                for (auto& pair : section->GetEntities())
                 {
-                    auto section4 = xINI->AddOrGetSection(newSectionName);
-                    xINI->WriteString(section4, pair.first, pair.second);
+                    auto newSection = xINI->AddOrGetSection(newSectionName);
+                    xINI->WriteString(newSection, pair.first, pair.second);
                 }
                 index++;
             }
         }
+        getOriTileSetName(theaterIniType);
     }
 
     if (INIIncludes::LoadedINIs.size() > 0)

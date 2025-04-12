@@ -76,6 +76,9 @@ std::vector<int> CMapDataExt::TileSet_starts;
 std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
+std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
+std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
+std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -90,7 +93,6 @@ int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
     else
         return 0;
 }
-
 
 bool CMapDataExt::IsOre(unsigned char nOverlay)
 {
@@ -1605,6 +1607,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
 	CMapDataExt::TileSetCumstomPalette.clear();
+	CMapDataExt::TerrainPaletteBuildings.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -1817,4 +1820,40 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CLoadingExt::ClearItemTypes();
 	CIsoViewExt::IsPressingTube = false;
 	CIsoViewExt::TubeNodes.clear();
+
+	TileAnimations.clear();
+	for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
+	{
+		if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
+		{
+			for (int i = TileSet_starts[index]; i < TileSet_starts[index + 1]; ++i)
+			{
+				int relativeIndex = i - TileSet_starts[index] + 1;
+				auto& anim = TileAnimations[i];
+				anim.TileIndex = i;
+				ppmfc::CString Anim;
+				ppmfc::CString XOffset;
+				ppmfc::CString YOffset;
+				ppmfc::CString AttachesTo;
+				ppmfc::CString ZAdjust;
+				Anim.Format("Tile%02dAnim", relativeIndex);
+				XOffset.Format("Tile%02dXOffset", relativeIndex);
+				YOffset.Format("Tile%02dYOffset", relativeIndex);
+				AttachesTo.Format("Tile%02dAttachesTo", relativeIndex);
+				ZAdjust.Format("Tile%02dZAdjust", relativeIndex);
+				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
+				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
+				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
+				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
+				ppmfc::CString imageName;
+				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
+				ppmfc::CString sectionName;
+				sectionName.Format("TileSet%04d", index);
+				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso\233NotAutoTinted");
+				CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
+				anim.ImageName = imageName;
+			}
+		}
+	}
 }

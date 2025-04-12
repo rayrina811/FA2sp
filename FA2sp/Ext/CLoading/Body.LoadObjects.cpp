@@ -287,7 +287,10 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
-		PaletteName = "iso";
+	{
+		PaletteName = "iso\233NotAutoTinted";
+		CMapDataExt::TerrainPaletteBuildings.insert(ID);
+	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
@@ -611,7 +614,10 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
-		PaletteName = "iso";
+	{
+		PaletteName = "iso\233NotAutoTinted";
+		CMapDataExt::TerrainPaletteBuildings.insert(ID);
+	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
@@ -956,7 +962,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
-	ppmfc::CString PaletteName = "iso";
+	ppmfc::CString PaletteName = "iso\233NotAutoTinted";
 	GetFullPaletteName(PaletteName);
 	auto pal = PalettesManager::LoadPalette(PaletteName);
 
@@ -1218,7 +1224,6 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
 		ppmfc::CString DictName;
 		DictName.Format("%s%d", ID, 0);
-		// use uppercase to distinguish them between real terrain
 		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::Rules.GetBool(ID, "SpawnsTiberium"))
 		{

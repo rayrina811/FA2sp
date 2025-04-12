@@ -54,6 +54,26 @@ public:
 	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 
+	static int GetITheaterIndex()
+	{
+		switch (CLoading::Instance->TheaterIdentifier)
+		{
+		case 'A':
+			return 1;
+		case 'U':
+			return 2;
+		case 'D':
+			return 5;
+		case 'L':
+			return 4;
+		case 'N':
+			return 3;
+		case 'T':
+		default:
+			return 0;
+		}
+	}
+
 private:
 	static ppmfc::CString* __cdecl GetDictName(ppmfc::CString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
 	static ppmfc::CString GetDictName(ppmfc::CString ID, int nFacing)

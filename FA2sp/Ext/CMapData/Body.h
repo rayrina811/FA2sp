@@ -133,6 +133,17 @@ struct BaseNodeDataExt
 
 };
 
+struct TileAnimation
+{
+    int TileIndex;
+    int AttachedSubTile;
+    int XOffset;
+    int YOffset;
+    int ZAdjust;
+    ppmfc::CString AnimName;
+    ppmfc::CString ImageName;
+};
+
 struct CellDataExt
 {
     short X;
@@ -178,6 +189,8 @@ struct CellDataExt
     // first = index, second = type 
     std::unordered_map<short, short> Terrains;
     std::unordered_map<short, short> Smudges;
+
+    bool HasAnim = false;
 };
 
 class CMapDataExt : public CMapData
@@ -291,7 +304,6 @@ public:
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
-
     static int AutoShore_ShoreTileSet;
     static int AutoShore_GreenTileSet;
     static std::unordered_set<int> ShoreTileSets;
@@ -300,9 +312,11 @@ public:
     static float ConditionYellow;
     static bool DeleteBuildingByIniID;
     static std::unordered_map<int, bool> TileSetCumstomPalette;
-
     static std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
-
     static std::vector<TubeData> Tubes;
+    static std::unordered_map<int, TileAnimation> TileAnimations;
+    // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
+    static std::unordered_map<int, ppmfc::CString> TileSetOriginSetNames[6];
+    static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
 };

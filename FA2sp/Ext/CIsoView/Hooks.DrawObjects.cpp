@@ -367,6 +367,17 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 						CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 							x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 							cell->IsHidden() ? 128 : 255);
+
+						auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+						cellExt.HasAnim = false;
+						if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
+						{
+							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
+							if (tileAnim.AttachedSubTile == tileSubIndex)
+							{
+								cellExt.HasAnim = true;
+							}
+						}
 					}
 				}
 			}
@@ -441,6 +452,44 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 					x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 					cell->IsHidden() ? 128 : 255);
+			}
+		}
+	}
+
+	if (CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)].HasAnim)
+	{
+		if (CFinalSunApp::Instance->FrameMode)
+		{
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			{
+				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+			}
+			else
+			{
+				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+				tileSubIndex = 0;
+			}
+		}
+		if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
+		{
+			auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
+			if (tileAnim.AttachedSubTile == tileSubIndex)
+			{
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(tileAnim.ImageName);
+
+				if (pData && pData->pImageBuffer)
+				{
+					int x = X;
+					int y = Y;
+					CIsoView::MapCoord2ScreenCoord(x, y);
+					x -= DrawOffsetX;
+					y -= DrawOffsetY;
+
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x - pData->FullWidth / 2 + tileAnim.XOffset,
+						y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
+						pData, NULL, cell->IsHidden() ? 128 : 255, -2);
+				}
 			}
 		}
 	}
@@ -1101,8 +1150,10 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 
 				if (pData && pData->pImageBuffer)
 				{
+					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, objRender.HouseColor);
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255,
+						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE, isoset.find(objRender.ID) != isoset.end());
 
 					for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 					{
@@ -1126,7 +1177,8 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 							x1 += CINI::Art->GetInteger(ArtID, upgXX, 0);
 							y1 += CINI::Art->GetInteger(ArtID, upgYY, 0);
 							CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-								x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, 255, objRender.HouseColor);
+								x1 - pUpgData->FullWidth / 2, y1 - pUpgData->FullHeight / 2, pUpgData, NULL, 255,
+								objRender.HouseColor, -1, false, isoset.find(objRender.ID) != isoset.end());
 						}
 					}
 					if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
@@ -1376,15 +1428,17 @@ DEFINE_HOOK(4725CB, CIsoView_Draw_Basenodes, 8)
 
 				if (pData && pData->pImageBuffer)
 				{
-					int addonColor = -1;
-					if (CViewObjectsExt::MoveBaseNode_SelectedObj.X == CIsoViewExt::CurrentDrawCellLocation.X
-						&& CViewObjectsExt::MoveBaseNode_SelectedObj.Y == CIsoViewExt::CurrentDrawCellLocation.Y
-						&& node.ID == CViewObjectsExt::MoveBaseNode_SelectedObj.ID
-						&& node.House == CViewObjectsExt::MoveBaseNode_SelectedObj.House)
-						addonColor = RGB(255, 0, 0);
+					//int addonColor = -1;
+					//if (CViewObjectsExt::MoveBaseNode_SelectedObj.X == CIsoViewExt::CurrentDrawCellLocation.X
+					//	&& CViewObjectsExt::MoveBaseNode_SelectedObj.Y == CIsoViewExt::CurrentDrawCellLocation.Y
+					//	&& node.ID == CViewObjectsExt::MoveBaseNode_SelectedObj.ID
+					//	&& node.House == CViewObjectsExt::MoveBaseNode_SelectedObj.House)
+					//	addonColor = RGB(255, 0, 0);
 
+					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
-						X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128, color, addonColor);
+						X - pData->FullWidth / 2, Y - pData->FullHeight / 2, pData, NULL, 128,
+						color, -1, false, isoset.find(node.ID) != isoset.end());
 				}
 			}
 		}

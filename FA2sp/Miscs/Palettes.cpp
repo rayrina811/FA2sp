@@ -99,8 +99,12 @@ Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
     auto itr = PalettesManager::OriginPaletteFiles.find(palname);
     if (itr != PalettesManager::OriginPaletteFiles.end())
         return itr->second;
+    
+    auto palToLoad = palname;
+    palToLoad.Replace("iso\233NotAutoTinted", "iso");
+    palToLoad.Replace("iso\233AutoTinted", "iso");
 
-    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palname))
+    if (auto pBuffer = (BytePalette*)CLoading::Instance->ReadWholeFile(palToLoad))
     {
         auto pPalette = GameCreate<Palette>();
         for (int i = 0; i < 256; ++i)
@@ -152,7 +156,7 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
 
     bool tintRGB = true;
     // normal lighting won't tint unit RGB
-    if (remap && !ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001)
+    if (remap && !ExtConfigs::LightingPreview_MultUnitColor && CFinalSunDlgExt::CurrentLighting == 31001 && extraLightType != 4)
         tintRGB = false;
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
@@ -240,7 +244,7 @@ void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation lo
 
     if (tint)
     {
-        if (extraLightType >= 0)
+        if (extraLightType >= 0 && extraLightType != 4)
         {
             // lamp won't tint unit RGB
             this->RedMult = lighting.Red;
@@ -253,7 +257,6 @@ void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation lo
             this->GreenMult = lighting.Green + lamp.GreenTint;
             this->BlueMult = lighting.Blue + lamp.BlueTint;
         }
-
     }
     else
     {
