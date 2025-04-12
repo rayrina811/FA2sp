@@ -96,5 +96,5 @@ END
 1020 BITMAP "Resources/smudge.bmp"
 1021 BITMAP "Resources/overlay.bmp"
 1022 BITMAP "Resources/player.bmp"
-
+128 BITMAP "Resources/toolbar.bmp"
 

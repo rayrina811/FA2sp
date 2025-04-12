@@ -14,6 +14,7 @@ DEFINE_HOOK(56543B, FetchResource_CToolBar_LoadBitmapA, 6)
 	const HMODULE hModule = static_cast<HMODULE>(FA2sp::hInstance);
 	if (HRSRC hResInfo = FindResource(hModule, lpName, lpType)) {
 		HBITMAP hBitmap = AfxLoadSysColorBitmap(hModule, hResInfo, 0);
+		R->EAX(hBitmap);
 		R->EBX(hResInfo);
 		R->ESI(hModule);
 		return 0x565457;

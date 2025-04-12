@@ -201,11 +201,12 @@ public:
         Const_Vehicle = 40000, Const_Terrain = 50000, Const_Overlay = 63000,
         Const_House = 70000, Const_Smudge = 80000, Const_PropertyBrush = 90000,
         Const_InfantrySubCell = 100000, Const_BaseNode = 110000, Const_ViewObjectInfo = 120000,
-        Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000
+        Const_MultiSelection = 130000, Const_ConnectedTile = 140000, Const_Annotation = 150000,
     };
     static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
     static int RedrawCalledCount;
+
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;

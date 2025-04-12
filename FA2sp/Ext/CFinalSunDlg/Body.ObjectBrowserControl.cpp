@@ -108,6 +108,25 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     
     if (ExtConfigs::TreeViewCameo_Display)
     {
+        std::string pics = CFinalSunApp::ExePath();
+        pics += "\\pics";
+        if (!fs::exists(pics) || !fs::is_directory(pics))
+        {
+            fs::create_directories(pics);
+        }
+        pics += "\\";
+        pics += pString;
+        pics += ".bmp";
+        if (fs::exists(pics))
+        {
+            CBitmap cBitmap;
+            if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+            {
+                int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+                this->GetTreeCtrl().SetItemImage(item, index, index);
+                return item;
+            }
+        }
         if (InsertingSpecialBitmap)
         {
             CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
@@ -582,26 +601,26 @@ void CViewObjectsExt::Redraw_MainList()
         };
 
     LoadNodeWithCameo(Root_Nothing, -2, "NothingObList", 1002);
-    LoadNodeWithCameo(Root_Ground, 13, "GroundObList", 1013);
-    LoadNodeWithCameo(Root_Owner, 0, "ChangeOwnerObList", 1014);
-    LoadNodeWithCameo(Root_Infantry, 0, "InfantryObList", 1015);
-    LoadNodeWithCameo(Root_Vehicle, 1, "VehiclesObList", 1017);
-    LoadNodeWithCameo(Root_Aircraft, 2, "AircraftObList", 1016);
-    LoadNodeWithCameo(Root_Building, 3, "StructuresObList", 1018);
-    LoadNodeWithCameo(Root_Terrain, 4, "TerrainObList", 1019);
-    LoadNodeWithCameo(Root_Smudge, 10, "SmudgesObList", 1020);
-    LoadNodeWithCameo(Root_Overlay, 5, "OverlayObList", 1021);
-    LoadNodeWithCameo(Root_Waypoint, 6, "WaypointsObList", 1003);
-    LoadNodeWithCameo(Root_Celltag, 7, "CelltagsObList", 1004);
-    LoadNodeWithCameo(Root_Basenode, 8, "BaseNodesObList", 1010);
-    LoadNodeWithCameo(Root_Tunnel, 9, "TunnelObList", 1005);
-    LoadNodeWithCameo(Root_PlayerLocation, 12, "StartpointsObList", 1022);
-    LoadNodeWithCameo(Root_PropertyBrush, 14, "PropertyBrushObList", 1006);
-    LoadNodeWithCameo(Root_Annotation, 19, "AnnotationObList", 1007);
-    LoadNodeWithCameo(Root_View, 16, "ViewObjObList", 1008);
+    LoadNodeWithCameo(Root_Ground, -1, "GroundObList", 1013);
+    LoadNodeWithCameo(Root_Owner, -1, "ChangeOwnerObList", 1014);
+    LoadNodeWithCameo(Root_Infantry, -1, "InfantryObList", 1015);
+    LoadNodeWithCameo(Root_Vehicle, -1, "VehiclesObList", 1017);
+    LoadNodeWithCameo(Root_Aircraft, -1, "AircraftObList", 1016);
+    LoadNodeWithCameo(Root_Building, -1, "StructuresObList", 1018);
+    LoadNodeWithCameo(Root_Terrain, -1, "TerrainObList", 1019);
+    LoadNodeWithCameo(Root_Smudge, -1, "SmudgesObList", 1020);
+    LoadNodeWithCameo(Root_Overlay, -1, "OverlayObList", 1021);
+    LoadNodeWithCameo(Root_Waypoint, -1, "WaypointsObList", 1003);
+    LoadNodeWithCameo(Root_Celltag, -1, "CelltagsObList", 1004);
+    LoadNodeWithCameo(Root_Basenode, -1, "BaseNodesObList", 1010);
+    LoadNodeWithCameo(Root_Tunnel, -1, "TunnelObList", 1005);
+    LoadNodeWithCameo(Root_PlayerLocation, -1, "StartpointsObList", 1022);
+    LoadNodeWithCameo(Root_PropertyBrush, -1, "PropertyBrushObList", 1006);
+    LoadNodeWithCameo(Root_Annotation, -1, "AnnotationObList", 1007);
+    LoadNodeWithCameo(Root_View, -1, "ViewObjObList", 1008);
     if (ExtConfigs::EnableMultiSelection)
-        LoadNodeWithCameo(Root_MultiSelection, 17, "MultiSelectionObjObList", 1009);
-    LoadNodeWithCameo(Root_Cliff, 18, "CliffObjObList", 1012);
+        LoadNodeWithCameo(Root_MultiSelection, -1, "MultiSelectionObjObList", 1009);
+    LoadNodeWithCameo(Root_Cliff, -1, "CliffObjObList", 1012);
     LoadNodeWithCameo(Root_Delete, 10, "DelObjObList", 1011);
 }
 
