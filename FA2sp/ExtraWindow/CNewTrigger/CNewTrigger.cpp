@@ -1458,9 +1458,12 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
         CurrentTrigger->MediumEnabled ? "1" : "0", CurrentTrigger->HardEnabled ? "1" : "0", CurrentTrigger->Obsolete);
     map.WriteString("Triggers", id, value);
 
-    ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
-    value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
-    map.WriteString("Tags", tagId, value);
+    if (oriTagID != "<none>")
+    {
+        ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
+        value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
+        map.WriteString("Tags", tagId, value);
+    }
 
     map.WriteString("Events", id, map.GetString("Events", oriID));
     map.WriteString("Actions", id, map.GetString("Actions", oriID));
