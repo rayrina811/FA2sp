@@ -403,6 +403,26 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 	if (tileIndex >= CMapDataExt::TileDataCount)
 		return 0x4700BA;
 
+	auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell](int tileIndex, int tileSubIndex, int x, int y)
+		{
+			if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
+			{
+				auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
+				if (tileAnim.AttachedSubTile == tileSubIndex)
+				{
+					auto pData = ImageDataMapHelper::GetImageDataFromMap(tileAnim.ImageName);
+
+					if (pData && pData->pImageBuffer)
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							x - pData->FullWidth / 2 + tileAnim.XOffset,
+							y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
+							pData, NULL, cell->IsHidden() ? 128 : 255, -2);
+					}
+				}
+			}
+		};
+
 	if (cell->Flag.RedrawTerrain)
 	{
 		if (CFinalSunApp::Instance->FrameMode)
@@ -452,11 +472,15 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 					x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 					cell->IsHidden() ? 128 : 255);
+
+				drawTerrainAnim(tileIndex, tileSubIndex, x + 60, y + 30);
+				return 0x4700BA;
 			}
 		}
 	}
 
-	if (CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)].HasAnim)
+	auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+	if (cellExt.HasAnim)
 	{
 		if (CFinalSunApp::Instance->FrameMode)
 		{
@@ -470,28 +494,12 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 				tileSubIndex = 0;
 			}
 		}
-		if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
-		{
-			auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
-			if (tileAnim.AttachedSubTile == tileSubIndex)
-			{
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(tileAnim.ImageName);
-
-				if (pData && pData->pImageBuffer)
-				{
-					int x = X;
-					int y = Y;
-					CIsoView::MapCoord2ScreenCoord(x, y);
-					x -= DrawOffsetX;
-					y -= DrawOffsetY;
-
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2 + tileAnim.XOffset,
-						y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
-						pData, NULL, cell->IsHidden() ? 128 : 255, -2);
-				}
-			}
-		}
+		int x = X;
+		int y = Y;
+		CIsoView::MapCoord2ScreenCoord(x, y);
+		x -= DrawOffsetX;
+		y -= DrawOffsetY;
+		drawTerrainAnim(tileIndex, tileSubIndex, x, y);
 	}
 
 	return 0x4700BA;

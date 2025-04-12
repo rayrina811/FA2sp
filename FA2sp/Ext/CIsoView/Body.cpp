@@ -794,7 +794,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
 void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor)
 {   
-    X += 7 / CIsoViewExt::ScaledFactor - 7 + 2;
+    X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
     Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
     if (!hdc)
         return;
@@ -1007,7 +1007,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
 
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)
 {   
-    X += 7 / CIsoViewExt::ScaledFactor - 7 + 2;
+    X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
     Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
     if (!hdc)
         return;
@@ -1906,8 +1906,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
                 if (dest + bpp < surfaceEnd) {
                     if (alpha < 255 && c != textBGR)
                     {
-                        BGRStruct oriColor;
-                        memcpy(&oriColor, dest, bpp);
+                        BGRStruct oriColor = *(BGRStruct*)dest;
                         c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
                         c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
                         c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
@@ -2201,8 +2200,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                     if (dest + bpp < surfaceEnd) {
                         if (alpha < 255)
                         {
-                            BGRStruct oriColor;
-                            memcpy(&oriColor, dest, bpp);
+                            BGRStruct oriColor = *(BGRStruct*)dest;
                             c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
                             c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
                             c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
@@ -2336,8 +2334,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
                         }
                         if (alpha < 255)
                         {
-                            BGRStruct oriColor;
-                            memcpy(&oriColor, dest, bpp);
+                            BGRStruct oriColor = *(BGRStruct*)dest;
                             c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
                             c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
                             c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
@@ -2424,8 +2421,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
                 if (dest >= dst) {
                     BGRStruct c;
                     if (dest + bpp < surfaceEnd) {
-                        BGRStruct oriColor;
-                        memcpy(&oriColor, dest, bpp);
+                        BGRStruct oriColor = *(BGRStruct*)dest;
                         c.B = std::min(oriColor.B * val * 2 / 256, 255);
                         c.G = std::min(oriColor.G * val * 2 / 256, 255);
                         c.R = std::min(oriColor.R * val * 2 / 256, 255);
@@ -2538,8 +2534,7 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
                     if (dest + bpp < surfaceEnd) {
                         if (alpha < 255)
                         {
-                            BGRStruct oriColor;
-                            memcpy(&oriColor, dest, bpp);
+                            BGRStruct oriColor = *(BGRStruct*)dest;
                             c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
                             c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
                             c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
