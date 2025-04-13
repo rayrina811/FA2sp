@@ -44,6 +44,7 @@ DEFINE_HOOK(51AF40, CViewObjects_OnSelectChanged, 7)
 }
 
 int infantryLoop = 0;
+MapCoord lastCoord = { 0,0 };
 // skip to use our own method;
 DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
 {
@@ -105,13 +106,21 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         CInfantryData newTechno;
         if (ExtConfigs::InfantrySubCell_Edit_Place && ExtConfigs::InfantrySubCell_Edit)
         {
+            bool single = ExtConfigs::InfantrySubCell_Edit_Single;
+            ExtConfigs::InfantrySubCell_Edit_Single = true;
             int curIdx = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
             if (curIdx > -1)
                 Map.DeleteInfantryData(curIdx);
             newTechno.SubCell.Format("%d", CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y, true));
+            ExtConfigs::InfantrySubCell_Edit_Single = single;
         }
         else
         {
+            if (lastCoord != MapCoord{ X,Y })
+            {
+                lastCoord = { X,Y };
+                infantryLoop = 0;
+            }
             if (cell->Infantry[infantryLoop] > -1)
             {
                 Map.DeleteInfantryData(cell->Infantry[infantryLoop]);
