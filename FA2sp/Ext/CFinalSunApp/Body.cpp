@@ -82,13 +82,24 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 
-
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 	VoxelDrawer::Initalize();
 
 	path = CFinalSunApp::ExePath;
 	path += "\\FALanguage.ini";
 	CINI::FALanguage->ClearAndLoad(path.c_str());
+	if (auto pSection = CINI::FALanguage().GetSection("Include"))
+	{
+		for (auto& pair : pSection->GetEntities())
+		{
+			std::string includePath;
+			includePath = CFinalSunApp::ExePath;
+			includePath += "\\" + pair.second;
+			if (fs::exists(includePath))
+				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
+		}
+	}
+
 	// No need to validate falanguage I guess
 
 	CINI ini;
@@ -138,13 +149,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	}
 
-
-
 	this->InstallPath = ini.GetString("TS", "Exe");
 	this->FileSearchLikeTS = ini.GetBool("FinalSun", "FileSearchLikeTS");
 	this->Language = ini.GetString("FinalSun", "Language");
-
-
 
 	// HACK, Game like pls
 	this->FileSearchLikeTS = TRUE;
