@@ -13,6 +13,7 @@
 #include "../CIsoView/Body.h"
 #include "../CMapData/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 
 DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
 {
@@ -652,6 +653,12 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     {
         CViewObjectsExt::DeleteTube(X, Y);
         return 0x466860;
+    }	
+    else if (CIsoView::CurrentCommand->Command == 0x23)
+    {
+        CLuaConsole::UpdateCoords(X, Y, CLuaConsole::applyingScriptFirst, false);
+        CLuaConsole::OnClickRun(CLuaConsole::runFile);
+        return 0x466860;
     }
 
     return 0;
@@ -730,7 +737,12 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
         CViewObjectsExt::DeleteTube(X, Y);
         return 0x45CD6D;
     }
-
+    else if (CIsoView::CurrentCommand->Command == 0x23)
+    {
+        CLuaConsole::UpdateCoords(X, Y, CLuaConsole::applyingScriptFirst, true);
+        CLuaConsole::OnClickRun(CLuaConsole::runFile);
+        return 0x45CD6D;
+    }
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }
 

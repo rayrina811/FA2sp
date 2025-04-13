@@ -39,6 +39,12 @@ HWND CLuaConsole::hInputBox;
 HWND CLuaConsole::hOutputText;
 HWND CLuaConsole::hInputText;
 HWND CLuaConsole::hScripts;
+HWND CLuaConsole::hRunFile;
+HWND CLuaConsole::hApply;
+bool CLuaConsole::applyingScript = false;
+bool CLuaConsole::applyingScriptFirst = true;
+bool CLuaConsole::runFile = true;
+//HWND CLuaConsole::hStop;
 int CLuaConsole::origWndWidth;
 int CLuaConsole::origWndHeight;
 int CLuaConsole::minWndWidth;
@@ -62,8 +68,6 @@ bool CLuaConsole::skipBuildingUpdate = false;
 char CLuaConsole::Buffer[BUFFER_SIZE]{ 0 };
 sol::state CLuaConsole::Lua;
 using namespace::LuaFunctions;
-
-
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -107,7 +111,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Translate(1005, "LuaScriptConsoleDescription");
     HWND hDesc = GetDlgItem(hWnd, 1005);
     buffer = Translations::TranslateOrDefault("LuaScriptConsoleDescription",
-        "Click 'execute' to execute the selected Lua script, and click 'run' to execute the code in the input window. "
+        "Check 'Run File' to read the selected Lua script; otherwise, the input window will be used. "
+        "Click 'Run' to run the selected code. "
+        "Click 'Lua Brush' to run the script at the specified coordinates on the map. "
         "Scripts may damage the map, please save it or execute the snapshot function before running. "
         "Please refer to the documentation for available functions.");
     SetWindowText(hDesc, buffer);
@@ -115,8 +121,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Translate(1006, "LuaScriptConsoleOuput");
     Translate(1007, "LuaScriptConsoleInput");
     Translate(1008, "LuaScriptConsoleScripts");
-    Translate(Controls::Execute, "LuaScriptConsoleExecute");
     Translate(Controls::Run, "LuaScriptConsoleRun");
+    Translate(Controls::Apply, "LuaScriptConsoleBrush");
+    Translate(Controls::RunFile, "LuaScriptConsoleRunFile");
 
     hExecute = GetDlgItem(hWnd, Controls::Execute);
     hRun = GetDlgItem(hWnd, Controls::Run);
@@ -125,7 +132,10 @@ void CLuaConsole::Initialize(HWND& hWnd)
     hScripts = GetDlgItem(hWnd, Controls::Scripts);
     hOutputText = GetDlgItem(hWnd, Controls::OutputText);
     hInputText = GetDlgItem(hWnd, Controls::InputText);
-
+    hRunFile = GetDlgItem(hWnd, Controls::RunFile);
+    hApply = GetDlgItem(hWnd, Controls::Apply);
+    //hStop = GetDlgItem(hWnd, Controls::Stop);
+    
     SendMessage(hOutputBox, EM_SETREADONLY, (WPARAM)TRUE, 0);
     //SendMessage(hOutputBox, EM_SETBKGNDCOLOR, 0, (LPARAM)RGB(240, 240, 240));
     ExtraWindow::SetEditControlFontSize(hInputBox, 1.4f, true);
@@ -133,6 +143,11 @@ void CLuaConsole::Initialize(HWND& hWnd)
     int tabWidth = 16;
     SendMessage(hInputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
     SendMessage(hOutputBox, EM_SETTABSTOPS, 1, (LPARAM)&tabWidth);
+    applyingScript = false;
+    runFile = true;
+    applyingScriptFirst = true;
+    SendMessage(hRunFile, BM_SETCHECK, runFile, 0);
+    CIsoView::ControlKeyIsDown() = false;
 
     Lua.collect_garbage();
     Lua = sol::state();
@@ -820,6 +835,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_team", team::delete_team);
     Lua.set_function("get_team", team::get_team);
 
+    Lua.set_function("running_lua_brush", []() {return CLuaConsole::applyingScript; });
+
     Update(hWnd);
 }
 
@@ -921,12 +938,19 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         newHeight = rect.bottom - rect.top;
         MoveWindow(hRun, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
 
-        GetWindowRect(hExecute, &rect);
+        GetWindowRect(hApply, &rect);
         topLeft = { rect.left, rect.top };
         ScreenToClient(hWnd, &topLeft);
         newWidth = rect.right - rect.left;
         newHeight = rect.bottom - rect.top;
-        MoveWindow(hExecute, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
+        MoveWindow(hApply, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
+
+        GetWindowRect(hRunFile, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hRunFile, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
 
         origWndWidth = newWndWidth;
         origWndHeight = newWndHeight;
@@ -939,10 +963,19 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         switch (ID)
         {
         case Controls::Run:
-            OnClickRun(false);
+            applyingScript = false;
+            OnClickRun(runFile);
             break;
-        case Controls::Execute:
-            OnClickRun(true);
+        case Controls::Apply:
+            applyingScript = true;
+            CLuaConsole::applyingScriptFirst = true;
+            CIsoView::CurrentCommand->Command = 0x23;
+            break;
+        case Controls::RunFile:
+            if (CODE == BN_CLICKED)
+            {
+                runFile = SendMessage(hRunFile, BM_GETCHECK, 0, 0);
+            }
             break;
         default:
             break;
@@ -963,6 +996,21 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
 
     // Process this message through default handler
     return FALSE;
+}
+
+void CLuaConsole::UpdateCoords(int x, int y, bool firstRun, bool holdingClick)
+{
+    if (firstRun)
+    {
+        CLuaConsole::applyingScriptFirst = false;
+        Lua["first_run"] = true;
+    }
+    else
+        Lua["first_run"] = false;
+    Lua["control_down"] = CIsoView::ControlKeyIsDown();
+    Lua["holding_click"] = holdingClick;
+    Lua["X"] = y;
+    Lua["Y"] = x;
 }
 
 void CLuaConsole::OnClickRun(bool fromFile)

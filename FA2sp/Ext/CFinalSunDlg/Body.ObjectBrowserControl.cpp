@@ -3363,5 +3363,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     // 0x20 Modify Ore
     // 0x21 Annotation
     // 0x22 Tube
+    // 0x23 Lua Script
     return false;
 }

@@ -2285,7 +2285,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         }
         else
         {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain,
+            newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
                 CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
         }
     }

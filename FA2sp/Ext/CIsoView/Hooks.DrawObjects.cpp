@@ -1159,9 +1159,13 @@ DEFINE_HOOK(47077A, CIsoView_Draw_Building, A)
 				if (pData && pData->pImageBuffer)
 				{
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
+					auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255,
-						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE, isoset.find(objRender.ID) != isoset.end());
+						objRender.HouseColor, -1, status == CLoadingExt::GBIN_RUBBLE &&
+						dam_rubble.find(objRender.ID) == dam_rubble.end()
+						&& imageName != CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, CLoadingExt::GBIN_DAMAGED),
+						isoset.find(objRender.ID) != isoset.end());
 
 					for (int upgrade = 0; upgrade < objRender.PowerUpCount; ++upgrade)
 					{

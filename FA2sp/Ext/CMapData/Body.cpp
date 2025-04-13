@@ -79,6 +79,7 @@ std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
 std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
+std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -1608,6 +1609,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::SoftTileSets.clear();
 	CMapDataExt::TileSetCumstomPalette.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
+	CMapDataExt::DamagedAsRubbleBuildings.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{

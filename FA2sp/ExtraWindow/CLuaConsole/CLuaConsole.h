@@ -23,8 +23,10 @@ public:
         Description = 1005,
         OutputText = 1006,
         InputText = 1007,
-        ScriptText = 1008
-
+        ScriptText = 1008,
+        RunFile = 1009,
+        Apply = 1010,
+        //Stop = 1011,
     };
     static void Create(CFinalSunDlg* pWnd);
 
@@ -32,12 +34,13 @@ public:
     {
         return CLuaConsole::m_hwnd;
     }
+    static void OnClickRun(bool fromFile);
+    static void UpdateCoords(int x, int y, bool firstRun, bool holdingClick);
 
 protected:
     static void Initialize(HWND& hWnd);
     static void Close(HWND& hWnd);
     static void Update(HWND& hWnd);
-    static void OnClickRun(bool fromFile);
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -59,6 +62,12 @@ public:
     static HWND hOutputText;
     static HWND hInputText;
     static HWND hScripts;
+    static HWND hRunFile;
+    static HWND hApply;
+    //static HWND hStop;
+    static bool applyingScript;
+    static bool applyingScriptFirst;
+    static bool runFile;
     static sol::state Lua;
     static bool needRedraw;
     static bool recalculateOre;

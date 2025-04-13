@@ -319,4 +319,5 @@ public:
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, ppmfc::CString> TileSetOriginSetNames[6];
     static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
+    static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
 };

@@ -1089,6 +1089,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		else
 		{
 			LoadBuilding_Damaged(ID, true);
+			CMapDataExt::DamagedAsRubbleBuildings.insert(ID);
 		}
 	}
 }

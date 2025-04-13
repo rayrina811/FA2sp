@@ -91,6 +91,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
 #include "../CFinalSunApp/Body.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/MultiSelection.h"
+#include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 
 DEFINE_HOOK(432380, CFinalSunDlg_Update_RecentFiles, A)
 {
@@ -513,12 +514,10 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     else
         TreeView_SelectItem(hWnd, TVGN_ROOT);
 
-
     if (!MultiSelection::CopiedCells.empty())
     {
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
-
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
         CIsoView::CurrentCommand->Command = 0x0;
@@ -547,7 +546,13 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoViewExt::IsPressingTube = false;
         CIsoViewExt::TubeNodes.clear();
     }
-
+    if (CIsoView::CurrentCommand->Command == 0x23)
+    {
+        CLuaConsole::Lua.collect_garbage();
+        CLuaConsole::applyingScript = false;
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
+    }
     return 0x45EBC5;
 }
 
