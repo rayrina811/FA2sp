@@ -1227,12 +1227,19 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	{
 		if (GetKeyState(VK_CONTROL) & 0x8000)
 		{
-			int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
-			if (zDelta < 0) {
-				CIsoViewExt::Zoom(0.1);
-			}
-			else {
-				CIsoViewExt::Zoom(-0.1);
+			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
+			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
+			if (hParent1 != CNewINIEditor::GetHandle()
+				&& hParent1 != CCsfEditor::GetHandle()
+				&& hParent1 != CLuaConsole::GetHandle())
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				if (zDelta < 0) {
+					CIsoViewExt::Zoom(0.1);
+				}
+				else {
+					CIsoViewExt::Zoom(-0.1);
+				}
 			}
 		}
 		break;
