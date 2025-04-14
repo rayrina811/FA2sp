@@ -1600,6 +1600,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
 	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
 	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
+	ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
 
 	AutoShore_ShoreTileSet = ShorePieces;
 	AutoShore_GreenTileSet = GreenTile;

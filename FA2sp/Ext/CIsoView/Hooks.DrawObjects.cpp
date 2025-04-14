@@ -50,7 +50,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::VisibleInfantries.clear();
 	CIsoViewExt::VisibleUnits.clear();
 	CIsoViewExt::VisibleAircrafts.clear();
-	CMapDataExt::ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
 	CIsoViewExt::DrawVeterancies.clear();
 	DrawnBuildings.clear();
 	DrawnBaseNodes.clear();
