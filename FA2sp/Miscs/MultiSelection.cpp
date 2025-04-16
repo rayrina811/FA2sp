@@ -273,8 +273,10 @@ void MultiSelection::Copy()
     CloseClipboard();
 }
 
+std::vector<MapCoord> multiPastedCoords;
 void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, bool obj = false)
 {
+    multiPastedCoords.clear();
     if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
         return;
     std::span<MyClipboardData> cells {data, data + length};
@@ -352,6 +354,7 @@ void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data,
         }
 
         CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
+        multiPastedCoords.push_back(MapCoord{ X + offset_x, Y + offset_y });
     }
 }
 
@@ -1290,6 +1293,25 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
     return 0x4C388B;
 }
 
+//std::vector<MapCoord> copiedCoords;
+MapCoord start;
+MapCoord end;
+DEFINE_HOOK(4C3850, CMapData_Paste_Clear, 8)
+{
+    start = { 1000,1000 };
+    end = { 0,0 };
+    return 0;
+}
+
+DEFINE_HOOK(4C3B9C, CMapData_Paste_GetCoords, 5)
+{
+    start.X = std::min(R->Stack<int>(STACK_OFFS(0x58, 0x44)), start.X);
+    start.Y = std::min(R->ECX<int>(), start.Y);
+    end.X = std::max(R->Stack<int>(STACK_OFFS(0x58, 0x44)), end.X);
+    end.Y = std::max(R->ECX<int>(), end.Y);
+    return 0;
+}
+
 DEFINE_HOOK(474FE0, CIsoView_Draw_Bounds, 5)
 {
     GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
@@ -1298,90 +1320,74 @@ DEFINE_HOOK(474FE0, CIsoView_Draw_Bounds, 5)
     LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
     if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
-    {
-        auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-        MapCoord startP;
+    {      
         auto& mapData = CMapData::Instance();
 
-
-        startP.X = point.X - MultiSelection::CopiedX / 2;
-        startP.Y = point.Y - MultiSelection::CopiedY / 2;
-        auto length = CMapData::Instance().MapWidthPlusHeight;
-
-        int copyx = MultiSelection::CopiedX;
-        int copyy = MultiSelection::CopiedY;
-
-        while (startP.X < 0)
+        auto length = mapData.MapWidthPlusHeight;
+        
+        int copyx = end.X - start.X + 1;
+        int copyy = end.Y - start.Y + 1;
+        
+        while (start.X < 0)
         {
-            startP.X++;
+            start.X++;
             copyx--;
         }
-        while (startP.Y < 0)
+        while (start.Y < 0)
         {
-            startP.Y++;
+            start.Y++;
             copyy--;
         }
-        while (startP.X + copyx > length)
+        while (start.X + copyx > length)
         {
             copyx--;
         }
-        while (startP.Y + copyy > length)
+        while (start.Y + copyy > length)
         {
             copyy--;
         }
         LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
-        int x = startP.X;
-        int y = startP.Y;
-        CIsoView::MapCoord2ScreenCoord(x, y);
-        int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-        int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-        pThis->DrawLockedCellOutline(drawX, drawY, copyy, copyx, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
-
+        for (int x = start.X; x < start.X + copyx; ++x)
+        {
+            int X = x;
+            int Y1 = start.Y;
+            int Y2 = start.Y + copyy - 1;
+            CIsoView::MapCoord2ScreenCoord(X, Y1);
+            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+            Y1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+            pThis->DrawLockedCellOutline(X, Y1, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, false, true);
+            X = x;
+            CIsoView::MapCoord2ScreenCoord(X, Y2);
+            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+            Y2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+            pThis->DrawLockedCellOutline(X, Y2, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, true, false, false);
+        }
+        for (int y = start.Y; y < start.Y + copyy; ++y)
+        {
+            int Y = y;
+            int X1 = start.X;
+            int X2 = start.X + copyx - 1;
+            CIsoView::MapCoord2ScreenCoord(X1, Y);
+            X1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+            pThis->DrawLockedCellOutline(X1, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, true, false, false, false);
+            Y = y;
+            CIsoView::MapCoord2ScreenCoord(X2, Y);
+            X2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+            pThis->DrawLockedCellOutline(X2, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, true, false);
+        }
     }
     else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
     {
-        auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-        MapCoord startP;
-        auto& mapData = CMapData::Instance();
-
-        startP.X = point.X - MultiSelection::CopiedX / 2;
-        startP.Y = point.Y - MultiSelection::CopiedY / 2;
-        auto length = CMapData::Instance().MapWidthPlusHeight;
-        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
-        int idx = 0;
-        for (int i = startP.X; i < startP.X + MultiSelection::CopiedX; i++)
+        for (auto& coord : multiPastedCoords)
         {
-            for (int j = startP.Y; j < startP.Y + MultiSelection::CopiedY; j++)
-            {
-                int x = i;
-                int y = j;
-                auto dwpos = j * CMapData::Instance().MapWidthPlusHeight + i;
-                auto& cell = MultiSelection::CopiedCells[idx];
-                if (dwpos < mapData.CellDataCount &&  CMapData::Instance->IsCoordInMap(i, j))
-                {
-                    bool found = false;
-                    for (auto& coord : MultiSelection::SelectedCoordsTemp)
-                    {
-                        if (coord.X == cell.X && coord.Y == cell.Y)
-                        {
-
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found)
-                    {
-                        CIsoView::MapCoord2ScreenCoord(x, y);
-                        int drawX = x - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-                        int drawY = y - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-                        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
-                    }
-                }
-                idx++;
-            }
+            int X = coord.X;
+            int Y = coord.Y;
+            CIsoView::MapCoord2ScreenCoord(X, Y);
+            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
+            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
+            pThis->DrawLockedCellOutline(X, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
         }
     }
 

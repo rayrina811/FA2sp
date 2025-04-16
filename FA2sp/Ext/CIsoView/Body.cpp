@@ -44,7 +44,7 @@ bool CIsoViewExt::PasteTerrains = false;
 bool CIsoViewExt::PasteSmudges = false;
 bool CIsoViewExt::PasteGround = true;
 bool CIsoViewExt::PasteOverriding = false;
-bool CIsoViewExt::PasteShowOutline = true;
+bool CIsoViewExt::PasteShowOutline = false;
 
 bool CIsoViewExt::DrawStructuresFilter = false;
 bool CIsoViewExt::DrawInfantriesFilter = false;
@@ -1007,6 +1007,9 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
 
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)
 {   
+    if (!s1 && !s2 && !s3 && !s4)
+        return;
+
     X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
     Y += 3 / CIsoViewExt::ScaledFactor - 3 + 1;
     if (!hdc)
