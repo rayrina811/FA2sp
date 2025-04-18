@@ -72,6 +72,11 @@ private:
     static HWND hRefresh;
     static HWND hObjectText;
     static ppmfc::CString SearchID;
+    static int origWndWidth;
+    static int origWndHeight;
+    static int minWndWidth;
+    static int minWndHeight;
+    static bool minSizeSet;
 public:
     static bool IsTeamType;
     static bool IsTrigger;

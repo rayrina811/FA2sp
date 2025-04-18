@@ -25,6 +25,11 @@ HWND CSearhReference::hListbox;
 HWND CSearhReference::hRefresh;
 HWND CSearhReference::hObjectText;
 ppmfc::CString CSearhReference::SearchID = "";
+int CSearhReference::origWndWidth;
+int CSearhReference::origWndHeight;
+int CSearhReference::minWndWidth;
+int CSearhReference::minWndHeight;
+bool CSearhReference::minSizeSet;
 bool CSearhReference::IsTeamType = false;
 bool CSearhReference::IsTrigger = false;
 bool CSearhReference::IsVariable = false;
@@ -95,7 +100,51 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
     case WM_INITDIALOG:
     {
         CSearhReference::Initialize(hWnd);
+        RECT rect;
+        GetClientRect(hWnd, &rect);
+        origWndWidth = rect.right - rect.left;
+        origWndHeight = rect.bottom - rect.top;
+        minSizeSet = false;
         return TRUE;
+    }
+    case WM_GETMINMAXINFO: {
+        if (!minSizeSet) {
+            int borderWidth = GetSystemMetrics(SM_CXBORDER);
+            int borderHeight = GetSystemMetrics(SM_CYBORDER);
+            int captionHeight = GetSystemMetrics(SM_CYCAPTION);
+            minWndWidth = origWndWidth + 2 * borderWidth;
+            minWndHeight = origWndHeight + captionHeight + 2 * borderHeight;
+            minSizeSet = true;
+        }
+        MINMAXINFO* pMinMax = (MINMAXINFO*)lParam;
+        pMinMax->ptMinTrackSize.x = minWndWidth;
+        pMinMax->ptMinTrackSize.y = minWndHeight;
+        return TRUE;
+    }
+    case WM_SIZE: {
+        int newWndWidth = LOWORD(lParam);
+        int newWndHeight = HIWORD(lParam);
+
+        RECT rect;
+        POINT topLeft;
+
+        GetWindowRect(hListbox, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        int newWidth = rect.right - rect.left + newWndWidth - origWndWidth;
+        int newHeight = rect.bottom - rect.top + newWndHeight - origWndHeight;
+        MoveWindow(hListbox, topLeft.x, topLeft.y, newWidth, newHeight, TRUE);
+
+        GetWindowRect(hRefresh, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hRefresh, topLeft.x + newWndWidth - origWndWidth, topLeft.y + newWndHeight - origWndHeight, newWidth, newHeight, TRUE);
+
+        origWndWidth = newWndWidth;
+        origWndHeight = newWndHeight;
+        break;
     }
     case WM_COMMAND:
     {
@@ -165,7 +214,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     if (IsTeamType || IsTrigger || IsVariable)
     {
         int data = SendMessage(hListbox, LB_GETITEMDATA, idx, 0);
-        if (data == 1)
+        if (data >= 100 && data < 300)
         {
             if (CNewTrigger::GetHandle() == NULL)
                 CNewTrigger::Create(m_parent);
@@ -175,7 +224,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-            CNewTrigger::OnSelchangeTrigger();
+            CNewTrigger::OnSelchangeTrigger(false, data < 200 ? data - 100 : 0, data >= 200 ? data - 200 : 0);
         }
         else if (data == 2)
         {
@@ -238,33 +287,25 @@ void CSearhReference::Update()
         {
             auto& trigger = triggerPair.second;
             int index = 0;
-            bool addEvent = false;
-            bool addAction = false;
-            bool addAttached = false;
-            ppmfc::CString eventCount = " ";
-            eventCount += Translations::TranslateOrDefault("Event", "Event");
-            eventCount += "[";
-            ppmfc::CString actionCount = " ";
-            actionCount += Translations::TranslateOrDefault("Action", "Action");
-            actionCount += "[";
-            ppmfc::CString attached = " ";
-            attached += Translations::TranslateOrDefault("SearchReference.AttachedTrigger", "Attached");
             for (auto& e : trigger->Events)
             {
                 for (auto& ep : e.Params)
                 {
                     if (ep == SearchID)
                     {
-                        tmp.Format("%d", index);
-                        if (addEvent)
-                            eventCount += ", ";
-                        eventCount += tmp;
-                        addEvent = true;
+                        ppmfc::CString text;
+                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                            Translations::TranslateOrDefault("Event", "Event"), index);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            100 + index
+                        );
                     }
                 }
                 index++;
             }
-            eventCount += "]";
             index = 0;
             for (auto& a : trigger->Actions)
             {
@@ -272,37 +313,32 @@ void CSearhReference::Update()
                 {
                     if (ap == SearchID)
                     {
-                        tmp.Format("%d", index);
-                        if (addAction)
-                            actionCount += ", ";
-                        actionCount += tmp;
-                        addAction = true;
+                        ppmfc::CString text;
+                        text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                            Translations::TranslateOrDefault("Action", "Action"), index);
+                        SendMessage(
+                            hListbox,
+                            LB_SETITEMDATA,
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            200 + index
+                        );
                     }
                 }
                 index++;
             }
             if (trigger->AttachedTrigger == SearchID)
-                addAttached = true;
-
-            actionCount += "]";
-            if (addAction || addEvent || addAttached)
             {
-                auto text = ExtraWindow::GetTriggerDisplayName(trigger->ID);
-                if (addEvent)
-                    text += eventCount;
-                if (addAction)
-                    text += actionCount;
-                if (addAttached)
-                    text += attached;
+                ppmfc::CString text;
+                text.Format("%s %s", ExtraWindow::GetTriggerDisplayName(trigger->ID),
+                    Translations::TranslateOrDefault("SearchReference.AttachedTrigger", "Attached"));
                 SendMessage(
                     hListbox,
                     LB_SETITEMDATA,
                     SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
-                    1
+                    100 
                 );
-            }
-
-            // 1 means trigger
+            }      
+            // 100+ means events, 200+ means actions
         }
         if (IsTeamType)
             if (auto pSection = map.GetSection("AITriggerTypes"))
@@ -611,7 +647,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
-                            1
+                            100 + i
                         );
                     }
                 }
@@ -650,7 +686,7 @@ void CSearhReference::Update()
                             hListbox,
                             LB_SETITEMDATA,
                             SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
-                            1
+                            200 + i
                         );
                     }
                 }

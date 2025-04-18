@@ -329,8 +329,8 @@ public:
     static void OnSelchangeEventParam(int index, bool edited = false);
     static void OnSelchangeActionParam(int index, bool edited = false);
     static void OnClickNewTrigger();
-    static bool ActionParamUsesFloat;
-
+    static void OnSelchangeEventListbox(bool changeCursel = true);
+    static void OnSelchangeActionListbox(bool changeCursel = true);
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -349,8 +349,6 @@ protected:
     static void OnClickCloAction(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
 
-    static void OnSelchangeEventListbox(bool changeCursel = true);
-    static void OnSelchangeActionListbox(bool changeCursel = true);
     static void OnSelchangeHouse(bool edited = false);
     static void OnSelchangeType(bool edited = false);
     static void UpdateEventAndParam(int changedEvent = -1, bool changeCursel = true);
@@ -416,6 +414,8 @@ public:
     static int CurrentTriggerActionParam;
     static std::vector<ParamAffectedParams> ActionParamAffectedParams;
     static std::vector<ParamAffectedParams> EventParamAffectedParams;
+    static bool ActionParamUsesFloat;
+
 private:
     static int SelectedTriggerIndex;
     static int SelectedEventIndex;
