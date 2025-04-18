@@ -294,25 +294,6 @@ void CNewTrigger::Update(HWND& hWnd)
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
     SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
-    ActionParamAffectedParams.clear();
-    EventParamAffectedParams.clear();
-    if (auto pSection = CINI::FAData->GetSection("ParamAffectedParams"))
-    {
-        for (const auto& [_, value] : pSection->GetEntities())
-        {
-            auto atoms = STDHelpers::SplitString(value, 5);
-            auto& list = atoms[0] == "Event" ? EventParamAffectedParams : ActionParamAffectedParams;
-            auto& target = list.emplace_back();
-            target.Index = atoi(atoms[1]);
-            target.SourceParam = atoi(atoms[2]);
-            target.AffectedParam = atoi(atoms[3]);
-            for (int i = 4; i < atoms.size() - 1; i = i + 2)
-            {
-                target.ParamMap[atoms[i]] = atoms[i + 1];
-            }
-        }
-    }
-
     Autodrop = false;
 
     OnSelchangeTrigger();

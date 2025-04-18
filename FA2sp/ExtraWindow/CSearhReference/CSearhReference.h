@@ -8,6 +8,13 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../CNewScript/CNewScript.h"
 
+enum ScriptParamPos : int
+{
+    normal = 0,
+    low = 1,
+    high = 2
+};
+
 // A static window class
 class CSearhReference
 {
@@ -23,11 +30,12 @@ public:
     {
         SearchID = id;
     }
-    // 0 team, 1 trigger, 2 taskforce/script
+    // 0 team, 1 trigger, 2 taskforce/script, 3 variable
     static void SetSearchType(int idx) 
     {
         IsTeamType = false;
         IsTrigger = false;
+        IsVariable = false;
         switch (idx)
         {
         case 0:
@@ -35,6 +43,9 @@ public:
             break;
         case 1:
             IsTrigger = true;
+            break;
+        case 3:
+            IsVariable = true;
             break;
         default:
             break;
@@ -64,6 +75,15 @@ private:
 public:
     static bool IsTeamType;
     static bool IsTrigger;
+    static bool IsVariable;
+    // first = id, second = pos
+    static std::map<int, ScriptParamPos> LocalVariableScripts;
+    // first = id, second = pos (not include event num), 10+ = check param affected params
+    static std::map<int, int> LocalVariableEvents;
+    static std::map<int, int> LocalVariableActions;
 
+    // first = id, second = param index, value
+    static std::map<int, std::map<int, ppmfc::CString>> LocalVariableParamAffectedEvents;
+    static std::map<int, std::map<int, ppmfc::CString>> LocalVariableParamAffectedActions;
 };
 

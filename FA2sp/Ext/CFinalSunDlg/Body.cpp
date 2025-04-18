@@ -17,6 +17,7 @@
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -671,6 +672,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		else
 		{
 			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+		}
+	}
+	if (wmID == 40160 && CMapData::Instance->MapWidthPlusHeight)
+	{
+		if (CNewLocalVariables::GetHandle() == NULL)
+			CNewLocalVariables::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
 		}
 	}
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)

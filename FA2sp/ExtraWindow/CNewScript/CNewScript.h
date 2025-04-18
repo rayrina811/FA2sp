@@ -46,6 +46,7 @@ public:
     static void OnSelchangeActionType(bool edited = false);
     static void OnSelchangeActionParam(bool edited = false);
     static void OnSelchangeActionExtraParam(bool edited = false);
+    static void OnSelchangeActionListbox();
     static void OnClickNewScript();
 
 protected:
@@ -60,7 +61,6 @@ protected:
     static void OnClickDeleteAction(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
     static void OnClickMoveupAction(HWND& hWnd, bool reverse);
-    static void OnSelchangeActionListbox();
     static void UpdateActionAndParam(int actionChanged = -1, int listBoxCurChanged = -1, bool changeActionIdx = true);
 
     static void OnCloseupActionType();

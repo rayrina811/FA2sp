@@ -414,6 +414,8 @@ public:
 
     static int CurrentCSFActionParam;
     static int CurrentTriggerActionParam;
+    static std::vector<ParamAffectedParams> ActionParamAffectedParams;
+    static std::vector<ParamAffectedParams> EventParamAffectedParams;
 private:
     static int SelectedTriggerIndex;
     static int SelectedEventIndex;
@@ -432,8 +434,6 @@ private:
     static std::map<int, ppmfc::CString> ActionParamLabels[ACTION_PARAM_COUNT];
     static std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
     static std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
-    static std::vector<ParamAffectedParams> ActionParamAffectedParams;
-    static std::vector<ParamAffectedParams> EventParamAffectedParams;
 
     static bool Autodrop;
     static bool DropNeedUpdate;

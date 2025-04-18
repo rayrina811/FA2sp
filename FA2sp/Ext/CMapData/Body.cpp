@@ -21,6 +21,7 @@
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../CTileSetBrowserFrame/TabPages/TriggerSort.h"
 #include "../CTileSetBrowserFrame/TabPages/TeamSort.h"
 #include "../CTileSetBrowserFrame/TabPages/WaypointSort.h"
@@ -1508,6 +1509,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	
 	if (CLuaConsole::GetHandle())
 		::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
+	
+	if (CNewLocalVariables::GetHandle())
+		::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
 
 	if (IsWindowVisible(CCsfEditor::GetHandle()))
 	{
@@ -1856,6 +1860,25 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso\233NotAutoTinted");
 				CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
 				anim.ImageName = imageName;
+			}
+		}
+	}
+
+	CNewTrigger::ActionParamAffectedParams.clear();
+	CNewTrigger::EventParamAffectedParams.clear();
+	if (auto pSection = CINI::FAData->GetSection("ParamAffectedParams"))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(value, 5);
+			auto& list = atoms[0] == "Event" ? CNewTrigger::EventParamAffectedParams : CNewTrigger::ActionParamAffectedParams;
+			auto& target = list.emplace_back();
+			target.Index = atoi(atoms[1]);
+			target.SourceParam = atoi(atoms[2]);
+			target.AffectedParam = atoi(atoms[3]);
+			for (int i = 4; i < atoms.size() - 1; i = i + 2)
+			{
+				target.ParamMap[atoms[i]] = atoms[i + 1];
 			}
 		}
 	}

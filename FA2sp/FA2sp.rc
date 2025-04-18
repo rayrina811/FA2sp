@@ -28,7 +28,7 @@ BEGIN
     "E",            40138,                  VIRTKEY, CONTROL, NOINVERT
     "J",            40156,                  VIRTKEY, CONTROL, NOINVERT
     "K",            40048,                  VIRTKEY, CONTROL, NOINVERT
-    "Q",            40082,                  VIRTKEY, CONTROL, NOINVERT
+    "Q",            40160,                  VIRTKEY, CONTROL, NOINVERT
     "M",            40037,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "I",            40154,                  VIRTKEY, CONTROL, NOINVERT
     VK_F5,          40053,                  VIRTKEY, NOINVERT

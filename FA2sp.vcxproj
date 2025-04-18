@@ -212,6 +212,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.cpp" />
@@ -342,6 +343,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
@@ -416,6 +418,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditorText.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CNewLocalVariables\CNewLocalVariables.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewScript\CNewScript.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.rc" />

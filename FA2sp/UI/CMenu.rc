@@ -47,7 +47,7 @@ POPUP "Edit"
 	MENUITEM "AI Triggers\tCtrl+J",  40156
 	MENUITEM "AI Trigger enabling\tCtrl+K",  40048
 	MENUITEM SEPARATOR
-	MENUITEM "Local variables\tCtrl+Q",  40082
+	MENUITEM "Local variables\tCtrl+Q",  40160
 	MENUITEM SEPARATOR
 	MENUITEM "Singleplayer settings\tCtrl+Shift+M",  40037
 	MENUITEM SEPARATOR
