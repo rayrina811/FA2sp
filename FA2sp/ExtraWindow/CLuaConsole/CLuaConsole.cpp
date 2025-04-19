@@ -91,8 +91,6 @@ void CLuaConsole::Create(CFinalSunDlg* pWnd)
         m_parent = NULL;
         return;
     }
-
-    ExtraWindow::CenterWindowPos(m_parent->GetSafeHwnd(), m_hwnd);
 }
 
 void CLuaConsole::Initialize(HWND& hWnd)

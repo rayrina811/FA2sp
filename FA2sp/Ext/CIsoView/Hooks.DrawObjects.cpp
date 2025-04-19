@@ -249,8 +249,12 @@ DEFINE_HOOK(46E815, CIsoView_Draw_Optimize_GetBorder, 5)
 	pThis->GetWindowRect(&window);
 
 	double scale = CIsoViewExt::ScaledFactor;
+	if (scale < 0.9)
+		scale += 0.1;
 	if (scale < 0.7)
-		scale += 0.3;
+		scale += 0.1;
+	if (scale < 0.5)
+		scale += 0.1;
 	window.right += window.Width() * (scale - 1.0);
 	if (scale < 1.0)
 		scale = 1.0;
@@ -284,6 +288,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 	auto pThis = CIsoView::GetInstance();
 	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+
+	std::vector<MapCoord> RedrawCoords;
 
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
@@ -333,6 +339,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 				}
 
 				CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+				int tileSet = tile.TileSet;
 				if (tile.AltTypeCount)
 				{
 					if (altImage > 0)
@@ -377,8 +384,76 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 								cellExt.HasAnim = true;
 							}
 						}
+						if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+							RedrawCoords.push_back(MapCoord{ X,Y });
 					}
 				}
+			}
+		}
+	}
+	for (const auto& coord : RedrawCoords)
+	{
+		const int& X = coord.X;
+		const int& Y = coord.Y;
+		const auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+		int altImage = cell->Flag.AltIndex;
+		int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+		int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+
+		if (CFinalSunApp::Instance->FrameMode)
+		{
+			if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+			{
+				tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+			}
+			else
+			{
+				tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+				tileSubIndex = 0;
+			}
+		}
+
+		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		if (tile.AltTypeCount)
+		{
+			if (altImage > 0)
+			{
+				tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+			}
+		}
+		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+		{
+			auto& subTile = tile.TileBlockDatas[tileSubIndex];
+			int x = X;
+			int y = Y;
+			CIsoView::MapCoord2ScreenCoord(x, y);
+			x -= DrawOffsetX;
+			y -= DrawOffsetY;
+			x -= 60;
+			y -= 30;
+
+			if (subTile.HasValidImage)
+			{
+				Palette* pal = &CMapDataExt::Palette_ISO;
+				if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
+				{
+					ppmfc::CString section;
+					section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
+					auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
+					if (auto pPal = PalettesManager::LoadPalette(custom))
+						pal = pPal;
+				}
+				ppmfc::CString extraImageID;
+				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(extraImageID);
+				if (pData && pData->pImageBuffer)
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x + subTile.XMinusExX + 30,
+						y + subTile.YMinusExY + 30,
+						pData, pal, cell->IsHidden() ? 128 : 255, -2);
+				}			
 			}
 		}
 	}
@@ -438,6 +513,7 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 		}
 
 		CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+		int tileSet = tile.TileSet;
 		if (tile.AltTypeCount)
 		{
 			if (altImage > 0)
@@ -471,6 +547,20 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 					x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
 					cell->IsHidden() ? 128 : 255);
+
+				if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+				{
+					ppmfc::CString extraImageID;
+					extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+					auto pData = ImageDataMapHelper::GetImageDataFromMap(extraImageID);
+					if (pData && pData->pImageBuffer)
+					{
+						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							x + subTile.XMinusExX + 30,
+							y + subTile.YMinusExY + 30,
+							pData, pal, cell->IsHidden() ? 128 : 255, -2);
+					}
+				}
 
 				drawTerrainAnim(tileIndex, tileSubIndex, x + 60, y + 30);
 				return 0x4700BA;

@@ -79,7 +79,6 @@ void CNewINIEditor::Create(CFinalSunDlg* pWnd)
         m_parent = NULL;
         return;
     }
-    ExtraWindow::CenterWindowPos(m_parent->GetSafeHwnd(), m_hwnd);
 }
 
 void CNewINIEditor::Initialize(HWND& hWnd)

@@ -320,4 +320,5 @@ public:
     static std::unordered_map<int, ppmfc::CString> TileSetOriginSetNames[6];
     static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
     static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
+    static std::unordered_set<int> RedrawExtraTileSets;
 };

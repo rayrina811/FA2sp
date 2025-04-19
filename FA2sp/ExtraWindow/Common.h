@@ -4,7 +4,6 @@
 class ExtraWindow
 {
 public:
-    static void CenterWindowPos(HWND parent, HWND target);
     static ppmfc::CString GetTeamDisplayName(const char* id);
     static ppmfc::CString GetAITriggerDisplayName(const char* id);
     static ppmfc::CString FormatTriggerDisplayName(const char* id, const char* name);

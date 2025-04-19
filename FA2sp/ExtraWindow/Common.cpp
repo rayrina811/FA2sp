@@ -17,24 +17,6 @@ MultimapHelper& ExtraWindow::rules = Variables::Rules;
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
 
-void ExtraWindow::CenterWindowPos(HWND parent, HWND target)
-{
-    RECT parentRect;
-    GetClientRect(parent, &parentRect);
-
-    RECT dlgRect;
-    GetWindowRect(target, &dlgRect);
-
-    int dlgWidth = dlgRect.right - dlgRect.left;
-    int dlgHeight = dlgRect.bottom - dlgRect.top;
-    int parentWidth = parentRect.right - parentRect.left;
-    int parentHeight = parentRect.bottom - parentRect.top;
-
-    int xPos = parentRect.left + (parentWidth - dlgWidth) / 2;
-    int yPos = parentRect.top + (parentHeight - dlgHeight) / 2;
-
-    SetWindowPos(target, HWND_TOP, xPos, yPos, 0, 0, SWP_NOSIZE);
-}
 ppmfc::CString ExtraWindow::GetTeamDisplayName(const char* id)
 {
     ppmfc::CString name;

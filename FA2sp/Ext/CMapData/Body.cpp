@@ -81,6 +81,7 @@ std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
 std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
+std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -1615,6 +1616,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::TileSetCumstomPalette.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
 	CMapDataExt::DamagedAsRubbleBuildings.clear();
+	CMapDataExt::RedrawExtraTileSets.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -1679,6 +1681,16 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
+	ppmfc::CString redrawExtra = "RedrawExtraTileSets";
+	redrawExtra += theaterSuffix;
+	if (auto pSection = CINI::FAData->GetSection(redrawExtra))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			RedrawExtraTileSets.insert(atoi(value));
+		}
+	}
+
 	if (auto pSection = CINI::FAData->GetSection("AutoShoreTypes"))
 	{
 		auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");

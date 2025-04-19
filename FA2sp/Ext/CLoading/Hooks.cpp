@@ -283,3 +283,81 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 
 	return 0;
 }
+
+static bool hasExtraImage = false;
+static int width, height;
+static int tileIndex = -1;
+static int subTileIndex = -1;
+static int altCount[100];
+static byte* image = nullptr;
+static ppmfc::CString fileName;
+
+DEFINE_HOOK(48E580, CLoading_LoadTile_GetFileName, 7)
+{
+	fileName = R->Stack<char*>(0x4);
+	if (R->Stack<int>(0x10) != tileIndex)
+	{
+		std::memset(altCount, 0, sizeof(altCount));
+	}
+	tileIndex = R->Stack<int>(0x10);
+	return 0;
+}
+
+DEFINE_HOOK(52CE30, CLoading_DrawTMP_1, 5)
+{
+	subTileIndex = R->Stack<int>(0x8);
+	hasExtraImage = false;
+	return 0;
+}
+
+DEFINE_HOOK(52CE78, CLoading_DrawTMP_2, 6)
+{
+	hasExtraImage = true;
+	return 0;
+}
+
+DEFINE_HOOK(52CEEB, CLoading_DrawTMP_3, 7)
+{
+	if (hasExtraImage)
+	{
+		width = R->EDX();
+		height = R->ECX();
+	}
+	return 0;
+}
+
+DEFINE_HOOK(52D047, CLoading_DrawTMP_4, 8)
+{
+	if (hasExtraImage)
+	{
+		if (image)
+		{
+			delete[] image;
+		}
+		image = new byte[width * height];
+		*image = *R->EDX<byte*>();
+	}
+	return 0;
+}
+
+DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
+{
+	if (hasExtraImage)
+	{
+		byte* image2 = R->ESI<byte*>();
+		int size = width * height;
+		byte* diff = GameCreateArray<byte>(size);
+
+		for (int i = 0; i < size; ++i) {
+			diff[i] = (image[i] != image2[i]) ? image2[i] : 0;
+		}
+
+		auto loadingExt = (CLoadingExt*)CLoading::Instance();
+		ppmfc::CString ImageID;
+		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]++);
+		loadingExt->SetImageData(diff, ImageID, width, height, Palette::PALETTE_ISO);
+		CLoadingExt::LoadedObjects.insert(ImageID);
+	}
+	return 0;
+}
+

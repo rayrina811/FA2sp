@@ -65,8 +65,6 @@ void CNewTaskforce::Create(CFinalSunDlg* pWnd)
         m_parent = NULL;
         return;
     }
-
-    ExtraWindow::CenterWindowPos(m_parent->GetSafeHwnd(), m_hwnd);
 }
 
 void CNewTaskforce::Initialize(HWND& hWnd)
