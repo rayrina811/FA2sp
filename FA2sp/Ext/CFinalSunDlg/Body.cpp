@@ -498,62 +498,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			this->LoadMap(CFinalSunApp::MapPath);
 	}
 
-	// navigate to coordinate
-	if (wmID == 40134)
+	// object search
+	if (wmID == 40134 || wmID == 40161)
 	{
 		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
 		pTSB->OnBNSearchClicked();
-
-		while (false)
-		{
-			const ppmfc::CString title = Translations::TranslateOrDefault(
-				"NavigateCoordTitle", "Find Coordinate"
-			);
-			const ppmfc::CString message = Translations::TranslateOrDefault(
-				"NavigateCoordMessage", "Please input coordinate (format):\nX,Y"
-			);
-			const ppmfc::CString invalid_title = Translations::TranslateOrDefault(
-				"NavigateCoordInvalidTitle", "Error!"
-			);
-
-			const auto result = CInputMessageBox::GetString(message, title);
-			
-			// canceled
-			if (STDHelpers::IsNullOrWhitespace(result))
-				break;
-
-			const auto data = STDHelpers::SplitString(result);
-			if (data.size() != 2)
-			{
-				const ppmfc::CString invalid_format = Translations::TranslateOrDefault(
-					"NavigateCoordInvalidFormat", "Invalid format!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_format, invalid_title, MB_OK | MB_ICONWARNING);
-				continue;
-			}
-
-			const int x = atoi(data[0]);
-			const int y = atoi(data[1]);
-
-			if (!CMapData::Instance->IsCoordInMap(x, y))
-			{
-				const ppmfc::CString invalid_coord = Translations::TranslateOrDefault(
-					"NavigateCoordInvalidCoord", "Invalid coordinate!"
-				);
-				::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
-				continue;
-			}
-
-			CMapDataExt::CellDataExt_FindCell.X = y;
-			CMapDataExt::CellDataExt_FindCell.Y = x;
-			CMapDataExt::CellDataExt_FindCell.drawCell = true;
-
-			CIsoViewExt::MoveToMapCoord(x, y);
-
-			CMapDataExt::CellDataExt_FindCell.drawCell = false;
-			
-			break;
-		}
 	}
 
 	if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)

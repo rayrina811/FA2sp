@@ -40,7 +40,7 @@ BEGIN
     VK_F11,         40071,                  VIRTKEY, NOINVERT
     VK_F3,          40092,                  VIRTKEY, NOINVERT
     VK_F4,          40093,                  VIRTKEY, NOINVERT
-    "W",            40133,                  VIRTKEY, CONTROL, NOINVERT
+    "W",            40161,                  VIRTKEY, CONTROL, NOINVERT
     VK_F2,          40024,                  VIRTKEY, NOINVERT
     "F",            40134,                  VIRTKEY, SHIFT, CONTROL, NOINVERT
     "T",            40137,                  VIRTKEY, SHIFT, CONTROL, NOINVERT

@@ -168,7 +168,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40138, "Menu.Edit.Teams");
     translateMenuItem(40156, "Menu.Edit.AITriggers");
     translateMenuItem(40048, "Menu.Edit.AITriggerEnable");
-    translateMenuItem(40082, "Menu.Edit.LocalVariables");
+    translateMenuItem(40160, "Menu.Edit.LocalVariables");
     translateMenuItem(40037, "Menu.Edit.SingleplayerSettings");
     translateMenuItem(40154, "Menu.Edit.INIEditor");
     translateMenuItem(40155, "Menu.Edit.CSFEditor");
