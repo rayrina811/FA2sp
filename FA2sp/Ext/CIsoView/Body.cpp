@@ -1850,12 +1850,15 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     ReleaseDC(NULL, hdcScreen);
 
     if (src == NULL || dst == NULL) {
+        delete[] src;
         return;
     }
     if (x + swidth < window.left || y + sheight < window.top) {
+        delete[] src;
         return;
     }
     if (x >= window.right || y >= window.bottom) {
+        delete[] src;
         return;
     }
 
