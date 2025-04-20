@@ -30,11 +30,6 @@ namespace ControlHelpers
     {
         combobox.DeleteAllStrings();
         auto& doc = CINI::CurrentDocument();
-        //if (CMapData::Instance->IsMultiOnly()) //弹框弹死你
-        //{
-        //    ComboBox::LoadHouses(combobox, bShowIndex);
-        //    return;
-        //}
 
         MultimapHelper mmh;
 
@@ -51,7 +46,7 @@ namespace ControlHelpers
 
             ppmfc::CString temp = CMapData::GetUIName(entries[i]);
             ppmfc::CString temp2 = mmh.GetString(entries[i], "Name");
-            if (temp != "MISSING" && temp != temp2)//确保能获取到真正的UIName
+            if (temp != "MISSING" && temp != temp2)
             {
                 std::string uiname = std::string(CMapData::GetUIName(entries[i]));
 
@@ -143,7 +138,7 @@ namespace ControlHelpers
                     {
                         ppmfc::CString temp = CMapData::GetUIName(entries[i]);
                         ppmfc::CString temp2 = mmh.GetString(entries[i], "Name");
-                        if (temp != "MISSING" && temp != temp2)//确保能获取到真正的UIName
+                        if (temp != "MISSING" && temp != temp2)
                         {
                             std::string uiname = std::string(CMapData::GetUIName(entries[i]));
 
@@ -186,7 +181,7 @@ namespace ControlHelpers
                     {
                         ppmfc::CString temp = CMapData::GetUIName(entry.second);
                         ppmfc::CString temp2 = mmh.GetString(entry.second, "Name");
-                        if (temp != "MISSING" && temp != temp2)//确保能获取到真正的UIName
+                        if (temp != "MISSING" && temp != temp2)
                         {
                             std::string uiname = std::string(CMapData::GetUIName(entry.second));
 

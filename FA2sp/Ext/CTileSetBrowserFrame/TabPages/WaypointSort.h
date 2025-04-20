@@ -32,7 +32,7 @@ public:
     bool IsValid() const;
     bool IsVisible() const;
     void DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent = TVI_ROOT) const;
-    void AddTrigger(ppmfc::CString triggerId, ppmfc::CString x, ppmfc::CString y) const;
+    void AddTrigger(ppmfc::CString triggerId, int x, int y) const;
     const ppmfc::CString& GetCurrentPrefix() const;
     HWND GetHwnd() const;
     operator HWND() const;

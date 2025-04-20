@@ -360,15 +360,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 
 					if (subTile.HasValidImage)
 					{
-						Palette* pal = &CMapDataExt::Palette_ISO;
-						if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
-						{
-							ppmfc::CString section;
-							section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
-							auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
-							if (auto pPal = PalettesManager::LoadPalette(custom))
-								pal = pPal;
-						}
+						Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 
 						CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 							x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
@@ -435,15 +427,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_Terrain_Loop1, 6)
 
 			if (subTile.HasValidImage)
 			{
-				Palette* pal = &CMapDataExt::Palette_ISO;
-				if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
-				{
-					ppmfc::CString section;
-					section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
-					auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
-					if (auto pPal = PalettesManager::LoadPalette(custom))
-						pal = pPal;
-				}
+				Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+
 				ppmfc::CString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
 				auto pData = ImageDataMapHelper::GetImageDataFromMap(extraImageID);
@@ -534,15 +519,7 @@ DEFINE_HOOK(46F838, CIsoView_Draw_Terrain_Loop2, 6)
 
 			if (subTile.HasValidImage)
 			{
-				Palette* pal = &CMapDataExt::Palette_ISO;
-				if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
-				{
-					ppmfc::CString section;
-					section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
-					auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
-					if (auto pPal = PalettesManager::LoadPalette(custom))
-						pal = pPal;
-				}
+				Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 
 				CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 					x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,

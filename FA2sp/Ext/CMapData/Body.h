@@ -311,7 +311,6 @@ public:
     static ppmfc::CString BitmapImporterTheater;
     static float ConditionYellow;
     static bool DeleteBuildingByIniID;
-    static std::unordered_map<int, bool> TileSetCumstomPalette;
     static std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
@@ -321,4 +320,5 @@ public:
     static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
     static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
+    static std::unordered_map<int, Palette*> TileSetPalettes;
 };

@@ -72,8 +72,8 @@ BOOL TriggerSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     pStr = results[2];
                     //if (ExtConfigs::DisplayTriggerID)
                     {
-                        ppmfc::CString tmp;
-                        pStr.Format("%s (%s)", pID, pStr);
+                        ppmfc::CString tmp = pStr;
+                        pStr.Format("%s (%s)", pID, tmp);
                     }
                     auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
                     if (idx == CB_ERR)

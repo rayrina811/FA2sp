@@ -168,16 +168,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 data.pImageBuffer = subTile.ImageData;
                 data.FullHeight = subTile.BlockHeight;
                 data.FullWidth = subTile.BlockWidth;
-                Palette* pal = &CMapDataExt::Palette_ISO;
-                if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[InsertingTileIndex].TileSet])
-                {
-                    ppmfc::CString section;
-                    section.Format("TileSet%04d", CMapDataExt::TileData[InsertingTileIndex].TileSet);
-                    auto custom = CINI::CurrentTheater->GetString(section, "CustomPalette");
-                    if (auto pPal = PalettesManager::LoadPalette(custom))
-                        pal = pPal;
-                }
-                data.pPalette = pal;
+                data.pPalette = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[InsertingTileIndex].TileSet];
 
                 CBitmap cBitmap;
                 CLoadingExt::LoadShpToBitmap(&data, cBitmap);
@@ -2886,8 +2877,6 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0x1;
             PlacingWall = nData - 3000 - Wall;
-
-            Logger::Raw("%d === \n", CViewObjectsExt::PlacingWall);
             return true;
         }
         else if (nData - 3000 == AddOre)

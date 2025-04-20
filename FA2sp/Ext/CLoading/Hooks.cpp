@@ -211,16 +211,11 @@ DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
 	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
 	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
 	{
-		if (CMapDataExt::TileSetCumstomPalette[CMapDataExt::TileData[tileIndex].TileSet])
+		auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+		if (pPal != &CMapDataExt::Palette_ISO)
 		{
-			ppmfc::CString section;
-			section.Format("TileSet%04d", CMapDataExt::TileData[tileIndex].TileSet);
-			auto customPal = CINI::CurrentTheater->GetString(section, "CustomPalette");
-			DrawTranspInsideTilesChanged = true;
-			memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
 			BGRStruct empty;
-			if (auto pPal = PalettesManager::LoadPalette(customPal))
-				memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
+			memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
 		}
 	}
 	return 0;

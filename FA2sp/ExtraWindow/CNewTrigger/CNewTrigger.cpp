@@ -1580,7 +1580,10 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
     ppmfc::CString value;
     value.Format("%s=%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID), newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
     if (newEvent.P3Enabled)
-        value.Format("%s,%s", value, newEvent.Params[2]);
+    {
+        ppmfc::CString tmp = value;
+        value.Format("%s,%s", tmp, newEvent.Params[2]);
+    }
 
     ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");

@@ -53,7 +53,10 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 						output.Format("%d - %s", idx, pair.second);
 						ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
 						if (uiname != pair.second && uiname != "" && uiname != "MISSING")
-							output.Format("%s - %s", output, uiname);
+						{
+							ppmfc::CString tmp = output;
+							output.Format("%s - %s", tmp, uiname);
+						}
 
 						m_ManualStrings.push_back(output);
 						box->AddString(m_ManualStrings.back());
@@ -70,7 +73,10 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 
 					ppmfc::CString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
 					if (uiname != entries[i] && uiname != "" && uiname != "MISSING")
-						output.Format("%s - %s", output, uiname);
+					{
+						ppmfc::CString tmp = output;
+						output.Format("%s - %s", tmp, uiname);
+					}
 
 					m_ManualStrings.push_back(output);
 					box->AddString(m_ManualStrings.back());

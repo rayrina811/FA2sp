@@ -279,7 +279,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                         {
                             ppmfc::CString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                             if (uiname != kvp.second && uiname != "")
-                                output.Format("%s - %s", output, uiname);
+                            {
+                                ppmfc::CString tmp = output;
+                                output.Format("%s - %s", tmp, uiname);
+                            }
                         }
                         SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
                         i++;
@@ -302,7 +305,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                                     {
                                         ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
                                         if (uiname != pair.second && uiname != "")
-                                            output.Format("%s - %s", output, uiname);
+                                        {
+                                            ppmfc::CString tmp = output;
+                                            output.Format("%s - %s", tmp, uiname);
+                                        }
                                     }
                                     SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.m_pchData);
                                     idx++;
@@ -319,7 +325,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                                 {
                                     ppmfc::CString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
                                     if (uiname != entries[i] && uiname != "")
-                                        output.Format("%s - %s", output, uiname);
+                                    {
+                                        ppmfc::CString tmp = output;
+                                        output.Format("%s - %s", tmp, uiname);
+                                    }
                                 }
                                 SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
                             }
@@ -336,7 +345,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                             {
                                 ppmfc::CString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                                 if (uiname != kvp.second && uiname != "")
-                                    output.Format("%s - %s", output, uiname);
+                                {
+                                    ppmfc::CString tmp = output;
+                                    output.Format("%s - %s", tmp, uiname);
+                                }
                             }
                             SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
                             i++;
@@ -417,7 +429,10 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
                 output.Format("%d - %s", rIdx, pair.second);
                 ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
                 if (uiname != pair.second && uiname != "")
-                    output.Format("%s - %s", output, uiname);
+                {
+                    ppmfc::CString tmp = output;
+                    output.Format("%s - %s", tmp, uiname);
+                }
 
             SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
             rIdx++;
@@ -442,11 +457,17 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
                     switch (style)
                     {
                     case 0:
-                        output.Format("%s - %s", output, uiname);
-                        break;
+                    {
+                        ppmfc::CString tmp = output;
+                        output.Format("%s - %s", tmp, uiname);
+                    }
+                    break;
                     case 1:
-                        output.Format("%s (%s)", output, uiname);
-                        break;
+                    {
+                        ppmfc::CString tmp = output;
+                        output.Format("%s - %s", tmp, uiname);
+                    }
+                    break;
                     default:
                         break;
                     }

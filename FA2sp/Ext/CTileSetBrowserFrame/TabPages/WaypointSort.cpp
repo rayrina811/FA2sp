@@ -32,19 +32,10 @@ void WaypointSort::LoadAllTriggers()
         for (auto& pair : pSection->GetEntities())
         {
             auto second = atoi(pair.second);
-
-                if (second >= 0)
-                {
-                    ppmfc::CString buffer1;
-                    ppmfc::CString buffer2;
-
-                    buffer1.Format("%u", second % 1000);
-                    buffer2.Format("%u", second / 1000);
-
-
-                    this->AddTrigger(pair.first, buffer1, buffer2);
-                }
-
+            if (second >= 0)
+            {
+                this->AddTrigger(pair.first, second % 1000, second / 1000);
+            }
         }
     }
     ExtConfigs::InitializeMap = true;
@@ -85,8 +76,8 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     if (results.size() > 3)
                     {
                         pStr = results[2];
-                        ppmfc::CString tmp;
-                        pStr.Format("%s (%s)", pID, pStr);
+                        ppmfc::CString tmp = pStr;
+                        pStr.Format("%s (%s)", pID, tmp);
                         auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
                         if (idx != CB_ERR)
                         {
@@ -268,13 +259,13 @@ std::vector<ppmfc::CString> WaypointSort::GetGroup(ppmfc::CString triggerId, ppm
 }
 
 
-void WaypointSort::AddTrigger(ppmfc::CString triggerId, ppmfc::CString x, ppmfc::CString y) const
+void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
 {
     if (this->IsVisible())
     {
         auto name2 = atoi(triggerId);
         ppmfc::CString pSrc;
-        pSrc.Format("%03d (%s, %s)", name2, x, y);
+        pSrc.Format("%03d (%d, %d)", name2, x, y);
         
 
         auto hParent = TVI_ROOT;

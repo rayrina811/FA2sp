@@ -70,7 +70,7 @@ DEFINE_HOOK(4F1B00, CTileSetBrowserFrame_RecalcLayout, 7)
                 switch (dpiAwareness) {
                 case PROCESS_SYSTEM_DPI_AWARE:
                 case PROCESS_PER_MONITOR_DPI_AWARE:
-                    highDPIHeightOffset = ExtConfigs::VerticalLayout ? 40 : 10;
+                    highDPIHeightOffset = ExtConfigs::VerticalLayout ? 50 : 20;
                     break;
                 }
             }
@@ -109,7 +109,8 @@ DEFINE_HOOK(4F1670, CTileSetBrowserFrame_ReloadComboboxes_OverlayFilter, 6)
     GET(ppmfc::CString, name, ECX);
     if (overlayIdx < 255) // overlay >= 255 crashes FA2, so keep it safe.
     {
-        name.Format("%04d (%s)", overlayIdx, name);
+        ppmfc::CString tmp = name;
+        name.Format("%04d (%s)", overlayIdx, tmp);
         int idx = pComboBox->AddString(name);
         pComboBox->SetItemData(idx, overlayIdx);
     }

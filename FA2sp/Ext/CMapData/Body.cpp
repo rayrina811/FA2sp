@@ -64,7 +64,6 @@ int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
 float CMapDataExt::ConditionYellow = 0.67f;
 bool CMapDataExt::DeleteBuildingByIniID = false;
-std::unordered_map<int, bool> CMapDataExt::TileSetCumstomPalette;
 std::unordered_set<int> CMapDataExt::ShoreTileSets;
 std::unordered_map<int, bool> CMapDataExt::SoftTileSets;
 ppmfc::CString CMapDataExt::BitmapImporterTheater;
@@ -82,6 +81,7 @@ std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
+std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
 {
@@ -1613,10 +1613,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::TileSet_starts.clear();
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
-	CMapDataExt::TileSetCumstomPalette.clear();
 	CMapDataExt::TerrainPaletteBuildings.clear();
 	CMapDataExt::DamagedAsRubbleBuildings.clear();
 	CMapDataExt::RedrawExtraTileSets.clear();
+	CMapDataExt::TileSetPalettes.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -1639,11 +1639,15 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 				if (theater->KeyExists(sName, "CustomPalette"))
 				{
-					CMapDataExt::TileSetCumstomPalette[index] = true;
+					Palette* pal = &CMapDataExt::Palette_ISO;
+					auto custom = CINI::CurrentTheater->GetString(sName, "CustomPalette");
+					if (auto pPal = PalettesManager::LoadPalette(custom))
+						pal = pPal;
+					CMapDataExt::TileSetPalettes[index] = pal;
 				}
 				else
 				{
-					CMapDataExt::TileSetCumstomPalette[index] = false;
+					CMapDataExt::TileSetPalettes[index] = &CMapDataExt::Palette_ISO;
 				}
 			}
 			else break;

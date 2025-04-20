@@ -23,52 +23,54 @@ int CLoadingExt::TallestBuildingHeight = 0;
 
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
+	ppmfc::CString ret;
 	if (bShadow || bDeploy || bWater)
-		ID.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
+		ret.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
-		ID.Format("%s%d", ID, nFacing);
-	return ID;
+		ret.Format("%s%d", ID, nFacing);
+	return ret;
 }
 
 ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing, int state, bool bShadow)
 {
+	ppmfc::CString ret;
 	if (state == GBIN_DAMAGED)
 	{
 		if (bShadow)
-			ID.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+			ret.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
 		else
-			ID.Format("%s%d\233DAMAGED", ID, nFacing);
+			ret.Format("%s%d\233DAMAGED", ID, nFacing);
 	}
 	else if (state == GBIN_RUBBLE)
 	{
 		if (bShadow)
 		{
 			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
-				ID.Format("%s0\233RUBBLESHADOW", ID);
+				ret.Format("%s0\233RUBBLESHADOW", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-				ID.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
+				ret.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
 			else // hide rubble
-				ID = "\233\144\241"; // invalid string to get it empty
+				ret = "\233\144\241"; // invalid string to get it empty
 		}
 		else
 		{
 			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
-				ID.Format("%s0\233RUBBLE", ID);
+				ret.Format("%s0\233RUBBLE", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
-				ID.Format("%s%d\233DAMAGED", ID, nFacing);
+				ret.Format("%s%d\233DAMAGED", ID, nFacing);
 			else // hide rubble
-				ID = "\233\144\241"; // invalid string to get it empty
+				ret = "\233\144\241"; // invalid string to get it empty
 		}
 
 	}
 	else // GBIN_NORMAL
 	{
 		if (bShadow)
-			ID.Format("%s%d\233SHADOW", ID, nFacing);
+			ret.Format("%s%d\233SHADOW", ID, nFacing);
 		else
-			ID.Format("%s%d", ID, nFacing);
+			ret.Format("%s%d", ID, nFacing);
 	}
-	return ID;
+	return ret;
 }
 
 CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)

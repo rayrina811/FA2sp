@@ -488,7 +488,9 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     STDHelpers::TrimIndexElse(actionName);
     STDHelpers::TrimIndexElse(actionName);
-    text.Format("%s\t%s", text, actionName);
+
+    ppmfc::CString tmp = text;
+    text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
@@ -564,7 +566,8 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     STDHelpers::TrimIndexElse(actionName);
     STDHelpers::TrimIndexElse(actionName);
-    text.Format("%s\t%s", text, actionName);
+    ppmfc::CString tmp = text;
+    text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
@@ -641,7 +644,8 @@ void CNewScript::OnSelchangeActionType(bool edited)
     ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
     STDHelpers::TrimIndexElse(actionName);
     STDHelpers::TrimIndexElse(actionName);
-    text.Format("%s\t%s", text, actionName);
+    ppmfc::CString tmp = text;
+    text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
@@ -743,7 +747,8 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
             STDHelpers::TrimIndexElse(actionName);
             STDHelpers::TrimIndexElse(actionName);
-            text.Format("%s\t%s", text, actionName);
+            ppmfc::CString tmp = text;
+            text.Format("%s\t%s", tmp, actionName);
             
             SendMessage(hActionsListBox, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)text.m_pchData);
             map.WriteString(pID, key, value);
@@ -912,7 +917,8 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", "0"))[0];
         STDHelpers::TrimIndexElse(actionName);
         STDHelpers::TrimIndexElse(actionName);
-        text.Format("%s\t%s", text, actionName);
+        ppmfc::CString tmp = text;
+        text.Format("%s\t%s", tmp, actionName);
 
         SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text.m_pchData);
         SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);

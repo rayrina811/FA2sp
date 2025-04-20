@@ -1342,7 +1342,10 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                     if (name == "MISSING")
                         name = Variables::Rules.GetString(pID, "Name", pID);
                     if (name != pID)
-                        name.Format("%s (%s)", name, pID);
+                    {
+                        ppmfc::CString tmp = name;
+                        name.Format("%s (%s)", tmp, pID);
+                    }
 
                     if (IsLabelMatch(name, source))
                         met = true;
@@ -1401,7 +1404,8 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
   
 
                         HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
-                        name.Format("%s (%d, %d) (%s)", name, location.second, location.first, house);
+                        ppmfc::CString tmp = name;
+                        name.Format("%s (%d, %d) (%s)", tmp, location.second, location.first, house);
                         SendMessage(
                             hListBox,
                             LB_SETITEMDATA,
@@ -1548,7 +1552,8 @@ void CObjectSearch::UpdateTypes(HWND hWnd)
         tile.Format("TileSet%04d", nTile);
         tile = CINI::CurrentTheater->GetString(tile, "SetName", "NO NAME");
         Translations::GetTranslationItem(tile, tile);
-        tile.Format("(%04d) %s", nTile, tile);
+        ppmfc::CString tmp = tile;
+        tile.Format("(%04d) %s", nTile, tmp);
         CObjectSearch::Datas[idx] = tile;
     }
 }
