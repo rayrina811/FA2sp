@@ -107,6 +107,7 @@ public:
     static Palette* LoadPalette(ppmfc::CString palname);
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
+    static Palette* GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay);
 };
 
 

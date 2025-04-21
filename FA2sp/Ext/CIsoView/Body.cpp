@@ -1610,37 +1610,21 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
     return -1;
 }
 
-void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y)
+void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    this->BltToBackBuffer(ImageDataMapHelper::GetImageDataFromMap(filename + ".bmp")->lpSurface, X, Y, -1, -1);
+    this->BlitTransparentDesc(ImageDataMapHelper::GetImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
 }
 
-void CIsoViewExt::DrawCelltag(int X, int Y)
+void CIsoViewExt::DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
     auto image = ImageDataMapHelper::GetImageDataFromMap("CELLTAG");
-    this->BltToBackBuffer(image->lpSurface, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
+    this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
-void CIsoViewExt::DrawWaypointFlag(int X, int Y)
+void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
     auto image = ImageDataMapHelper::GetImageDataFromMap("FLAG");
-    this->BltToBackBuffer(image->lpSurface, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
-}
-
-void CIsoViewExt::DrawTube(CellData* pData, int X, int Y)
-{
-    if (auto pTubeData = CMapData::Instance->GetTubeData(pData->Tube))
-    {
-        auto suffix = pData->TubeDataIndex;
-        if (pData->TubeDataIndex >= 2)
-            suffix = pTubeData->Directions[pData->TubeDataIndex - 2] + 2;
-        FA2sp::Buffer.Format("TUBE%d", suffix);
-        if (auto image = ImageDataMapHelper::GetImageDataFromMap(FA2sp::Buffer))
-        {
-            if (auto lpSurface = image->lpSurface)
-                this->BltToBackBuffer(lpSurface, X + 7 + 24 - image->FullWidth / 2, Y + 1 + 12 - image->FullHeight / 2, -1, -1);
-        }
-    }
+    this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY)
@@ -2104,12 +2088,136 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
     surface->Unlock(NULL);
 }
 
+void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
+    int x, int y, int width, int height, BYTE alpha)
+{
+    auto pThis = CIsoView::GetInstance();
+    if (pic == NULL || pDestDesc == NULL) return;
+
+    RECT r;
+    if (surface == pThis->lpDDBackBufferSurface)
+    {
+        r = CIsoViewExt::GetScaledWindowRect();
+    }
+    else
+    {
+        pThis->GetWindowRect(&r);
+    }
+
+    x += 1;
+    y += 1;
+    y -= 30;
+
+    if (width == -1 || height == -1)
+    {
+        DDSURFACEDESC2 ddsd;
+        memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+        ddsd.dwSize = sizeof(DDSURFACEDESC2);
+        ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
+        pic->GetSurfaceDesc(&ddsd);
+        width = ddsd.dwWidth;
+        height = ddsd.dwHeight;
+    }
+
+    if (x + width < 0 || y + height < 0) return;
+    if (x > r.right || y > r.bottom) return;
+
+    RECT blrect;
+    RECT srcRect = { 0, 0, width, height };
+    blrect.left = x;
+    blrect.top = y;
+    blrect.right = x + width;
+    blrect.bottom = y + height;
+
+    if (blrect.left < 0)
+    {
+        srcRect.left = -blrect.left;
+        blrect.left = 0;
+    }
+    if (blrect.top < 0)
+    {
+        srcRect.top = -blrect.top;
+        blrect.top = 0;
+    }
+    if (blrect.right > r.right)
+    {
+        srcRect.right = width - (blrect.right - r.right);
+        blrect.right = r.right;
+    }
+    if (blrect.bottom > r.bottom)
+    {
+        srcRect.bottom = height - (blrect.bottom - r.bottom);
+        blrect.bottom = r.bottom;
+    }
+
+    DDSURFACEDESC2 srcDesc;
+    memset(&srcDesc, 0, sizeof(DDSURFACEDESC2));
+    srcDesc.dwSize = sizeof(DDSURFACEDESC2);
+
+    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
+    {
+        return;
+    }
+
+    DDCOLORKEY colorKey;
+    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK)
+    {
+        pic->Unlock(NULL);
+        return;
+    }
+
+    DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
+    DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
+
+    BYTE* destPixels = (BYTE*)pDestDesc->lpSurface;
+    BYTE* srcPixels = (BYTE*)srcDesc.lpSurface;
+    int destPitch = pDestDesc->lPitch;
+    int srcPitch = srcDesc.lPitch;
+
+    int maxDestY = pDestDesc->dwHeight;
+    int maxDestX = pDestDesc->dwWidth;
+    int maxSrcY = srcDesc.dwHeight;
+    int maxSrcX = srcDesc.dwWidth;
+
+    for (int j = 0; j < srcRect.bottom - srcRect.top; ++j)
+    {
+        if (y + j < 0 || y + j >= maxDestY) continue;
+        for (int i = 0; i < srcRect.right - srcRect.left; ++i)
+        {
+            if (x + i < 0 || x + i >= maxDestX) continue;
+
+            int destIndex = (y + j) * destPitch + (x + i) * 4;
+            int srcIndex = j * srcPitch + i * 4;
+
+            if (srcIndex < 0 || srcIndex >= maxSrcY * srcPitch || destIndex < 0 || destIndex >= maxDestY * destPitch)
+                continue;
+
+            DWORD srcColor = *(DWORD*)(srcPixels + srcIndex);
+            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh)
+                continue;
+
+            BYTE srcR = srcPixels[srcIndex + 2];
+            BYTE srcG = srcPixels[srcIndex + 1];
+            BYTE srcB = srcPixels[srcIndex];
+
+            BYTE destR = destPixels[destIndex + 2];
+            BYTE destG = destPixels[destIndex + 1];
+            BYTE destB = destPixels[destIndex];
+
+            destPixels[destIndex + 2] = (srcR * alpha + destR * (255 - alpha)) / 255;
+            destPixels[destIndex + 1] = (srcG * alpha + destG * (255 - alpha)) / 255;
+            destPixels[destIndex] = (srcB * alpha + destB * (255 - alpha)) / 255;
+        }
+    }
+
+    pic->Unlock(NULL);
+}
+
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor, int extraLightType, bool remap)
 {
     if (alpha == 0) return;
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-
     x += 31;
     y -= 29;
     int bpp = 4;
@@ -2164,18 +2272,28 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     if (houseColor > -1)
     {
+        //PalettesManager::GetOverlayPalette
         BGRStruct color;
         auto pRGB = (ColorStruct*)&houseColor;
         color.R = pRGB->red;
         color.G = pRGB->green;
         color.B = pRGB->blue;
-        newPal = PalettesManager::GetPalette(newPal, color, true);
+        if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+        {
+            if (extraLightType >= 500)
+                newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
+            else
+                newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+        }
+        else
+            newPal = PalettesManager::GetPalette(newPal, color, remap);
     }
     else if (houseColor < -1)
     {
         BGRStruct color;
         newPal = PalettesManager::GetObjectPalette(newPal, color, false, CIsoViewExt::CurrentDrawCellLocation);
     }
+
 
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
 
@@ -3026,7 +3144,14 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
 
         HDC hDC;
         surface->GetDC(&hDC);
-        HFONT hFont = CreateFont(ExtConfigs::DisplayTextSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        int fontSize = ExtConfigs::DisplayTextSize;
+        if (CIsoViewExt::ScaledFactor < 0.75)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 2;
+        HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
@@ -3043,7 +3168,14 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     {
         HDC hDC;
         surface->GetDC(&hDC);
-        HFONT hFont = CreateFont(ExtConfigs::DisplayTextSize, 0, 0, 0,  FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        int fontSize = ExtConfigs::DisplayTextSize;
+        if (CIsoViewExt::ScaledFactor < 0.75)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 2;
+        HFONT hFont = CreateFont(fontSize, 0, 0, 0,  FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
@@ -3061,7 +3193,23 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     {
         HDC hDC;
         surface->GetDC(&hDC);
+        int fontSize = ExtConfigs::DisplayTextSize;
+        if (CIsoViewExt::ScaledFactor < 0.75)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 2;
+        if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 2;
+        HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE, "Cambria");
+        HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
+
         DrawCopyBound(hDC);
+        DrawCreditOnMap(hDC);
+
+        SelectObject(hDC, hOldFont);
+        DeleteObject(hFont);
         surface->ReleaseDC(hDC);
         break;
     }

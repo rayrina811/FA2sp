@@ -249,10 +249,7 @@ DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic_RecordHistory, 7)
 {
     GET_STACK(const char*, overlayID, 0x4);
     LoadingOverlayID = overlayID;
-    auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), overlayID);
-    if (it == CLoadingExt::LoadedOverlays.end()) {
-        CLoadingExt::LoadedOverlays.push_back(overlayID);
-    }
+    CLoadingExt::LoadedOverlays.insert(overlayID);
 
     return 0;
 }
@@ -267,7 +264,6 @@ DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
         ppmfc::CString DictNameShadow;
         unsigned char* pBufferShadow[1];
         DictNameShadow.Format("%s%d\233OVERLAYSHADOW", LoadingOverlayID, i);
-        CLoadingExt::LoadedObjects.insert(DictNameShadow);
         CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow[0], header);
         loadingExt->SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
     }

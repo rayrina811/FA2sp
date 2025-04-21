@@ -30,6 +30,7 @@ bool MultiSelection::ShiftKeyIsDown = false;
 bool MultiSelection::IsPasting = false;
 BGRStruct MultiSelection::ColorHolder[0x1000];
 std::vector<CellDataExt> MultiSelection::CopiedCells;
+std::vector<MapCoord> MultiSelection::MultiPastedCoords;
 int MultiSelection::CopiedX;
 int MultiSelection::CopiedY;
 bool MultiSelection::AddBuildingOptimize = false;
@@ -273,10 +274,10 @@ void MultiSelection::Copy()
     CloseClipboard();
 }
 
-std::vector<MapCoord> multiPastedCoords;
+
 void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, bool obj = false)
 {
-    multiPastedCoords.clear();
+    MultiPastedCoords.clear();
     if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
         return;
     std::span<MyClipboardData> cells {data, data + length};
@@ -354,7 +355,7 @@ void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data,
         }
 
         CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
-        multiPastedCoords.push_back(MapCoord{ X + offset_x, Y + offset_y });
+        MultiPastedCoords.push_back(MapCoord{ X + offset_x, Y + offset_y });
     }
 }
 
@@ -463,107 +464,6 @@ DEFINE_HOOK(46BC30, CIsoView_OnKeyUp, 5)
     R->EAX(pThis->Default());
 
     return 0x46BC46;
-}
-
-static bool CIsoView_Draw_MultiSelect(BGRStruct* pColors, int nCount, bool isOverlay)
-{
-    bool colorChanged = false;
-    auto safeColorBtye = [](int x)
-        {
-            if (x > 255)
-                x = 255;
-            if (x < 0)
-                x = 0;
-            return (byte)x;
-        };
-
-    switch (CFinalSunDlgExt::CurrentLighting)
-    {
-    case 31001:
-    case 31002:
-    case 31003:
-    {
-        auto& ret = LightingStruct::CurrentLighting;
-        if (isOverlay)
-        {
-            const auto overlay = CMapData::Instance->GetOverlayAt(
-                CMapData::Instance->GetCoordIndex(
-                    CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
-            if (CMapDataExt::IsOre(overlay))
-            {
-                break;
-            }
-        }
-        const auto lamp = LightingSourceTint::ApplyLamp(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        float oriAmbMult = ret.Ambient - ret.Ground;
-        float newAmbMult = ret.Ambient - ret.Ground + ret.Level * CIsoViewExt::CurrentDrawCellLocation.Height + lamp.AmbientTint;
-        newAmbMult = std::clamp(newAmbMult, 0.0f, 2.0f);
-        float newRed = ret.Red + lamp.RedTint;
-        float newGreen = ret.Green + lamp.GreenTint;
-        float newBlue = ret.Blue + lamp.BlueTint;
-        newRed = std::clamp(newRed, 0.0f, 2.0f);
-        newGreen = std::clamp(newGreen, 0.0f, 2.0f);
-        newBlue = std::clamp(newBlue, 0.0f, 2.0f);
-        for (int i = 0; i < nCount; ++i)
-        {
-            // divide (ret.Ambient - ret.Ground) to restore AmbientMult in LightingPalette
-            // divide ret.Color to restore ColorMult in LightingPalette
-
-            MultiSelection::ColorHolder[i].R = safeColorBtye(pColors[i].R / oriAmbMult / ret.Red * newAmbMult * newRed);
-            MultiSelection::ColorHolder[i].G = safeColorBtye(pColors[i].G / oriAmbMult / ret.Green * newAmbMult * newGreen);
-            MultiSelection::ColorHolder[i].B = safeColorBtye(pColors[i].B / oriAmbMult / ret.Blue * newAmbMult * newBlue);
-        }
-        colorChanged = true;
-        break;
-    }
-    default:
-        break;
-    }
-
-
-    if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))
-    {
-        if (colorChanged)
-        {
-            for (int i = 0; i < nCount; ++i)
-            {
-                MultiSelection::ColorHolder[i].R =
-                    (MultiSelection::ColorHolder[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-                MultiSelection::ColorHolder[i].G =
-                    (MultiSelection::ColorHolder[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-                MultiSelection::ColorHolder[i].B =
-                    (MultiSelection::ColorHolder[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < nCount; ++i)
-            {
-                MultiSelection::ColorHolder[i].R =
-                    (pColors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-                MultiSelection::ColorHolder[i].G =
-                    (pColors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-                MultiSelection::ColorHolder[i].B =
-                    (pColors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-            }
-        }
-
-        colorChanged = true;
-    }
-
-    return colorChanged;
-}
-
-DEFINE_HOOK_AGAIN(470081, CIsoView_Draw_MultiSelect_Overlay, 7)
-DEFINE_HOOK(470710, CIsoView_Draw_MultiSelect_Overlay, 7)
-{
-    GET(BGRStruct*, pColors, ESI);
-    GET(int, nCount, ECX);
-
-    if (CIsoView_Draw_MultiSelect(pColors, nCount, true))
-        R->ESI(MultiSelection::ColorHolder);
-
-    return 0;
 }
 
 DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)
@@ -1291,139 +1191,6 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 
     CloseClipboard();
     return 0x4C388B;
-}
-
-//std::vector<MapCoord> copiedCoords;
-MapCoord start;
-MapCoord end;
-DEFINE_HOOK(4C3850, CMapData_Paste_Clear, 8)
-{
-    start = { 1000,1000 };
-    end = { 0,0 };
-    return 0;
-}
-
-DEFINE_HOOK(4C3B9C, CMapData_Paste_GetCoords, 5)
-{
-    start.X = std::min(R->Stack<int>(STACK_OFFS(0x58, 0x44)), start.X);
-    start.Y = std::min(R->ECX<int>(), start.Y);
-    end.X = std::max(R->Stack<int>(STACK_OFFS(0x58, 0x44)), end.X);
-    end.Y = std::max(R->ECX<int>(), end.Y);
-    return 0;
-}
-
-DEFINE_HOOK(474FE0, CIsoView_Draw_Bounds, 5)
-{
-    GET_STACK(CIsoViewExt*, pThis, STACK_OFFS(0xD18, 0xCD4));
-    GET_STACK(HDC, hDC, STACK_OFFS(0xD18, 0xC68));
-    REF_STACK(RECT, rect, STACK_OFFS(0xD18, 0xCCC));
-    LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-
-    if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
-    {      
-        auto& mapData = CMapData::Instance();
-
-        auto length = mapData.MapWidthPlusHeight;
-        
-        int copyx = end.X - start.X + 1;
-        int copyy = end.Y - start.Y + 1;
-        
-        while (start.X < 0)
-        {
-            start.X++;
-            copyx--;
-        }
-        while (start.Y < 0)
-        {
-            start.Y++;
-            copyy--;
-        }
-        while (start.X + copyx > length)
-        {
-            copyx--;
-        }
-        while (start.Y + copyy > length)
-        {
-            copyy--;
-        }
-        LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
-        for (int x = start.X; x < start.X + copyx; ++x)
-        {
-            int X = x;
-            int Y1 = start.Y;
-            int Y2 = start.Y + copyy - 1;
-            CIsoView::MapCoord2ScreenCoord(X, Y1);
-            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-            Y1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-            pThis->DrawLockedCellOutline(X, Y1, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, false, true);
-            X = x;
-            CIsoView::MapCoord2ScreenCoord(X, Y2);
-            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-            Y2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-            pThis->DrawLockedCellOutline(X, Y2, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, true, false, false);
-        }
-        for (int y = start.Y; y < start.Y + copyy; ++y)
-        {
-            int Y = y;
-            int X1 = start.X;
-            int X2 = start.X + copyx - 1;
-            CIsoView::MapCoord2ScreenCoord(X1, Y);
-            X1 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-            pThis->DrawLockedCellOutline(X1, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, true, false, false, false);
-            Y = y;
-            CIsoView::MapCoord2ScreenCoord(X2, Y);
-            X2 -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-            pThis->DrawLockedCellOutline(X2, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, true, false);
-        }
-    }
-    else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
-    {
-        for (auto& coord : multiPastedCoords)
-        {
-            int X = coord.X;
-            int Y = coord.Y;
-            CIsoView::MapCoord2ScreenCoord(X, Y);
-            X -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-            Y -= R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-            pThis->DrawLockedCellOutline(X, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
-        }
-    }
-
-    if (CIsoViewExt::DrawBounds)
-    {
-        auto& map = CINI::CurrentDocument();
-        auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-        auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
-
-        int mapwidth = atoi(size[2]);
-        int mapheight = atoi(size[3]);
-
-        int mpL = atoi(lSize[0]);
-        int mpT = atoi(lSize[1]);
-        int mpW = atoi(lSize[2]);
-        int mpH = atoi(lSize[3]);
-
-        int y1 = mpT + mpL - 2 + 3;
-        int x1 = mapwidth + mpT - mpL - 3 + 3;
-
-
-        int y2 = mpT + mpL + mpW - 2 + 3;
-        int x2 = mapwidth - mpL - mpW + mpT - 3 + 3;
-
-        CIsoView::MapCoord2ScreenCoord_Flat(x1, y1);
-        int drawX1 = x1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-        int drawY1 = y1 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-        CIsoView::MapCoord2ScreenCoord_Flat(x2, y2);
-        int drawX2 = x2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB0));
-        int drawY2 = y2 - R->Stack<float>(STACK_OFFS(0xD18, 0xCB8));
-
-        pThis->DrawLine(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
-    }
-
-    return 0x4750B0;
 }
 
 DEFINE_HOOK(4B9F7A, CreateMap_ClearUp_MultiSelection, 5)

@@ -1248,6 +1248,7 @@ void CViewObjectsExt::Redraw_Building()
     if (hBuilding == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
+    std::map<int, std::vector<std::pair<int, ppmfc::CString>>> foundationBuildings;
 
     auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
@@ -1307,46 +1308,44 @@ void CViewObjectsExt::Redraw_Building()
                 }
             }
         }
-        InsertingObjectID = "";
-#ifdef false
-        if (ExtConfigs::ObjectBrowser_Foundation)
+
+        if (CMapData::Instance->MapWidthPlusHeight && ExtConfigs::ObjectBrowser_Foundation)
         {
-            auto image = rules.GetString(bud.second, "Image", bud.second);
-            image = doc.GetString(bud.second, "Image", image);
-            std::string foundation = std::string(art.GetString(image, "Foundation", "1X1"));
-            if (foundation == "")
-                foundation = "1x1";
-            std::transform(foundation.begin(), foundation.end(), foundation.begin(), (int(*)(int))tolower);
-
-
-            if (foundation == "custom")
-            {
-                std::string x = std::string(art.GetString(image, "Foundation.X", "5"));
-                std::string y = std::string(art.GetString(image, "Foundation.Y", "5"));
-                foundation = x + "x" + y;
-            }
-
-            if (auto sides = fadata.GetSection("Sides"))
-            {
-                int k = 0;
-                for (auto& itr : sides->GetEntities())
-                {
-                    if (std::string(itr.second) == foundation + "½¨Öþ")
-                    {
-                        this->InsertString(
-                            QueryUIName(bud.second) + " (" + bud.second + ")",
-                            Const_Building + index,
-                            subNodes[k]
-                        );
-                        break;
-                    }
-                    k++;
-                }
-            }
+            const int BuildingIndex = CMapData::Instance->GetBuildingTypeID(bud.second);
+            const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+            foundationBuildings[DataExt.Width * 100 + DataExt.Height].push_back(std::make_pair(index, bud.second));
         }
-#endif // false
-
     }
+    InsertingObjectID = "";
+
+    for (const auto& [foundation, buildingList] : foundationBuildings)
+    {
+        if (buildingList.empty())
+            continue;
+        ppmfc::CString name;
+        name.Format("%dx%d %s", foundation / 100, foundation % 100, Translations::TranslateOrDefault("FoundationBuildingObList", "Building"));
+        HTREEITEM hGroup = this->InsertString(name, -1, hBuilding);
+
+        HTREEITEM hFirstChild = nullptr;
+        for (const auto& buildingID : buildingList)
+        {
+            InsertingObjectID = buildingID.second;
+            auto hChild = this->InsertString(
+                QueryUIName(buildingID.second) + " (" + buildingID.second + ")",
+                Const_Building + buildingID.first, hGroup);
+
+            if (!hFirstChild)
+                hFirstChild = hChild;
+        }
+        if (ExtConfigs::TreeViewCameo_Display && hFirstChild)
+        {
+            int image = 0, sel = 0;
+            this->GetTreeCtrl().GetItemImage(hFirstChild, image, sel);
+            if (image != 0)
+                this->GetTreeCtrl().SetItemImage(hGroup, image, image);
+        }
+    }
+    InsertingObjectID = "";
 
     HTREEITEM hTemp = this->InsertTranslatedString("PlaceRandomBuildingObList", -1, hBuilding);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))

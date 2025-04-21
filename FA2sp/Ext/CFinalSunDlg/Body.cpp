@@ -234,10 +234,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
 			{
 				for (const auto& ol : *section)
-				{
-					auto it = std::find(CLoadingExt::LoadedOverlays.begin(), CLoadingExt::LoadedOverlays.end(), ol.second);
-					if (it != CLoadingExt::LoadedOverlays.end()) {
+				{				
+					if (CLoadingExt::IsOverlayLoaded(ol.second)) {
 						CLoading::Instance->DrawOverlay(ol.second, oli);
+						CIsoView::GetInstance()->UpdateDialog(false);
 					}
 					oli++;
 				}

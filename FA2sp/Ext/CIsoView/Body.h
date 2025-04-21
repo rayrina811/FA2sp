@@ -51,10 +51,9 @@ public:
     void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX = false);
     void DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
-    void DrawCelltag(int X, int Y);
-    void DrawBitmap(ppmfc::CString filename, int X, int Y);
-    void DrawWaypointFlag(int X, int Y);
-    void DrawTube(CellData* pData, int X, int Y);
+    void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
+    void DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
+    void DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
 
     void ConfirmTube(bool addReverse = true);
 
@@ -64,9 +63,11 @@ public:
     static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
     static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
     static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255, LPDIRECTDRAWSURFACE7 surface = nullptr);
+    static void BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
+        int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL,
         BYTE alpha = 255, int houseColor = -1, int addOnColor = -1, bool isRubble = false, bool isTerrain = false);
@@ -140,13 +141,10 @@ public:
     static float drawOffsetY;
     static Cell3DLocation CurrentDrawCellLocation;
 
-    static std::vector<std::pair<MapCoord, ppmfc::CString>> WaypointsToDraw;
-    static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
     static std::unordered_set<short> VisibleStructures;
     static std::unordered_set<short> VisibleInfantries;
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
-    static std::vector<DrawVeterancies> DrawVeterancies;
 
     static bool IsPressingALT;
     static bool IsPressingTube;

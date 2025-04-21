@@ -18,7 +18,7 @@ std::unordered_map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectT
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
-std::vector<ppmfc::CString> CLoadingExt::LoadedOverlays;
+std::unordered_set<ppmfc::CString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
 
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
@@ -159,12 +159,18 @@ void CLoadingExt::ClearItemTypes()
 {
 	ObjectTypes.clear();
 	LoadedObjects.clear();
+	LoadedOverlays.clear();
 	SwimableInfantries.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
+}
+
+bool CLoadingExt::IsOverlayLoaded(ppmfc::CString pRegName)
+{
+	return CLoadingExt::LoadedOverlays.find(pRegName) != LoadedOverlays.end();
 }
 
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)

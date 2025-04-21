@@ -62,6 +62,7 @@ public:
     static int CopiedY;
     static bool AddBuildingOptimize;
     static bool SelectCellsChanged;
+    static std::vector<MapCoord> MultiPastedCoords;
 
     //static std::map<int, int> CopiedCellsInfantry;
     //static std::map<int, int> CopiedCellsAircraft;

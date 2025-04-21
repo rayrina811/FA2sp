@@ -102,12 +102,18 @@ void CIsoViewExt::DrawCopyBound(HDC hDC)
 
         }
     }
-
 }
 
 void CIsoViewExt::DrawMouseMove(HDC hDC)
 {
-    int lineHeight = ExtConfigs::DisplayTextSize + 2;
+    int fontSize = ExtConfigs::DisplayTextSize;
+    if (CIsoViewExt::ScaledFactor < 0.75)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 2;
+    int lineHeight = fontSize + 2;
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
     int X = point.X, Y = point.Y;

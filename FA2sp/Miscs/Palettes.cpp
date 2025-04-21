@@ -9,6 +9,7 @@
 
 #include "../Ext/CFinalSunDlg/Body.h"
 #include "../Ext/CMapData/Body.h"
+#include "MultiSelection.h"
 
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
@@ -181,6 +182,60 @@ Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool
             }
         }
     }
+    return p.GetPalette();
+}
+
+Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay)
+{
+    auto& p = PalettesManager::CalculatedObjectPaletteFiles.emplace_back(LightingPalette(*pPal));
+    p.ResetColors();
+
+    auto& ret = LightingStruct::CurrentLighting;
+    auto safeColorBtye = [](int x)
+        {
+            if (x > 255)
+                x = 255;
+            if (x < 0)
+                x = 0;
+            return (byte)x;
+        };
+
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+    {
+        const auto overlay = CMapData::Instance->GetOverlayAt(
+            CMapData::Instance->GetCoordIndex(
+                CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
+        if (!CMapDataExt::IsOre(overlay))
+        {
+            const auto lamp = LightingSourceTint::ApplyLamp(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+            float oriAmbMult = ret.Ambient - ret.Ground;
+            float newAmbMult = ret.Ambient - ret.Ground + ret.Level * CIsoViewExt::CurrentDrawCellLocation.Height + lamp.AmbientTint;
+            newAmbMult = std::clamp(newAmbMult, 0.0f, 2.0f);
+            float newRed = ret.Red + lamp.RedTint;
+            float newGreen = ret.Green + lamp.GreenTint;
+            float newBlue = ret.Blue + lamp.BlueTint;
+            newRed = std::clamp(newRed, 0.0f, 2.0f);
+            newGreen = std::clamp(newGreen, 0.0f, 2.0f);
+            newBlue = std::clamp(newBlue, 0.0f, 2.0f);
+
+            for (int i = 0; i < 256; ++i)
+            {
+                p.Colors[i].R = safeColorBtye(p.Colors[i].R / oriAmbMult / ret.Red * newAmbMult * newRed);
+                p.Colors[i].G = safeColorBtye(p.Colors[i].G / oriAmbMult / ret.Green * newAmbMult * newGreen);
+                p.Colors[i].B = safeColorBtye(p.Colors[i].B / oriAmbMult / ret.Blue * newAmbMult * newBlue);
+            }
+        }   
+    }
+    if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))
+    {
+        for (int i = 0; i < 256; ++i)
+        {
+            p.Colors[i].R = (p.Colors[i].R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
+            p.Colors[i].G = (p.Colors[i].G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
+            p.Colors[i].B = (p.Colors[i].B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
+        }
+    }
+
     return p.GetPalette();
 }
 

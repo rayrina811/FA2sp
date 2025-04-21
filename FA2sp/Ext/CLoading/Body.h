@@ -30,6 +30,7 @@ public:
 
 	bool InitMixFilesFix();
 	static bool IsObjectLoaded(ppmfc::CString pRegName);
+	static bool IsOverlayLoaded(ppmfc::CString pRegName);
 
 	void LoadObjects(ppmfc::CString pRegName);
 	
@@ -120,7 +121,7 @@ public:
 	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
 	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
 	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
-	static std::vector<ppmfc::CString> LoadedOverlays;
+	static std::unordered_set<ppmfc::CString> LoadedOverlays;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
 	static std::vector<ppmfc::CString> SwimableInfantries;
