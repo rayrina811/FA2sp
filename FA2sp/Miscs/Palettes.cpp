@@ -16,6 +16,7 @@ LightingStruct LightingStruct::CurrentLighting;
 
 std::map<ppmfc::CString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
+std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::ManualReloadTMP = false;
@@ -57,6 +58,7 @@ void PalettesManager::Release()
 
     PalettesManager::OriginPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFiles.clear();
+    PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
 
     PalettesManager::RestoreCurrentIso();
@@ -126,14 +128,25 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
 {
     LightingStruct lighting = LightingStruct::GetCurrentLighting();
 
-    auto itr = PalettesManager::CalculatedPaletteFiles[pPal].find(std::make_pair(color, lighting));
-    if (itr != PalettesManager::CalculatedPaletteFiles[pPal].end())
-        return itr->second.GetPalette();
+    if (remap)
+    {
+        auto itr = PalettesManager::CalculatedPaletteFiles[pPal].find(std::make_pair(color, lighting));
+        if (itr != PalettesManager::CalculatedPaletteFiles[pPal].end())
+            return itr->second.GetPalette();
+    }
+    else
+    {
+        auto itr = PalettesManager::CalculatedPaletteFilesNoRemap[pPal].find(lighting);
+        if (itr != PalettesManager::CalculatedPaletteFilesNoRemap[pPal].end())
+            return itr->second.GetPalette();
+    }
 
-    auto& p = PalettesManager::CalculatedPaletteFiles[pPal].emplace(
+
+    auto& p = remap ? PalettesManager::CalculatedPaletteFiles[pPal].emplace(
         std::make_pair(std::make_pair(color, lighting), LightingPalette(*pPal))
+    ).first->second : PalettesManager::CalculatedPaletteFilesNoRemap[pPal].emplace(
+        std::make_pair(lighting, LightingPalette(*pPal))
     ).first->second;
-
     if (remap)
         p.RemapColors(color);
     else
@@ -145,6 +158,7 @@ Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap
         p.TintColors();
     }
     return p.GetPalette();
+
 }
 
 Palette* PalettesManager::GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal, int extraLightType)

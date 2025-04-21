@@ -2214,7 +2214,7 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 }
 
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor, int extraLightType, bool remap)
+    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
 {
     if (alpha == 0) return;
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
@@ -2270,29 +2270,20 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
     int i, e;
 
-    if (houseColor > -1)
+    BGRStruct color;
+    auto pRGB = (ColorStruct*)&houseColor;
+    color.R = pRGB->red;
+    color.G = pRGB->green;
+    color.B = pRGB->blue;
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
-        //PalettesManager::GetOverlayPalette
-        BGRStruct color;
-        auto pRGB = (ColorStruct*)&houseColor;
-        color.R = pRGB->red;
-        color.G = pRGB->green;
-        color.B = pRGB->blue;
-        if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
-        {
-            if (extraLightType >= 500)
-                newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-            else
-                newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-        }
+        if (extraLightType >= 500)
+            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
         else
-            newPal = PalettesManager::GetPalette(newPal, color, remap);
+            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
     }
-    else if (houseColor < -1)
-    {
-        BGRStruct color;
-        newPal = PalettesManager::GetObjectPalette(newPal, color, false, CIsoViewExt::CurrentDrawCellLocation);
-    }
+    else
+        newPal = PalettesManager::GetPalette(newPal, color, remap);
 
 
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
@@ -2339,7 +2330,7 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
 void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha,
-    int houseColor, int addOnColor, bool isRubble, bool isTerrain)
+    COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
 {
     if (alpha == 0) return;
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
@@ -2396,31 +2387,19 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 
     int i, e;
 
-    if (houseColor > -1)
+    BGRStruct color;
+    auto pRGB = (ColorStruct*)&houseColor;
+    color.R = pRGB->red;
+    color.G = pRGB->green;
+    color.B = pRGB->blue;
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
     {
-        BGRStruct color;
-        auto pRGB = (ColorStruct*)&houseColor;
-        color.R = pRGB->red;
-        color.G = pRGB->green;
-        color.B = pRGB->blue;
-        if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
-        {
-            newPal = PalettesManager::GetPalette(newPal, color, !isTerrain);
-        }
-        else
-        {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
-                CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
-        }
+        newPal = PalettesManager::GetPalette(newPal, color, !isTerrain && !isRubble);
     }
-
-    BGRStruct addOn = { 0,0,0 };
-    if (addOnColor > -1)
+    else
     {
-        auto pRGB = (ColorStruct*)&addOnColor;
-        addOn.R = pRGB->red;
-        addOn.G = pRGB->green;
-        addOn.B = pRGB->blue;
+        newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
+            CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
     }
 
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
@@ -2450,12 +2429,6 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
                 if (dest >= dst) {
                     BGRStruct c = newPal->Data[val];
                     if (dest + bpp < surfaceEnd) {
-                        if (addOnColor > -1)
-                        {
-                            c.B = (c.B + addOn.B) / 2;
-                            c.G = (c.G + addOn.G) / 2;
-                            c.R = (c.R + addOn.R) / 2;
-                        }
                         if (alpha < 255)
                         {
                             BGRStruct oriColor = *(BGRStruct*)dest;
@@ -2557,7 +2530,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
     }
 }
 
-void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, int houseColor)
+void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
 {  
     auto pThis = CIsoView::GetInstance();
     RECT window = CIsoViewExt::GetScaledWindowRect();

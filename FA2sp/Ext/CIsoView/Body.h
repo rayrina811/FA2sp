@@ -65,12 +65,12 @@ public:
     static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255, LPDIRECTDRAWSURFACE7 surface = nullptr);
     static void BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
         int x, int y, int width = -1, int height = -1, BYTE alpha = 255);
-    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1);
+    static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, int houseColor = -1, int extraLightType = -1, bool remap = false);
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL,
-        BYTE alpha = 255, int houseColor = -1, int addOnColor = -1, bool isRubble = false, bool isTerrain = false);
+        BYTE alpha = 255, COLORREF houseColor = -1, COLORREF addOnColor = -1, bool isRubble = false, bool isTerrain = false);
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClass* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,

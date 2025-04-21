@@ -89,6 +89,7 @@ class PalettesManager
 {
     static std::map<ppmfc::CString, Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
+    static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
     static Palette* CurrentIso;
 
 public:
