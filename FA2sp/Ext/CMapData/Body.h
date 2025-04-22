@@ -301,6 +301,7 @@ public:
     static int WoodBridgeSet;
     static int HeightBase;
     static Palette Palette_ISO;
+    static Palette Palette_ISO_NoTint;
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;

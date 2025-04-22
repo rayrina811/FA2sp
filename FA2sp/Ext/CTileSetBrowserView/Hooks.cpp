@@ -4,6 +4,116 @@
 #include <FA2PP.h>
 
 #include "../../FA2sp.h"
+#include "../CMapData/Body.h"
+#include "../CLoading/Body.h"
+
+DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
+{
+    GET_STACK(int, iTileIndex, 0x4);
+    int cur_added = 0;
+    auto tile = CMapDataExt::TileData[iTileIndex];
+    int i, e, p = 0;;
+    for (i = 0; i < tile.Height; i++)
+    {
+        for (e = 0; e < tile.Width; e++)
+        {
+            if (tile.TileBlockDatas[p].ImageData == NULL)
+            {
+                p++;
+                continue;
+            }
+            int drawy = e * 30 / 2 + i * 30 / 2 - tile.Bounds.top;
+            drawy += tile.TileBlockDatas[p].YMinusExY - tile.TileBlockDatas[p].Height * 30 / 2;
+            if (drawy < cur_added) cur_added = drawy;
+            p++;
+        }
+    }
+
+    R->EAX(-cur_added);
+    return 0x4F4734;
+}
+
+static int GetAddedWidth(int tileIndex)
+{
+    int cur_added = 0;
+    auto tile = CMapDataExt::TileData[tileIndex];
+    int i, e, p = 0;;
+    for (i = 0; i < tile.Height; i++)
+    {
+        for (e = 0; e < tile.Width; e++)
+        {
+            if (tile.TileBlockDatas[p].ImageData == NULL)
+            {
+                p++;
+                continue;
+            }
+            int drawx = e * 60 / 2 - i * 60 / 2 - tile.Bounds.left;
+            drawx += tile.TileBlockDatas[p].XMinusExX;
+            if (drawx < cur_added) cur_added = drawx;
+            p++;
+        }
+    }
+
+    return -cur_added;
+}
+
+static int RenderTileWidthOffset = 0;
+DEFINE_HOOK(4F36EE, CTileSetBrowserView_RenderTile_GetWidth, 6)
+{
+    GET(int, iTileIndex, EBX);
+    RenderTileWidthOffset = GetAddedWidth(iTileIndex);
+
+    return 0;
+}
+
+DEFINE_HOOK(4F3764, CTileSetBrowserView_RenderTile_SetWidth_DDSD, 7)
+{
+    GET(int, iWidth, ECX);
+    if (iWidth + RenderTileWidthOffset > iWidth)
+    {
+        R->ECX(RenderTileWidthOffset + iWidth);
+    }
+    else
+    {
+        RenderTileWidthOffset = 0;
+    }
+
+    return 0;
+}
+
+DEFINE_HOOK(4F384B, CTileSetBrowserView_RenderTile_SetWidth_DrawX, 7)
+{
+    GET(int, iWidth, ESI);
+    R->ESI(iWidth + RenderTileWidthOffset);
+
+    return 0;
+}
+
+DEFINE_HOOK(4F1E93, CTileSetBrowserView_OnDraw_ExtraWidth, 6)
+{
+    GET(int, iWidth, ECX);
+    GET(int, iTileIndex, EDI);
+    int newWidth = GetAddedWidth(iTileIndex) + iWidth;
+    if (newWidth > iWidth)
+        R->ECX(newWidth);
+
+    return 0;
+}
+
+DEFINE_HOOK(4F34B1, CTileSetBrowserView_SelectTileSet_ExtraWidth, A)
+{
+    GET(int, iWidth, EAX);
+    GET(CTileSetBrowserView*, pThis, ESI);
+    GET_STACK(int, iTileIndex, STACK_OFFS(0x220, 0x208));
+    int newWidth = GetAddedWidth(iTileIndex) + iWidth;
+    if (newWidth > iWidth)
+        iWidth = newWidth;
+
+    if (iWidth > pThis->CurrentImageWidth)
+        pThis->CurrentImageWidth = iWidth;
+
+    return 0x4F34BB;
+}
 
 DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)
 {
@@ -54,6 +164,35 @@ DEFINE_HOOK(4F3D23, CTileSetBrowserView_OnLButtonDown_SkipDisableTile, 7)
     //GET_STACK(int, currentTileIndex, STACK_OFFS(0x210, 0x1F0));
     //return 0x4F3DE1;
     return 0x4F3DF7;
+}
+
+static bool DrawTranspInsideTilesChanged = false;
+DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
+{
+    GET(unsigned int, tileIndex, EBX);
+    tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
+    if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
+    {
+        auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+        if (pPal != &CMapDataExt::Palette_ISO)
+        {
+            BGRStruct empty;
+            DrawTranspInsideTilesChanged = true;
+            memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
+            memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
+        }
+    }
+    return 0;
+}
+
+DEFINE_HOOK(4F35CE, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 6)
+{
+    if (DrawTranspInsideTilesChanged)
+    {
+        DrawTranspInsideTilesChanged = false;
+        memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
+    }
+    return 0;
 }
 
 //DEFINE_HOOK(4F1D70, ASDG, 6)

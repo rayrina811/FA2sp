@@ -48,6 +48,7 @@ public:
 	static void ClearItemTypes();
 	void GetFullPaletteName(ppmfc::CString& PaletteName);
 	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
+	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame);
 	static void LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
 	static void LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);

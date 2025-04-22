@@ -1905,6 +1905,25 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 	}
 }
 
+void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame)
+{
+	if (pPal)
+	{
+		auto loadingExt = (CLoadingExt*)CLoading::Instance();
+		int nMix = loadingExt->SearchFile(FileName);
+		if (loadingExt->HasFile(FileName, nMix))
+		{
+			ShapeHeader header;
+			unsigned char* FramesBuffers;
+			CMixFile::LoadSHP(FileName, nMix);
+			CShpFile::GetSHPHeader(&header);
+			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
+			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pPal);
+			LoadedObjects.insert(ImageID);
+		}
+	}
+}
+
 void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();

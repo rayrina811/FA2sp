@@ -68,6 +68,7 @@ std::unordered_set<int> CMapDataExt::ShoreTileSets;
 std::unordered_map<int, bool> CMapDataExt::SoftTileSets;
 ppmfc::CString CMapDataExt::BitmapImporterTheater;
 Palette CMapDataExt::Palette_ISO;
+Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
@@ -1573,8 +1574,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	isoPal.Format("iso%s.pal", theaterSuffix);
 	isoPal.MakeUpper();
 	auto pal = PalettesManager::LoadPalette(isoPal);
-	memcpy(Palette::PALETTE_ISO, pal, sizeof(Palette));
 	CMapDataExt::Palette_ISO = *pal;
+	CMapDataExt::Palette_ISO_NoTint = *pal;
 
 	Palette_Shadow.Data[0].R = 255;
 	Palette_Shadow.Data[0].G = 255;
@@ -1873,8 +1874,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
 				ppmfc::CString sectionName;
 				sectionName.Format("TileSet%04d", index);
-				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso\233NotAutoTinted");
-				CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
+				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
+				if (customPal == "iso")
+					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), &Palette_ISO_NoTint, 0);
+				else
+					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
 				anim.ImageName = imageName;
 			}
 		}

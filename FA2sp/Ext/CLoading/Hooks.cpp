@@ -204,33 +204,6 @@ DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 	return 0x48EA44;
 }
 
-static bool DrawTranspInsideTilesChanged = false;
-DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
-{
-	GET(unsigned int, tileIndex, EBX);
-	tileIndex = CMapDataExt::GetSafeTileIndex(tileIndex);
-	if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
-	{
-		auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
-		if (pPal != &CMapDataExt::Palette_ISO)
-		{
-			BGRStruct empty;
-			memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
-		}
-	}
-	return 0;
-}
-
-DEFINE_HOOK(4F35CE, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles_2, 6)
-{
-	if (DrawTranspInsideTilesChanged)
-	{
-		DrawTranspInsideTilesChanged = false;
-		memcpy(Palette::PALETTE_ISO, &CLoadingExt::TempISOPalette, sizeof(Palette));
-	}
-	return 0;
-}
-
 DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 {
 	HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1001),

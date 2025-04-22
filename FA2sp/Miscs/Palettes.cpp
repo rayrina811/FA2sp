@@ -50,7 +50,7 @@ void PalettesManager::Init()
 void PalettesManager::Release()
 {
     for (auto& pair : PalettesManager::OriginPaletteFiles)
-        if (pair.second != Palette::PALETTE_UNIT &&
+        if (pair.second && pair.second != Palette::PALETTE_UNIT &&
             pair.second != Palette::PALETTE_ISO &&
             pair.second != Palette::PALETTE_THEATER &&
             pair.second != Palette::PALETTE_LIB)
