@@ -458,7 +458,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX + 30,
 						y + subTile.YMinusExY + 30,
-						pData, pal, cell->IsHidden() ? 128 : 255, -2);
+						pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
 				}			
 			}
 		}
@@ -817,7 +817,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x - pData->FullWidth / 2 + tileAnim.XOffset,
 										y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
-										pData, NULL, cell->IsHidden() ? 128 : 255, -2);
+										pData, NULL, cell->IsHidden() ? 128 : 255, -2, -10);
 								}
 							}
 						}
@@ -873,7 +873,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 + subTile.XMinusExX + 30,
 										y1 + subTile.YMinusExY + 30,
-										pData, pal, cell->IsHidden() ? 128 : 255, -2);
+										pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
 								}
 							}
 							drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);

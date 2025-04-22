@@ -2269,6 +2269,11 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     }
 
     int i, e;
+    bool isMultiSelected = false;
+    if (extraLightType == -10 || extraLightType >= 500)
+    {
+        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+    }
 
     BGRStruct color;
     auto pRGB = (ColorStruct*)&houseColor;
@@ -2319,6 +2324,12 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
                             c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
                             c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
                             c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
+                        }
+                        if (isMultiSelected)
+                        {
+                            c.B = (c.B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
+                            c.G = (c.G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
+                            c.R = (c.R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
                         }
                         memcpy(dest, &c, bpp);
                     }
