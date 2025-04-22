@@ -514,8 +514,15 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     else
         TreeView_SelectItem(hWnd, TVGN_ROOT);
 
-    if (!MultiSelection::CopiedCells.empty())
+    if (!MultiSelection::CopiedCells.empty() 
+        || !MultiSelection::MultiPastedCoords.empty()
+        || CIsoViewExt::CopyEnd.X > -1 && CIsoViewExt::CopyStart.X > -1)
     {
+        MultiSelection::MultiPastedCoords.clear();
+        CIsoViewExt::CopyEnd.X = -1;
+        CIsoViewExt::CopyStart.X = -1;
+        CIsoViewExt::CopyEnd.Y = -1;
+        CIsoViewExt::CopyStart.Y = -1;
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     if (CIsoView::CurrentCommand->Command == 0x1B)

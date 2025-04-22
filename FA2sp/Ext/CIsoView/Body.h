@@ -145,6 +145,9 @@ public:
     static std::unordered_set<short> VisibleInfantries;
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
+    
+    static MapCoord CopyStart;
+    static MapCoord CopyEnd;
 
     static bool IsPressingALT;
     static bool IsPressingTube;

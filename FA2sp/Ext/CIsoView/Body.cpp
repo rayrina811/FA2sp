@@ -56,6 +56,8 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
+MapCoord CIsoViewExt::CopyStart = { -1,-1 };
+MapCoord CIsoViewExt::CopyEnd = { -1,-1 };
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;

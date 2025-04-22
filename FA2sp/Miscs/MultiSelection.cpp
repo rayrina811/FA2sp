@@ -300,9 +300,13 @@ void MultiSelection::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data,
         if (cell.Y > bounds.bottom)
             bounds.bottom = cell.Y;
     }
-
-
     const MapCoord center = { (int)std::ceil(double(bounds.left + bounds.right) / 2.0), (int)std::ceil(double(bounds.top + bounds.bottom) / 2.0) };
+
+    CIsoViewExt::CopyStart.X = bounds.left - center.X + X;
+    CIsoViewExt::CopyStart.Y = bounds.top - center.Y + Y;
+    CIsoViewExt::CopyEnd.X = bounds.right + 1 - center.X + X;
+    CIsoViewExt::CopyEnd.Y = bounds.bottom + 1 - center.Y + Y;
+    CMapData::Instance->SaveUndoRedoData(true, CIsoViewExt::CopyStart.X, CIsoViewExt::CopyStart.Y, CIsoViewExt::CopyEnd.X + 1, CIsoViewExt::CopyEnd.Y + 1);
 
     auto lowest_height = std::numeric_limits<unsigned char>::min();
     for (const auto& cell : cells)
@@ -579,6 +583,7 @@ DEFINE_HOOK(433F70, CFinalSunDlg_Tools_HideSingleField, 5)
 
 DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
  {
+    MultiSelection::MultiPastedCoords.clear();
      GET(CFinalSunDlg*, pThis, ECX);
  
      pThis->PlaySound(CFinalSunDlg::FASoundType::Normal);
@@ -727,6 +732,7 @@ DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
  }
 DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
 {
+    MultiSelection::MultiPastedCoords.clear();
     if (!MultiSelection::GetCount())
     {
         GET(int, X1, EDX);
@@ -827,6 +833,7 @@ DEFINE_HOOK(46174D, CIsoView_OnMouseClick_Copy, 5)
 }
 DEFINE_HOOK(435F3A, CFinalSunDlg_CopyWholeMap, 5)
 {
+    MultiSelection::MultiPastedCoords.clear();
     if (!MultiSelection::GetCount())
     {
         auto& mapData = CMapData::Instance();
@@ -1147,6 +1154,50 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
     return 0;
 }
 
+DEFINE_HOOK(459FFB, CIsoView_OnMouseMove_Paste_Snapshot, 6)
+{
+    return 0x45A00F;
+}
+
+bool OnLButtonDownPasted = false;
+DEFINE_HOOK(46168E, CIsoView_OnLButtonDown_Paste_Snapshot, 6)
+{
+    OnLButtonDownPasted = true;
+    return 0x4616A2;
+}
+DEFINE_HOOK(4616BA, CIsoView_OnLButtonDown_Paste_Snapshot_2, 6)
+{
+    if (OnLButtonDownPasted)
+    {
+        OnLButtonDownPasted = false;
+        // redo data is lost because of OnMouseMove
+        //CMapData::Instance->SaveUndoRedoData(true, CIsoViewExt::CopyStart.X, CIsoViewExt::CopyStart.Y, CIsoViewExt::CopyEnd.X + 1, CIsoViewExt::CopyEnd.Y + 1);
+        //CMapData::Instance->DoUndo();
+        return 0x4616D8;
+    }
+    
+    return 0;
+}
+
+DEFINE_HOOK(4C38B0, CMapData_Paste_GetCoords_width, 6)
+{
+    CIsoViewExt::CopyStart.X = R->Stack<int>(STACK_OFFS(0x58, -0x4));
+    CIsoViewExt::CopyStart.Y = R->Stack<int>(STACK_OFFS(0x58, -0x8));
+    CIsoViewExt::CopyEnd.X = R->ECX<int>();
+    return 0;
+}
+
+DEFINE_HOOK(4C38C1, CMapData_Paste_GetCoords_height, 8)
+{
+    CIsoViewExt::CopyEnd.Y = R->EDX<int>();
+    CIsoViewExt::CopyStart.X -= CIsoViewExt::CopyEnd.X / 2;
+    CIsoViewExt::CopyStart.Y -= CIsoViewExt::CopyEnd.Y / 2;
+    CIsoViewExt::CopyEnd.X += CIsoViewExt::CopyStart.X - 1;
+    CIsoViewExt::CopyEnd.Y += CIsoViewExt::CopyStart.Y - 1;
+
+    CMapData::Instance->SaveUndoRedoData(true, CIsoViewExt::CopyStart.X, CIsoViewExt::CopyStart.Y, CIsoViewExt::CopyEnd.X + 1, CIsoViewExt::CopyEnd.Y + 1);
+    return 0;
+}
 
 DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
 {

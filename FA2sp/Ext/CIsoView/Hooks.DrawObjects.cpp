@@ -28,24 +28,6 @@ std::unordered_set<short> CIsoViewExt::VisibleAircrafts;
 
 #define EXTRA_BORDER 15
 
-MapCoord CopyStart;
-MapCoord CopyEnd;
-DEFINE_HOOK(4C3850, CMapData_Paste_Clear, 8)
-{
-	CopyStart = { 1000,1000 };
-	CopyEnd = { 0,0 };
-	return 0;
-}
-
-DEFINE_HOOK(4C3B9C, CMapData_Paste_GetCoords, 5)
-{
-	CopyStart.X = std::min(R->Stack<int>(STACK_OFFS(0x58, 0x44)), CopyStart.X);
-	CopyStart.Y = std::min(R->ECX<int>(), CopyStart.Y);
-	CopyEnd.X = std::max(R->Stack<int>(STACK_OFFS(0x58, 0x44)), CopyEnd.X);
-	CopyEnd.Y = std::max(R->ECX<int>(), CopyEnd.Y);
-	return 0;
-}
-
 inline static bool IsCoordInWindow(int X, int Y)
 {
 	return
@@ -1731,38 +1713,38 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
-	if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && MultiSelection::SelectedCoordsTemp.empty())
+	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && MultiSelection::MultiPastedCoords.empty())
 	{
 		auto& mapData = CMapData::Instance();
 
 		auto length = mapData.MapWidthPlusHeight;
 
-		int copyx = CopyEnd.X - CopyStart.X + 1;
-		int copyy = CopyEnd.Y - CopyStart.Y + 1;
+		int copyx = CIsoViewExt::CopyEnd.X - CIsoViewExt::CopyStart.X + 1;
+		int copyy = CIsoViewExt::CopyEnd.Y - CIsoViewExt::CopyStart.Y + 1;
 
-		while (CopyStart.X < 0)
+		while (CIsoViewExt::CopyStart.X < 0)
 		{
-			CopyStart.X++;
+			CIsoViewExt::CopyStart.X++;
 			copyx--;
 		}
-		while (CopyStart.Y < 0)
+		while (CIsoViewExt::CopyStart.Y < 0)
 		{
-			CopyStart.Y++;
+			CIsoViewExt::CopyStart.Y++;
 			copyy--;
 		}
-		while (CopyStart.X + copyx > length)
+		while (CIsoViewExt::CopyStart.X + copyx > length)
 		{
 			copyx--;
 		}
-		while (CopyStart.Y + copyy > length)
+		while (CIsoViewExt::CopyStart.Y + copyy > length)
 		{
 			copyy--;
 		}
-		for (int x = CopyStart.X; x < CopyStart.X + copyx; ++x)
+		for (int x = CIsoViewExt::CopyStart.X; x < CIsoViewExt::CopyStart.X + copyx; ++x)
 		{
 			int X = x;
-			int Y1 = CopyStart.Y;
-			int Y2 = CopyStart.Y + copyy - 1;
+			int Y1 = CIsoViewExt::CopyStart.Y;
+			int Y2 = CIsoViewExt::CopyStart.Y + copyy - 1;
 			CIsoView::MapCoord2ScreenCoord(X, Y1);
 			X -= DrawOffsetX;
 			Y1 -= DrawOffsetY;
@@ -1773,11 +1755,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			Y2 -= DrawOffsetY;
 			pThis->DrawLockedCellOutline(X, Y2, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, true, false, false);
 		}
-		for (int y = CopyStart.Y; y < CopyStart.Y + copyy; ++y)
+		for (int y = CIsoViewExt::CopyStart.Y; y < CIsoViewExt::CopyStart.Y + copyy; ++y)
 		{
 			int Y = y;
-			int X1 = CopyStart.X;
-			int X2 = CopyStart.X + copyx - 1;
+			int X1 = CIsoViewExt::CopyStart.X;
+			int X2 = CIsoViewExt::CopyStart.X + copyx - 1;
 			CIsoView::MapCoord2ScreenCoord(X1, Y);
 			X1 -= DrawOffsetX;
 			Y -= DrawOffsetY;
@@ -1789,7 +1771,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			pThis->DrawLockedCellOutline(X2, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, true, false);
 		}
 	}
-	else if (CIsoViewExt::PasteShowOutline && !MultiSelection::CopiedCells.empty() && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::SelectedCoordsTemp.empty())
+	else if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::MultiPastedCoords.empty())
 	{
 		for (auto& coord : MultiSelection::MultiPastedCoords)
 		{
