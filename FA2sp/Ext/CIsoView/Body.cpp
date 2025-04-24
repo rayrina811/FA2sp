@@ -15,6 +15,7 @@
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
+#include "../CLoading/Body.h"
 
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
@@ -1614,18 +1615,18 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 
 void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    this->BlitTransparentDesc(ImageDataMapHelper::GetImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
+    this->BlitTransparentDesc(CLoadingExt::GetImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
 }
 
 void CIsoViewExt::DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    auto image = ImageDataMapHelper::GetImageDataFromMap("CELLTAG");
+    auto image = CLoadingExt::GetImageDataFromMap("CELLTAG");
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    auto image = ImageDataMapHelper::GetImageDataFromMap("FLAG");
+    auto image = CLoadingExt::GetImageDataFromMap("FLAG");
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
@@ -2341,8 +2342,134 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     }
 }
 
+void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
+    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
+{
+    if (alpha == 0) return;
+    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
+    x += 31;
+    y -= 29;
+    int bpp = 4;
+
+    if (newPal == NULL) {
+        newPal = pd->pPalette;
+    }
+
+    BYTE* src = (BYTE*)pd->pImageBuffer.get();
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
+
+    if (src == NULL || dst == NULL) {
+        return;
+    }
+
+    if (x + swidth < window.left || y + sheight < window.top) {
+        return;
+    }
+    if (x >= window.right || y >= window.bottom) {
+        return;
+    }
+
+    RECT blrect;
+    RECT srcRect;
+    srcRect.left = 0;
+    srcRect.top = 0;
+    srcRect.right = swidth;
+    srcRect.bottom = sheight;
+    blrect.left = x;
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+        //blrect.left=1;
+    }
+    blrect.top = y;
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+        //blrect.top=1;
+    }
+    blrect.right = (x + swidth);
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
+    }
+    blrect.bottom = (y + sheight);
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
+    }
+
+    int i, e;
+    bool isMultiSelected = false;
+    if (extraLightType == -10 || extraLightType >= 500)
+    {
+        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+    }
+
+    BGRStruct color;
+    auto pRGB = (ColorStruct*)&houseColor;
+    color.R = pRGB->red;
+    color.G = pRGB->green;
+    color.B = pRGB->blue;
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+    {
+        if (extraLightType >= 500)
+            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
+        else
+            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+    }
+    else
+        newPal = PalettesManager::GetPalette(newPal, color, remap);
+
+
+    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+
+    for (e = srcRect.top; e < srcRect.bottom; e++) {
+        int left = pd->pPixelValidRanges[e].First;
+        int right = pd->pPixelValidRanges[e].Last;
+
+        if (left < srcRect.left) {
+            left = srcRect.left;
+        }
+        if (right >= srcRect.right) {
+            right = srcRect.right - 1;
+        }
+
+        for (i = left; i <= right; i++) {
+            if (blrect.left + i < 0) {
+                continue;
+            }
+
+            const int spos = i + e * swidth;
+            BYTE val = src[spos];
+
+            if (val) {
+                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
+
+                if (dest >= dst) {
+                    BGRStruct c = newPal->Data[val];
+                    if (dest + bpp < surfaceEnd) {
+                        if (alpha < 255)
+                        {
+                            BGRStruct oriColor = *(BGRStruct*)dest;
+                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
+                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
+                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
+                        }
+                        if (isMultiSelected)
+                        {
+                            c.B = (c.B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
+                            c.G = (c.G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
+                            c.R = (c.R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
+                        }
+                        memcpy(dest, &c, bpp);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha,
+    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
 {
     if (alpha == 0) return;
@@ -2356,7 +2483,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         newPal = pd->pPalette;
     }
 
-    BYTE* src = (BYTE*)pd->pImageBuffer;
+    BYTE* src = (BYTE*)pd->pImageBuffer.get();
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
@@ -2458,7 +2585,7 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 }
 
 void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd)
+    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
 {
     ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
 
@@ -2466,7 +2593,7 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
     y -= 29;
     int bpp = 4;
 
-    BYTE* src = (BYTE*)pd->pImageBuffer;
+    BYTE* src = (BYTE*)pd->pImageBuffer.get();
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
@@ -2544,6 +2671,14 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
 }
 
 void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
+{  
+    auto pThis = CIsoView::GetInstance();
+    RECT window = CIsoViewExt::GetScaledWindowRect();
+    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
+    CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
+}
+
+void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
 {  
     auto pThis = CIsoView::GetInstance();
     RECT window = CIsoViewExt::GetScaledWindowRect();
@@ -3124,7 +3259,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             auto point = pThis->MoveCenterPosition;
             point.x += rect.left - 16 - 18;
             point.y += rect.top + 14 - 12;
-            auto cursor = ImageDataMapHelper::GetImageDataFromMap("scrollcursor.bmp");
+            auto cursor = CLoadingExt::GetImageDataFromMap("scrollcursor.bmp");
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }
 

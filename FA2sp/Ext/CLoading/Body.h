@@ -8,9 +8,38 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <CPalette.h>
+#include <Drawing.h>
 
 class ImageDataClass;
 class Palette;
+
+class NOVTABLE ImageDataClassSafe
+{
+public:
+
+	std::unique_ptr<unsigned char[]> pImageBuffer; // draw from here, size = FullWidth*FullHeight
+	LPDIRECTDRAWSURFACE7 lpSurface; // Only available for flag = 0, if this is used, only ValidWidth and ValidHeight are set
+
+	struct ValidRangeData
+	{
+		short First;
+		short Last;
+	};
+	std::unique_ptr<ValidRangeData[]> pPixelValidRanges;
+	// size = FullHeight, stores the valid pixel from where to begin and end for each row
+	// If it's an invalid row, then first = FullWidth - 1, second = 0 
+
+	Palette* pPalette;
+	short ValidX; // negative value for vxl, dunno why
+	short ValidY; // negative value for vxl, dunno why
+	short ValidWidth; // same as full for vxl, dunno why
+	short ValidHeight; // same as full for vxl, dunno why
+	short FullWidth;
+	short FullHeight;
+	ImageDataFlag Flag;
+	BuildingImageFlag BuildingFlag; // see BuildingData
+	BOOL IsOverlay; // Only OVRLXX_XX will set this true
+};
 
 class NOVTABLE CLoadingExt : public CLoading
 {
@@ -51,9 +80,11 @@ public:
 	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame);
 	static void LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
 	static void LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+	static bool LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
+	void SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 
 	static int GetITheaterIndex()
@@ -94,6 +125,7 @@ private:
 	void LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain);
 	void LoadVehicleOrAircraft(ppmfc::CString ID);
 
+	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsigned char*& pOut, int* OutWidth, int* OutHeight);
 	void UnionSHP_Add(unsigned char* pBuffer, int Width, int Height, int DeltaX = 0, int DeltaY = 0, bool UseTemp = false, bool bShadow = false);
@@ -102,6 +134,7 @@ private:
 	void VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow = false);
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
+	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);
@@ -150,4 +183,13 @@ private:
 	static std::unordered_map<ppmfc::CString, ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
+
+
+public:
+
+	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+
+	static bool IsImageLoaded(ppmfc::CString name);
+	static ImageDataClassSafe* GetImageDataFromMap(ppmfc::CString name);
+
 };

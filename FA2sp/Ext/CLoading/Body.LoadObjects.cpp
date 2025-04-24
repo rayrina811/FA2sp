@@ -3,7 +3,6 @@
 #include <CINI.h>
 #include <CMapData.h>
 #include <CMixFile.h>
-#include <Drawing.h>
 #include <iostream>
 #include <fstream>
 #include "../../Miscs/VoxelDrawer.h"
@@ -20,6 +19,28 @@ unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
+
+std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
+
+bool CLoadingExt::IsImageLoaded(ppmfc::CString name)
+{
+	auto itr = ImageDataMap.find(name);
+	if (itr == ImageDataMap.end())
+		return false;
+	return itr->second->pImageBuffer != nullptr;
+}
+
+ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(ppmfc::CString name)
+{
+	auto itr = ImageDataMap.find(name);
+	if (itr == ImageDataMap.end())
+	{
+		auto ret = std::make_unique<ImageDataClassSafe>();
+		ImageDataMap[name] = std::move(ret);
+		return ImageDataMap[name].get();
+	}
+	return itr->second.get();
+}
 
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
@@ -544,13 +565,13 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 					DictName.Format("%s%d", ID, i);
-					SetImageData(pImage, DictName, width1, height1, palette);
+					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 				}
 
 				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
 					DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
-					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 				}
 
 				GameDeleteArray(pBuffer, width * height);
@@ -585,7 +606,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					UnionSHP_GetAndClear(pImage, &width1, &height1);
 
 					DictName.Format("%s%d", ID, i);
-					SetImageData(pImage, DictName, width1, height1, palette);
+					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 
 					if (shadow)
 					{
@@ -594,7 +615,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 						int width1Shadow, height1Shadow;
 						UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
-						SetImageData(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+						SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 					}
 				}
 				GameDelete(pBuffer);
@@ -604,11 +625,11 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		else // No turret
 		{
 			DictName.Format("%s%d", ID, 0);
-			SetImageData(pBuffer, DictName, width, height, palette);
+			SetImageDataSafe(pBuffer, DictName, width, height, palette);
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
-				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
 	}
@@ -881,7 +902,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 						DictName.Format("%s%d\233RUBBLE", ID, i);
 					else
 						DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageData(pImage, DictName, width1, height1, palette);
+					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 				}
 
 				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -890,7 +911,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
 					else
 						DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
-					SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 				}
 
 				GameDeleteArray(pBuffer, width * height);
@@ -926,7 +947,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 						DictName.Format("%s%d\233RUBBLE", ID, i);
 					else
 						DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageData(pImage, DictName, width1, height1, palette);
+					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 
 					if (shadow)
 					{
@@ -938,7 +959,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 							DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, i);
 						else
 							DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, i);
-						SetImageData(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+						SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 					}
 				}
 				GameDelete(pBuffer);
@@ -951,7 +972,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				DictName.Format("%s%d\233RUBBLE", ID, 0);
 			else
 				DictName.Format("%s%d\233DAMAGED", ID, 0);
-			SetImageData(pBuffer, DictName, width, height, palette);
+			SetImageDataSafe(pBuffer, DictName, width, height, palette);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -959,7 +980,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
 				else
 					DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
-				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
 	}
@@ -1082,7 +1103,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
 			ppmfc::CString DictName = ID + "0\233RUBBLE";
-			SetImageData(pBuffer, DictName, width, height, pal);
+			SetImageDataSafe(pBuffer, DictName, width, height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -1091,7 +1112,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 				int widthShadow, heightShadow;
 				UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 				DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
-				SetImageData(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
+				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
 		else
@@ -1140,7 +1161,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			ppmfc::CString DictName;
 			DictName.Format("%s%d", ID, i);
 			// DictName.Format("%s%d", ImageID, i);
-			SetImageData(FramesBuffers, DictName, header.Width, header.Height, pal);
+			SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -1148,7 +1169,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				unsigned char* pBufferShadow{ 0 };
 				DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
-				SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+				SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 			}
 		}
 
@@ -1166,7 +1187,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
 				ppmfc::CString DictNameDeploy;
 				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
-				SetImageData(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
+				SetImageDataSafe(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
 				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
@@ -1174,7 +1195,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 					unsigned char* pBufferShadow{ 0 };
 					DictNameShadow.Format("%s%d\233DEPLOYSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
-					SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 				}
 			}
 		}
@@ -1193,7 +1214,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
 				ppmfc::CString DictNameWater;
 				DictNameWater.Format("%s%d\233WATER", ID, i);
-				SetImageData(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
+				SetImageDataSafe(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
 
 				if (ExtConfigs::InGameDisplay_Shadow)
 				{
@@ -1201,7 +1222,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 					unsigned char* pBufferShadow{ 0 };
 					DictNameShadow.Format("%s%d\233WATERSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
-					SetImageData(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					SwimableInfantries.push_back(ID);
 				}
 			}
@@ -1240,6 +1261,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		}
 		PaletteName.MakeUpper();
 		GetFullPaletteName(PaletteName);
+		// terrain & smudge are loaded to FA2 map
 		SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
 		if (ExtConfigs::InGameDisplay_Shadow && terrain)
@@ -1248,7 +1270,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 			unsigned char* pBufferShadow[1];
 			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-			SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 		}
 
 		if (ExtConfigs::InGameDisplay_AlphaImage && terrain)
@@ -1399,7 +1421,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 
-				SetImageData(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 			}
 		}
 		else
@@ -1419,7 +1441,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				delete[] pImage[i];
 				VXL_GetAndClear(outBuffer, &outW, &outH);
 
-				SetImageData(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 			}
 		}
 		if (ExtConfigs::InGameDisplay_Shadow)
@@ -1435,7 +1457,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				delete[] pShadowImage[i];
 				VXL_GetAndClear(outBuffer, &outW, &outH, true);
 
-				SetImageData(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+				SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
 			}
 	}
 	else // As SHP
@@ -1507,7 +1529,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 					int outW, outH;
 					UnionSHP_GetAndClear(outBuffer, &outW, &outH);
 					
-					SetImageData(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
@@ -1521,18 +1543,18 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 						int outWShadow, outHShadow;
 						UnionSHP_GetAndClear(outBufferShadow, &outWShadow, &outHShadow, false, true);
 
-						SetImageData(outBufferShadow, DictNameShadow, outWShadow, outHShadow, &CMapDataExt::Palette_Shadow);
+						SetImageDataSafe(outBufferShadow, DictNameShadow, outWShadow, outHShadow, &CMapDataExt::Palette_Shadow);
 					}
 				}
 				else
 				{
-					SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
+					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						ppmfc::CString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
-						SetImageData(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+						SetImageDataSafe(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}
 				}
 			}
@@ -1547,6 +1569,65 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	//  if (!CLoadingExt::IsObjectLoaded(AIDicName))
 	//  	LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
 	//}
+}
+
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
+{
+	auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
+	SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+}
+
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal)
+{
+	if (pData->pImageBuffer)
+		pData->pImageBuffer = nullptr;
+	if (pData->pPixelValidRanges)
+		pData->pPixelValidRanges = nullptr;
+
+	pData->pImageBuffer = std::unique_ptr<unsigned char[]>(new unsigned char[FullWidth * FullHeight]);
+	std::memcpy(pData->pImageBuffer.get(), pBuffer, FullWidth * FullHeight);
+	pData->FullHeight = FullHeight;
+	pData->FullWidth = FullWidth;
+	SetValidBufferSafe(pData, FullWidth, FullHeight);
+
+	// Get available area
+	int counter = 0;
+	int validFirstX = FullWidth - 1;
+	int validFirstY = FullHeight - 1;
+	int validLastX = 0;
+	int validLastY = 0;
+	for (int j = 0; j < FullHeight; ++j)
+	{
+		for (int i = 0; i < FullWidth; ++i)
+		{
+			unsigned char ch = pBuffer[counter++];
+			if (ch != 0)
+			{
+				if (i < validFirstX)
+					validFirstX = i;
+				if (j < validFirstY)
+					validFirstY = j;
+				if (i > validLastX)
+					validLastX = i;
+				if (j > validLastY)
+					validLastY = j;
+			}
+		}
+	}
+
+	pData->ValidX = validFirstX;
+	pData->ValidY = validFirstY;
+	pData->ValidWidth = validLastX - validFirstX + 1;
+	pData->ValidHeight = validLastY - validFirstY + 1;
+
+	CLoadingExt::TallestBuildingHeight = std::max(CLoadingExt::TallestBuildingHeight, (int)pData->ValidHeight);
+	CIsoViewExt::EXTRA_BORDER_BOTTOM = std::max(CLoadingExt::TallestBuildingHeight / 14, 25);
+
+	pData->Flag = ImageDataFlag::SHP;
+	pData->IsOverlay = false;
+	pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
+
+	GameDeleteArray(pBuffer, FullWidth * FullHeight);
 }
 
 void CLoadingExt::SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
@@ -1769,6 +1850,18 @@ void CLoadingExt::SetValidBuffer(ImageDataClass* pData, int Width, int Height)
 	}
 }
 
+void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height)
+{
+	pData->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(new ImageDataClassSafe::ValidRangeData[Height]);
+	for (int i = 0; i < Height; ++i)
+	{
+		int begin, end;
+		this->GetSHPValidRange(pData->pImageBuffer.get(), Width, i, &begin, &end);
+		pData->pPixelValidRanges[i].First = begin;
+		pData->pPixelValidRanges[i].Last = end;
+	}
+}
+
 void CLoadingExt::GetFullPaletteName(ppmfc::CString& PaletteName)
 {
 	const int len = PaletteName.GetLength();
@@ -1869,7 +1962,7 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
 {
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+	auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
 	pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
 	DDSURFACEDESC2 desc;
 	memset(&desc, 0, sizeof(DDSURFACEDESC2));
@@ -1881,7 +1974,7 @@ void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
 	pData->FullWidth = desc.dwWidth;
 	pData->FullHeight = desc.dwHeight;
 	pData->Flag = ImageDataFlag::SurfaceData;
-	CIsoView::SetColorKey(pData->lpSurface, -1);
+	CIsoView::SetColorKey(pData->lpSurface, RGB(255, 255, 255));
 	LoadedObjects.insert(ImageID);
 }
 
@@ -1899,7 +1992,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 			CMixFile::LoadSHP(FileName, nMix);
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pal);
+			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal);
 			LoadedObjects.insert(ImageID);
 		}
 	}
@@ -1918,7 +2011,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palet
 			CMixFile::LoadSHP(FileName, nMix);
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageData(FramesBuffers, ImageID, header.Width, header.Height, pPal);
+			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal);
 			LoadedObjects.insert(ImageID);
 		}
 	}
@@ -1973,7 +2066,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileNa
 				memDC.SelectObject(pOldBitmap);
 
 				auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+				auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
 				pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
 
 				DDSURFACEDESC2 desc;
@@ -2032,7 +2125,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 		memDC.SelectObject(pOldBitmap);
 
 		auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-		auto pData = ImageDataMapHelper::GetImageDataFromMap(ImageID);
+		auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
 		pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
 
 		DDSURFACEDESC2 desc;
@@ -2050,6 +2143,75 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 		LoadedObjects.insert(ImageID);
 		memDC.DeleteDC();
 	}	
+}
+
+bool CLoadingExt::LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap)
+{
+	auto loadingExt = (CLoadingExt*)CLoading::Instance();
+	if (pData->FullWidth == 0 || pData->FullHeight == 0)
+	{
+		if (outBitmap.CreateBitmap(32, 32, 1, 32, NULL))
+		{
+			CDC dc;
+			dc.CreateCompatibleDC(NULL);
+			CBitmap* pOldBitmap = dc.SelectObject(&outBitmap);
+			dc.FillSolidRect(0, 0, 32, 32, RGB(255, 0, 255));
+			dc.SelectObject(pOldBitmap);
+			dc.DeleteDC();
+			return true;
+		}
+		return false;
+	}
+	if (outBitmap.CreateBitmap(pData->FullWidth, pData->FullHeight, 1, 32, NULL))
+	{
+		CDC memDC;
+		memDC.CreateCompatibleDC(NULL);
+		CBitmap* pOldBitmap = memDC.SelectObject(&outBitmap);
+
+		LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
+		pLogPalette->palVersion = 0x300;
+		pLogPalette->palNumEntries = 256;
+
+		// magenta bg
+		pLogPalette->palPalEntry[0].peRed = 255;
+		pLogPalette->palPalEntry[0].peGreen = 0;
+		pLogPalette->palPalEntry[0].peBlue = 255;
+		pLogPalette->palPalEntry[0].peFlags = 0;
+		for (int i = 1; i < 256; i++)
+		{
+			// black hack
+			if (pData->pPalette->Data[i].R == 0 && pData->pPalette->Data[i].G == 0 && pData->pPalette->Data[i].B == 0)
+			{
+				pLogPalette->palPalEntry[i].peRed = 1;
+				pLogPalette->palPalEntry[i].peGreen = 1;
+				pLogPalette->palPalEntry[i].peBlue = 1;
+				pLogPalette->palPalEntry[i].peFlags = pData->pPalette->Data[i].Zero;
+				continue;
+			}
+			
+			pLogPalette->palPalEntry[i].peRed = pData->pPalette->Data[i].R;
+			pLogPalette->palPalEntry[i].peGreen = pData->pPalette->Data[i].G;
+			pLogPalette->palPalEntry[i].peBlue = pData->pPalette->Data[i].B;
+			pLogPalette->palPalEntry[i].peFlags = pData->pPalette->Data[i].Zero;
+		}
+		CPalette paletteObj;
+		paletteObj.CreatePalette(pLogPalette);
+		free(pLogPalette);
+		CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
+		memDC.RealizePalette();
+		for (int y = 0; y < pData->FullHeight; y++)
+		{
+			for (int x = 0; x < pData->FullWidth; x++)
+			{
+				memDC.SetPixel(x, y, PALETTEINDEX(pData->pImageBuffer[y * pData->FullWidth + x]));
+			}
+		}
+		memDC.SelectPalette(pOldPalette, FALSE);
+		memDC.SelectObject(pOldBitmap);
+		memDC.DeleteDC();
+		return true;
+	}	
+	return false;
 }
 
 bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)

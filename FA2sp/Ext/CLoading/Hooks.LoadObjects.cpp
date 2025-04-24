@@ -180,6 +180,7 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
+    CLoadingExt::ImageDataMap.clear();
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
 }
@@ -265,7 +266,7 @@ DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
         unsigned char* pBufferShadow[1];
         DictNameShadow.Format("%s%d\233OVERLAYSHADOW", LoadingOverlayID, i);
         CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-        loadingExt->SetImageData(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+        loadingExt->SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
     }
 
     return 0;

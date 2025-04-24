@@ -9,6 +9,8 @@
 #include "..\..\Miscs\Palettes.h"
 #include "..\CMapData\Body.h"
 #include "../CIsoView/Body.h"
+#include <filesystem>
+namespace fs = std::filesystem;
 
 DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 {
@@ -206,11 +208,33 @@ DEFINE_HOOK(48E970, CLoading_LoadTile_SkipTranspInsideCheck, 6)
 
 DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 {
-	HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(1001),
-		IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-	CBitmap cBitmap;
-	cBitmap.Attach(hBmp);
-	CLoadingExt::LoadBitMap("annotation.bmp", cBitmap);
+	auto loadInternalBitmap = [](const char* imageID, int resource)
+		{
+			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(resource),
+				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+			CBitmap cBitmap;
+			cBitmap.Attach(hBmp);
+			CLoadingExt::LoadBitMap(imageID, cBitmap);
+		};
+	loadInternalBitmap("annotation.bmp", 1001);
+	loadInternalBitmap("FLAG", 1023);
+	loadInternalBitmap("CELLTAG", 1024);
+
+	std::string pics = CFinalSunApp::ExePath();
+	pics += "\\pics";
+	if (fs::exists(pics) && fs::is_directory(pics))
+	{
+		for (const auto& entry : fs::directory_iterator(pics)) {
+			if (fs::is_regular_file(entry.status())) {
+				if (entry.path().extension() == ".bmp")
+				{
+					CBitmap bmp;
+					if (CLoadingExt::LoadBMPToCBitmap(entry.path().c_str(), bmp))
+						CLoadingExt::LoadBitMap(entry.path().filename().c_str(), bmp);
+				}
+			}
+		}
+	}
 
 	return 0;
 }
@@ -219,11 +243,12 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 {
 	auto replace = [](const char* Ori, const char* New)
 		{
-			if (auto image_ori = ImageDataMapHelper::GetImageDataFromMap(Ori))
+			auto image_ori = CLoadingExt::GetImageDataFromMap(Ori);
+			if (image_ori->lpSurface)
 			{
-				if (ImageDataMapHelper::IsImageLoaded(New))
+				if (CLoadingExt::IsImageLoaded(New))
 				{
-					auto image_new = ImageDataMapHelper::GetImageDataFromMap(New);
+					auto image_new = CLoadingExt::GetImageDataFromMap(New);
 					image_ori->lpSurface = image_new->lpSurface;
 				}
 				DDSURFACEDESC2 ddsd;
@@ -238,16 +263,7 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 
 	replace("CELLTAG", "celltag.bmp");
 	replace("FLAG", "waypoint.bmp");
-	replace("TUBE0", "tube0.bmp");
-	replace("TUBE1", "tube1.bmp");
-	replace("TUBE2", "tube2.bmp");
-	replace("TUBE3", "tube3.bmp");
-	replace("TUBE4", "tube4.bmp");
-	replace("TUBE5", "tube5.bmp");
-	replace("TUBE6", "tube6.bmp");
-	replace("TUBE7", "tube7.bmp");
-	replace("TUBE8", "tube8.bmp");
-	replace("TUBE9", "tube9.bmp");
+	replace("FLAG", "waypoint.bmp");
 
 	return 0;
 }
@@ -323,7 +339,7 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		ppmfc::CString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]++);
-		loadingExt->SetImageData(diff, ImageID, width, height, Palette::PALETTE_ISO);
+		loadingExt->SetImageDataSafe(diff, ImageID, width, height, Palette::PALETTE_ISO);
 		CLoadingExt::LoadedObjects.insert(ImageID);
 	}
 	return 0;

@@ -110,23 +110,22 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     {
         std::string pics = CFinalSunApp::ExePath();
         pics += "\\pics";
-        if (!fs::exists(pics) || !fs::is_directory(pics))
+        if (fs::exists(pics) && fs::is_directory(pics))
         {
-            fs::create_directories(pics);
-        }
-        pics += "\\";
-        pics += pString;
-        pics += ".bmp";
-        if (fs::exists(pics))
-        {
-            CBitmap cBitmap;
-            if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+            pics += "\\";
+            pics += pString;
+            pics += ".bmp";
+            if (fs::exists(pics))
             {
-                int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
-                this->GetTreeCtrl().SetItemImage(item, index, index);
-                return item;
+                CBitmap cBitmap;
+                if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                {
+                    int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+                    this->GetTreeCtrl().SetItemImage(item, index, index);
+                    return item;
+                }
             }
-        }
+        }       
         if (InsertingSpecialBitmap)
         {
             CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
@@ -238,15 +237,27 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                     return item;
                 }
             }
-
-            auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
             if (InsertingOverlay > -1)
             {
                 CLoading::Instance()->DrawOverlay(Variables::GetRulesMapValueAt("OverlayTypes", InsertingOverlay), InsertingOverlay);
                 CIsoView::GetInstance()->UpdateDialog(false);
 
-                pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];
+                auto pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];
+                if (pData && pData->pImageBuffer)
+                {
+                    CBitmap cBitmap;
+                    CLoadingExt::LoadShpToBitmap(pData, cBitmap);
+                    CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                    int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
+                    this->GetTreeCtrl().SetItemImage(item, index, index);
+
+                    CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
+
+                    return item;
+                }
             }
+
+            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
             if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)

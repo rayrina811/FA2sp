@@ -58,7 +58,7 @@ DEFINE_HOOK(537129, ExeRun_FA2MiscFix, 9)
     using namespace PreviewFixDetails;
 
     // fix check .bmp file in pics2
-    DoPush(0x47AC96, push_0x5CF344);
+    //DoPush(0x47AC96, push_0x5CF344);
 
     // fix InfantryDatas crash due to unable to push_back beyond 100
     DoPush(0x4A2B63, push_0x0927C0);

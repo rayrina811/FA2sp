@@ -434,8 +434,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				ppmfc::CString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(extraImageID);
-				if (pData && pData->pImageBuffer)
+				auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
+				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX + 30,
@@ -566,14 +566,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 									status = CLoadingExt::GBIN_DAMAGED;
 								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
-								auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-								if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
+								if (!CLoadingExt::IsObjectLoaded(objRender.ID))
 								{
 									CLoading::Instance->LoadObjects(objRender.ID);
 								}
 
-								if (pData && pData->pImageBuffer)
+								auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
@@ -609,14 +609,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							&& obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
 
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
-						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-						if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-						if (pData && pData->pImageBuffer)
+						if (pData->pImageBuffer)
 						{
 							int x1 = x;
 							int y1 = y;
@@ -668,14 +668,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true);
-					auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-					if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-					if (pData && pData->pImageBuffer)
+					if (pData->pImageBuffer)
 					{
 						int x1 = x;
 						int y1 = y;
@@ -688,14 +688,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0, true);
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj))
+				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData && pData->pImageBuffer)
+				if (pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
@@ -708,15 +708,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
 				ppmfc::CString imageName;
 				imageName.Format("%s%d\233OVERLAYSHADOW", obj, cell->OverlayData);
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsOverlayLoaded(obj))
+				if (!CLoadingExt::IsOverlayLoaded(obj))
 				{
 					CLoading::Instance->DrawOverlay(obj, cell->Overlay);
 					CIsoView::GetInstance()->UpdateDialog(false);
 				}
+				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData && pData->pImageBuffer)
+				if (pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
@@ -792,9 +792,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
 							if (tileAnim.AttachedSubTile == tileSubIndex)
 							{
-								auto pData = ImageDataMapHelper::GetImageDataFromMap(tileAnim.ImageName);
+								auto pData = CLoadingExt::GetImageDataFromMap(tileAnim.ImageName);
 
-								if (pData && pData->pImageBuffer)
+								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x - pData->FullWidth / 2 + tileAnim.XOffset,
@@ -849,8 +849,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								ppmfc::CString extraImageID;
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-								auto pData = ImageDataMapHelper::GetImageDataFromMap(extraImageID);
-								if (pData && pData->pImageBuffer)
+								auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
+								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 + subTile.XMinusExX + 30,
@@ -889,14 +889,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto obj = Variables::GetRulesMapValueAt("SmudgeTypes", cell->SmudgeType);
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+				// terrain & smudge are loaded from FA2 map
 
-				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj))
+				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if (pData && pData->pImageBuffer)
+				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
@@ -911,7 +912,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 				}
-				if (!pData || !pData->pImageBuffer)
+				if (!pData->pImageBuffer)
 				{
 					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -923,7 +924,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 						}
 					}
-					if (!pData || !pData->pImageBuffer)
+					if (!pData->pImageBuffer)
 					{
 						if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
 						{
@@ -935,7 +936,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					}
 				}
-				if (pData && pData->pImageBuffer)
+				if (pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
@@ -1008,14 +1009,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 							status = CLoadingExt::GBIN_DAMAGED;
 						const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
-						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-						if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(objRender.ID))
+						if (!CLoadingExt::IsObjectLoaded(objRender.ID))
 						{
 							CLoading::Instance->LoadObjects(objRender.ID);
 						}
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-						if (pData && pData->pImageBuffer)
+						if (pData->pImageBuffer)
 						{
 							auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 							auto& dam_rubble = CMapDataExt::DamagedAsRubbleBuildings;
@@ -1034,7 +1035,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (upg.GetLength() == 0)
 									continue;
 
-								auto pUpgData = ImageDataMapHelper::GetImageDataFromMap(CLoadingExt::GetImageName(upg, 0));
+								auto pUpgData = CLoadingExt::GetImageDataFromMap(CLoadingExt::GetImageName(upg, 0));
 								if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 								{
 									CLoading::Instance->LoadObjects(upg);
@@ -1058,7 +1059,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									ppmfc::CString AIFile = *pAIFile;
 									AIFile.Trim();
-									auto pAIData = ImageDataMapHelper::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
+									auto pAIData = CLoadingExt::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
 
 									if (pAIData && pAIData->pImageBuffer)
 									{
@@ -1116,13 +1117,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								}
 							}
 							const auto& imageName = CLoadingExt::GetBuildingImageName(node.ID, 0, 0);
-							auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 							auto color = Miscs::GetColorRef(node.House);
 
-							if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(node.ID))
+							if (!CLoadingExt::IsObjectLoaded(node.ID))
 							{
 								CLoading::Instance->LoadObjects(node.ID);
 							}
+							auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 							int cellStr = -1;
 							if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 								cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
@@ -1142,7 +1143,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								}
 							}
 
-							if (pData && pData->pImageBuffer)
+							if (pData->pImageBuffer)
 							{
 								auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
@@ -1180,14 +1181,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					}
 
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing);
-					auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-					if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-					if (pData && pData->pImageBuffer)
+					if (pData->pImageBuffer)
 					{
 						bool HoveringUnit = Variables::Rules.GetString(obj.TypeID, "SpeedType") == "Hover"
 							&& (Variables::Rules.GetString(obj.TypeID, "Locomotor") == "Hover"
@@ -1219,14 +1220,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int nFacing = (atoi(obj.Facing) / 32) % 8;
 
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing);
-					auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-					if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-					if (pData && pData->pImageBuffer)
+					if (pData->pImageBuffer)
 					{
 						auto color = Miscs::GetColorRef(obj.House);
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -1268,14 +1269,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							&& obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
 
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, false, deploy && !water, water);
-						auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-						if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj.TypeID))
+						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-						if (pData && pData->pImageBuffer)
+						if (pData->pImageBuffer)
 						{
 							int x1 = x;
 							int y1 = y;
@@ -1315,14 +1316,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(obj))
+				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
+				// terrain & smudge are loaded from FA2 map
+				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
 
-				if (pData && pData->pImageBuffer)
+				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
@@ -1332,7 +1334,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						ppmfc::CString AIFile = *pAIFile;
 						AIFile.Trim();
-						auto pAIData = ImageDataMapHelper::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
+						auto pAIData = CLoadingExt::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
 
 						if (pAIData && pAIData->pImageBuffer)
 						{
@@ -1347,8 +1349,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 	const char* InsigniaElite = "FA2spInsigniaElite";
-	auto veteran = ImageDataMapHelper::GetImageDataFromMap(InsigniaVeteran);
-	auto elite = ImageDataMapHelper::GetImageDataFromMap(InsigniaElite);
+	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
+	auto elite = CLoadingExt::GetImageDataFromMap(InsigniaElite);
 	for (auto& dv : DrawVeterancies)
 	{
 		if (dv.VP >= 200)
@@ -1356,7 +1358,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		else if (dv.VP >= 100)
 			CIsoViewExt::BlitSHPTransparent(lpDesc, dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran);
 	}
-
 
 	if (CIsoViewExt::DrawTubes)
 	{
