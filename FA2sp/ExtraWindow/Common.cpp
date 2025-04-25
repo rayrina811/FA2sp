@@ -246,12 +246,23 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
     case 10:
         if (!ExtConfigs::TutorialTexts_Viewer)
             LoadParam_Stringtables(hWnd);
-        break;;
+        break;
     case 11:
         LoadParam_Tags(hWnd);
         break;
     case 12: // float
         CNewTrigger::ActionParamUsesFloat = true;
+        break;
+    case 13:
+        LoadParam_CountryList(hWnd);
+        LoadParam_HouseAddon_Multi(hWnd);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).m_pchData);
+        break;
+    case 14:
+        LoadParam_CountryList(hWnd);
+        LoadParam_HouseAddon_Multi(hWnd);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).m_pchData);
         break;
     default:
         if (atoi(idx) >= 500)
