@@ -13,6 +13,7 @@
 #include <CMapData.h>
 #include <FA2PP.h>
 #include "../Helpers/Translations.h"
+#include "../Ext/CLoading/Body.h"
 
 LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 {
@@ -176,7 +177,11 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\FA2sp.log").m_pchData, log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
 	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\syringe.log").m_pchData, log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
 	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\finalalert2log.txt").m_pchData, log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
-
+	
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		CLoadingExt::SendRequestText("QUIT_PROGRAME");
+	}
 	CLoading::Instance->Release();
 
 	CINI::Rules->Release();

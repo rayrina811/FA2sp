@@ -1615,18 +1615,18 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 
 void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    this->BlitTransparentDesc(CLoadingExt::GetImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
+    this->BlitTransparentDesc(CLoadingExt::GetSurfaceImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
 }
 
 void CIsoViewExt::DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    auto image = CLoadingExt::GetImageDataFromMap("CELLTAG");
+    auto image = CLoadingExt::GetSurfaceImageDataFromMap("CELLTAG");
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
 void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
-    auto image = CLoadingExt::GetImageDataFromMap("FLAG");
+    auto image = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
@@ -3259,7 +3259,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             auto point = pThis->MoveCenterPosition;
             point.x += rect.left - 16 - 18;
             point.y += rect.top + 14 - 12;
-            auto cursor = CLoadingExt::GetImageDataFromMap("scrollcursor.bmp");
+            auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }
 

@@ -45,6 +45,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::VisibleInfantries.clear();
 	CIsoViewExt::VisibleUnits.clear();
 	CIsoViewExt::VisibleAircrafts.clear();
+	CLoadingExt::CurrentFrameImageDataMap.clear();
 
 	RECT rect;
 	::GetClientRect(pThis->GetSafeHwnd(), &rect);
@@ -434,7 +435,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				ppmfc::CString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-				auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
+				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -572,7 +573,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CLoading::Instance->LoadObjects(objRender.ID);
 								}
 
-								auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -614,7 +615,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -673,7 +674,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -693,7 +694,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -714,7 +715,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CLoading::Instance->DrawOverlay(obj, cell->Overlay);
 					CIsoView::GetInstance()->UpdateDialog(false);
 				}
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -792,7 +793,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
 							if (tileAnim.AttachedSubTile == tileSubIndex)
 							{
-								auto pData = CLoadingExt::GetImageDataFromMap(tileAnim.ImageName);
+								auto pData = CLoadingExt::GetImageDataFromServer(tileAnim.ImageName);
 
 								if (pData->pImageBuffer)
 								{
@@ -849,7 +850,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								ppmfc::CString extraImageID;
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-								auto pData = CLoadingExt::GetImageDataFromMap(extraImageID);
+								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -1014,7 +1015,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(objRender.ID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -1035,7 +1036,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (upg.GetLength() == 0)
 									continue;
 
-								auto pUpgData = CLoadingExt::GetImageDataFromMap(CLoadingExt::GetImageName(upg, 0));
+								auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0));
 								if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 								{
 									CLoading::Instance->LoadObjects(upg);
@@ -1059,7 +1060,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									ppmfc::CString AIFile = *pAIFile;
 									AIFile.Trim();
-									auto pAIData = CLoadingExt::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
+									auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
 
 									if (pAIData && pAIData->pImageBuffer)
 									{
@@ -1123,7 +1124,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								CLoading::Instance->LoadObjects(node.ID);
 							}
-							auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+							auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 							int cellStr = -1;
 							if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 								cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
@@ -1186,7 +1187,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1225,7 +1226,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1274,7 +1275,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -1334,7 +1335,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						ppmfc::CString AIFile = *pAIFile;
 						AIFile.Trim();
-						auto pAIData = CLoadingExt::GetImageDataFromMap(AIFile + "\233ALPHAIMAGE");
+						auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
 
 						if (pAIData && pAIData->pImageBuffer)
 						{
@@ -1349,8 +1350,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 	const char* InsigniaElite = "FA2spInsigniaElite";
-	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
-	auto elite = CLoadingExt::GetImageDataFromMap(InsigniaElite);
+	auto veteran = CLoadingExt::GetImageDataFromServer(InsigniaVeteran);
+	auto elite = CLoadingExt::GetImageDataFromServer(InsigniaElite);
 	for (auto& dv : DrawVeterancies)
 	{
 		if (dv.VP >= 200)

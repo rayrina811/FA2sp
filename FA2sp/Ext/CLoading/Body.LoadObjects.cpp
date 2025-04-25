@@ -20,7 +20,9 @@ unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
 
+std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
 std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
+std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 
 bool CLoadingExt::IsImageLoaded(ppmfc::CString name)
 {
@@ -38,6 +40,38 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(ppmfc::CString name)
 		auto ret = std::make_unique<ImageDataClassSafe>();
 		ImageDataMap[name] = std::move(ret);
 		return ImageDataMap[name].get();
+	}
+	return itr->second.get();
+}
+
+ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(ppmfc::CString name)
+{
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		auto ret = std::make_unique<ImageDataClassSafe>();
+		RequestImageFromServer(name, *ret);
+		auto [it, inserted] = CLoadingExt::CurrentFrameImageDataMap.emplace(name, std::move(ret));
+		return it->second.get();
+	}
+	return GetImageDataFromMap(name);
+}
+
+bool CLoadingExt::IsSurfaceImageLoaded(ppmfc::CString name)
+{
+	auto itr = SurfaceImageDataMap.find(name);
+	if (itr == SurfaceImageDataMap.end())
+		return false;
+	return itr->second->lpSurface != nullptr;
+}
+
+ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(ppmfc::CString name)
+{
+	auto itr = SurfaceImageDataMap.find(name);
+	if (itr == SurfaceImageDataMap.end())
+	{
+		auto ret = std::make_unique<ImageDataClassSurface>();
+		SurfaceImageDataMap[name] = std::move(ret);
+		return SurfaceImageDataMap[name].get();
 	}
 	return itr->second.get();
 }
@@ -1560,21 +1594,21 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			}
 		}
 	}
-
-	//if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
-	//{
-	//	ppmfc::CString AIFile = *pAIFile;
-	//	AIFile.Trim();
-	//  auto AIDicName = AIFile + "\233ALPHAIMAGE";
-	//  if (!CLoadingExt::IsObjectLoaded(AIDicName))
-	//  	LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
-	//}
 }
 
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
 {
-	auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
-	SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		ImageDataClassSafe tmp;
+		SetImageDataSafe(pBuffer, &tmp, FullWidth, FullHeight, pPal);
+		CLoadingExt::SendImageToServer(NameInDict, &tmp);
+	}
+	else
+	{
+		auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
+		SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+	}
 }
 
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal)
@@ -1962,15 +1996,13 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
 {
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
+	auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
 	pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
 	DDSURFACEDESC2 desc;
 	memset(&desc, 0, sizeof(DDSURFACEDESC2));
 	desc.dwSize = sizeof(DDSURFACEDESC2);
 	desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
 	pData->lpSurface->GetSurfaceDesc(&desc);
-	pData->ValidHeight = desc.dwHeight;
-	pData->ValidWidth = desc.dwWidth;
 	pData->FullWidth = desc.dwWidth;
 	pData->FullHeight = desc.dwHeight;
 	pData->Flag = ImageDataFlag::SurfaceData;
@@ -2066,7 +2098,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileNa
 				memDC.SelectObject(pOldBitmap);
 
 				auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-				auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
+				auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
 				pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
 
 				DDSURFACEDESC2 desc;
@@ -2074,8 +2106,6 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileNa
 				desc.dwSize = sizeof(DDSURFACEDESC2);
 				desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
 				pData->lpSurface->GetSurfaceDesc(&desc);
-				pData->ValidHeight = desc.dwHeight;
-				pData->ValidWidth = desc.dwWidth;
 				pData->FullWidth = desc.dwWidth;
 				pData->FullHeight = desc.dwHeight;
 				pData->Flag = ImageDataFlag::SurfaceData;
@@ -2125,7 +2155,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 		memDC.SelectObject(pOldBitmap);
 
 		auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-		auto pData = CLoadingExt::GetImageDataFromMap(ImageID);
+		auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
 		pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
 
 		DDSURFACEDESC2 desc;
@@ -2133,8 +2163,6 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffe
 		desc.dwSize = sizeof(DDSURFACEDESC2);
 		desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
 		pData->lpSurface->GetSurfaceDesc(&desc);
-		pData->ValidHeight = desc.dwHeight;
-		pData->ValidWidth = desc.dwWidth;
 		pData->FullWidth = desc.dwWidth;
 		pData->FullHeight = desc.dwHeight;
 		pData->Flag = ImageDataFlag::SurfaceData;

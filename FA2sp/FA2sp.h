@@ -161,6 +161,7 @@ public:
     static bool InGameDisplay_AlphaImage;
     static bool LightingPreview_MultUnitColor;
     static bool DDrawScalingBilinear;
+    static bool LoadImageDataFromServer;
     static int DisplayTextSize;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;

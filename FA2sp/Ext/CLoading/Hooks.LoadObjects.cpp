@@ -181,6 +181,18 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
     CLoadingExt::ImageDataMap.clear();
+    for (auto& data : CLoadingExt::SurfaceImageDataMap)
+    {
+        if (data.second->lpSurface)
+        {
+            data.second->lpSurface->Release();
+        }
+    }
+    CLoadingExt::SurfaceImageDataMap.clear();
+    if (ExtConfigs::LoadImageDataFromServer)
+    {
+        CLoadingExt::SendRequestText("CLEAR_MAP");
+    }
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
 }

@@ -18,7 +18,6 @@ class NOVTABLE ImageDataClassSafe
 public:
 
 	std::unique_ptr<unsigned char[]> pImageBuffer; // draw from here, size = FullWidth*FullHeight
-	LPDIRECTDRAWSURFACE7 lpSurface; // Only available for flag = 0, if this is used, only ValidWidth and ValidHeight are set
 
 	struct ValidRangeData
 	{
@@ -39,6 +38,22 @@ public:
 	ImageDataFlag Flag;
 	BuildingImageFlag BuildingFlag; // see BuildingData
 	BOOL IsOverlay; // Only OVRLXX_XX will set this true
+};
+
+
+class NOVTABLE ImageDataClassSurface
+{
+public:
+	LPDIRECTDRAWSURFACE7 lpSurface; // Only available for flag = 0, if this is used, only ValidWidth and ValidHeight are set
+	short FullWidth;
+	short FullHeight;
+	ImageDataFlag Flag;
+};
+
+struct ImageDataTransfer
+{
+	char imageID[0x100];
+	ImageDataClassSafe pData;
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -186,10 +201,26 @@ private:
 
 
 public:
-
+	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
 	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 
 	static bool IsImageLoaded(ppmfc::CString name);
 	static ImageDataClassSafe* GetImageDataFromMap(ppmfc::CString name);
+	static ImageDataClassSafe* GetImageDataFromServer(ppmfc::CString name);
+	static bool IsSurfaceImageLoaded(ppmfc::CString name);
+	static ImageDataClassSurface* GetSurfaceImageDataFromMap(ppmfc::CString name);
 
+	static HANDLE hPipeData;
+	static HANDLE hPipePing;
+	static bool CheckProcessExists(const wchar_t* processName);
+	static bool StartImageServerProcess();
+	static bool ConnectToImageServer();
+	static void StartPingThread(std::atomic<bool>& running);
+
+	static bool WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, const ImageDataClassSafe* data);
+	static bool ReadImageData(HANDLE hPipe, ImageDataClassSafe& data);
+	static bool SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData);
+	static bool RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData);
+	static void SendRequestText(const char* text);
 };

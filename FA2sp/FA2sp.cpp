@@ -146,6 +146,7 @@ bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::DDrawScalingBilinear;
+bool ExtConfigs::LoadImageDataFromServer;
 int ExtConfigs::DisplayTextSize;
 
 
@@ -256,6 +257,7 @@ void FA2sp::ExtConfigsInitialize()
 
 
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear");
+	ExtConfigs::LoadImageDataFromServer = CINI::FAData->GetBool("ExtConfigs", "LoadImageDataFromServer");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");

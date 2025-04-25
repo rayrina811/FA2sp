@@ -243,12 +243,12 @@ DEFINE_HOOK(47FA2D, CLoading_InitPics_End_LoadDLLBitmaps, 7)
 {
 	auto replace = [](const char* Ori, const char* New)
 		{
-			auto image_ori = CLoadingExt::GetImageDataFromMap(Ori);
+			auto image_ori = CLoadingExt::GetSurfaceImageDataFromMap(Ori);
 			if (image_ori->lpSurface)
 			{
 				if (CLoadingExt::IsImageLoaded(New))
 				{
-					auto image_new = CLoadingExt::GetImageDataFromMap(New);
+					auto image_new = CLoadingExt::GetSurfaceImageDataFromMap(New);
 					image_ori->lpSurface = image_new->lpSurface;
 				}
 				DDSURFACEDESC2 ddsd;

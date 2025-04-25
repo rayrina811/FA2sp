@@ -525,7 +525,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
         if (place)
         {
-            mapData.SaveUndoRedoData(true, 0, 0, 0, 0);
+            mapData.SaveUndoRedoData(true, CViewObjectsExt::CliffConnectionCoord.X - 4, CViewObjectsExt::CliffConnectionCoord.Y - 4,
+                CViewObjectsExt::CliffConnectionCoord.X + 4, CViewObjectsExt::CliffConnectionCoord.Y + 4);
         }
 
         //        7 
@@ -1863,8 +1864,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -1911,8 +1911,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -1962,8 +1961,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix]);
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
@@ -1990,8 +1988,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix]);
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
@@ -2038,8 +2035,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix]);
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
@@ -2091,8 +2087,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix]);
 
             cellDatas[dwposFix].TileIndex = idxFix;
             cellDatas[dwposFix].TileSubIndex = 0;
@@ -2166,8 +2161,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -2218,8 +2212,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -2302,8 +2295,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 dwposFix2 = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.Y + offsetPlaceY + offsetY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint0.X + offsetPlaceX + offsetX;
             }
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -2349,8 +2341,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -2401,8 +2392,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
 
             auto thisTileFix = CMapDataExt::TileData[idxFix];
-            CellData tmp = cellDatas[dwposFix2];
-            tmpCellDatas.push_back(tmp);
+            tmpCellDatas.push_back(cellDatas[dwposFix2]);
 
             cellDatas[dwposFix2].TileIndex = idxFix;
             cellDatas[dwposFix2].TileSubIndex = 0;
@@ -2433,11 +2423,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         {
             CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
             return;
-        }
-
-        if (place)
-        {
-            mapData.SaveUndoRedoData(true, 0, 0, 0, 0);
         }
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &cityRoad](int lastDirection, int direction)
@@ -2796,13 +2781,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             return;
         }
 
-        if (place)
-        {
-            mapData.SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-
-
-
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
             {
                 bool met = false;
@@ -3144,13 +3122,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             return;
         }
 
-        if (place)
-        {
-            mapData.SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-
-
-
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
             {
                 bool met = false;
@@ -3355,13 +3326,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
             return;
         }
-
-        if (place)
-        {
-            mapData.SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-
-
 
         auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](bool lastSide, int lastDirection, int direction)
             {
@@ -3612,6 +3576,45 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         HorizontalLoop = distanceY / thisTileWidth;
     }
 
+
+    if (place && tileSet.Type != ConnectedTileSetTypes::Cliff && tileSet.Type != ConnectedTileSetTypes::CityCliff && tileSet.Type != ConnectedTileSetTypes::IceCliff)
+    {
+        if (MultiPlaceDirection == 0)
+            mapData.SaveUndoRedoData(true,
+                CViewObjectsExt::CliffConnectionCoord.X - thisTileHeight - 1,
+                CViewObjectsExt::CliffConnectionCoord.Y - thisTile.Width - 1,
+                CViewObjectsExt::CliffConnectionCoord.X + thisTile.Height + 1,
+                CViewObjectsExt::CliffConnectionCoord.Y + thisTile.Width + 1
+            );
+        else if (MultiPlaceDirection == 4)
+            mapData.SaveUndoRedoData(true,
+                CViewObjectsExt::CliffConnectionCoord.X - thisTile.Height - 1,
+                CViewObjectsExt::CliffConnectionCoord.Y - thisTile.Width - 1,
+                CViewObjectsExt::CliffConnectionCoord.X + thisTileHeight + 1,
+                CViewObjectsExt::CliffConnectionCoord.Y + thisTile.Width + 1
+            );
+        else if (MultiPlaceDirection == 2)
+            mapData.SaveUndoRedoData(true,
+                CViewObjectsExt::CliffConnectionCoord.X - thisTile.Height - 1,
+                CViewObjectsExt::CliffConnectionCoord.Y - thisTile.Width - 1,
+                CViewObjectsExt::CliffConnectionCoord.X + thisTile.Height + 1,
+                CViewObjectsExt::CliffConnectionCoord.Y + thisTile.Width * HorizontalLoop + 1
+            );
+        else if (MultiPlaceDirection == 6)
+            mapData.SaveUndoRedoData(true,
+                CViewObjectsExt::CliffConnectionCoord.X - thisTile.Height - 1,
+                CViewObjectsExt::CliffConnectionCoord.Y - thisTile.Width * HorizontalLoop - 1,
+                CViewObjectsExt::CliffConnectionCoord.X + thisTile.Height + 1,
+                CViewObjectsExt::CliffConnectionCoord.Y + thisTile.Width + 1
+            );
+        else
+            mapData.SaveUndoRedoData(true,
+                CViewObjectsExt::CliffConnectionCoord.X - thisTile.Height - 1,
+                CViewObjectsExt::CliffConnectionCoord.Y - thisTile.Width - 1,
+                CViewObjectsExt::CliffConnectionCoord.X + thisTile.Height + 1,
+                CViewObjectsExt::CliffConnectionCoord.Y + thisTile.Width + 1
+            );
+    }
     for (int k = 0; k < HorizontalLoop; k++)
     {
         for (int i = 0; i < thisTileHeight; i++)
@@ -3631,8 +3634,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     }
                     if (dwpos < mapData.CellDataCount)
                     {
-                        CellData tmp = cellDatas[dwpos];
-                        tmpCellDatas.push_back(tmp);
+                        tmpCellDatas.push_back(cellDatas[dwpos]);
 
                         cellDatas[dwpos].TileIndex = CViewObjectsExt::CliffConnectionTile;
                         cellDatas[dwpos].TileSubIndex = subPos;
@@ -3656,12 +3658,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     }
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
-    if (place)
-    {
-        mapData.SaveUndoRedoData(true, X - thisTile.Height - 1, Y - thisTile.Width - 1, X + thisTile.Height + 1, Y + thisTile.Width + 1);
-        mapData.DoUndo();
-    }
-    else
+    if (!place)
     {
         //undo
         subPos = 0;

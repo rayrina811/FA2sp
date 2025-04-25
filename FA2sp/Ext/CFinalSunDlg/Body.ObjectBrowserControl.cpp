@@ -257,9 +257,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
             }
 
-            auto pData = CLoadingExt::GetImageDataFromMap(imageName);
-
-            if ((!pData || !pData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
+            if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -273,7 +271,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Deploy = temp2;
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
-
+            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;

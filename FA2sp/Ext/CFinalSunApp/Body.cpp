@@ -12,9 +12,11 @@
 #include <thread>
 
 #include <iostream>
+#include <future>
 #include <filesystem>
 #include "../../Helpers/Translations.h"
 #include "../../Miscs/VoxelDrawer.h"
+#include "../CLoading/Body.h"
 namespace fs = std::filesystem;
 
 #pragma warning(disable : 6262)
@@ -219,6 +221,23 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 			fw.start(fw.Callback);
 		}
 	);
+
+	std::atomic<bool> ping_server_running(true);
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		std::future<bool> imageServerFuture = std::async(std::launch::async, []() {
+			return CLoadingExt::StartImageServerProcess();
+			});
+
+		CLoadingExt::StartPingThread(ping_server_running);
+
+		std::future<bool> connectFuture = std::async(std::launch::async, []() {
+			return CLoadingExt::ConnectToImageServer();
+			});
+
+	}
+
+
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
 
@@ -226,6 +245,11 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	is_watcher_running = false; // stop watcher
 	watcher.join(); // wait for thread exit
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		ping_server_running = false;
+		CLoadingExt::SendRequestText("QUIT_PROGRAME");
+	}
 
 	return FALSE;
 }
