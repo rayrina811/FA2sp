@@ -218,6 +218,7 @@ void CLoadingExt::ClearItemTypes()
 	SwimableInfantries.clear();
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
+		CLoadingExt::StartImageServerProcess(false);
 		CLoadingExt::SendRequestText("CLEAR_MAP");
 	}
 }

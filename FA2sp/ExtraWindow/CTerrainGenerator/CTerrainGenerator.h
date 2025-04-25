@@ -123,34 +123,42 @@ public:
                     TerrainGeneratorOverlay overlays;
                     overlays.Overlay = atoi(atoms[j]);
                     group.Items.push_back(STDHelpers::IntToString(overlays.Overlay));
-                    CLoading::Instance()->DrawOverlay(*CINI::Rules->GetSection("OverlayTypes")->GetValueAt(overlays.Overlay), overlays.Overlay);
-                    CIsoView::GetInstance()->UpdateDialog(false);
+                    if (overlays.Overlay != 0xFF)
+                    {
+                        CLoading::Instance()->DrawOverlay(Variables::GetRulesMapValueAt("OverlayTypes", overlays.Overlay), overlays.Overlay);
+                        CIsoView::GetInstance()->UpdateDialog(false);
 
-                    if (atomsData.empty()) {
-                        group.HasExtraIndex = false;
-                        for (int idx = 0; idx < 60; idx++)
-                        {
-                            auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
-                            if (pic && pic != NULL && pic->pImageBuffer) {
-                                overlays.AvailableOverlayData.push_back(idx);
+                        if (atomsData.empty()) {
+                            group.HasExtraIndex = false;
+                            for (int idx = 0; idx < 60; idx++)
+                            {
+                                auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
+                                if (pic && pic != NULL && pic->pImageBuffer) {
+                                    overlays.AvailableOverlayData.push_back(idx);
+                                }
                             }
                         }
-                    }
-                    else {
-                        group.HasExtraIndex = true;
-                        for (int idx = 0; idx < 60; idx++)
-                        {
-                            auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
-                            if (pic && pic != NULL && pic->pImageBuffer) {
-                                for (auto& data : atomsData) {
-                                    if (idx == atoi(data)) {
-                                        overlays.AvailableOverlayData.push_back(idx);
-                                        break;
+                        else {
+                            group.HasExtraIndex = true;
+                            for (int idx = 0; idx < 60; idx++)
+                            {
+                                auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
+                                if (pic && pic != NULL && pic->pImageBuffer) {
+                                    for (auto& data : atomsData) {
+                                        if (idx == atoi(data)) {
+                                            overlays.AvailableOverlayData.push_back(idx);
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    else
+                    {
+                        group.HasExtraIndex = false;
+                        overlays.AvailableOverlayData.push_back(0);
+                    }              
                     group.Overlays.push_back(overlays);
                 }
                 Overlays.push_back(group);

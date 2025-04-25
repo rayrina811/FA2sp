@@ -214,7 +214,7 @@ public:
 	static HANDLE hPipeData;
 	static HANDLE hPipePing;
 	static bool CheckProcessExists(const wchar_t* processName);
-	static bool StartImageServerProcess();
+	static bool StartImageServerProcess(bool firstRun = true);
 	static bool ConnectToImageServer();
 	static void StartPingThread(std::atomic<bool>& running);
 

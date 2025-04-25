@@ -72,7 +72,7 @@ bool CLoadingExt::CheckProcessExists(const wchar_t* processName)
     return exists;
 }
 
-bool CLoadingExt::StartImageServerProcess()
+bool CLoadingExt::StartImageServerProcess(bool firstRun)
 {
     if (!ExtConfigs::LoadImageDataFromServer)
         return false;
@@ -80,6 +80,30 @@ bool CLoadingExt::StartImageServerProcess()
     PipeName = "\\\\.\\pipe\\ImagePipe_" + std::to_string(GetCurrentProcessId());
     PipeNameData = PipeName + "_data";
     PipeNamePing = PipeName + "_ping";
+
+    bool needReconnect = false;
+    if (!firstRun)
+    {
+        HANDLE hPipeCheck = CreateFileA(
+            PipeNameData.c_str(),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            0,
+            NULL
+        );
+
+        if (hPipeCheck != INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(hPipeCheck);
+            return true;
+        }
+        else
+        {
+            needReconnect = true;
+        }
+    } 
 
     std::string exePath = CFinalSunApp::ExePath();
     exePath += "\\ImageServer.exe"; //Is64BitOS() ? "\\ImageServer64.exe" :
@@ -118,6 +142,9 @@ bool CLoadingExt::StartImageServerProcess()
 
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
+
+    if (needReconnect)
+        ConnectToImageServer();
 
     return true;
 }
