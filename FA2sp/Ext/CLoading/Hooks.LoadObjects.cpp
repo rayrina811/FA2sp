@@ -283,3 +283,4 @@ DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
 
     return 0;
 }
+

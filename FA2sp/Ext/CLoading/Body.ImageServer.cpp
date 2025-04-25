@@ -7,12 +7,39 @@
 #include "Body.h"
 #include <../FA2sp/Ext/CMapData/Body.h>
 #include <thread>
+#include "../../Helpers/Translations.h"
 
 HANDLE CLoadingExt::hPipeData = NULL;
 HANDLE CLoadingExt::hPipePing = NULL;
 std::string PipeNameData;
 std::string PipeNamePing;
 std::string PipeName;
+
+//static bool Is64BitProcess()
+//{
+//#if defined(_WIN64)
+//    return true;
+//#else
+//    return false;
+//#endif
+//}
+//
+//static bool Is64BitOS()
+//{
+//    BOOL isWow64 = FALSE;
+//
+//    typedef BOOL(WINAPI* LPFN_ISWOW64PROCESS)(HANDLE, PBOOL);
+//    LPFN_ISWOW64PROCESS fnIsWow64Process = (LPFN_ISWOW64PROCESS)
+//        GetProcAddress(GetModuleHandleW(L"kernel32"), "IsWow64Process");
+//
+//    if (fnIsWow64Process) {
+//        if (!fnIsWow64Process(GetCurrentProcess(), &isWow64)) {
+//            return false; 
+//        }
+//    }
+//
+//    return Is64BitProcess() || isWow64;
+//}
 
 bool CLoadingExt::CheckProcessExists(const wchar_t* processName) 
 {
@@ -50,13 +77,12 @@ bool CLoadingExt::StartImageServerProcess()
     if (!ExtConfigs::LoadImageDataFromServer)
         return false;
 
-
     PipeName = "\\\\.\\pipe\\ImagePipe_" + std::to_string(GetCurrentProcessId());
     PipeNameData = PipeName + "_data";
     PipeNamePing = PipeName + "_ping";
 
     std::string exePath = CFinalSunApp::ExePath();
-    exePath += "\\ImageServer64.exe";
+    exePath += "\\ImageServer.exe"; //Is64BitOS() ? "\\ImageServer64.exe" :
 
     std::string command = exePath + " \"" + PipeName + "\"";
 
@@ -66,7 +92,7 @@ bool CLoadingExt::StartImageServerProcess()
     PROCESS_INFORMATION pi;
 
     BOOL result = CreateProcessA(
-        NULL,
+        exePath.c_str(),
         const_cast<char*>(command.c_str()),
         NULL,
         NULL,
@@ -79,7 +105,12 @@ bool CLoadingExt::StartImageServerProcess()
     );
 
     if (!result) {
-        ::MessageBoxA(CFinalSunDlg::Instance->GetSafeHwnd(), "Failed to launch 64-bit image server", "Error", MB_ICONERROR);
+
+        ::MessageBoxA(NULL,
+            Translations::TranslateOrDefault("LaunchImageServerFailed", "Failed to launch image server!\n"
+                "Please check whether ImageServer.exe exists,\n"
+                "or turn off LoadImageDataFromServer."),
+            Translations::TranslateOrDefault("Error", "Error"), MB_ICONERROR);
         exit(0);
 
         return false;
@@ -117,7 +148,7 @@ bool CLoadingExt::ConnectToImageServer()
         if (hPipeData != INVALID_HANDLE_VALUE) {
             DWORD mode = PIPE_READMODE_MESSAGE;
 
-            Logger::Raw("[ImageServer] Successfully connected to ImagePipe64, handle: %x\n", hPipeData);
+            Logger::Raw("[ImageServer] Successfully connected to ImagePipe, handle: %x\n", hPipeData);
 
             if (SetNamedPipeHandleState(hPipeData, &mode, NULL, NULL)) {
                 return true;

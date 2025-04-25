@@ -216,6 +216,10 @@ void CLoadingExt::ClearItemTypes()
 	LoadedObjects.clear();
 	LoadedOverlays.clear();
 	SwimableInfantries.clear();
+	if (ExtConfigs::LoadImageDataFromServer)
+	{
+		CLoadingExt::SendRequestText("CLEAR_MAP");
+	}
 }
 
 bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
@@ -1295,8 +1299,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		}
 		PaletteName.MakeUpper();
 		GetFullPaletteName(PaletteName);
-		// terrain & smudge are loaded to FA2 map
-		SetImageData(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
+		SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
 		if (ExtConfigs::InGameDisplay_Shadow && terrain)
 		{

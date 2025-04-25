@@ -890,13 +890,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto obj = Variables::GetRulesMapValueAt("SmudgeTypes", cell->SmudgeType);
 				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-				// terrain & smudge are loaded from FA2 map
-
 				if (!CLoadingExt::IsObjectLoaded(obj))
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -1322,8 +1320,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				// terrain & smudge are loaded from FA2 map
-				auto pData = ImageDataMapHelper::GetImageDataFromMap(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
 				if (pData->pImageBuffer)
 				{
