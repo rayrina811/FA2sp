@@ -707,3 +707,57 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 }
 
 
+DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
+{
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+	for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+			if (!CMapData::Instance->IsCoordInMap(gx, gy))
+				continue;
+
+			int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
+			const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+			if (CellData.Structure != -1)
+				CMapData::Instance->DeleteBuildingData(CellData.Structure);
+
+			if (ExtConfigs::InfantrySubCell_Edit &&
+				pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+			{
+				int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
+				if (idx != -1)
+				{
+					CMapData::Instance->DeleteInfantryData(idx);
+				}
+			}
+			else
+			{
+				if (CellData.Infantry[0] != -1)
+					CMapData::Instance->DeleteInfantryData(CellData.Infantry[0]);
+				if (CellData.Infantry[1] != -1)
+					CMapData::Instance->DeleteInfantryData(CellData.Infantry[1]);
+				if (CellData.Infantry[2] != -1)
+					CMapData::Instance->DeleteInfantryData(CellData.Infantry[2]);
+			}
+			if (CellData.Unit != -1)
+				CMapData::Instance->DeleteUnitData(CellData.Unit);
+
+			if (CellData.Aircraft != -1)
+				CMapData::Instance->DeleteAircraftData(CellData.Aircraft);
+			
+			if (CellData.Terrain != -1)
+				CMapData::Instance->DeleteTerrainData(CellData.Terrain);
+			
+			if (CellData.Smudge != -1)
+				CMapData::Instance->DeleteSmudgeData(CellData.Smudge);
+		}
+	}
+	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+
+	return 0x45C961;
+}
+
+

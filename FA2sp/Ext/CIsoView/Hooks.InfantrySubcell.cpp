@@ -214,16 +214,3 @@ DEFINE_HOOK(46D1EC, CIsoView_PlaceCurrentObjectAt_ChangeSubcellInfantryOwner, 8)
 	return 0x46D3C9;
 }
 
-DEFINE_HOOK(45C88A, CIsoView_OnMouseMove_DeleteInfantry, 5)
-{
-	if (!ExtConfigs::InfantrySubCell_Edit)
-		return 0;
-
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-	int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
-	if (idx > -1)
-		CMapData::Instance->DeleteInfantryData(idx);
-
-	return 0x45C8A0;
-}

@@ -2373,33 +2373,59 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
 
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
-    int nIndex = CMapData::Instance->GetCoordIndex(X, Y);
-    const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
 
-    if (CIsoView::CurrentCommand->Type == Set_Building)
+    // infantry subcell case
+    if (ExtConfigs::InfantrySubCell_Edit &&
+        CIsoView::CurrentCommand->Type == Set_Infantry &&
+        pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
     {
-        if (CellData.Structure != -1)
-            ApplyPropertyBrush_Building(CellData.Structure);
+        int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+        if (idx != -1)
+        {
+            ApplyPropertyBrush_Infantry(idx);
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        }
+        return;
     }
-    else if (CIsoView::CurrentCommand->Type == Set_Infantry)
+
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
     {
-        if (CellData.Infantry[0] != -1)
-            ApplyPropertyBrush_Infantry(CellData.Infantry[0]);
-        if (CellData.Infantry[1] != -1)
-            ApplyPropertyBrush_Infantry(CellData.Infantry[1]);
-        if (CellData.Infantry[2] != -1)
-            ApplyPropertyBrush_Infantry(CellData.Infantry[2]);
-    }
-    else if (CIsoView::CurrentCommand->Type == Set_Vehicle)
-    {
-        if (CellData.Unit != -1)
-            ApplyPropertyBrush_Vehicle(CellData.Unit);
-    }
-    else if (CIsoView::CurrentCommand->Type == Set_Aircraft)
-    {
-        if (CellData.Aircraft != -1)
-            ApplyPropertyBrush_Aircraft(CellData.Aircraft);
-    }
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapData::Instance->IsCoordInMap(gx, gy))
+                continue;
+
+            int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
+            const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+            if (CIsoView::CurrentCommand->Type == Set_Building)
+            {
+                if (CellData.Structure != -1)
+                    ApplyPropertyBrush_Building(CellData.Structure);
+            }
+            else if (CIsoView::CurrentCommand->Type == Set_Infantry)
+            {
+                if (CellData.Infantry[0] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[0]);
+                if (CellData.Infantry[1] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[1]);
+                if (CellData.Infantry[2] != -1)
+                    ApplyPropertyBrush_Infantry(CellData.Infantry[2]);
+            }
+            else if (CIsoView::CurrentCommand->Type == Set_Vehicle)
+            {
+                if (CellData.Unit != -1)
+                    ApplyPropertyBrush_Vehicle(CellData.Unit);
+            }
+            else if (CIsoView::CurrentCommand->Type == Set_Aircraft)
+            {
+                if (CellData.Aircraft != -1)
+                    ApplyPropertyBrush_Aircraft(CellData.Aircraft);
+            }
+        }
+    }  
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
@@ -2411,8 +2437,6 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
     CMapDataExt::SkipUpdateBuildingInfo = true;
     CMapData::Instance->DeleteBuildingData(nIndex);
     CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
@@ -2424,8 +2448,6 @@ void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
 
     CMapData::Instance->DeleteInfantryData(nIndex);
     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
@@ -2437,8 +2459,6 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
 
     CMapData::Instance->DeleteAircraftData(nIndex);
     CMapData::Instance->SetAircraftData(&data, nullptr, nullptr, 0, "");
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
@@ -2450,8 +2470,6 @@ void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
 
     CMapData::Instance->DeleteUnitData(nIndex);
     CMapData::Instance->SetUnitData(&data, nullptr, nullptr, 0, "");
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush_Building(CBuildingData& data)
