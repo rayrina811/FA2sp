@@ -681,6 +681,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136 && CMapData::Instance->MapWidthPlusHeight)
 	{
+		CLoadingExt::SendRequestText("DUMP_MAP_INFO");
 		CIsoView::CurrentCommand->Command = 0x2; // delete
 		CIsoView::CurrentCommand->Type = 0;
 

@@ -4,6 +4,7 @@
 #include <CMixFile.h>
 #include <CINI.h>
 #include "../../Helpers/Translations.h"
+#include "../../FA2sp.h"
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
@@ -41,6 +42,7 @@ bool CLoadingExt::InitMixFilesFix()
 					Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
 				}
 			}
+
 		}
 	}
 
@@ -210,8 +212,5 @@ bool CLoadingExt::InitMixFilesFix()
 	LoadMixFile("LANGMD.MIX");
 	LoadMixFile("LANGUAGE.MIX");
 	
-
-
-
 	return true;
 }

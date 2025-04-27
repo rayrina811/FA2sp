@@ -91,15 +91,15 @@ public:
 	
 	static void ClearItemTypes();
 	void GetFullPaletteName(ppmfc::CString& PaletteName);
-	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
-	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame);
+	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame, bool toServer = true);
+	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame, bool toServer = true);
 	static void LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
 	static void LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
 	static bool LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
-	void SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
+	void SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer = true);
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 
 	static int GetITheaterIndex()
@@ -207,20 +207,32 @@ public:
 
 	static bool IsImageLoaded(ppmfc::CString name);
 	static ImageDataClassSafe* GetImageDataFromMap(ppmfc::CString name);
-	static ImageDataClassSafe* GetImageDataFromServer(ppmfc::CString name);
+	static ImageDataClassSafe* GetImageDataFromServer(ppmfc::CString ID, ppmfc::CString name);
 	static bool IsSurfaceImageLoaded(ppmfc::CString name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(ppmfc::CString name);
 
 	static HANDLE hPipeData;
 	static HANDLE hPipePing;
+	static HANDLE hRequestEvent;
+	static HANDLE hResponseEvent;
+	static std::atomic<bool> PingServerRunning;
+	static std::string PipeNameData;
+	static std::string PipeNamePing;
+	static std::string PipeName;
+
+
 	static bool CheckProcessExists(const wchar_t* processName);
-	static bool StartImageServerProcess(bool firstRun = true);
+	static bool StartImageServerProcess();
 	static bool ConnectToImageServer();
-	static void StartPingThread(std::atomic<bool>& running);
+	static void StartPingThread();
 
 	static bool WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, const ImageDataClassSafe* data);
 	static bool ReadImageData(HANDLE hPipe, ImageDataClassSafe& data);
+	static bool SendIniMapToServer(int type = -1);
 	static bool SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData);
-	static bool RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData);
+	static bool RequestImageFromServer(const ppmfc::CString& ID, const ppmfc::CString& imageID, ImageDataClassSafe& outImageData);
 	static void SendRequestText(const char* text);
+	static void SendRequestText(std::vector<char>& text);
+	static void SendPackedText(const std::string& header, const std::string& text);
+	static HANDLE CreateDataPipe();
 };

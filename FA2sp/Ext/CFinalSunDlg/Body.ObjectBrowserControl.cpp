@@ -271,7 +271,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 ExtConfigs::InGameDisplay_Deploy = temp2;
                 ExtConfigs::InGameDisplay_Water = temp3;
             }
-            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            auto pData = CLoadingExt::GetImageDataFromServer(InsertingObjectID, imageName);
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;

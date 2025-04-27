@@ -435,7 +435,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				ppmfc::CString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
+				auto pData = CLoadingExt::GetImageDataFromServer("DUMMY_FILE", extraImageID);
 				if (pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -573,7 +573,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									CLoading::Instance->LoadObjects(objRender.ID);
 								}
 
-								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+								auto pData = CLoadingExt::GetImageDataFromServer(objRender.ID, imageName);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -615,7 +615,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(obj.TypeID, imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -674,7 +674,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(obj.TypeID, imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -694,7 +694,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(obj, imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -715,7 +715,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CLoading::Instance->DrawOverlay(obj, cell->Overlay);
 					CIsoView::GetInstance()->UpdateDialog(false);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer("DUMMY_FILE", imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -793,7 +793,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
 							if (tileAnim.AttachedSubTile == tileSubIndex)
 							{
-								auto pData = CLoadingExt::GetImageDataFromServer(tileAnim.ImageName);
+								auto pData = CLoadingExt::GetImageDataFromServer("DUMMY_FILE", tileAnim.ImageName);
 
 								if (pData->pImageBuffer)
 								{
@@ -850,7 +850,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								ppmfc::CString extraImageID;
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
+								auto pData = CLoadingExt::GetImageDataFromServer("DUMMY_FILE", extraImageID);
 								if (pData->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
@@ -894,7 +894,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(obj, imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -911,7 +911,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 				}
-				if (!pData->pImageBuffer)
+				if (!pData || !pData->pImageBuffer)
 				{
 					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -923,7 +923,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 						}
 					}
-					if (!pData->pImageBuffer)
+					if (!pData || !pData->pImageBuffer)
 					{
 						if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
 						{
@@ -935,7 +935,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					}
 				}
-				if (pData->pImageBuffer)
+				if (pData && pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
@@ -1013,7 +1013,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(objRender.ID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(objRender.ID, imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -1034,7 +1034,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								if (upg.GetLength() == 0)
 									continue;
 
-								auto pUpgData = CLoadingExt::GetImageDataFromServer(CLoadingExt::GetImageName(upg, 0));
+								auto pUpgData = CLoadingExt::GetImageDataFromServer(upg, CLoadingExt::GetImageName(upg, 0));
 								if ((!pUpgData || !pUpgData->pImageBuffer) && !CLoadingExt::IsObjectLoaded(upg))
 								{
 									CLoading::Instance->LoadObjects(upg);
@@ -1058,7 +1058,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									ppmfc::CString AIFile = *pAIFile;
 									AIFile.Trim();
-									auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
+									auto pAIData = CLoadingExt::GetImageDataFromServer(objRender.ID, AIFile + "\233ALPHAIMAGE");
 
 									if (pAIData && pAIData->pImageBuffer)
 									{
@@ -1122,7 +1122,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								CLoading::Instance->LoadObjects(node.ID);
 							}
-							auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+							auto pData = CLoadingExt::GetImageDataFromServer(node.ID, imageName);
 							int cellStr = -1;
 							if (cell->Structure > -1 && cell->Structure < CMapDataExt::StructureIndexMap.size())
 								cellStr = CMapDataExt::StructureIndexMap[cell->Structure];
@@ -1185,7 +1185,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(obj.TypeID, imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1224,7 +1224,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						CLoading::Instance->LoadObjects(obj.TypeID);
 					}
-					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+					auto pData = CLoadingExt::GetImageDataFromServer(obj.TypeID, imageName);
 
 					if (pData->pImageBuffer)
 					{
@@ -1273,7 +1273,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoading::Instance->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+						auto pData = CLoadingExt::GetImageDataFromServer(obj.TypeID, imageName);
 
 						if (pData->pImageBuffer)
 						{
@@ -1320,7 +1320,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CLoading::Instance->LoadObjects(obj);
 				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+				auto pData = CLoadingExt::GetImageDataFromServer(obj, imageName);
 
 				if (pData->pImageBuffer)
 				{
@@ -1332,7 +1332,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						ppmfc::CString AIFile = *pAIFile;
 						AIFile.Trim();
-						auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
+						auto pAIData = CLoadingExt::GetImageDataFromServer(obj, AIFile + "\233ALPHAIMAGE");
 
 						if (pAIData && pAIData->pImageBuffer)
 						{
@@ -1347,8 +1347,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 	const char* InsigniaElite = "FA2spInsigniaElite";
-	auto veteran = CLoadingExt::GetImageDataFromServer(InsigniaVeteran);
-	auto elite = CLoadingExt::GetImageDataFromServer(InsigniaElite);
+	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
+	auto elite = CLoadingExt::GetImageDataFromMap(InsigniaElite);
 	for (auto& dv : DrawVeterancies)
 	{
 		if (dv.VP >= 200)

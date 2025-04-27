@@ -38,20 +38,25 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(ppmfc::CString name)
 	if (itr == ImageDataMap.end())
 	{
 		auto ret = std::make_unique<ImageDataClassSafe>();
-		ImageDataMap[name] = std::move(ret);
-		return ImageDataMap[name].get();
+		auto [it, inserted] = CLoadingExt::ImageDataMap.emplace(name, std::move(ret));
+		return it->second.get();
 	}
 	return itr->second.get();
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(ppmfc::CString name)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(ppmfc::CString ID, ppmfc::CString name)
 {
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
-		auto ret = std::make_unique<ImageDataClassSafe>();
-		RequestImageFromServer(name, *ret);
-		auto [it, inserted] = CLoadingExt::CurrentFrameImageDataMap.emplace(name, std::move(ret));
-		return it->second.get();
+		auto itr = CurrentFrameImageDataMap.find(name);
+		if (itr == CurrentFrameImageDataMap.end())
+		{
+			auto ret = std::make_unique<ImageDataClassSafe>();
+			RequestImageFromServer(ID, name, *ret);
+			auto [it, inserted] = CurrentFrameImageDataMap.emplace(name, std::move(ret));
+			return it->second.get();
+		}
+		return itr->second.get();
 	}
 	return GetImageDataFromMap(name);
 }
@@ -70,8 +75,8 @@ ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(ppmfc::CString na
 	if (itr == SurfaceImageDataMap.end())
 	{
 		auto ret = std::make_unique<ImageDataClassSurface>();
-		SurfaceImageDataMap[name] = std::move(ret);
-		return SurfaceImageDataMap[name].get();
+		auto [it, inserted] = CLoadingExt::SurfaceImageDataMap.emplace(name, std::move(ret));
+		return it->second.get();
 	}
 	return itr->second.get();
 }
@@ -157,7 +162,7 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)
 
 void CLoadingExt::LoadObjects(ppmfc::CString ID)
 {
-	if (ID == "")
+	if (ExtConfigs::LoadImageDataFromServer || ID == "")
 		return;
 
     Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
@@ -218,7 +223,6 @@ void CLoadingExt::ClearItemTypes()
 	SwimableInfantries.clear();
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
-		CLoadingExt::StartImageServerProcess(false);
 		CLoadingExt::SendRequestText("CLEAR_MAP");
 	}
 }
@@ -236,14 +240,6 @@ bool CLoadingExt::IsOverlayLoaded(ppmfc::CString pRegName)
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
 {
 	ppmfc::CString ArtID = GetArtID(ID);
-	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image")) {
-
-		ArtID = *ppImage;
-		ArtID.Trim();
-	}
-	else
-		ArtID = ID;
-
 	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	return ImageID;
@@ -1262,19 +1258,9 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 					DictNameShadow.Format("%s%d\233WATERSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
 					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-					SwimableInfantries.push_back(ID);
 				}
 			}
 		}
-
-		//if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
-		//{
-		//	ppmfc::CString AIFile = *pAIFile;
-		//	AIFile.Trim();
-		//  auto AIDicName = AIFile + "\233ALPHAIMAGE";
-		//  if (!CLoadingExt::IsObjectLoaded(AIDicName))
-		//  	LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
-		//}
 	}
 }
 
@@ -1600,9 +1586,9 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer)
 {
-	if (ExtConfigs::LoadImageDataFromServer)
+	if (ExtConfigs::LoadImageDataFromServer && toServer)
 	{
 		ImageDataClassSafe tmp;
 		SetImageDataSafe(pBuffer, &tmp, FullWidth, FullHeight, pPal);
@@ -2014,7 +2000,7 @@ void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
 	LoadedObjects.insert(ImageID);
 }
 
-void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
+void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame, bool toServer)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	loadingExt->GetFullPaletteName(PalName);
@@ -2028,13 +2014,13 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 			CMixFile::LoadSHP(FileName, nMix);
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal);
+			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal, toServer);
 			LoadedObjects.insert(ImageID);
 		}
 	}
 }
 
-void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame)
+void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame, bool toServer)
 {
 	if (pPal)
 	{
@@ -2047,7 +2033,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palet
 			CMixFile::LoadSHP(FileName, nMix);
 			CShpFile::GetSHPHeader(&header);
 			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal);
+			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal, toServer);
 			LoadedObjects.insert(ImageID);
 		}
 	}

@@ -1154,9 +1154,21 @@ DEFINE_HOOK(4616A2, CIsoView_OnMouseClick_Paste, 5)
     return 0;
 }
 
-DEFINE_HOOK(459FFB, CIsoView_OnMouseMove_Paste_Snapshot, 6)
+DEFINE_HOOK(459FFB, CIsoView_OnMouseMove_Paste_Snapshot_SkipRedo, 6)
 {
+    CIsoViewExt::CopyStart.X = -1;
+    CIsoViewExt::CopyStart.Y = -1;
+    CIsoViewExt::CopyEnd.X = -1;
+    CIsoViewExt::CopyEnd.Y = -1;
     return 0x45A00F;
+}
+
+DEFINE_HOOK(45A035, CIsoView_OnMouseMove_Paste_Snapshot_SkipUndo, 6)
+{
+    if (CIsoViewExt::CopyStart.X != -1 && CIsoViewExt::CopyEnd.X != -1)
+        CMapData::Instance->DoUndo();
+
+    return 0x45A03F;
 }
 
 bool OnLButtonDownPasted = false;
@@ -1165,6 +1177,7 @@ DEFINE_HOOK(46168E, CIsoView_OnLButtonDown_Paste_Snapshot, 6)
     OnLButtonDownPasted = true;
     return 0x4616A2;
 }
+
 DEFINE_HOOK(4616BA, CIsoView_OnLButtonDown_Paste_Snapshot_2, 6)
 {
     if (OnLButtonDownPasted)
