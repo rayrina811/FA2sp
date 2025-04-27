@@ -488,20 +488,20 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color);
             };
 
-        auto drawWeaponRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool secondary = false)
+        auto drawWeaponRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool secondary = false, bool elite = false)
             {
-                auto weapon = mmh.GetString(ID, "Primary");
+                auto weapon = mmh.GetString(ID, elite ? "ElitePrimary" :"Primary");
                 int color = 0xFFFFFF;
                 ppmfc::CString leftLine;
                 if (weapon == "") {
-                    weapon = mmh.GetString(ID, "Weapon1");
+                    weapon = mmh.GetString(ID, elite ? "EliteWeapon1" : "Weapon1");
                 }
                 if (secondary) {
-                    weapon = mmh.GetString(ID, "Secondary");
+                    weapon = mmh.GetString(ID, elite ? "EliteSecondary" : "Secondary");
 
                     if (weapon == "" && !mmh.GetBool(ID, "Gunner"))
                     {
-                        weapon = mmh.GetString(ID, "Weapon2");
+                        weapon = mmh.GetString(ID, elite ? "EliteWeapon2" : "Weapon2");
                     }
                 }
 
@@ -579,7 +579,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
             };
 
-        auto drawOtherRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, int drawCase, bool isBuilding = false)
+        auto drawOtherRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, int drawCase, bool isBuilding = false, bool elite = false)
             {
                 float range = 0.0f;
                 int color = 0xFFFFFF;
@@ -612,9 +612,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     leftLine = Translations::TranslateOrDefault("ViewGuardRangeInfo", "Guard Range");
                     if (range == 0)
                     {
-                        auto weapon = mmh.GetString(ID, "Primary");
+                        auto weapon = mmh.GetString(ID, elite ? "ElitePrimary" : "Primary");
                         if (weapon == "") {
-                            weapon = mmh.GetString(ID, "Weapon1");
+                            weapon = mmh.GetString(ID, elite ? "EliteWeapon1" : "Weapon1");
                         }
                         range = mmh.GetSingle(weapon, "Range");
                         if (mmh.GetBool(ID, "CanOccupyFire") && isBuilding) {
@@ -657,7 +657,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
             };
 
-        auto displayRanges = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false)
+        auto displayRanges = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool elite = false)
             {
                 if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
@@ -678,18 +678,18 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::PsychicRange, isBuilding);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::GuardRange || All) {
-                        drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::GuardRange, isBuilding);
+                        drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::GuardRange, isBuilding, elite);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SightRange || All) {
                         drawOtherRange(ID, objectX, objectY, CViewObjectsExt::ObjectTerrainType::SightRange, isBuilding);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::SecondaryWeaponRange || All) {
 
-                        drawWeaponRange(ID, objectX, objectY, isBuilding, true);
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, true, elite);
                     }
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::WeaponRange || All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All) {
 
-                        drawWeaponRange(ID, objectX, objectY, isBuilding, false);
+                        drawWeaponRange(ID, objectX, objectY, isBuilding, false, elite);
                     }
 
                 }
@@ -729,7 +729,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Map->GetInfantryData(id, object);
 
                     if (bDrawRange)
-                        displayRanges(object.TypeID, object.X, object.Y);
+                        displayRanges(object.TypeID, object.X, object.Y, false, atoi(object.VeterancyPercentage) >= 200);
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -851,7 +851,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Map->GetUnitData(id, object);
 
                     if (bDrawRange)
-                        displayRanges(object.TypeID, object.X, object.Y);
+                        displayRanges(object.TypeID, object.X, object.Y, false, atoi(object.VeterancyPercentage) >= 200);
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
@@ -976,7 +976,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Map->GetAircraftData(id, object);
 
                     if (bDrawRange)
-                        displayRanges(object.TypeID, object.X, object.Y);
+                        displayRanges(object.TypeID, object.X, object.Y, false, atoi(object.VeterancyPercentage) >= 200);
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {

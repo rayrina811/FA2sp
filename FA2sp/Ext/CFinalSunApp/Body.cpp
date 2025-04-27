@@ -222,19 +222,13 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	);
 
-	std::atomic<bool> ping_server_running(true);
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
-		std::future<bool> imageServerFuture = std::async(std::launch::async, []() {
-			return CLoadingExt::StartImageServerProcess();
-			});
+		CLoadingExt::PipeName = "\\\\.\\pipe\\ImagePipe_" + std::to_string(GetCurrentProcessId());
 
-		CLoadingExt::StartPingThread(ping_server_running);
-
-		std::future<bool> connectFuture = std::async(std::launch::async, []() {
-			return CLoadingExt::ConnectToImageServer();
-			});
-
+		std::thread([]() {
+			CLoadingExt::StartImageServerProcess();
+			}).detach();
 	}
 
 
@@ -247,7 +241,7 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	watcher.join(); // wait for thread exit
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
-		ping_server_running = false;
+		CLoadingExt::PingServerRunning = false;
 		CLoadingExt::SendRequestText("QUIT_PROGRAME");
 	}
 

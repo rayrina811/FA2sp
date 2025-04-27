@@ -180,6 +180,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
+		CLoadingExt::PingServerRunning = false;
 		CLoadingExt::SendRequestText("QUIT_PROGRAME");
 	}
 	CLoading::Instance->Release();

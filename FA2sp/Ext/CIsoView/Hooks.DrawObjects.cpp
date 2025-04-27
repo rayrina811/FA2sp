@@ -911,7 +911,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 				}
-				if (!pData->pImageBuffer)
+				if (!pData || !pData->pImageBuffer)
 				{
 					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
@@ -923,7 +923,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
 						}
 					}
-					if (!pData->pImageBuffer)
+					if (!pData || !pData->pImageBuffer)
 					{
 						if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
 						{
@@ -935,7 +935,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					}
 				}
-				if (pData->pImageBuffer)
+				if (pData && pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
@@ -1347,8 +1347,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
 	const char* InsigniaElite = "FA2spInsigniaElite";
-	auto veteran = CLoadingExt::GetImageDataFromServer(InsigniaVeteran);
-	auto elite = CLoadingExt::GetImageDataFromServer(InsigniaElite);
+	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
+	auto elite = CLoadingExt::GetImageDataFromMap(InsigniaElite);
 	for (auto& dv : DrawVeterancies)
 	{
 		if (dv.VP >= 200)

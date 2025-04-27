@@ -10,10 +10,10 @@
 #include "../../Helpers/Translations.h"
 
 HANDLE CLoadingExt::hPipeData = NULL;
-HANDLE CLoadingExt::hPipePing = NULL;
-std::string PipeNameData;
-std::string PipeNamePing;
-std::string PipeName;
+std::atomic<bool> CLoadingExt::PingServerRunning = true;
+std::string CLoadingExt::PipeNameData;
+std::string CLoadingExt::PipeNamePing;
+std::string CLoadingExt::PipeName;
 
 //static bool Is64BitProcess()
 //{
@@ -41,69 +41,13 @@ std::string PipeName;
 //    return Is64BitProcess() || isWow64;
 //}
 
-bool CLoadingExt::CheckProcessExists(const wchar_t* processName) 
+bool CLoadingExt::StartImageServerProcess()
 {
     if (!ExtConfigs::LoadImageDataFromServer)
         return false;
 
-    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) return false;
-
-    PROCESSENTRY32W entry;
-    entry.dwSize = sizeof(PROCESSENTRY32W);
-
-    if (!Process32FirstW(snapshot, &entry)) {
-        CloseHandle(snapshot);
-        return false;
-    }
-
-    bool exists = false;
-    do {
-        wchar_t fileName[_MAX_FNAME] = { 0 };
-        _wsplitpath_s(entry.szExeFile, nullptr, 0, nullptr, 0, fileName, _MAX_FNAME, nullptr, 0);
-
-        if (wcscmp(fileName, processName) == 0) {
-            exists = true;
-            break;
-        }
-    } while (Process32NextW(snapshot, &entry));
-
-    CloseHandle(snapshot);
-    return exists;
-}
-
-bool CLoadingExt::StartImageServerProcess(bool firstRun)
-{
-    if (!ExtConfigs::LoadImageDataFromServer)
-        return false;
-
-    PipeName = "\\\\.\\pipe\\ImagePipe_" + std::to_string(GetCurrentProcessId());
     PipeNameData = PipeName + "_data";
     PipeNamePing = PipeName + "_ping";
-
-    bool needReconnect = false;
-    if (!firstRun)
-    {
-        HANDLE hPipeCheck = CreateFileA(
-            PipeNameData.c_str(),
-            GENERIC_READ | GENERIC_WRITE,
-            0,
-            NULL,
-            OPEN_EXISTING,
-            0,
-            NULL
-        );
-
-        if (hPipeCheck != INVALID_HANDLE_VALUE)
-        {
-            CloseHandle(hPipeCheck);
-            return true;
-        }
-        else
-        {
-            needReconnect = true;
-        }
-    } 
 
     std::string exePath = CFinalSunApp::ExePath();
     exePath += "\\ImageServer.exe"; //Is64BitOS() ? "\\ImageServer64.exe" :
@@ -143,8 +87,7 @@ bool CLoadingExt::StartImageServerProcess(bool firstRun)
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
 
-    if (needReconnect)
-        ConnectToImageServer();
+    ConnectToImageServer();
 
     return true;
 }
@@ -165,7 +108,7 @@ bool CLoadingExt::ConnectToImageServer()
             0,
             NULL,
             OPEN_EXISTING,
-            FILE_FLAG_OVERLAPPED,
+            0,
             NULL
         );
 
@@ -176,48 +119,47 @@ bool CLoadingExt::ConnectToImageServer()
             DWORD mode = PIPE_READMODE_MESSAGE;
 
             Logger::Raw("[ImageServer] Successfully connected to ImagePipe, handle: %x\n", hPipeData);
+            StartPingThread();
 
-            if (SetNamedPipeHandleState(hPipeData, &mode, NULL, NULL)) {
-                return true;
-            }
             return true;
         }
 
         if (elapsed >= totalTimeoutMs) break;
         Sleep(retryInterval);
     }
+
+    StartPingThread();
     return false;
 }
 
-void CLoadingExt::StartPingThread(std::atomic<bool>& running) 
+void CLoadingExt::StartPingThread() 
 {
-    std::thread([=, &running]() {
-
+    std::thread([]() {
         if (!ExtConfigs::LoadImageDataFromServer)
             return;
 
-        while (running.load()) {
-            hPipePing = CreateFileA(
+        while (CLoadingExt::PingServerRunning.load()) {
+            HANDLE hPipePing = CreateFileA(
                 PipeNamePing.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0,
                 NULL,
                 OPEN_EXISTING,
-                FILE_FLAG_OVERLAPPED,
+                0,
                 NULL
             );
-         
             Sleep(3000);
+
+            DisconnectNamedPipe(hPipePing);
             CloseHandle(hPipePing);
         }
-        return;
         }).detach();
 }
 
 bool CLoadingExt::WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, const ImageDataClassSafe* data)
 {
     char charArray[256] = {};
-    std::strncpy(charArray, (imageID +"\233" + CLoading::Instance->GetTheaterSuffix()).m_pchData, sizeof(charArray) - 1);
+    std::strncpy(charArray, imageID.m_pchData, sizeof(charArray) - 1);
 
     size_t imageSize = data->FullWidth * data->FullHeight;
     size_t rangeSize = data->FullHeight * sizeof(ImageDataClassSafe::ValidRangeData);
@@ -252,18 +194,18 @@ bool CLoadingExt::WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, co
     memcpy(ptr, data->pPixelValidRanges.get(), rangeSize); ptr += rangeSize;
 
     DWORD written = 0;
-    return WriteFile(hPipe, buffer.data(), static_cast<DWORD>(buffer.size()), &written, NULL) && written == buffer.size();
-}
+    WriteFile(hPipe, buffer.data(), static_cast<DWORD>(buffer.size()), &written, NULL);
 
+    return true;
+}
 
 bool CLoadingExt::SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData)
 {
     if (!imageData->pImageBuffer)
         return false;
-    DWORD bytesWritten;
+
     WriteImageData(hPipeData, imageID, imageData);
     return true;
-
 }
 
 bool CLoadingExt::ReadImageData(HANDLE hPipe, ImageDataClassSafe& data)
@@ -318,19 +260,20 @@ bool CLoadingExt::ReadImageData(HANDLE hPipe, ImageDataClassSafe& data)
 
 bool CLoadingExt::RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData)
 {
-    ppmfc::CString requestRealID = imageID + "\233" + CLoading::Instance->GetTheaterSuffix();
     char requestID[256] = {};
     requestID[0] = '#';
-    strncpy(requestID + 1, requestRealID, 0xFF);
+    strncpy(requestID + 1, imageID.m_pchData, 0xFF);
     requestID[sizeof(requestID) - 1] = '\0';
 
     DWORD bytesWritten = 0;
     WriteFile(hPipeData, requestID, sizeof(requestID), &bytesWritten, NULL);
-    return ReadImageData(hPipeData, outImageData);
+    ReadImageData(hPipeData, outImageData);
+    return true;
 }
 
 void CLoadingExt::SendRequestText(const char* text)
 {
     DWORD bytesWritten = 0;
+    char buffer[256] = {};
     WriteFile(hPipeData, text, strlen(text) + 1, &bytesWritten, NULL);
 }

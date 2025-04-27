@@ -75,7 +75,13 @@ DEFINE_HOOK(4716BB, CLoading_Draw_PowerUpFacingFix, 7)
     return 0;
 }
 
-DEFINE_HOOK(42CBFC, CFinalSunDlg_CreateMap_ClearCLoadingExtData, 8)
+DEFINE_HOOK(4B85D0, CFinalSunDlg_CreateMap_ClearCLoadingExtData, 5)
+{
+    CLoadingExt::ClearItemTypes();
+    return 0;
+}
+
+DEFINE_HOOK(42CBFC, CFinalSunDlg_CreateMap_ClearCLoadingExtData2, 8)
 {
     CLoadingExt::ClearItemTypes();
     return 0;
@@ -116,7 +122,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 
                 if (text == IDOK)
                 {
-                        for (int i = 0; i < 1000; i++)
+                        for (int i = 0; i < 2000; i++)
                             CMixFile::Close(i);
 
                         //reload all INIs
@@ -189,10 +195,7 @@ DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
         }
     }
     CLoadingExt::SurfaceImageDataMap.clear();
-    if (ExtConfigs::LoadImageDataFromServer)
-    {
-        CLoadingExt::SendRequestText("CLEAR_MAP");
-    }
+    CLoadingExt::ClearItemTypes();
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
 }

@@ -1589,13 +1589,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		Palette_Shadow.Data[i].Zero = 0;
 	}
 
-	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
-	const char* InsigniaElite = "FA2spInsigniaElite";
-	const char* DefaultInsigniaFile = "pips.shp";
-	const char* PaletteName = "palette.pal";
-	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14);
-	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15);
-
 	PaveTile = CINI::CurrentTheater->GetInteger("General", "PaveTile", -10);
 	GreenTile = CINI::CurrentTheater->GetInteger("General", "GreenTile", -10);
 	MiscPaveTile = CINI::CurrentTheater->GetInteger("General", "MiscPaveTile", -10);
@@ -1791,12 +1784,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 
-	// already done in UpdateTriggers()
-	//if (TriggerSort::Instance.IsVisible())
-	//{
-	//	TriggerSort::Instance.LoadAllTriggers();
-	//}
-
 	if (TagSort::Instance.IsVisible())
 	{
 		TagSort::Instance.LoadAllTriggers();
@@ -1841,7 +1828,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
-	CLoadingExt::ClearItemTypes();
 	CIsoViewExt::IsPressingTube = false;
 	CIsoViewExt::TubeNodes.clear();
 
@@ -1881,6 +1867,28 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
 				anim.ImageName = imageName;
 			}
+		}
+	}
+	const char* InsigniaVeteran = "FA2spInsigniaVeteran";
+	const char* InsigniaElite = "FA2spInsigniaElite";
+	const char* DefaultInsigniaFile = "pips.shp";
+	const char* PaletteName = "palette.pal";
+	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14, false);
+	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15, false);
+
+	for (auto& [_, ID] : Variables::Rules.GetSection("InfantryTypes"))
+	{
+		ppmfc::CString ArtID = CLoadingExt::GetArtID(ID);
+		ppmfc::CString ImageID = CLoadingExt::GetExtension()->GetInfantryFileID(ID);
+		bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+
+		ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
+		bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
+		bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer"
+			&& CINI::Art->KeyExists(sequenceName, "Swim");
+		if (ExtConfigs::InGameDisplay_Water && waterable)
+		{
+			CLoadingExt::SwimableInfantries.push_back(ID);
 		}
 	}
 
