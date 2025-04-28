@@ -110,7 +110,6 @@ bool ExtConfigs::InfantrySubCell_Edit_Place;
 bool ExtConfigs::InfantrySubCell_Edit_FixCenter;
 bool ExtConfigs::InfantrySubCell_OccupationBits;
 bool ExtConfigs::PlaceStructureOverlappingCheck;
-bool ExtConfigs::PlaceStructureResort;
 bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
 bool ExtConfigs::PlaceTileSkipHide;
@@ -149,11 +148,14 @@ bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 int ExtConfigs::DisplayTextSize;
-
-
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
+
+CInfantryData ExtConfigs::DefaultInfantryProperty;
+CUnitData ExtConfigs::DefaultUnitProperty;
+CAircraftData ExtConfigs::DefaultAircraftProperty;
+CBuildingData ExtConfigs::DefaultBuildingProperty;
 
 
 MultimapHelper Variables::Rules = { &CINI::Rules(), &CINI::CurrentDocument() };
@@ -173,7 +175,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Foundation = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Foundation");
 	ExtConfigs::LoadLunarWater = CINI::FAData->GetBool("ExtConfigs", "LoadLunarWater");
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
-
 	CIsoViewExt::PasteShowOutline = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
 	ExtConfigs::AllowIncludes = CINI::FAData->GetBool("ExtConfigs", "AllowIncludes");
@@ -344,7 +345,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InfantrySubCell_Edit_FixCenter = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.Edit.FixCenter");
 	ExtConfigs::InfantrySubCell_OccupationBits = CINI::FAData->GetBool("ExtConfigs", "InfantrySubCell.OccupationBits");
 	ExtConfigs::PlaceStructureOverlappingCheck = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.OverlappingCheck");
-	ExtConfigs::PlaceStructureResort = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.Resort");
 	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
@@ -367,6 +367,57 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::LightingSource[1] = atof(ls[1]);
 	ExtConfigs::LightingSource[2] = atof(ls[2]);
 
+	auto infantry = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultInfantryProperty",
+		"House,ID,256,X,Y,Subcell,Guard,64,None,0,-1,0,0,0"), 13);
+	ExtConfigs::DefaultInfantryProperty.Health = infantry[2];
+	ExtConfigs::DefaultInfantryProperty.Status = infantry[6];
+	ExtConfigs::DefaultInfantryProperty.Facing = infantry[7];
+	ExtConfigs::DefaultInfantryProperty.Tag = infantry[8];
+	ExtConfigs::DefaultInfantryProperty.VeterancyPercentage = infantry[9];
+	ExtConfigs::DefaultInfantryProperty.Group = infantry[10];
+	ExtConfigs::DefaultInfantryProperty.IsAboveGround = infantry[11];
+	ExtConfigs::DefaultInfantryProperty.AutoNORecruitType = infantry[12];
+	ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType = infantry[13];
+
+	auto unit = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultUnitProperty",
+		"House,ID,256,X,Y,64,Guard,None,0,-1,0,-1,0,0"), 13);
+	ExtConfigs::DefaultUnitProperty.Health = unit[2];
+	ExtConfigs::DefaultUnitProperty.Facing = unit[5];
+	ExtConfigs::DefaultUnitProperty.Status = unit[6];
+	ExtConfigs::DefaultUnitProperty.Tag = unit[7];
+	ExtConfigs::DefaultUnitProperty.VeterancyPercentage = unit[8];
+	ExtConfigs::DefaultUnitProperty.Group = unit[9];
+	ExtConfigs::DefaultUnitProperty.IsAboveGround = unit[10];
+	ExtConfigs::DefaultUnitProperty.FollowsIndex = unit[11];
+	ExtConfigs::DefaultUnitProperty.AutoNORecruitType = unit[12];
+	ExtConfigs::DefaultUnitProperty.AutoYESRecruitType = unit[13];
+
+	auto aircraft = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultAircraftProperty",
+		"House,ID,256,X,Y,64,Guard,None,0,-1,0,0"), 11);
+	ExtConfigs::DefaultAircraftProperty.Health = aircraft[2];
+	ExtConfigs::DefaultAircraftProperty.Facing = aircraft[5];
+	ExtConfigs::DefaultAircraftProperty.Status = aircraft[6];
+	ExtConfigs::DefaultAircraftProperty.Tag = aircraft[7];
+	ExtConfigs::DefaultAircraftProperty.VeterancyPercentage = aircraft[8];
+	ExtConfigs::DefaultAircraftProperty.Group = aircraft[9];
+	ExtConfigs::DefaultAircraftProperty.AutoNORecruitType = aircraft[10];
+	ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType = aircraft[11];
+
+	auto building = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "DefaultBuildingProperty",
+		"House,ID,256,X,Y,0,None,0,0,1,0,0,None,None,None,1,0"), 16);
+	ExtConfigs::DefaultBuildingProperty.Health = building[2];
+	ExtConfigs::DefaultBuildingProperty.Facing = building[5];
+	ExtConfigs::DefaultBuildingProperty.Tag = building[6];
+	ExtConfigs::DefaultBuildingProperty.AISellable = building[7];
+	ExtConfigs::DefaultBuildingProperty.AIRebuildable = building[8];
+	ExtConfigs::DefaultBuildingProperty.PoweredOn = building[9];
+	ExtConfigs::DefaultBuildingProperty.Upgrades = building[10];
+	ExtConfigs::DefaultBuildingProperty.SpotLight = building[11];
+	ExtConfigs::DefaultBuildingProperty.Upgrade1 = building[12];
+	ExtConfigs::DefaultBuildingProperty.Upgrade2 = building[13];
+	ExtConfigs::DefaultBuildingProperty.Upgrade3 = building[14];
+	ExtConfigs::DefaultBuildingProperty.AIRepairable = building[15];
+	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
 
 	ExtConfigs::InitializeMap = false;
 

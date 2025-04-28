@@ -23,20 +23,6 @@ DEFINE_HOOK(46A480, CIsoView_UpdateStatusBar_InfantrySubcell, 5)
 	return 0x46A489;
 }
 
-DEFINE_HOOK(45ECB0, CIsoView_OnCommand_InfantryPropertyPopup, 6)
-{
-	if (!ExtConfigs::InfantrySubCell_Edit)
-		return 0;
-
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-
-	int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx();
-	if (idx > -1)
-		pIsoView->HandleProperties(idx, 0);
-
-	return 0x45EDA6;
-}
-
 DEFINE_HOOK(466E07, CIsoView_OnLButtonUp_DragInfantrySubcell, 5)
 {
 	if (!ExtConfigs::InfantrySubCell_Edit || !ExtConfigs::InfantrySubCell_Edit_Drag)

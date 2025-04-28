@@ -131,21 +131,20 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
             newTechno.SubCell = "-1";
         }
 
-        newTechno.Status = "Guard";
-        newTechno.Tag = "None";
-        newTechno.Facing = "64";
-        if (CViewObjectsExt::PlacingRandomRandomFacing)
-            newTechno.Facing = STDHelpers::GetRandomFacing();
-        newTechno.VeterancyPercentage = "0";
-        newTechno.Group = "-1";
-        newTechno.IsAboveGround = "0";
-        newTechno.AutoNORecruitType = "0";
-        newTechno.AutoYESRecruitType = "0";
-        newTechno.Health = "256";
         newTechno.House = CIsoView::CurrentHouse(); 
         newTechno.TypeID = CIsoView::CurrentCommand->ObjectID;
         newTechno.X.Format("%d", X);
         newTechno.Y.Format("%d", Y);
+
+        newTechno.Status = ExtConfigs::DefaultInfantryProperty.Status;
+        newTechno.Tag = ExtConfigs::DefaultInfantryProperty.Tag;
+        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing(): ExtConfigs::DefaultInfantryProperty.Facing;
+        newTechno.VeterancyPercentage = ExtConfigs::DefaultInfantryProperty.VeterancyPercentage;
+        newTechno.Group = ExtConfigs::DefaultInfantryProperty.Group;
+        newTechno.IsAboveGround = ExtConfigs::DefaultInfantryProperty.IsAboveGround;
+        newTechno.AutoNORecruitType = ExtConfigs::DefaultInfantryProperty.AutoNORecruitType;
+        newTechno.AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
+        newTechno.Health = ExtConfigs::DefaultInfantryProperty.Health;
 
         Map.SetInfantryData(&newTechno, nullptr, nullptr, 0, -1);
         return 0x45CD2B;
@@ -157,18 +156,17 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         if (cell->Unit > -1)
             Map.DeleteUnitData(cell->Unit);
 
-        newTechno.Status = "Guard";
-        newTechno.Tag = "None";
-        newTechno.Facing = "64";
-        if (CViewObjectsExt::PlacingRandomRandomFacing)
-            newTechno.Facing = STDHelpers::GetRandomFacing();
-        newTechno.VeterancyPercentage = "0";
-        newTechno.Group = "-1";
-        newTechno.IsAboveGround = "0";
-        newTechno.AutoNORecruitType = "0";
-        newTechno.AutoYESRecruitType = "0";
-        newTechno.Health = "256";
-        newTechno.FollowsIndex = "-1";
+        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultUnitProperty.Facing;
+        newTechno.Health = ExtConfigs::DefaultUnitProperty.Health;
+        newTechno.Status = ExtConfigs::DefaultUnitProperty.Status;
+        newTechno.Tag = ExtConfigs::DefaultUnitProperty.Tag;
+        newTechno.VeterancyPercentage = ExtConfigs::DefaultUnitProperty.VeterancyPercentage;
+        newTechno.Group = ExtConfigs::DefaultUnitProperty.Group;
+        newTechno.IsAboveGround = ExtConfigs::DefaultUnitProperty.IsAboveGround;
+        newTechno.FollowsIndex = ExtConfigs::DefaultUnitProperty.FollowsIndex;
+        newTechno.AutoNORecruitType = ExtConfigs::DefaultUnitProperty.AutoNORecruitType;
+        newTechno.AutoYESRecruitType = ExtConfigs::DefaultUnitProperty.AutoYESRecruitType;
+
         newTechno.House = CIsoView::CurrentHouse();
         newTechno.TypeID = CIsoView::CurrentCommand->ObjectID;
         newTechno.X.Format("%d", X);
@@ -190,26 +188,23 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
             else
                 return 0x45CD2B;
         }
-           
-        newTechno.Tag = "None";
-        newTechno.Facing = "0";
-        newTechno.AISellable = "1";
-        newTechno.AIRebuildable = "0";
-        newTechno.SpotLight = "0";
-        newTechno.AIRepairable = "0";
-        if (CViewObjectsExt::PlacingRandomStructureAIRepairs)
-            newTechno.AIRepairable = "1";
-        newTechno.Nominal = "0";
-        newTechno.PoweredOn = "1";
-        newTechno.Upgrade1 = "None";
-        newTechno.Upgrade2 = "None";
-        newTechno.Upgrade3 = "None";
-        newTechno.Upgrades = "0";
-        newTechno.Health = "256";
+
+        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultBuildingProperty.Facing;
+        newTechno.Health = ExtConfigs::DefaultBuildingProperty.Health;
+        newTechno.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
+        newTechno.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
+        newTechno.AIRebuildable = ExtConfigs::DefaultBuildingProperty.AIRebuildable;
+        newTechno.PoweredOn = ExtConfigs::DefaultBuildingProperty.PoweredOn;
+        newTechno.Upgrades = ExtConfigs::DefaultBuildingProperty.Upgrades;
+        newTechno.SpotLight = ExtConfigs::DefaultBuildingProperty.SpotLight;
+        newTechno.Upgrade1 = ExtConfigs::DefaultBuildingProperty.Upgrade1;
+        newTechno.Upgrade2 = ExtConfigs::DefaultBuildingProperty.Upgrade2;
+        newTechno.Upgrade3 = ExtConfigs::DefaultBuildingProperty.Upgrade3;
+        newTechno.AIRepairable = CViewObjectsExt::PlacingRandomStructureAIRepairs ? "1" : "0";
+        newTechno.Nominal = ExtConfigs::DefaultBuildingProperty.Nominal;
+
         newTechno.House = CIsoView::CurrentHouse();
         newTechno.TypeID = CIsoView::CurrentCommand->ObjectID;
-        if (CViewObjectsExt::PlacingRandomRandomFacing)
-            newTechno.Facing = STDHelpers::GetRandomFacing();
         newTechno.X.Format("%d", X);
         newTechno.Y.Format("%d", Y);
 
@@ -223,16 +218,15 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         if (cell->Aircraft > -1)
             Map.DeleteAircraftData(cell->Aircraft);
 
-        newTechno.Status = "Guard";
-        newTechno.Tag = "None";
-        newTechno.Facing = "64";
-        if (CViewObjectsExt::PlacingRandomRandomFacing)
-            newTechno.Facing = STDHelpers::GetRandomFacing();
-        newTechno.VeterancyPercentage = "0";
-        newTechno.Group = "-1";
-        newTechno.AutoNORecruitType = "0";
-        newTechno.AutoYESRecruitType = "0";
-        newTechno.Health = "256";
+        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultAircraftProperty.Facing;
+        newTechno.Health = ExtConfigs::DefaultAircraftProperty.Health;
+        newTechno.Status = ExtConfigs::DefaultAircraftProperty.Status;
+        newTechno.Tag = ExtConfigs::DefaultAircraftProperty.Tag;
+        newTechno.VeterancyPercentage = ExtConfigs::DefaultAircraftProperty.VeterancyPercentage;
+        newTechno.Group = ExtConfigs::DefaultAircraftProperty.Group;
+        newTechno.AutoNORecruitType = ExtConfigs::DefaultAircraftProperty.AutoNORecruitType;
+        newTechno.AutoYESRecruitType = ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType;
+
         newTechno.House = CIsoView::CurrentHouse();
         newTechno.TypeID = CIsoView::CurrentCommand->ObjectID;
         newTechno.X.Format("%d", X);

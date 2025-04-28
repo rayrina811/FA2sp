@@ -973,6 +973,39 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 			}
 
+			//terrains
+			if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
+			{
+				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
+				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
+
+				if (!CLoadingExt::IsObjectLoaded(obj))
+				{
+					CLoading::Instance->LoadObjects(obj);
+				}
+				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+
+				if (pData->pImageBuffer)
+				{
+					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
+						pData, NULL, 255, 0, -1, false);
+
+					if (auto pAIFile = Variables::Rules.TryGetString(obj, "AlphaImage"))
+					{
+						ppmfc::CString AIFile = *pAIFile;
+						AIFile.Trim();
+						auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
+
+						if (pAIData && pAIData->pImageBuffer)
+						{
+							CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
+								x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pAIData);
+						}
+					}
+				}
+			}
+
 			//buildings
 			for (const auto& [mc, draw] : BuildingsToDraw)
 			{
@@ -1305,39 +1338,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.X = x1 - 5;
 							veter.Y = y1 - 4 - 15;
 							veter.VP = VP;
-						}
-					}
-				}
-			}
-
-			//terrains
-			if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
-			{
-				auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
-				const auto& imageName = CLoadingExt::GetImageName(obj, 0);
-
-				if (!CLoadingExt::IsObjectLoaded(obj))
-				{
-					CLoading::Instance->LoadObjects(obj);
-				}
-				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
-
-				if (pData->pImageBuffer)
-				{
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
-						pData, NULL, 255, 0, -1, false);
-
-					if (auto pAIFile = Variables::Rules.TryGetString(obj, "AlphaImage"))
-					{
-						ppmfc::CString AIFile = *pAIFile;
-						AIFile.Trim();
-						auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
-
-						if (pAIData && pAIData->pImageBuffer)
-						{
-							CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-								x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pAIData);
 						}
 					}
 				}

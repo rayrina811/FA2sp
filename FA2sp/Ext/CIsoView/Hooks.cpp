@@ -385,14 +385,6 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 0;
 	}
-	if (CIsoViewExt::DrawUnits && pThis->CurrentCellObjectIndex < 0)
-	{
-		pThis->CurrentCellObjectIndex = cell->Unit;
-		const auto& filter = CIsoViewExt::VisibleUnits;
-		if (CIsoViewExt::DrawUnitsFilter && filter.find(pThis->CurrentCellObjectIndex) == filter.end())
-			pThis->CurrentCellObjectIndex = -1;
-		pThis->CurrentCellObjectType = 3;
-	}
 	if (CIsoViewExt::DrawAircrafts && pThis->CurrentCellObjectIndex < 0)
 	{
 		pThis->CurrentCellObjectIndex = cell->Aircraft;
@@ -401,10 +393,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 			pThis->CurrentCellObjectIndex = -1;
 		pThis->CurrentCellObjectType = 2;
 	}
-	if (CIsoViewExt::DrawTerrains && pThis->CurrentCellObjectIndex < 0)
+	if (CIsoViewExt::DrawUnits && pThis->CurrentCellObjectIndex < 0)
 	{
-		pThis->CurrentCellObjectIndex = cell->Terrain;
-		pThis->CurrentCellObjectType = 4;
+		pThis->CurrentCellObjectIndex = cell->Unit;
+		const auto& filter = CIsoViewExt::VisibleUnits;
+		if (CIsoViewExt::DrawUnitsFilter && filter.find(pThis->CurrentCellObjectIndex) == filter.end())
+			pThis->CurrentCellObjectIndex = -1;
+		pThis->CurrentCellObjectType = 3;
 	}
 	if (CIsoViewExt::DrawStructures && pThis->CurrentCellObjectIndex < 0)
 	{
@@ -434,6 +429,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 		{
 			pThis->CurrentCellObjectIndex = -1;
 		}
+	}
+	if (CIsoViewExt::DrawTerrains && pThis->CurrentCellObjectIndex < 0)
+	{
+		pThis->CurrentCellObjectIndex = cell->Terrain;
+		pThis->CurrentCellObjectType = 4;
 	}
 	if (CIsoViewExt::DrawWaypoints && pThis->CurrentCellObjectIndex < 0)
 	{
@@ -760,4 +760,90 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 	return 0x45C961;
 }
 
+DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
+{
+	auto pIsoView = CIsoView::GetInstance();
+	auto& coord = pIsoView->StartCell;
+	auto cell = CMapData::Instance->TryGetCellAt(coord.X, coord.Y);
+	int pos = CMapData::Instance->GetCoordIndex(coord.X, coord.Y);
+
+	int index = -1;
+	int type = -1;
+	if (CIsoViewExt::DrawInfantries)
+	{
+		const auto& filter = CIsoViewExt::VisibleInfantries;
+		if (!ExtConfigs::InfantrySubCell_Edit)
+		{
+			index = CMapDataExt::GetInfantryAt(pos);
+		}
+		else
+		{
+			index = CIsoViewExt::GetSelectedSubcellInfantryIdx(pIsoView->StartCell.X, pIsoView->StartCell.Y);
+		}
+		if (CIsoViewExt::DrawInfantriesFilter && filter.find(index) == filter.end())
+			index = -1;
+		type = 0;
+	}
+	if (CIsoViewExt::DrawAircrafts && index < 0)
+	{
+		index = cell->Aircraft;
+		const auto& filter = CIsoViewExt::VisibleAircrafts;
+		if (CIsoViewExt::DrawAircraftsFilter && filter.find(index) == filter.end())
+			index = -1;
+		type = 2;
+	}
+	if (CIsoViewExt::DrawUnits && index < 0)
+	{
+		index = cell->Unit;
+		const auto& filter = CIsoViewExt::VisibleUnits;
+		if (CIsoViewExt::DrawUnitsFilter && filter.find(index) == filter.end())
+			index = -1;
+		type = 3;
+	}
+	if (CIsoViewExt::DrawStructures && index < 0)
+	{
+		index = cell->Structure;
+		type = 1;
+		if (cell->Structure < CMapDataExt::StructureIndexMap.size())
+		{
+			auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+			if (StrINIIndex != -1)
+			{
+				const auto& filter = CIsoViewExt::VisibleStructures;
+				if (CIsoViewExt::DrawStructuresFilter && filter.find(StrINIIndex) == filter.end())
+					index = -1;
+				else
+				{
+					const auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+					pIsoView->StartCell.X = objRender.X;
+					pIsoView->StartCell.Y = objRender.Y;
+				}
+			}
+			else
+			{
+				index = -1;
+			}
+		}
+		else
+		{
+			index = -1;
+		}
+	}
+	if (index > -1 && type > -1)
+	{
+		if (type == 0 && !ExtConfigs::InfantrySubCell_Edit)
+		{
+			for (int i = 0; i < 3; ++i)
+			{
+				if (cell->Infantry[i] > -1)
+					pIsoView->HandleProperties(cell->Infantry[i], 0);
+			}
+		}
+		else
+			pIsoView->HandleProperties(index, type);
+	}
+
+
+	return 0x45ED9E;
+}
 

@@ -229,20 +229,20 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
 		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
 
-		infantry.Status = "Guard";
-		infantry.Tag = "None";
-		infantry.Facing = "64";
-		infantry.VeterancyPercentage = "0";
-		infantry.Group = "-1";
-		infantry.IsAboveGround = "0";
-		infantry.AutoNORecruitType = "0";
-		infantry.AutoYESRecruitType = "0";
-		infantry.Health = "256";
 		infantry.House = lpHouse;
-		infantry.SubCell = "-1";
 		infantry.TypeID = lpType;
 		infantry.X = cx;
 		infantry.Y = cy;
+		infantry.SubCell = "-1";
+		infantry.Status = ExtConfigs::DefaultInfantryProperty.Status;
+		infantry.Tag = ExtConfigs::DefaultInfantryProperty.Tag;
+		infantry.Facing = ExtConfigs::DefaultInfantryProperty.Facing;
+		infantry.VeterancyPercentage = ExtConfigs::DefaultInfantryProperty.VeterancyPercentage;
+		infantry.Group = ExtConfigs::DefaultInfantryProperty.Group;
+		infantry.IsAboveGround = ExtConfigs::DefaultInfantryProperty.IsAboveGround;
+		infantry.AutoNORecruitType = ExtConfigs::DefaultInfantryProperty.AutoNORecruitType;
+		infantry.AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
+		infantry.Health = ExtConfigs::DefaultInfantryProperty.Health;
 	}
 	if (CIsoViewExt::AutoPropertyBrush[2])
 	{
@@ -471,25 +471,19 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
 		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
 
-		structure.Tag = "None";
-		structure.Facing = "0";
-		if (ExtConfigs::AISellableDefaultYes)
-			structure.AISellable = "1";
-		else
-			structure.AISellable = "0";
-		structure.AIRebuildable = "0";
-		structure.SpotLight = "0";
-		if (ExtConfigs::AIRepairDefaultYes)
-			structure.AIRepairable = "1";
-		else
-			structure.AIRepairable = "0";
-		structure.Nominal = "0";
-		structure.PoweredOn = "1";
-		structure.Upgrade1 = "None";
-		structure.Upgrade2 = "None";
-		structure.Upgrade3 = "None";
-		structure.Upgrades = "0";
-		structure.Health = "256";
+		structure.Health = ExtConfigs::DefaultBuildingProperty.Health;
+		structure.Facing = ExtConfigs::DefaultBuildingProperty.Facing;
+		structure.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
+		structure.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
+		structure.AIRebuildable = ExtConfigs::DefaultBuildingProperty.AIRebuildable;
+		structure.PoweredOn = ExtConfigs::DefaultBuildingProperty.PoweredOn;
+		structure.Upgrades = ExtConfigs::DefaultBuildingProperty.Upgrades;
+		structure.SpotLight = ExtConfigs::DefaultBuildingProperty.SpotLight;
+		structure.Upgrade1 = ExtConfigs::DefaultBuildingProperty.Upgrade1;
+		structure.Upgrade2 = ExtConfigs::DefaultBuildingProperty.Upgrade2;
+		structure.Upgrade3 = ExtConfigs::DefaultBuildingProperty.Upgrade3;
+		structure.AIRepairable = ExtConfigs::DefaultBuildingProperty.AIRepairable;
+		structure.Nominal = ExtConfigs::DefaultBuildingProperty.Nominal;
 		structure.House = lpHouse;
 		structure.TypeID = lpType;
 		structure.X = cx;

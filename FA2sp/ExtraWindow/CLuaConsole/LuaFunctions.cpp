@@ -359,16 +359,16 @@ namespace LuaFunctions
 		infantry(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Health = "256";
-			Status = "Guard";
-			Tag = "None";
-			Facing = "64";
-			VeterancyPercentage = "0";
-			Group = "-1";
-			IsAboveGround = "0";
-			AutoNORecruitType = "0";
-			AutoYESRecruitType = "0";
 			SubCell = "-1";
+			Status = ExtConfigs::DefaultInfantryProperty.Status;
+			Tag = ExtConfigs::DefaultInfantryProperty.Tag;
+			Facing = ExtConfigs::DefaultInfantryProperty.Facing;
+			VeterancyPercentage = ExtConfigs::DefaultInfantryProperty.VeterancyPercentage;
+			Group = ExtConfigs::DefaultInfantryProperty.Group;
+			IsAboveGround = ExtConfigs::DefaultInfantryProperty.IsAboveGround;
+			AutoNORecruitType = ExtConfigs::DefaultInfantryProperty.AutoNORecruitType;
+			AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
+			Health = ExtConfigs::DefaultInfantryProperty.Health;
 		}
 		std::string House;
 		std::string TypeID;
@@ -467,16 +467,16 @@ namespace LuaFunctions
 		unit(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Health = "256";
-			Status = "Guard";
-			Tag = "None";
-			Facing = "64";
-			VeterancyPercentage = "0";
-			Group = "-1";
-			IsAboveGround = "0";
-			AutoNORecruitType = "0";
-			AutoYESRecruitType = "0";
-			FollowsIndex = "-1";
+			Facing = ExtConfigs::DefaultUnitProperty.Facing;
+			Health = ExtConfigs::DefaultUnitProperty.Health;
+			Status = ExtConfigs::DefaultUnitProperty.Status;
+			Tag = ExtConfigs::DefaultUnitProperty.Tag;
+			VeterancyPercentage = ExtConfigs::DefaultUnitProperty.VeterancyPercentage;
+			Group = ExtConfigs::DefaultUnitProperty.Group;
+			IsAboveGround = ExtConfigs::DefaultUnitProperty.IsAboveGround;
+			FollowsIndex = ExtConfigs::DefaultUnitProperty.FollowsIndex;
+			AutoNORecruitType = ExtConfigs::DefaultUnitProperty.AutoNORecruitType;
+			AutoYESRecruitType = ExtConfigs::DefaultUnitProperty.AutoYESRecruitType;
 		}
 		std::string House;
 		std::string TypeID;
@@ -575,14 +575,14 @@ namespace LuaFunctions
 		aircraft(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Health = "256";
-			Status = "Guard";
-			Tag = "None";
-			Facing = "64";
-			VeterancyPercentage = "0";
-			Group = "-1";
-			AutoNORecruitType = "0";
-			AutoYESRecruitType = "0";
+			Facing = ExtConfigs::DefaultAircraftProperty.Facing;
+			Health = ExtConfigs::DefaultAircraftProperty.Health;
+			Status = ExtConfigs::DefaultAircraftProperty.Status;
+			Tag = ExtConfigs::DefaultAircraftProperty.Tag;
+			VeterancyPercentage = ExtConfigs::DefaultAircraftProperty.VeterancyPercentage;
+			Group = ExtConfigs::DefaultAircraftProperty.Group;
+			AutoNORecruitType = ExtConfigs::DefaultAircraftProperty.AutoNORecruitType;
+			AutoYESRecruitType = ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType;
 		}
 		std::string House;
 		std::string TypeID;
@@ -673,25 +673,19 @@ namespace LuaFunctions
 		building(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Tag = "None";
-			Facing = "0";
-			if (ExtConfigs::AISellableDefaultYes)
-				AISellable = "1";
-			else
-				AISellable = "0";
-			AIRebuildable = "0";
-			SpotLight = "0";
-			if (ExtConfigs::AIRepairDefaultYes)
-				AIRepairable = "1";
-			else
-				AIRepairable = "0";
-			Nominal = "0";
-			PoweredOn = "1";
-			Upgrade1 = "None";
-			Upgrade2 = "None";
-			Upgrade3 = "None";
-			Upgrades = "0";
-			Health = "256";
+			Facing = ExtConfigs::DefaultBuildingProperty.Facing;
+			Health = ExtConfigs::DefaultBuildingProperty.Health;
+			Tag = ExtConfigs::DefaultBuildingProperty.Tag;
+			AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
+			AIRebuildable = ExtConfigs::DefaultBuildingProperty.AIRebuildable;
+			PoweredOn = ExtConfigs::DefaultBuildingProperty.PoweredOn;
+			Upgrades = ExtConfigs::DefaultBuildingProperty.Upgrades;
+			SpotLight = ExtConfigs::DefaultBuildingProperty.SpotLight;
+			Upgrade1 = ExtConfigs::DefaultBuildingProperty.Upgrade1;
+			Upgrade2 = ExtConfigs::DefaultBuildingProperty.Upgrade2;
+			Upgrade3 = ExtConfigs::DefaultBuildingProperty.Upgrade3;
+			AIRepairable = ExtConfigs::DefaultBuildingProperty.AIRepairable;
+			Nominal = ExtConfigs::DefaultBuildingProperty.Nominal;
 		}
 		std::string House;
 		std::string TypeID;

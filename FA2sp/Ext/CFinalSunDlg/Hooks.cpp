@@ -65,6 +65,12 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(30014, CIsoViewExt::RockCells);
     SetItemCheckStatus(30022, CIsoViewExt::DrawShadows);
     SetItemCheckStatus(30023, CIsoViewExt::DrawAlphaImages);
+    SetItemCheckStatus(30015, CIsoViewExt::DrawStructuresFilter);
+    SetItemCheckStatus(30016, CIsoViewExt::DrawInfantriesFilter);
+    SetItemCheckStatus(30017, CIsoViewExt::DrawUnitsFilter);
+    SetItemCheckStatus(30018, CIsoViewExt::DrawAircraftsFilter);
+    SetItemCheckStatus(30019, CIsoViewExt::DrawBasenodesFilter);
+    SetItemCheckStatus(30020, CIsoViewExt::DrawCellTagsFilter);
 
     SetItemCheckStatus(34001, CIsoViewExt::PasteGround);
     SetItemCheckStatus(34002, CIsoViewExt::PasteOverlays);

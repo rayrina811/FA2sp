@@ -10,6 +10,7 @@
 #include <map>
 #include <unordered_map>
 #include <optional>
+#include <CObjectDatas.h>
 
 typedef unsigned char byte;
 
@@ -125,7 +126,6 @@ public:
     static bool InfantrySubCell_Edit_FixCenter;
     static bool InfantrySubCell_OccupationBits;
     static bool PlaceStructureOverlappingCheck;
-    static bool PlaceStructureResort;
     static bool PlaceStructureUpgrades;
     static bool PlaceStructureUpgradeStrength;
     static bool PlaceTileSkipHide;
@@ -167,6 +167,10 @@ public:
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;
+    static CInfantryData DefaultInfantryProperty;
+    static CUnitData DefaultUnitProperty;
+    static CAircraftData DefaultAircraftProperty;
+    static CBuildingData DefaultBuildingProperty;
 };
 
 namespace std {
