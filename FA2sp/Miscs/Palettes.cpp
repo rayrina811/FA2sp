@@ -49,6 +49,7 @@ void PalettesManager::Init()
 
 void PalettesManager::Release()
 {
+    Logger::Debug("PalettesManager: Releasing palettes.\n");
     for (auto& pair : PalettesManager::OriginPaletteFiles)
         if (pair.second && pair.second != Palette::PALETTE_UNIT &&
             pair.second != Palette::PALETTE_ISO &&

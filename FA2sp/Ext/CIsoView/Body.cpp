@@ -1630,20 +1630,22 @@ void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
     this->BlitTransparentDesc(image->lpSurface, this->lpDDBackBufferSurface, lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
 
-void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY)
+void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY, std::set<MapCoord>* selectedCoords)
 {
-    auto& map = CMapData::Instance;
-    if (ID > CMapDataExt::TileDataCount || ID < 0) return;
-    
-    if (CMapDataExt::TileData[ID].Width != 1 || CMapDataExt::TileData[ID].Height != 1)
+    bool isFirstRun = false;
+    std::unique_ptr<std::set<MapCoord>> recordCoords;
+    if (!selectedCoords)
     {
-        ::MessageBox(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd,
-            Translations::TranslateOrDefault("FillAreaNot1x1", "You can only use 1x1 tiles to fill areas."),
-            Translations::TranslateOrDefault("Error", "Error"), NULL);
-        return;
+        recordCoords = std::make_unique<std::set<MapCoord>>();
+        selectedCoords = recordCoords.get();
+        isFirstRun = true;
     }
 
-    auto cell = map->TryGetCellAt(X, Y);
+    auto& map = CMapData::Instance;
+    
+    if (!map->IsCoordInMap(X, Y))
+        return;
+    auto cell = map->GetCellAt(X, Y);
     cell->Flag.NotAValidCell = TRUE;
 
     if (cell->IsHidden())
@@ -1660,7 +1662,6 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
         if (skip)
             return;
     }
-
 
     int tileIndex_cell = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
 
@@ -1680,7 +1681,9 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
             int cur_x, cur_y;
             cur_x = X + i;
             cur_y = Y + e;
-            if (cur_x < 1 || cur_y < 1 || cur_x + cur_y<mapwidth + 1 || cur_x + cur_y>mapwidth + mapheight * 2 || (cur_y + 1 > mapwidth && cur_x - 1 < cur_y - mapwidth) || (cur_x + 1 > mapwidth && cur_y + mapwidth - 1 < cur_x)) continue;
+
+            if (!map->IsCoordInMap(cur_x, cur_y))
+                continue;
 
             auto cell2 = map->TryGetCellAt(cur_x, cur_y);
 
@@ -1727,12 +1730,50 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
 
             if (tileIndex_cell2 != ID && match)
             {
-                FillArea(cur_x, cur_y, ID, Subtile, oriX, oriY);
+                FillArea(cur_x, cur_y, ID, Subtile, oriX, oriY, selectedCoords);
             }
 
         }
     }
-    CMapDataExt::GetExtension()->PlaceTileAt(X, Y, ID, Subtile);
+    selectedCoords->insert(MapCoord{ X,Y });
+    if (isFirstRun)
+    {
+        if (ID >= 0 && ID < CMapDataExt::TileDataCount)
+        {
+            std::vector<TilePlacement> placements;
+            auto& tile = CMapDataExt::TileData[ID];
+            int tileOriginX = oriY - (tile.Width - 1);
+            int tileOriginY = oriX - (tile.Height - 1);
+            for (const auto& coord : *selectedCoords)
+            {
+                int localY = ((coord.Y - tileOriginX) % tile.Width + tile.Width) % tile.Width;
+                int localX = ((coord.X - tileOriginY) % tile.Height + tile.Height) % tile.Height;
+
+                int subtileIndex = localY + localX * tile.Width;
+
+                placements.push_back(TilePlacement{
+                    (short)coord.X,
+                    (short)coord.Y,
+                    (short)subtileIndex
+                    });
+            }
+
+            for (auto& coord : placements)
+            {
+                if (tile.TileBlockDatas[coord.SubtileIndex].ImageData != NULL)
+                {
+                    bool isBridge = (tile.TileSet == CMapDataExt::BridgeSet || tile.TileSet == CMapDataExt::WoodBridgeSet);
+                    auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
+                    cell->TileIndex = ID;
+                    cell->TileSubIndex = coord.SubtileIndex;
+                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tile.AltTypeCount + 1);
+                    CMapDataExt::GetExtension()->SetHeightAt(coord.X, coord.Y, cell->Height + tile.TileBlockDatas[coord.SubtileIndex].Height);
+                    CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
+                }
+            }
+        }
+        selectedCoords->clear();
+    } 
 }
 
 void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,

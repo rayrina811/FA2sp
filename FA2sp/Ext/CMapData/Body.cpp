@@ -368,11 +368,9 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 	{
 		for (int n = 0; n < width; n++)
 		{
-			if (!this->IsCoordInMap(m + X, n + Y))
-				continue;
-			auto cell = this->GetCellAt(m + X, n + Y);
-			if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
+			if (tileData.TileBlockDatas[subIdx].ImageData != NULL && this->IsCoordInMap(m + X, n + Y))
 			{
+				auto cell = this->GetCellAt(m + X, n + Y);
 				cell->TileIndex = index;
 				cell->TileSubIndex = subIdx;
 				cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);

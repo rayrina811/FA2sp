@@ -6,6 +6,7 @@
 #include "../FA2Expand.h"
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 
 struct CellData;
 class ImageDataClassSafe;
@@ -39,6 +40,13 @@ struct DrawVeterancies
     int VP;
 };
 
+struct TilePlacement
+{
+    short X;
+    short Y;
+    short SubtileIndex;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
@@ -61,7 +69,7 @@ public:
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
-    static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY);
+    static void FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY, std::set<MapCoord>* = nullptr);
     static IDirectDrawSurface7* BitmapToSurface(IDirectDraw7* pDD, const CBitmap& bitmap);
     static void BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width = -1, int height = -1, BYTE alpha = 255, LPDIRECTDRAWSURFACE7 surface = nullptr);
     static void BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
