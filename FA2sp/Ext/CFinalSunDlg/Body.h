@@ -118,10 +118,12 @@ public:
     bool Allowed;
     std::vector<ConnectedTiles> ConnectedTile;
     ppmfc::CString Name;
+    ppmfc::CString SetName;
     int Type;
     int SpecialType;
     bool WaterCliff;
     bool IsTXCityCliff;
+    int ToSetPress[10];
 };
 struct ConnectedTileInfo
 {

@@ -49,25 +49,6 @@ std::unique_ptr<CPropertyUnit> CViewObjectsExt::VehicleBrushDlgF;
 std::unique_ptr<CPropertyAircraft> CViewObjectsExt::AircraftBrushDlgF;
 std::unique_ptr<CPropertyBuilding> CViewObjectsExt::BuildingBrushDlgBNF;
 
-MapCoord CViewObjectsExt::CliffConnectionCoord;
-std::vector<MapCoord> CViewObjectsExt::CliffConnectionCoordRecords;
-int CViewObjectsExt::CliffConnectionTile;
-int CViewObjectsExt::CliffConnectionHeight;
-int CViewObjectsExt::CliffConnectionHeightAdjust;
-std::vector<ConnectedTileSet> CViewObjectsExt::ConnectedTileSets;
-ConnectedTiles CViewObjectsExt::LastPlacedCT;
-std::vector<ConnectedTiles> CViewObjectsExt::LastPlacedCTRecords;
-ConnectedTiles CViewObjectsExt::ThisPlacedCT;
-int CViewObjectsExt::LastCTTile;
-int CViewObjectsExt::LastSuccessfulIndex;
-int CViewObjectsExt::NextCTHeightOffset;
-bool CViewObjectsExt::LastSuccessfulOpposite;
-bool CViewObjectsExt::IsUsingTXCliff = false;
-bool CViewObjectsExt::HeightChanged;
-bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
-std::vector<int> CViewObjectsExt::LastCTTileRecords;
-std::vector<int> CViewObjectsExt::LastHeightRecords;
-
 bool CViewObjectsExt::BuildingBrushBools[14];
 bool CViewObjectsExt::InfantryBrushBools[10];
 bool CViewObjectsExt::VehicleBrushBools[11];

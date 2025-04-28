@@ -13,7 +13,27 @@
 #include "../../Miscs/MultiSelection.h"
 
 std::unordered_map<int, ConnectedTileInfo> CViewObjectsExt::TreeView_ConnectedTileMap;
+std::vector<ConnectedTileSet> CViewObjectsExt::ConnectedTileSets;
 int CViewObjectsExt::CurrentConnectedTileType;
+
+MapCoord CViewObjectsExt::CliffConnectionCoord;
+std::vector<MapCoord> CViewObjectsExt::CliffConnectionCoordRecords;
+int CViewObjectsExt::CliffConnectionTile;
+int CViewObjectsExt::CliffConnectionHeight;
+int CViewObjectsExt::CliffConnectionHeightAdjust;
+ConnectedTiles CViewObjectsExt::LastPlacedCT;
+std::vector<ConnectedTiles> CViewObjectsExt::LastPlacedCTRecords;
+ConnectedTiles CViewObjectsExt::ThisPlacedCT;
+int CViewObjectsExt::LastCTTile;
+int CViewObjectsExt::LastSuccessfulIndex;
+int CViewObjectsExt::NextCTHeightOffset;
+bool CViewObjectsExt::LastSuccessfulOpposite;
+bool CViewObjectsExt::IsUsingTXCliff = false;
+bool CViewObjectsExt::HeightChanged;
+bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
+std::vector<int> CViewObjectsExt::LastCTTileRecords;
+std::vector<int> CViewObjectsExt::LastHeightRecords;
+
 
 void CViewObjectsExt::ConnectedTile_Initialize() 
 {
@@ -37,11 +57,11 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                 ConnectedTileSet cts;
                 if (auto pSection2 = ini.GetSection(pair.second))
                 {
-
                     cts.StartTile = ini.GetInteger(pair.second, "StartTile");
                     cts.Allowed = false;
                     auto allowedTheaters = STDHelpers::SplitString(ini.GetString(pair.second, "AllowedTheaters"));
                     cts.Name = ini.GetString(pair.second, "Name");
+                    cts.SetName = pair.second;
                     auto type = ini.GetString(pair.second, "Type");
                     auto sptype = ini.GetString(pair.second, "SpecialType");
                     cts.WaterCliff = ini.GetBool(pair.second, "WaterCliff");
@@ -128,6 +148,29 @@ void CViewObjectsExt::ConnectedTile_Initialize()
 
                 }
                 CViewObjectsExt::ConnectedTileSets.push_back(cts);
+            }
+
+            for (auto& cts : CViewObjectsExt::ConnectedTileSets)
+            {
+                ppmfc::CString key;
+                for (int i = 0; i < 10; ++i)
+                {
+                    cts.ToSetPress[i] = -1;
+                    key.Format("ToSet.Press%d", i);
+                    if (auto pVaule = ini.TryGetString(cts.SetName, key))
+                    {
+                        int j = 0;
+                        for (auto& cts2 : CViewObjectsExt::ConnectedTileSets)
+                        {
+                            if (cts2.SetName == *pVaule)
+                            {
+                                cts.ToSetPress[i] = j;
+                                break;
+                            }
+                            j++;
+                        }
+                    }
+                }
             }
         }
     }

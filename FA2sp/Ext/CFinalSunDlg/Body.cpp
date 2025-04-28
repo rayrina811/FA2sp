@@ -1181,6 +1181,29 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			}
 			ExtraWindow::bEnterSearch = false;
 		}
+		if (CIsoView::CurrentCommand->Command == 0x1E)
+		{
+			for (int i = 0; i < 10; ++i)
+			{
+				if (pMsg->wParam == i + '0' || pMsg->wParam == i + VK_NUMPAD0)
+				{
+					int ctIndex = CIsoView::CurrentCommand->Type;
+					auto& info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
+					auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
+					if (tileSet.ToSetPress[i] > -1)
+					{
+						for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
+						{
+							if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
+							{
+								CIsoView::CurrentCommand->Type = ctIndex2;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		break;
 	case WM_MOUSEWHEEL:
 	{
