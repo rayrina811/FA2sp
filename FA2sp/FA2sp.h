@@ -163,6 +163,7 @@ public:
     static bool DDrawScalingBilinear;
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;
+    static bool UseNewToolBarCameo;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

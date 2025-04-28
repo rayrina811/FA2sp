@@ -147,6 +147,7 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::LoadImageDataFromServer;
+bool ExtConfigs::UseNewToolBarCameo;
 int ExtConfigs::DisplayTextSize;
 
 
@@ -261,6 +262,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
+	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
