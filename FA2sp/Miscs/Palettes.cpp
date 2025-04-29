@@ -408,6 +408,9 @@ LightingSourceTint LightingSourceTint::ApplyLamp(int X, int Y)
 
 void LightingSourceTint::CalculateMapLamps()
 {
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+        return;
+
     CMapDataExt::LightingSources.clear();
     const float TOLERANCE = 0.001f;
     if (CINI::CurrentDocument->SectionExists("Structures"))
