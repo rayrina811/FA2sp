@@ -517,6 +517,8 @@ DEFINE_HOOK(4347B8, CFinalSunDlg_OnEditUndo, 6)
         {
             CViewObjectsExt::CliffConnectionCoord = CViewObjectsExt::CliffConnectionCoordRecords.back();
             CViewObjectsExt::CliffConnectionCoordRecords.pop_back();
+            if (CViewObjectsExt::CliffConnectionCoordRecords.empty())
+                CViewObjectsExt::PlaceConnectedTile_Start = true;
         }
         if (!CViewObjectsExt::LastPlacedCTRecords.empty())
         {

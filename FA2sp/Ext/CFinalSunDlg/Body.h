@@ -300,6 +300,7 @@ public:
     static bool IsUsingTXCliff;
     static bool HeightChanged;
     static bool IsInPlaceCliff_OnMouseMove;
+    static bool PlaceConnectedTile_Start;
 
     static int NextCTHeightOffset;
     static void LowerNextCT()

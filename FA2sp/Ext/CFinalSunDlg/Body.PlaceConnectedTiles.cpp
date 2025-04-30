@@ -29,6 +29,7 @@ int CViewObjectsExt::LastSuccessfulIndex;
 int CViewObjectsExt::NextCTHeightOffset;
 bool CViewObjectsExt::LastSuccessfulOpposite;
 bool CViewObjectsExt::IsUsingTXCliff = false;
+bool CViewObjectsExt::PlaceConnectedTile_Start = false;
 bool CViewObjectsExt::HeightChanged;
 bool CViewObjectsExt::IsInPlaceCliff_OnMouseMove;
 std::vector<int> CViewObjectsExt::LastCTTileRecords;
@@ -179,24 +180,23 @@ void CViewObjectsExt::ConnectedTile_Initialize()
 void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
 {
     int index = 0;
-    int parentIndex = 9000;
     HTREEITEM& hCT = ExtNodes[Root_Cliff];
     if (hCT == NULL)    return;
 
-    HTREEITEM hCliff = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Cliff",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hCliffLand = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffLand",Const_ConnectedTile + parentIndex++, hCliff);
-    HTREEITEM hCliffWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffWater",Const_ConnectedTile + parentIndex++, hCliff);
+    HTREEITEM hCliff = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Cliff",-1, hCT);
+    HTREEITEM hCliffLand = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffLand",-1, hCliff);
+    HTREEITEM hCliffWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffWater",-1, hCliff);
 
-    HTREEITEM hCliffLandSnowSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandSnowStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowStone", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandStoneSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneSnow", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffLandStoneStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneStone", Const_ConnectedTile + parentIndex++, hCliffLand);
-    HTREEITEM hCliffSnowWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowWater", Const_ConnectedTile + parentIndex++, hCliffWater);
-    HTREEITEM hCliffStoneWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneWater", Const_ConnectedTile + parentIndex++, hCliffWater);
+    HTREEITEM hCliffLandSnowSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowSnow", -1, hCliffLand);
+    HTREEITEM hCliffLandSnowStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowStone", -1, hCliffLand);
+    HTREEITEM hCliffLandStoneSnow = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneSnow", -1, hCliffLand);
+    HTREEITEM hCliffLandStoneStone = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneStone", -1, hCliffLand);
+    HTREEITEM hCliffSnowWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXSnowWater", -1, hCliffWater);
+    HTREEITEM hCliffStoneWater = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_CliffTXStoneWater", -1, hCliffWater);
 
-    HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",Const_ConnectedTile + parentIndex++, hCT);
-    HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", Const_ConnectedTile + parentIndex++, hCT);
+    HTREEITEM hDirtRoad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Road",-1, hCT);
+    HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",-1, hCT);
+    HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", -1, hCT);
 
     std::vector<HTREEITEM> subNodes;
     subNodes.push_back(hCliffLandSnowSnow);
@@ -640,6 +640,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 0
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 1))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY -= 1;
+                    }
+
                     std::vector<int> backCornet1;
                     std::vector<int> backCornet2;
                     backCornet1.push_back(14);
@@ -729,6 +734,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         facing = 2;
                         continue;
                     }
+
                     if (CViewObjectsExt::LastPlacedCT.Index == 7
                         || CViewObjectsExt::LastPlacedCT.Index == 8
                         || CViewObjectsExt::LastPlacedCT.Index == 9
@@ -812,6 +818,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 15
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 16))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceX -= 1;
+                        offsetPlaceY -= 1;
+                    }
+
                     offsetPlaceX += 1;
                     offsetPlaceY += 1;
                     offsetConnectX -= 1;
@@ -959,6 +971,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY -= 1;
+                    }
                     offsetPlaceY += 1;
                     offsetConnectX += 1;
                     index = 10;
@@ -968,7 +984,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 9;
 
                     if (index == 9)
+                    {
                         offsetPlaceY -= 1;
+                        if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                        {
+                            offsetPlaceY += 1;
+                        }
+                    }
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1004,6 +1026,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 25
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 16)
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY -= 1;
+                    }
                     offsetConnectY += 1;
                     index = 0;
                     if (distance < SmallDistance)
@@ -1059,7 +1085,13 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         index = 2;
 
                     if (index == 2)
+                    {
                         offsetPlaceX -= 1;
+                        if (forceFront && CViewObjectsExt::PlaceConnectedTile_Start)
+                        {
+                            offsetPlaceX += 1;
+                        }
+                    }
 
                     for (auto ti : tileSet.ConnectedTile[index].TileIndices)
                     {
@@ -1120,6 +1152,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || CViewObjectsExt::LastPlacedCT.Index == 15
                     || CViewObjectsExt::LastPlacedCT.Index == 16))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceX -= 1;
+                    }
                     if (CViewObjectsExt::LastPlacedCT.Index != 21
                         && CViewObjectsExt::LastPlacedCT.Index != 22
                         && CViewObjectsExt::LastPlacedCT.Index != 28
@@ -1269,6 +1305,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 10
                     || CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 11))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY += 1;
+                    }
                     opposite = true;
 
                     std::vector<int> backCornet1;
@@ -1451,6 +1491,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 28
                     || !CViewObjectsExt::LastPlacedCT.Opposite && CViewObjectsExt::LastPlacedCT.Index == 22))
                 {
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY += 1;
+                    }
                     opposite = true;
 
                     if (CViewObjectsExt::LastPlacedCT.Index == 10
@@ -1716,7 +1760,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                         facing = 1;
                         continue;
                     }
-
+                    if (forceBack && CViewObjectsExt::PlaceConnectedTile_Start)
+                    {
+                        offsetPlaceY -= 1;
+                    }
                     opposite = true;
                     offsetConnectX -= 1;
                     offsetConnectY -= 1;
@@ -2785,6 +2832,29 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             offsetConnectX -= 1;
         }
 
+        if (CViewObjectsExt::PlaceConnectedTile_Start)
+        {
+            if (facing == 1)
+            {
+                offsetPlaceY += 1;
+                offsetPlaceX -= 1;
+            }
+            else if (facing == 2)
+            {
+                offsetPlaceX += 1;
+            }
+            else if (facing == 3)
+            {
+                offsetPlaceY += 1;
+                offsetPlaceX += 1;
+            }
+            else if (facing == 6)
+            {
+                offsetPlaceX += 1;
+            }
+        }
+
+
         if (!place)
             CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
@@ -3762,6 +3832,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     if (place)
     {
         //update mapPreview
+        if (CViewObjectsExt::PlaceConnectedTile_Start)
+            CViewObjectsExt::PlaceConnectedTile_Start = false;
         subPos = 0;
         int idx = 0;
         if (dwposFix > -1)
@@ -3840,9 +3912,10 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
     {
         CViewObjectsExt::CliffConnectionCoord.X = X;
         CViewObjectsExt::CliffConnectionCoord.Y = Y;
-        CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
+        CViewObjectsExt::CliffConnectionCoordRecords.clear();
         auto dwpos = Y * mapData.MapWidthPlusHeight + X;
         CViewObjectsExt::CliffConnectionHeight = cellDatas[dwpos].Height;
+        CViewObjectsExt::PlaceConnectedTile_Start = true;
         return;
     }
 
