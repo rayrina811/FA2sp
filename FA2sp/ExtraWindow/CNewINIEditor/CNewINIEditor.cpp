@@ -39,15 +39,6 @@ HWND CNewINIEditor::hImporterDesc;
 HWND CNewINIEditor::hImporterOK;
 HWND CNewINIEditor::hImporterText;
 std::map<int, ppmfc::CString> CNewINIEditor::SectionLabels;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldStructures;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldTerrain;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldWaypoints;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldSmudge;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldUnits;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldCellTags;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldAircraft;
-std::map<ppmfc::CString, ppmfc::CString> CNewINIEditor::OldInfantry;
-std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> CNewINIEditor::OldHouses;
 int CNewINIEditor::origWndWidth;
 int CNewINIEditor::origWndHeight;
 int CNewINIEditor::minWndWidth;
@@ -165,7 +156,7 @@ void CNewINIEditor::Update(HWND& hWnd)
         if (ExtConfigs::INIEditor_IgnoreTeams && IsTeam(sectionName)) continue;
         SendMessage(hSectionList, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sectionName.m_pchData);
     }
-    UpdateOldGameObjectList();
+    
     OnSelchangeListbox(currentIndex);
 }
 
@@ -294,7 +285,7 @@ BOOL CALLBACK CNewINIEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::ImportButton:
             if (CODE == BN_CLICKED)
             {
-                UpdateOldGameObjectList();
+                
                 CFinalSunDlg::Instance()->INIEditor.OnClickImportINI();
                 UpdateAllGameObject();
                 Update(hWnd);
@@ -417,7 +408,7 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
     auto lines = STDHelpers::SplitStringMultiSplit(text, "\n|\r");
     ppmfc::CString section;
     std::vector<ppmfc::CString> sections;
-    UpdateOldGameObjectList();
+    
     
     for (auto& line : lines)
     {
@@ -499,7 +490,6 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     if (result == IDNO)
         return;
 
-    UpdateOldGameObjectList(section);
     map.DeleteSection(section);
     UpdateGameObject(section);
 
@@ -539,8 +529,6 @@ void CNewINIEditor::OnSelchangeListbox(int index)
             text += line;
         }
         SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)text.m_pchData);
-
-        UpdateOldGameObjectList(section);
     }
     else
         SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
@@ -577,7 +565,8 @@ void CNewINIEditor::OnEditchangeINIEdit()
 
 void CNewINIEditor::OnEditchangeSearch()
 {
-    if (SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) + SectionLabels.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
+    if ((SendMessage(hSectionList, LB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount
+        || SectionLabels.size() > ExtConfigs::SearchCombobox_MaxCount) && !ExtraWindow::bEnterSearch)
     {
         return;
     }
@@ -632,49 +621,34 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
 {
     if (!IsGameObject(lpSectionName) && !IsHouse(lpSectionName)) return;
     if (strcmp(lpSectionName, "Structures") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldStructureData(false);
-        }
+        CMapData::Instance->UpdateFieldStructureData(false);
     }
     else if (strcmp(lpSectionName, "Terrain") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldTerrainData(false);
-        }
+        CMapData::Instance->UpdateFieldTerrainData(false);
     }
     else if (strcmp(lpSectionName, "Waypoints") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldWaypointData(false);
-        }
+         CMapData::Instance->UpdateFieldWaypointData(false);
     }
     else if (strcmp(lpSectionName, "Smudge") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldSmudgeData(false);
-        }
+        CMapData::Instance->UpdateFieldSmudgeData(false);
     }
     else if (strcmp(lpSectionName, "Units") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldUnitData(false);
-        }
+         CMapData::Instance->UpdateFieldUnitData(false);
     }
     else if (strcmp(lpSectionName, "CellTags") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldCelltagData(false);
-        }
+        CMapData::Instance->UpdateFieldCelltagData(false);
     }
     else if (strcmp(lpSectionName, "Aircraft") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldAircraftData(false);
-        }
+        CMapData::Instance->UpdateFieldAircraftData(false);
     }
     else if (strcmp(lpSectionName, "Infantry") == 0) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldInfantryData(false);
-        }
+        CMapData::Instance->UpdateFieldInfantryData(false);
+    }
+    else if (strcmp(lpSectionName, "Annotations") == 0) {
+        CMapData::Instance->UpdateFieldInfantryData(false);
     }
     else if (IsHouse(lpSectionName)) {
-        if (!IsSectionEqual(OldStructures, map.GetSection(lpSectionName))) {
-            CMapData::Instance->UpdateFieldBasenodeData(false);
-        }
+        CMapData::Instance->UpdateFieldBasenodeData(false);
     }
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
@@ -690,79 +664,8 @@ void CNewINIEditor::UpdateAllGameObject()
     CMapData::Instance->UpdateFieldAircraftData(false);
     CMapData::Instance->UpdateFieldInfantryData(false);
     CMapData::Instance->UpdateFieldBasenodeData(false);
+    CMapDataExt::UpdateAnnotation();
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-}
-
-void CNewINIEditor::UpdateOldGameObjectList(const char* lpSectionName)
-{
-    if (strcmp(lpSectionName, "Structures") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Structures", OldStructures);
-    }
-    if (strcmp(lpSectionName, "Terrain") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Terrain", OldTerrain);
-    }
-    if (strcmp(lpSectionName, "Waypoints") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Waypoints", OldWaypoints);
-    }
-    if (strcmp(lpSectionName, "Smudge") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Smudge", OldSmudge);
-    }
-    if (strcmp(lpSectionName, "Units") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Units", OldUnits);
-    }
-    if (strcmp(lpSectionName, "CellTags") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("CellTags", OldCellTags);
-    }
-    if (strcmp(lpSectionName, "Aircraft") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Aircraft", OldAircraft);
-    }
-    if (strcmp(lpSectionName, "Infantry") == 0 || strlen(lpSectionName) == 0) {
-        Section2Map("Infantry", OldInfantry);
-    }
-    if (IsHouse(lpSectionName)) {
-        std::map<ppmfc::CString, ppmfc::CString> house;
-        Section2Map(lpSectionName, house);
-        OldHouses[lpSectionName] = house;
-    }
-    if (strlen(lpSectionName) == 0) {
-        OldHouses.clear();
-        if (auto pSection = map.GetSection("Houses")) {
-            for (auto& pair : pSection->GetEntities()) {
-                std::map<ppmfc::CString, ppmfc::CString> house;
-                Section2Map(pair.second, house);
-                OldHouses[pair.second] = house;
-            }
-        }
-    }
-}
-
-bool CNewINIEditor::IsSectionEqual(std::map<ppmfc::CString, ppmfc::CString>& map, INISection* section)
-{
-    if (!map.empty() && section) {
-        for (auto& pair : map) {
-            auto itrKey = section->GetEntities().find(pair.first);
-            if (itrKey != section->GetEntities().end()) {
-                if (itrKey->second != pair.second) {
-                    return false;
-                }
-            }
-            else {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
-}
-
-void CNewINIEditor::Section2Map(const char* lpSectionName, std::map<ppmfc::CString, ppmfc::CString>& map)
-{
-    if (auto pSection = CINI::CurrentDocument->GetSection(lpSectionName)) {
-        map.clear();
-        for (auto& pair : pSection->GetEntities()) {
-            map[pair.first] = pair.second;
-        }
-    }
 }
 
 bool CNewINIEditor::IsGameObject(const char* lpSectionName)
@@ -771,7 +674,7 @@ bool CNewINIEditor::IsGameObject(const char* lpSectionName)
 
     if (str == "Terrain" || str == "Waypoints" || str == "Smudge" ||
         str == "Structures" || str == "Units" || str == "CellTags" ||
-        str == "Aircraft" || str == "Infantry")
+        str == "Aircraft" || str == "Infantry" || "Annotations")
         return true;
 
     return false;

@@ -1330,20 +1330,24 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 	return "";
 }
 
-bool CMapDataExt::HasAnnotation(int pos)
+void CMapDataExt::UpdateAnnotation()
 {
-	if (pos < CMapData::Instance->CellDataCount)
+	for (auto& cellExt : CMapDataExt::CellDataExts)
 	{
-		int x = CMapData::Instance->GetXFromCoordIndex(pos);
-		int y = CMapData::Instance->GetYFromCoordIndex(pos);
-		ppmfc::CString key;
-		key.Format("%d", x * 1000 + y);
-		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		cellExt.HasAnnotation = false;
+	}
+	if (auto pSection = CINI::CurrentDocument->GetSection("Annotations"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
 		{
-			return true;
+			auto pos = atoi(key);
+			int x = pos / 1000;
+			int y = pos % 1000;
+
+			auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(x, y)];
+			cellExt.HasAnnotation = true;
 		}
 	}
-	return false;
 }
 
 void CMapDataExt::UpdateIncludeIniInMap()
@@ -1907,4 +1911,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
+	UpdateAnnotation();
 }

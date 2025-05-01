@@ -2065,14 +2065,19 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
         dlg.m_Text);
 
     CINI::CurrentDocument->WriteString("Annotations", key, value);
+    auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+    cellExt.HasAnnotation = true;
 
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
+
 void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 {
     ppmfc::CString key;
     key.Format("%d", X * 1000 + Y);
 
+    auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+    cellExt.HasAnnotation = false;
     if (CINI::CurrentDocument->KeyExists("Annotations", key))
     {
         CINI::CurrentDocument->DeleteKey("Annotations", key);

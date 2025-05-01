@@ -191,6 +191,7 @@ struct CellDataExt
     std::unordered_map<short, short> Smudges;
 
     bool HasAnim = false;
+    bool HasAnnotation = false;
 };
 
 class CMapDataExt : public CMapData
@@ -273,7 +274,11 @@ public:
     static bool IsValidTileSet(int tileset);
     static void UpdateIncludeIniInMap();
     static ppmfc::CString GetAvailableIndex();
-    static bool HasAnnotation(int pos);
+    inline static bool HasAnnotation(int pos)
+    {
+        return CMapDataExt::CellDataExts[pos].HasAnnotation;
+    }
+    static void UpdateAnnotation();
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;

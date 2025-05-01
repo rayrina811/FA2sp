@@ -324,41 +324,6 @@ DEFINE_HOOK(46A362, CIsoView_UpdateStatusBar_BuildingID, 6)
 	return 0;
 }
 
-DEFINE_HOOK(45ED9E, CIsoView_OnCommand_FoldAnnotations, 5)
-{
-	GET(int, pos, EAX);
-	if (pos < CMapData::Instance->CellDataCount)
-	{
-		int x = CMapData::Instance->GetXFromCoordIndex(pos);
-		int y = CMapData::Instance->GetYFromCoordIndex(pos);
-		ppmfc::CString key;
-		key.Format("%d", x * 1000 + y);
-		if (CINI::CurrentDocument->KeyExists("Annotations", key))
-		{
-			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
-			ppmfc::CString value;
-			bool folded = STDHelpers::IsTrue(atoms[2]);
-			for (int i = 0; i < atoms.size(); ++i)
-			{
-				if (i != 0)
-					value += ",";
-				if (i != 2)
-					value += atoms[i];
-				else
-				{
-					if (folded)
-						value += "no";
-					else
-						value += "yes";
-				}
-			}
-			CINI::CurrentDocument->WriteString("Annotations", key, value);
-			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-		}
-	}
-	return 0;
-}
-
 DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 {
 	auto pThis = CIsoView::GetInstance();
@@ -507,9 +472,15 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 		{
 			auto value = CINI::CurrentDocument->GetString("Annotations", key);
 			if (nLButtonUpFlags != MK_SHIFT)
+			{
+				auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(oldX, oldY)];
+				cellExt.HasAnnotation = false;
 				CINI::CurrentDocument->DeleteKey("Annotations", key);
+			}
 			key.Format("%d", X * 1000 + Y);
 			CINI::CurrentDocument->WriteString("Annotations", key, value);
+			auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+			cellExt.HasAnnotation = true;
 		}
 		m_id = -1;
 		m_type = -1;
@@ -843,6 +814,33 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 			pIsoView->HandleProperties(index, type);
 	}
 
+	if (pos < CMapData::Instance->CellDataCount)
+	{
+		ppmfc::CString key;
+		key.Format("%d", coord.X * 1000 + coord.Y);
+		if (CINI::CurrentDocument->KeyExists("Annotations", key))
+		{
+			auto atoms = STDHelpers::SplitString(CINI::CurrentDocument->GetString("Annotations", key), 6);
+			ppmfc::CString value;
+			bool folded = STDHelpers::IsTrue(atoms[2]);
+			for (int i = 0; i < atoms.size(); ++i)
+			{
+				if (i != 0)
+					value += ",";
+				if (i != 2)
+					value += atoms[i];
+				else
+				{
+					if (folded)
+						value += "no";
+					else
+						value += "yes";
+				}
+			}
+			CINI::CurrentDocument->WriteString("Annotations", key, value);
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+		}
+	}
 
 	return 0x45ED9E;
 }

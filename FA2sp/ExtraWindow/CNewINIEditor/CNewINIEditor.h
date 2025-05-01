@@ -43,8 +43,6 @@ public:
     static bool IsMapPack(const char* lpSectionName);
     static bool IsHouse(const char* lpSectionName);
     static bool IsTeam(const char* lpSectionName);
-    static bool IsSectionEqual(std::map<ppmfc::CString, ppmfc::CString>& map, INISection* section);
-    static void Section2Map(const char* lpSectionName, std::map<ppmfc::CString, ppmfc::CString>& map);
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -60,7 +58,6 @@ protected:
     static void OnClickImporterOK(HWND& hWnd);
     static void UpdateGameObject(const char* lpSectionName);
     static void UpdateAllGameObject();
-    static void UpdateOldGameObjectList(const char* lpSectionName = "");
 
     static void Close(HWND& hWnd);
     static void CloseImporter(HWND& hWnd);
@@ -93,15 +90,6 @@ public:
 private:
     static WNDPROC OriginalListBoxProc;
     static std::map<int, ppmfc::CString> SectionLabels;
-    static std::map<ppmfc::CString, ppmfc::CString> OldStructures;
-    static std::map<ppmfc::CString, ppmfc::CString> OldTerrain;
-    static std::map<ppmfc::CString, ppmfc::CString> OldWaypoints;
-    static std::map<ppmfc::CString, ppmfc::CString> OldSmudge;
-    static std::map<ppmfc::CString, ppmfc::CString> OldUnits;
-    static std::map<ppmfc::CString, ppmfc::CString> OldCellTags;
-    static std::map<ppmfc::CString, ppmfc::CString> OldAircraft;
-    static std::map<ppmfc::CString, ppmfc::CString> OldInfantry;
-    static std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> OldHouses;
     static int origWndWidth;
     static int origWndHeight;
     static int minWndWidth;

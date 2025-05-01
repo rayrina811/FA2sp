@@ -1664,6 +1664,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			auto pos = atoi(key);
 			int x = pos / 1000;
 			int y = pos % 1000;
+			if (!IsCoordInWindow(x, y))
+				continue;
 			CIsoView::MapCoord2ScreenCoord(x, y);
 			x -= DrawOffsetX;
 			y -= DrawOffsetY;
