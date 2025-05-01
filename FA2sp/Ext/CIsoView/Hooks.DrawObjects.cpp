@@ -993,9 +993,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (auto pAIFile = Variables::Rules.TryGetString(obj, "AlphaImage"))
 					{
-						ppmfc::CString AIFile = *pAIFile;
-						AIFile.Trim();
-						auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
+						auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
 
 						if (pAIData && pAIData->pImageBuffer)
 						{
@@ -1089,9 +1087,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							{
 								if (auto pAIFile = Variables::Rules.TryGetString(objRender.ID, "AlphaImage"))
 								{
-									ppmfc::CString AIFile = *pAIFile;
-									AIFile.Trim();
-									auto pAIData = CLoadingExt::GetImageDataFromServer(AIFile + "\233ALPHAIMAGE");
+									auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
 
 									if (pAIData && pAIData->pImageBuffer)
 									{

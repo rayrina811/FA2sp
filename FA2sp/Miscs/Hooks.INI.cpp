@@ -20,15 +20,38 @@ map<ppmfc::CString, unsigned int> INIIncludes::CurrentINIIdxHelper;
 std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
 std::unordered_map<CINI*, CINIExt> CINIManager::propertyMap;
 
+static void Trim(char* str) {
+    if (!str) return;
+    char* start = str;
+    while (*start && isspace(static_cast<unsigned char>(*start))) {
+        start++;
+    }
+    if (*start == '\0') {
+        *str = '\0';
+        return;
+    }
+    char* end = start + strlen(start) - 1;
+    while (end > start && isspace(static_cast<unsigned char>(*end))) {
+        end--;
+    }
+    *(end + 1) = '\0';
+    if (start != str) {
+        memmove(str, start, strlen(start) + 1);
+    }
+}
+
 DEFINE_HOOK(4530F7, CLoading_ParseINI_PlusSupport, 8)
 {
+    LEA_STACK(char*, lpKey, STACK_OFFS(0x22FC, 0x200C));
+    LEA_STACK(char*, lpValue, STACK_OFFS(0x22FC, 0x100C));
+
+    Trim(lpKey);
+    Trim(lpValue);
+
     if (ExtConfigs::AllowPlusEqual)
     {
-        // length [0x1000]
         GET_STACK(CINI*, pINI, STACK_OFFS(0x22FC, 0x22D0));
-        LEA_STACK(char*, lpKey, STACK_OFFS(0x22FC, 0x200C));
         LEA_STACK(const char*, lpSection, STACK_OFFS(0x22FC, 0x210C));
-
         if (strcmp(lpKey, "+") == 0)
         {
             unsigned int& attempt = INIIncludes::CurrentINIIdxHelper[lpSection];
@@ -214,7 +237,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                 {
                     auto& key = cur[i];
                     ppmfc::CString value = ini.GetString(section.first, key, "");
-                    value.Trim();
                     // the include of Ares will delete the same key in registries
                     // and then add it to the bottom
                     // it will ignore empty values
@@ -245,8 +267,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
         if (auto pSection = ini.GetSection(includeSection)) {
             for (auto& pair : pSection->GetEntities()) {
-                ppmfc::CString includeFile = pair.second;
-                includeFile.Trim();
+                const ppmfc::CString& includeFile = pair.second;
 
                 if (includeFile && strlen(includeFile) > 0) {
                     bool canLoad = true;

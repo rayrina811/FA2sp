@@ -37,9 +37,7 @@ void TheaterInfo::UpdateTheaterInfo()
 	CurrentInfo.clear();
 	auto const pSection = GetInfoSection();
 	ppmfc::CString buffer = CINI::FAData->GetString(pSection, "Morphables");
-	buffer.Trim();
 	ppmfc::CString buffer2 = CINI::FAData->GetString(pSection, "Ramps");
-	buffer2.Trim();
 	auto buffer2s = STDHelpers::SplitString(buffer2);
 	int i = 0, j = 0;
 	for (auto& str : STDHelpers::SplitString(buffer))
@@ -70,7 +68,6 @@ void TheaterInfo::UpdateTheaterInfo()
 	CurrentInfoNonMorphable.clear();
 	auto const pSection2 = std::string(GetInfoSection()) + "2";
 	buffer = CINI::FAData->GetString(pSection2.c_str(), "AddTiles");
-	buffer.Trim();
 
 	i = 0, j = 0;
 	for (auto& str : STDHelpers::SplitString(buffer))

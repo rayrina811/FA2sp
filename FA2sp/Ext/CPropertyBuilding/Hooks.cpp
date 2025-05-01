@@ -74,11 +74,9 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
                 std::vector<std::string> upgrades;
                 for (auto& bld : CMapData::Instance->BuildingTypes)
                 {
-                    if (auto const ppString = Variables::Rules.TryGetString(bld.first, "PowersUpBuilding"))
+                    if (auto const pString = Variables::Rules.TryGetString(bld.first, "PowersUpBuilding"))
                     {
-                        ppmfc::CString str = *ppString;
-                        str.Trim();
-                        if (str == pThis->CString_ObjectID)
+                        if (*pString == pThis->CString_ObjectID)
                             upgrades.push_back(bld.first.m_pchData);
                     }
                 }

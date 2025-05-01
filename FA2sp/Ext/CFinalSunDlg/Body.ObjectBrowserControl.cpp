@@ -516,9 +516,7 @@ void CViewObjectsExt::Redraw_Initialize()
     if (auto ignores = fadata.GetSection("IgnoreRA2"))
         for (auto& item : ignores->GetEntities())
         {
-            ppmfc::CString tmp = item.second;
-            tmp.Trim();
-            IgnoreSet.insert(tmp);
+            IgnoreSet.insert(item.second);
         }
 
     auto theaterIg = doc.GetString("Map", "Theater");
@@ -536,19 +534,13 @@ void CViewObjectsExt::Redraw_Initialize()
     if (auto forcenames = fadata.GetSection("ForceName"))
         for (auto& item : forcenames->GetEntities())
         {
-            ppmfc::CString tmp = item.second;
-            tmp.Trim();
-            ForceName.insert(tmp);
+            ForceName.insert(item.second);
         }
 
     if (auto forcenames = fadata.GetSection("RenameString"))
         for (auto& item : forcenames->GetEntities())
         {
-            ppmfc::CString tmp1 = item.first;
-            tmp1.Trim();
-            ppmfc::CString tmp2 = item.second;
-            tmp2.Trim();
-            RenameString[tmp1] = tmp2;
+            RenameString[item.first] = item.second;
         }
     if (theaterIg != "")
     {
@@ -560,11 +552,7 @@ void CViewObjectsExt::Redraw_Initialize()
         if (auto forcenames = fadata.GetSection((ppmfc::CString)("RenameString" + suffix)))
             for (auto& item : forcenames->GetEntities())
             {
-                ppmfc::CString tmp1 = item.first;
-                tmp1.Trim();
-                ppmfc::CString tmp2 = item.second;
-                tmp2.Trim();
-                RenameString[tmp1] = tmp2;
+                RenameString[item.first] = item.second;
             }
     }
 }

@@ -15,12 +15,7 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	{
 		int idx = pThis->GetBuildingTypeID(ID);
 		auto& DataExt = pThis->BuildingDataExts[idx];
-		ppmfc::CString ImageID = ID;
-		if (ppmfc::CString* pArtID = Variables::Rules.TryGetString(ID, "Image")) {
-			ppmfc::CString str = *pArtID;
-			str.Trim();
-			ImageID = str;
-		}
+		ppmfc::CString ImageID = Variables::Rules.GetString(ID, "Image", ID);
 
 		auto foundation = CINI::Art->GetString(ImageID, "Foundation");
 		if (_strcmpi(foundation, "Custom"))
@@ -61,10 +56,8 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 			{
 				ppmfc::CString key;
 				key.Format("Foundation.%d", i);
-				if (auto ppPoint = CINI::Art->TryGetString(ImageID, key)) {
-					ppmfc::CString str = *ppPoint;
-					str.Trim();
-					DataExt.Foundations->push_back(ParsePoint(str));
+				if (auto pPoint = CINI::Art->TryGetString(ImageID, key)) {
+					DataExt.Foundations->push_back(ParsePoint(*pPoint));
 				}
 				else
 					break;

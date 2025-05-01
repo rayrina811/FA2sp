@@ -1359,8 +1359,7 @@ void CMapDataExt::UpdateIncludeIniInMap()
 			CINI ini;
 
 			for (auto& pair : pSection->GetEntities()) {
-				ppmfc::CString includeFile = pair.second;
-				includeFile.Trim();
+				const ppmfc::CString& includeFile = pair.second;
 
 				if (includeFile && strlen(includeFile) > 0) {
 					bool canLoad = true;

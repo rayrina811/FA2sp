@@ -291,15 +291,7 @@ ppmfc::CString CLoadingExt::GetInfantryFileID(ppmfc::CString ID)
 
 ppmfc::CString CLoadingExt::GetArtID(ppmfc::CString ID)
 {
-	ppmfc::CString ArtID;
-	if (auto ppImage = Variables::Rules.TryGetString(ID, "Image")) {
-		ArtID = *ppImage;
-		ArtID.Trim();
-	}
-	else
-		ArtID = ID;
-
-	return ArtID;
+	return Variables::Rules.GetString(ID, "Image", ID);
 }
 
 ppmfc::CString CLoadingExt::GetVehicleOrAircraftFileID(ppmfc::CString ID)
@@ -318,10 +310,8 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 {
 	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
-		ppmfc::CString PowerUpBld = *ppPowerUpBld;
-		PowerUpBld.Trim();
-		if (!CLoadingExt::IsObjectLoaded(PowerUpBld))
-			LoadBuilding(PowerUpBld);
+		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
+			LoadBuilding(*ppPowerUpBld);
 	}
 
 	LoadBuilding_Normal(ID);
@@ -334,11 +324,9 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	{
 		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
 		{
-			ppmfc::CString AIFile = *pAIFile;
-			AIFile.Trim();
-			auto AIDicName = AIFile + "\233ALPHAIMAGE";
+			auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
 			if (!CLoadingExt::IsObjectLoaded(AIDicName))
-				LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);	
+				LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
 		}
 	}
 }
@@ -449,29 +437,25 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
 	{
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
+		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				ppmfc::CString str = *ppStr;
-				str.Trim();
-				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
 				ppmfc::CString customPal = "";
-				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(str, "Shadow"));
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
 	};
 
 	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
-		ppmfc::CString PowerUpBld = *ppPowerUpBld;
-		PowerUpBld.Trim();
-		if (!CLoadingExt::IsObjectLoaded(PowerUpBld))
-			LoadBuilding(PowerUpBld);
+		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
+			LoadBuilding(*ppPowerUpBld);
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
@@ -487,10 +471,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
 		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
 
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-			ppmfc::CString str = *ppStr;
-			str.Trim();
-			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str));
+		if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+			loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr));
 		}
 
 		ppmfc::CString DictName;
@@ -778,34 +760,30 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
 	{
 		ppmfc::CString damagedAnimkey = animkey + "Damaged";
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
+		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
-			ppmfc::CString str = *ppStr;
-			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
 				ppmfc::CString customPal = "";
-				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(str, "Shadow"));
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
-		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
+		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
-			ppmfc::CString str = *ppStr;
-			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
+				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
 				ppmfc::CString customPal = "";
-				if (!CINI::Art->GetBool(str, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(str, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame, 0, 0, customPal);
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal);
 			}
 		}
 	};
@@ -823,10 +801,8 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
 		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
 
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-			ppmfc::CString str = *ppStr;
-			str.Trim();
-			loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), 1);
+		if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+			loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), 1);
 		}
 
 		ppmfc::CString DictName;
@@ -1106,24 +1082,20 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
 	{
 		ppmfc::CString damagedAnimkey = animkey + "Damaged";
-		if (auto ppStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
+		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
-			ppmfc::CString str = *ppStr;
-			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame);
 			}
 		}
-		else if (auto ppStr = CINI::Art->TryGetString(ArtID, animkey))
+		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
-			ppmfc::CString str = *ppStr;
-			str.Trim();
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(str, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(str, "Image", str), nStartFrame);
+				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame);
 			}
 		}
 	};
@@ -1301,11 +1273,9 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		{
 			if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
 			{
-				ppmfc::CString AIFile = *pAIFile;
-				AIFile.Trim();
-				auto AIDicName = AIFile + "\233ALPHAIMAGE";
+				auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
 				if (!CLoadingExt::IsObjectLoaded(AIDicName))
-					LoadShp(AIDicName, AIFile + ".shp", "anim.pal", 0);
+					LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
 			}
 		}
 	}

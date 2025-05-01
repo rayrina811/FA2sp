@@ -81,9 +81,7 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	ppmfc::CString color = "";
 	if (pHouse)
 		if (auto pStr = Variables::Rules.TryGetString(pHouse, "Color")) {
-			ppmfc::CString str = *pStr;
-			str.Trim();
-			color = str;
+			color = *pStr;
 		}
 
 	if (pColor)
@@ -91,10 +89,8 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 
 	HSVClass hsv{ 0,0,0 };
 	if (!color.IsEmpty())
-		if (auto const ppValue = CINI::Rules->TryGetString("Colors", color)) {
-			ppmfc::CString str = *ppValue;
-			str.Trim();
-			sscanf_s(str, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+		if (auto const pValue = CINI::Rules->TryGetString("Colors", color)) {
+			sscanf_s(*pValue, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
 		}
 			
 
@@ -107,39 +103,6 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	R->EAX<int>(rgb);
 
 	return 0x468EEB;
-}
-
-// https://modenc.renegadeprojects.com/Cell_Spots
-
-DEFINE_HOOK(473E66, CIsoView_Draw_InfantrySubcell, B)
-{
-	GET(int, nX, EDI);
-	GET(int, nY, ESI);
-	REF_STACK(CInfantryData, infData, STACK_OFFS(0xD18, 0x78C));
-
-
-	int nSubcell;
-	sscanf_s(infData.SubCell, "%d", &nSubcell);
-
-
-	switch (nSubcell)
-	{
-	case 2:
-		R->EDI(nX + 15);
-		break;
-	case 3:
-		R->EDI(nX - 15);
-		break;
-	case 4:
-		R->ESI(nY + 7);
-		break;
-	case 0:
-	case 1:
-	default:
-		break;
-	}
-
-	return 0x473E8C;
 }
 
 DEFINE_HOOK(4A3306, CMapData_Update_InfantrySubCell, 5)//UpdateInfantry
