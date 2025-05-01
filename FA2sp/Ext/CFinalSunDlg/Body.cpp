@@ -1213,7 +1213,9 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			if (hParent1 != CNewINIEditor::GetHandle()
 				&& hParent1 != CCsfEditor::GetHandle()
-				&& hParent1 != CLuaConsole::GetHandle())
+				&& hParent1 != CLuaConsole::GetHandle()
+				&& !CViewObjectsExt::IsOpeningAnnotationDlg
+				)
 			{
 				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 				if (zDelta < 0) {

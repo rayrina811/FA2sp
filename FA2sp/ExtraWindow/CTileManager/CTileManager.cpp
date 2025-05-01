@@ -272,14 +272,11 @@ void CTileManager::UpdateDetails(HWND hWnd, int kNode)
         return;
     else
     {
-        ppmfc::CString text, buffer;
+        ppmfc::CString buffer;
         for (auto& x : CTileManager::Datas[kNode])
         {
             int data = SendMessage(hTileComboBox, CB_GETITEMDATA, x, NULL);
-            text.Format("TileSet%04d", data);
-            text = CINI::CurrentTheater->GetString(text, "SetName", "NO NAME");
-            Translations::GetTranslationItem(text, text);
-            buffer.Format("(%04d) %s", data, text);
+            buffer.Format("(%04d) %s", data, Translations::TranslateTileSet(data));
             SendMessage(
                 hTileDetails, 
                 LB_SETITEMDATA, 

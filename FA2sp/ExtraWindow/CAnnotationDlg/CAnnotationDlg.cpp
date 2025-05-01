@@ -1,6 +1,5 @@
 #include "CAnnotationDlg.h"
 #include "../../Helpers/STDHelpers.h"
-#include "../../Ext/CFinalSunDlg/Body.h"
 #include "../Common.h"
 
 CAnnotationDlg::CAnnotationDlg(CWnd* pParent /*=NULL*/)

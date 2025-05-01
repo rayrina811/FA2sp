@@ -205,6 +205,7 @@ public:
     static std::unordered_map<int, ConnectedTileInfo> TreeView_ConnectedTileMap;
     static int CurrentConnectedTileType;
     static int RedrawCalledCount;
+    static bool IsOpeningAnnotationDlg;
 
 
 private:

@@ -30,6 +30,7 @@ std::unordered_map<ppmfc::CString, int> CViewObjectsExt::Owners;
 std::unordered_set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
+bool CViewObjectsExt::IsOpeningAnnotationDlg = false;
 int CViewObjectsExt::InsertingTileIndex = -1;
 int CViewObjectsExt::InsertingOverlay = -1;
 int CViewObjectsExt::InsertingOverlayData = 0;
@@ -2045,9 +2046,10 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
         dlg.m_TextColor = atoms[3];
         dlg.m_BgColor = atoms[4];
     }
-        
-    dlg.DoModal();
 
+    IsOpeningAnnotationDlg = true;
+    dlg.DoModal();
+    IsOpeningAnnotationDlg = false;
     dlg.m_Text.Replace("\n", "\\n");
     dlg.m_Text.Replace("\r", "\\n");
     if (STDHelpers::IsNullOrWhitespaceOrReturn(dlg.m_Text))
