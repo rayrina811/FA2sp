@@ -201,7 +201,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     if (fileName.find("fa2extra_") == std::string::npos)
         extraName = "fa2extra_" + extraName;
 
-    if (ExtConfigs::AllowIncludes)
+    if (ExtConfigs::AllowIncludes || isPartOfRulesIni)
     {
         const char* includeSection = "#include";
 
@@ -265,35 +265,37 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
             Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
         }
 
-        if (auto pSection = ini.GetSection(includeSection)) {
-            for (auto& pair : pSection->GetEntities()) {
-                const ppmfc::CString& includeFile = pair.second;
+        if (ExtConfigs::AllowIncludes)
+        {
+            if (auto pSection = ini.GetSection(includeSection)) {
+                for (auto& pair : pSection->GetEntities()) {
+                    const ppmfc::CString& includeFile = pair.second;
 
-                if (includeFile && strlen(includeFile) > 0) {
-                    bool canLoad = true;
-                    for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
-                        if (!strcmp(INIIncludes::LoadedINIFiles[j], includeFile)) {
-                            canLoad = false;
-                            break;
+                    if (includeFile && strlen(includeFile) > 0) {
+                        bool canLoad = true;
+                        for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
+                            if (!strcmp(INIIncludes::LoadedINIFiles[j], includeFile)) {
+                                canLoad = false;
+                                break;
+                            }
                         }
-                    }
-                    if (isPartOfRulesIni) {
-                        INIIncludes::RulesIncludeFiles.push_back(_strdup(includeFile));
-                    }
+                        if (isPartOfRulesIni) {
+                            INIIncludes::RulesIncludeFiles.push_back(_strdup(includeFile));
+                        }
 
-                    if (canLoad) {
-                        if (!INIIncludes::IsMapINI)
-                            Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
-                        else
-                            Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
-                        CLoading::Instance->LoadTSINI(
-                            includeFile, (CINI*)xINI, TRUE
-                        );
+                        if (canLoad) {
+                            if (!INIIncludes::IsMapINI)
+                                Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
+                            else
+                                Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
+                            CLoading::Instance->LoadTSINI(
+                                includeFile, (CINI*)xINI, TRUE
+                            );
+                        }
                     }
                 }
             }
         }
-
         DeleteFile(path.c_str());
     }
 
