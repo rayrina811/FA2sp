@@ -3285,6 +3285,17 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     }
 }
 
+CRect CIsoViewExt::GetVisibleIsoViewRect()
+{
+    auto pThis = CIsoView::GetInstance();
+    CRect rect;
+    pThis->GetWindowRect(&rect);
+    CRect screenRect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+    CRect destRect;
+    destRect.IntersectRect(&rect, &screenRect);
+    return destRect;
+}
+
 void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
 {
     switch (specialDraw)
@@ -3292,8 +3303,7 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     case 0:
     {
         auto pThis = CIsoView::GetInstance();
-        CRect rect;
-        pThis->GetWindowRect(&rect);
+        CRect rect = CIsoViewExt::GetVisibleIsoViewRect();
         pThis->lpDDTempBufferSurface->Blt(&rect, surface, &rect, DDBLT_WAIT, 0);
         if (pThis->IsScrolling)
         {
