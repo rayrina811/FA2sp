@@ -3272,7 +3272,12 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
                     }
                 );
 
-                buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection", "MultiSelection Enabled. Selected Credits: %d"), nCount);
+                buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection",
+                    "MultiSelection Enabled. Selected Credits: %d"), nCount);
+                ppmfc::CString buffer2;
+                buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelectionCoords",
+                    ", Selected Tiles: %d"), MultiSelection::SelectedCoords.size());
+                buffer += buffer2;
                 ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
             }
         }
