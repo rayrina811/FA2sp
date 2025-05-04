@@ -638,6 +638,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 += 15;
 								break;
 							}
+
+							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+								y1 -= 60;
+
 							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
 						}
@@ -680,6 +684,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						int x1 = x;
 						int y1 = y;
+
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+							y1 -= 60;
+
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, Transparency);
 					}
@@ -904,72 +912,158 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 
 			//overlays
-			if (cell->Overlay != 0xFF && CIsoViewExt::DrawOverlays)
+			auto cellNext = CMapData::Instance->TryGetCellAt(X + 1, Y + 1);
+			if ((cell->Overlay != 0xFF || cellNext->Overlay != 0xFF) && CIsoViewExt::DrawOverlays)
 			{
-				ImageDataClass* pData = nullptr;
-				if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
+				ImageDataClass* pData = nullptr;		
+				if (
+					cellNext->Overlay == 0x18 || cellNext->Overlay == 0x19 || // BRIDGE1, BRIDGE2
+					cellNext->Overlay == 0x3B || cellNext->Overlay == 0x3C || // RAILBRDG1, RAILBRDG2
+					cellNext->Overlay == 0xED || cellNext->Overlay == 0xEE || // BRIDGEB1, BRIDGEB2
+					(cellNext->Overlay >= 0x4A && cellNext->Overlay <= 0x65) || // LOBRDG 1-28
+					(cellNext->Overlay >= 0xCD && cellNext->Overlay <= 0xEC) // LOBRDGB 1-4
+					)
 				{
-					pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
-				}
-				if (!pData || !pData->pImageBuffer)
-				{
-					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
-					if (!CLoadingExt::IsOverlayLoaded(obj))
+					if (OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData])
 					{
-						CLoading::Instance()->DrawOverlay(obj, cell->Overlay);
-						CIsoView::GetInstance()->UpdateDialog(false);
-						if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
-						{
-							pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
-						}
+						pData = OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData];
 					}
 					if (!pData || !pData->pImageBuffer)
 					{
-						if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
+						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellNext->Overlay);
+						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
-							char cd[10];
-							cd[0] = '0';
-							cd[1] = 'x';
-							_itoa(cell->Overlay, cd + 2, 16);
-							OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
+							CLoading::Instance()->DrawOverlay(obj, cellNext->Overlay);
+							CIsoView::GetInstance()->UpdateDialog(false);
+							if (OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData])
+							{
+								pData = OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData];
+							}
 						}
+						if (!pData || !pData->pImageBuffer)
+						{
+							if (!(cellNext->Overlay >= 0x4a && cellNext->Overlay <= 0x65) && !(cellNext->Overlay >= 0xcd && cellNext->Overlay <= 0xec))
+							{
+								char cd[10];
+								cd[0] = '0';
+								cd[1] = 'x';
+								_itoa(cellNext->Overlay, cd + 2, 16);
+								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
+							}
+						}
+					}
+					if (pData && pData->pImageBuffer)
+					{
+						int x1 = x;
+						int y1 = y;
+						if (cellNext->Overlay == 0xA7)
+							y1 -= 45;
+						else if (
+							cellNext->Overlay != 0x18 && cellNext->Overlay != 0x19 && // BRIDGE1, BRIDGE2
+							cellNext->Overlay != 0x3B && cellNext->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
+							cellNext->Overlay != 0xED && cellNext->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+							)
+						{
+							if (cellNext->Overlay >= 0x27 && cellNext->Overlay <= 0x36) // Tracks
+								y1 += 15;
+							else if (cellNext->Overlay >= 0x4A && cellNext->Overlay <= 0x65) // LOBRDG 1-28
+								y1 += 15;
+							else if (cellNext->Overlay >= 0xCD && cellNext->Overlay <= 0xEC) // LOBRDGB 1-4
+								y1 += 15;
+							else if (cellNext->Overlay < CMapDataExt::OverlayTypeDatas.size())
+							{
+								if (CMapDataExt::OverlayTypeDatas[cellNext->Overlay].Rock
+									//|| CMapDataExt::OverlayTypeDatas[cellNext->Overlay].TerrainRock // for compatibility of blockages
+									|| CMapDataExt::OverlayTypeDatas[cellNext->Overlay].RailRoad)
+									y1 += 15;
+							}
+						}
+						else
+						{
+							if (cellNext->OverlayData >= 0x9 && cellNext->OverlayData <= 0x11)
+								y1 -= 16;
+							else
+								y1 -= 1;
+						}
+						y1 += 30;
+						y1 -= (cellNext->Height - cell->Height) * 15;
+						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNext->Overlay, false);
 					}
 				}
-				if (pData && pData->pImageBuffer)
+				if (
+					cell->Overlay != 0xFF &&
+					cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
+					cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
+					cell->Overlay != 0xED && cell->Overlay != 0xEE && // BRIDGEB1, BRIDGEB2
+					!(cell->Overlay >= 0x4A && cell->Overlay <= 0x65) && // LOBRDG 1-28
+					!(cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+					)
 				{
-					int x1 = x;
-					int y1 = y;
-					if (cell->Overlay == 0xA7)
-						y1 -= 45;
-					else if (
-						cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
-						cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
-						cell->Overlay != 0xED && cell->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
-						)
+					if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
 					{
-						if (cell->Overlay >= 0x27 && cell->Overlay <= 0x36) // Tracks
-							y1 += 15;
-						else if (cell->Overlay >= 0x4A && cell->Overlay <= 0x65) // LOBRDG 1-28
-							y1 += 15;
-						else if (cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
-							y1 += 15;
-						else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
+						pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
+					}
+					if (!pData || !pData->pImageBuffer)
+					{
+						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
+						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
-							if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock
-								//|| CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[cell->Overlay].RailRoad)
-								y1 += 15;
+							CLoading::Instance()->DrawOverlay(obj, cell->Overlay);
+							CIsoView::GetInstance()->UpdateDialog(false);
+							if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
+							{
+								pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
+							}
+						}
+						if (!pData || !pData->pImageBuffer)
+						{
+							if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
+							{
+								char cd[10];
+								cd[0] = '0';
+								cd[1] = 'x';
+								_itoa(cell->Overlay, cd + 2, 16);
+								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
+							}
 						}
 					}
-					else
+					if (pData && pData->pImageBuffer)
 					{
-						if (cell->OverlayData >= 0x9 && cell->OverlayData <= 0x11)
-							y1 -= 16;
+						int x1 = x;
+						int y1 = y;
+						if (cell->Overlay == 0xA7)
+							y1 -= 45;
+						else if (
+							cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
+							cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
+							cell->Overlay != 0xED && cell->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+							)
+						{
+							if (cell->Overlay >= 0x27 && cell->Overlay <= 0x36) // Tracks
+								y1 += 15;
+							else if (cell->Overlay >= 0x4A && cell->Overlay <= 0x65) // LOBRDG 1-28
+								y1 += 15;
+							else if (cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+								y1 += 15;
+							else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
+							{
+								if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock
+									//|| CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock // for compatibility of blockages
+									|| CMapDataExt::OverlayTypeDatas[cell->Overlay].RailRoad)
+									y1 += 15;
+							}
+						}
 						else
-							y1 -= 1;
+						{
+							if (cell->OverlayData >= 0x9 && cell->OverlayData <= 0x11)
+								y1 -= 16;
+							else
+								y1 -= 1;
+						}
+						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cell->Overlay, false);
 					}
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cell->Overlay, false);
 				}
 			}
 
@@ -1223,8 +1317,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								|| Variables::Rules.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
 
 						auto color = Miscs::GetColorRef(obj.House);
+
+						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+							pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+								x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
+
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0), pData, NULL, 255, color, 0, true);
+							x - pData->FullWidth / 2,
+							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) - 
+							(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
+							pData, NULL, 255, color, 0, true);
 
 						auto& veter = DrawVeterancies.emplace_back();
 						int	VP = atoi(obj.VeterancyPercentage);
@@ -1325,6 +1427,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 += 15;
 								break;
 							}
+
+							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+								y1 -= 60;
+
+							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+								pThis->DrawLine(x1 + 30, y1 - 30,
+									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor, false, false, lpDesc, true);
+
 							auto color = Miscs::GetColorRef(obj.House);
 							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, color, 1, true);

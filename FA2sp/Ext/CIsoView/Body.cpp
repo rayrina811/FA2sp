@@ -1157,7 +1157,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
 
 }
 
-void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc)
+void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool bDashed)
 {
     if (lpDesc->lpSurface == nullptr)
         return;
@@ -1173,7 +1173,7 @@ void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool 
     ddColor.G = pRGB->green;
     ddColor.B = pRGB->blue;
 
-    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect](int X1, int Y1, int X2, int Y2)
+    auto DrawLine = [lPitch, nBytesPerPixel, ddColor, lpDesc, &rect, bDashed](int X1, int Y1, int X2, int Y2)
         {
             int color = *(int*)&ddColor;
 
@@ -1186,14 +1186,22 @@ void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool 
             int dx = X2 - X1;
             int dy = Y2 - Y1;
 
-
             auto ptr = (unsigned char*)lpDesc->lpSurface + lPitch * Y1 + X1 * nBytesPerPixel;
+
+            const int dashOn = 3;
+            const int dashOff = 3;
+            const int dashPeriod = dashOn + dashOff;
+
+            auto shouldDraw = [=](int step) {
+                return !bDashed || (step % dashPeriod) < dashOn;
+                };
 
             if (dy == 0)
             {
                 for (int i = 0; i <= dx; ++i)
                 {
-                    memcpy(ptr, &ddColor, nBytesPerPixel);
+                    if (shouldDraw(i))
+                        memcpy(ptr, &ddColor, nBytesPerPixel);
                     ptr += nBytesPerPixel;
                 }
             }
@@ -1208,7 +1216,8 @@ void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool 
 
                 for (int i = 0; i <= dy; ++i)
                 {
-                    memcpy(ptr, &ddColor, nBytesPerPixel);
+                    if (shouldDraw(i))
+                        memcpy(ptr, &ddColor, nBytesPerPixel);
                     ptr += pitch;
                 }
             }
@@ -1227,28 +1236,31 @@ void CIsoViewExt::DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool 
                 if (dx > dy)
                 {
                     int delta = dy2 - dx;
-                    for (int i = 0; i < dx; ++i)
+                    int yOffset = 0;
+                    for (int i = 0; i <= dx; ++i)
                     {
-                        memcpy(ptr + i * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                        if (shouldDraw(i))
+                            memcpy(ptr + yOffset, &ddColor, nBytesPerPixel);
                         if (delta > 0)
                         {
-                            ptr += pitch;
+                            yOffset += pitch;
                             delta -= dx2;
                         }
                         delta += dy2;
+                        ptr += nBytesPerPixel;
                     }
                 }
                 else
                 {
                     int delta = dx2 - dy;
-                    int k = 0;
-
-                    for (int i = 0; i < dy; ++i)
+                    int xOffset = 0;
+                    for (int i = 0; i <= dy; ++i)
                     {
-                        memcpy(ptr + k * nBytesPerPixel, &ddColor, nBytesPerPixel);
+                        if (shouldDraw(i))
+                            memcpy(ptr + xOffset * nBytesPerPixel, &ddColor, nBytesPerPixel);
                         if (delta > 0)
                         {
-                            ++k;
+                            ++xOffset;
                             delta -= dy2;
                         }
                         delta += dx2;
