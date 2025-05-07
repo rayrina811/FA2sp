@@ -674,7 +674,7 @@ bool CNewINIEditor::IsGameObject(const char* lpSectionName)
 
     if (str == "Terrain" || str == "Waypoints" || str == "Smudge" ||
         str == "Structures" || str == "Units" || str == "CellTags" ||
-        str == "Aircraft" || str == "Infantry" || "Annotations")
+        str == "Aircraft" || str == "Infantry" || str == "Annotations")
         return true;
 
     return false;
