@@ -1361,7 +1361,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						auto& veter = DrawVeterancies.emplace_back();
 						int	VP = atoi(obj.VeterancyPercentage);
 						veter.X = x;
-						veter.Y = y;
+						veter.Y = y - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0);
 						veter.VP = VP;
 					}
 				}
