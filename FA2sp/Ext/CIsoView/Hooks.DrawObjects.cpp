@@ -344,7 +344,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					if (altImage > 0)
 					{
-						tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+						altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+						tile = tile.AltTypes[altImage - 1];
 					}
 				}
 				if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
@@ -361,10 +362,22 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					if (subTile.HasValidImage)
 					{
 						Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+						ImageDataClassSafe* extra = nullptr;
+						if (CFinalSunApp::Instance->FlatToGround && ExtConfigs::FlatToGroundHideExtra &&
+							CMapDataExt::HasExtraTiles.find(ExtraImageInfo{ tileIndex,tileSubIndex,altImage }) != CMapDataExt::HasExtraTiles.end())
+						{
+							ppmfc::CString extraImageID;
+							extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+							extra = CLoadingExt::GetImageDataFromServer(extraImageID);
+							if (!extra->pImageBuffer)
+							{
+								extra = nullptr;
+							}
+						}
 
 						CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 							x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-							cell->IsHidden() ? 128 : 255);
+							cell->IsHidden() ? 128 : 255, extra);
 
 						auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 						cellExt.HasAnim = false;
@@ -415,7 +428,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		{
 			if (altImage > 0)
 			{
-				tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+				altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+				tile = tile.AltTypes[altImage - 1];
 			}
 		}
 		if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
@@ -835,7 +849,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						if (altImage > 0)
 						{
-							tile = altImage < tile.AltTypeCount ? tile.AltTypes[altImage - 1] : tile.AltTypes[tile.AltTypeCount - 1];
+							altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+							tile = tile.AltTypes[altImage - 1];
 						}
 					}
 					if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
@@ -849,22 +864,37 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (subTile.HasValidImage)
 						{
 							Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
-
-							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
-								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								cell->IsHidden() ? 128 : 255);
-
-							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+							ImageDataClassSafe* extra = nullptr;
+							if (CFinalSunApp::Instance->FlatToGround && ExtConfigs::FlatToGroundHideExtra &&
+								CMapDataExt::HasExtraTiles.find(ExtraImageInfo{ tileIndex,tileSubIndex,altImage }) != CMapDataExt::HasExtraTiles.end())
 							{
 								ppmfc::CString extraImageID;
 								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
-								if (pData->pImageBuffer)
+								extra = CLoadingExt::GetImageDataFromServer(extraImageID);
+								if (!extra->pImageBuffer)
+								{
+									extra = nullptr;
+								}
+							}
+
+							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
+								cell->IsHidden() ? 128 : 255, extra);
+
+							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+							{
+								if (!extra)
+								{
+									ppmfc::CString extraImageID;
+									extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+									extra = CLoadingExt::GetImageDataFromServer(extraImageID);
+								}
+								if (extra->pImageBuffer)
 								{
 									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 										x1 + subTile.XMinusExX + 30,
 										y1 + subTile.YMinusExY + 30,
-										pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
+										extra, pal, cell->IsHidden() ? 128 : 255, -2, -10);
 								}
 							}
 							drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);

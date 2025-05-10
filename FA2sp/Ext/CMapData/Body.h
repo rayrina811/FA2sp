@@ -51,6 +51,27 @@ struct TubeData
     ppmfc::CString key;
 };
 
+struct ExtraImageInfo
+{
+    int TileIndex;
+    int TileSubIndex;
+    int AltType;
+
+    bool operator==(const ExtraImageInfo& other) const {
+        return TileIndex == other.TileIndex &&
+            TileSubIndex == other.TileSubIndex &&
+            AltType == other.AltType;
+    }
+
+    bool operator<(const ExtraImageInfo& other) const {
+        if (TileIndex != other.TileIndex)
+            return TileIndex < other.TileIndex;
+        if (TileSubIndex != other.TileSubIndex)
+            return TileSubIndex < other.TileSubIndex;
+        return AltType < other.AltType;
+    }
+};
+
 struct BuildingDataExt
 {
     ~BuildingDataExt()
@@ -326,5 +347,6 @@ public:
     static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
     static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
+    static std::set<ExtraImageInfo> HasExtraTiles;
     static std::unordered_map<int, Palette*> TileSetPalettes;
 };

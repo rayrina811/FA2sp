@@ -160,6 +160,7 @@ public:
     static bool InGameDisplay_Hover;
     static bool InGameDisplay_AlphaImage;
     static bool InGameDisplay_Bridge;
+    static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
     static bool DDrawScalingBilinear;
     static bool LoadImageDataFromServer;

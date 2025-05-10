@@ -187,6 +187,7 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
     CLoadingExt::ImageDataMap.clear();
+    CMapDataExt::HasExtraTiles.clear();
     for (auto& data : CLoadingExt::SurfaceImageDataMap)
     {
         if (data.second->lpSurface)

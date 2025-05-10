@@ -2329,6 +2329,20 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     if (extraLightType == -10 || extraLightType >= 500)
     {
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+        if (extraLightType >= 500)
+        {
+            int overlay = extraLightType - 500;
+            if (
+            overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
+                overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
+                overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
+                (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
+                (overlay >= 0xCD && overlay <= 0xEC) // LOBRDGB 1-4
+                )
+                isMultiSelected = MultiSelection::IsSelected(
+                    CIsoViewExt::CurrentDrawCellLocation.X + 1,
+                    CIsoViewExt::CurrentDrawCellLocation.Y + 1);
+        }
     }
 
     BGRStruct color;
@@ -2740,7 +2754,7 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
 }
 
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha)
+    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, ImageDataClassSafe* extraImage)
 {
     if (alpha == 0) return;
 
@@ -2751,6 +2765,10 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     BYTE* src = (BYTE*)subTile->ImageData;
     int swidth = subTile->BlockWidth;
     int sheight = subTile->BlockHeight;
+
+    BYTE* src2 = extraImage ? (BYTE*)extraImage->pImageBuffer.get() : nullptr;
+    int swidth2 = extraImage ? extraImage->FullWidth : 0;
+    int sheight2 = extraImage ? extraImage->FullHeight : 0;
 
     if (src == NULL || dst == NULL) {
         return;
@@ -2825,6 +2843,11 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
             BYTE val = src[spos];
 
             if (val) {
+
+                if (src2 && src2[spos] != 0) {
+                    continue;
+                }
+
                 auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
 
                 if (dest >= dst) {

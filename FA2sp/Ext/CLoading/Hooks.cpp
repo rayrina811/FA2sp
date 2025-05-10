@@ -318,8 +318,12 @@ DEFINE_HOOK(52D047, CLoading_DrawTMP_4, 8)
 		{
 			delete[] image;
 		}
-		image = new byte[width * height];
-		*image = *R->EDX<byte*>();
+		int size = width * height;
+		image = new byte[size];
+		byte* image2 = R->EDX<byte*>();
+		for (int i = 0; i < size; ++i) {
+			image[i] = image2[i];
+		}
 	}
 	return 0;
 }
@@ -338,9 +342,11 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		ppmfc::CString ImageID;
-		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]++);
+		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 		loadingExt->SetImageDataSafe(diff, ImageID, width, height, Palette::PALETTE_ISO);
 		CLoadingExt::LoadedObjects.insert(ImageID);
+		CMapDataExt::HasExtraTiles.insert(ExtraImageInfo{ tileIndex, subTileIndex, altCount[subTileIndex] });
+		altCount[subTileIndex]++;
 	}
 	return 0;
 }
