@@ -730,7 +730,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
 				ppmfc::CString imageName;
-				imageName.Format("%s%d\233OVERLAYSHADOW", obj, cell->OverlayData);
+				imageName.Format("%s\233%d\233OVERLAYSHADOW", obj, cell->OverlayData);
 
 				if (!CLoadingExt::IsOverlayLoaded(obj))
 				{

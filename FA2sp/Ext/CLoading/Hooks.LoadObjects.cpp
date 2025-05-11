@@ -280,7 +280,7 @@ DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
     {
         ppmfc::CString DictNameShadow;
         unsigned char* pBufferShadow[1];
-        DictNameShadow.Format("%s%d\233OVERLAYSHADOW", LoadingOverlayID, i);
+        DictNameShadow.Format("%s\233%d\233OVERLAYSHADOW", LoadingOverlayID, i);
         CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow[0], header);
         loadingExt->SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
     }
