@@ -2510,16 +2510,18 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
     color.R = pRGB->red;
     color.G = pRGB->green;
     color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+    if (extraLightType != -11)
     {
-        if (extraLightType >= 500)
-            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
+        if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
+        {
+            if (extraLightType >= 500)
+                newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
+            else
+                newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+        }
         else
-            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-    }
-    else
-        newPal = PalettesManager::GetPalette(newPal, color, remap);
-
+            newPal = PalettesManager::GetPalette(newPal, color, remap);
+    }   
 
     auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
 
