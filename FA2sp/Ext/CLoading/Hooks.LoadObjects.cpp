@@ -187,7 +187,6 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
     CLoadingExt::ImageDataMap.clear();
-    CMapDataExt::HasExtraTiles.clear();
     for (auto& data : CLoadingExt::SurfaceImageDataMap)
     {
         if (data.second->lpSurface)
@@ -276,7 +275,7 @@ DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
     ShapeHeader header;
     CShpFile::GetSHPHeader(&header);
     auto loadingExt = (CLoadingExt*)CLoading::Instance();
-    for (int i = 0; i < header.FrameCount / 2; i++)
+    for (int i = 0; i < std::min(header.FrameCount / 2, 60); i++)
     {
         ppmfc::CString DictNameShadow;
         unsigned char* pBufferShadow[1];

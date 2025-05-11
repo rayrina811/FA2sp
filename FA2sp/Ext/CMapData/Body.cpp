@@ -82,7 +82,6 @@ std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
-std::set<ExtraImageInfo> CMapDataExt::HasExtraTiles;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 
 int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)

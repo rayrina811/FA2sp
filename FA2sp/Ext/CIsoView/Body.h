@@ -86,7 +86,7 @@ public:
     static void BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd);
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255, ImageDataClassSafe* extraImage = nullptr);
+        const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);

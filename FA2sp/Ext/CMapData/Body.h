@@ -347,6 +347,5 @@ public:
     static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
     static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
-    static std::set<ExtraImageInfo> HasExtraTiles;
     static std::unordered_map<int, Palette*> TileSetPalettes;
 };

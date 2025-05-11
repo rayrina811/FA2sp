@@ -345,7 +345,6 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 		loadingExt->SetImageDataSafe(diff, ImageID, width, height, Palette::PALETTE_ISO);
 		CLoadingExt::LoadedObjects.insert(ImageID);
-		CMapDataExt::HasExtraTiles.insert(ExtraImageInfo{ tileIndex, subTileIndex, altCount[subTileIndex] });
 		altCount[subTileIndex]++;
 	}
 	return 0;
