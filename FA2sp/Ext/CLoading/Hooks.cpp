@@ -274,11 +274,9 @@ static int tileIndex = -1;
 static int subTileIndex = -1;
 static int altCount[100];
 static byte* image = nullptr;
-static ppmfc::CString fileName;
 
-DEFINE_HOOK(48E580, CLoading_LoadTile_GetFileName, 7)
+DEFINE_HOOK(48E580, CLoading_LoadTile_Init, 7)
 {
-	fileName = R->Stack<char*>(0x4);
 	if (R->Stack<int>(0x10) != tileIndex)
 	{
 		std::memset(altCount, 0, sizeof(altCount));

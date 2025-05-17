@@ -3,7 +3,7 @@
 #include <CMapData.h>
 #include "../CMapData/Body.h"
 
-
+/*
 DEFINE_HOOK(45E880, CIsoView_MapCoord2ScreenCoord_Height, 5)
 {
 	GET_STACK(int*, X, 0x4);
@@ -25,7 +25,7 @@ DEFINE_HOOK(476240, CIsoView_MapCoord2ScreenCoord_Flat, 5)
 	*Y = std::min(CMapData::Instance->MapWidthPlusHeight, *Y);
 	return 0;
 }
-
+*/
 #define BACK_BUFFER_TO_PRIMARY(hook_addr, hook_name, hook_size, return_addr, special_draw) \
 DEFINE_HOOK(hook_addr,hook_name,hook_size) \
 { \

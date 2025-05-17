@@ -1243,7 +1243,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             ppmfc::CString targetHouse;
             ppmfc::CString targetNode;
-            std::vector<int> ids;
+            std::vector<BaseNodeDataExt> datas;
 
             auto& ini = CMapData::Instance->INI;
             if (auto pSection = ini.GetSection("Houses"))
@@ -1281,13 +1281,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                         {
                                             if (coord.X == point.X && coord.Y == point.Y)
                                             {
-                                                ids.push_back(i);
-                                                targetHouse = pair.second;
-                                                targetNode = value;
+                                                auto& data = datas.emplace_back();
+                                                data.BasenodeID = i;
+                                                data.House = pair.second;
+                                                data.ID = atoms[0];
+                                                data.X = X;
+                                                data.Y = Y;
                                             }
-
                                         }
-
                                     }
                                 }
                             }
@@ -1300,22 +1301,22 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                     {
                                         if (coord.X == point.X && coord.Y == point.Y)
                                         {
-                                            ids.push_back(i);
-                                            targetHouse = pair.second;
-                                            targetNode = value;
+                                            auto& data = datas.emplace_back();
+                                            data.BasenodeID = i;
+                                            data.House = pair.second;
+                                            data.ID = atoms[0];
+                                            data.X = X;
+                                            data.Y = Y;
                                         }
                                     }
-
                                 }
                             }
                         }
                     }
                 }
             }
-            for (auto id : ids)
+            for (auto& id : datas)
             {
-                auto atoms = STDHelpers::SplitString(targetNode);
-
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House)
                 {
                     ppmfc::CString leftLine1;
@@ -1323,10 +1324,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     ppmfc::CString leftLine3;
                     ppmfc::CString leftLine4;
                     ppmfc::CString leftLine5;
-                    ppmfc::CString targetHouse2 = targetHouse;
+                    ppmfc::CString targetHouse2 = id.House;
 
                     int objThisCount = 0;
-                    int cost = mmh.GetInteger(atoms[0], "Cost");
+                    int cost = mmh.GetInteger(id.ID, "Cost");
 
                     bool stopPowerCheck = false;
                     int housePowerTotal = 0;
@@ -1349,7 +1350,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             auto atoms2 = STDHelpers::SplitString(value);
                             if (atoms2.size() < 3)
                                 continue;
-                            if (atoms2[0] == atoms[0])
+                            if (atoms2[0] == id.ID)
                                 objThisCount++;
 
                             int ppower = mmh.GetInteger(atoms2[0], "Power");
@@ -1365,7 +1366,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                 if (!stopPowerCheck)
                                     houseLoadThis -= ppower;
                             }
-                            if (i == id)
+                            if (i == id.BasenodeID)
                                 stopPowerCheck = true;
                             if (housePowerTotal - houseLoadTotal < 0)
                                 powerShortage.push_back(i);
@@ -1375,7 +1376,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
-                        "Basenode:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(atoms[0]), atoms[0], objThisCount, objThisCount * cost);
+                        "Basenode:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
 
                     ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                     ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1447,13 +1448,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
-                    Miscs::ParseHouseName(&targetHouse, targetHouse, true);
+                    ppmfc::CString targetHouse2 = id.House;
+                    Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
-                        , CMapData::GetUIName(atoms[0]), atoms[0], id);
+                        , CMapData::GetUIName(id.ID), id.ID, id);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.2",
                         "House: %s")
-                        , targetHouse);
+                        , targetHouse2);
                     ::SetBkColor(hDC, RGB(0, 255, 255));
                     ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
                     ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
