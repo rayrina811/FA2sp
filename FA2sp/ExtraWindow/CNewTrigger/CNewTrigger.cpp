@@ -78,6 +78,8 @@ std::pair<bool, int> CNewTrigger::EventParamsUsage[EVENT_PARAM_COUNT];
 std::pair<bool, int> CNewTrigger::ActionParamsUsage[ACTION_PARAM_COUNT];
 std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
 std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
+bool CNewTrigger::EventParameterAutoDrop[EVENT_PARAM_COUNT];
+bool CNewTrigger::ActionParameterAutoDrop[ACTION_PARAM_COUNT];
 bool CNewTrigger::Autodrop;
 bool CNewTrigger::DropNeedUpdate;
 bool CNewTrigger::ActionParamUsesFloat;
@@ -1100,7 +1102,8 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hEventParameter[index], CB_GETCOUNT, NULL, NULL) > 0 || !EventParamLabels[index].empty()))
+    if (edited && (SendMessage(hEventParameter[index], CB_GETCOUNT, NULL, NULL) > 0 || !EventParamLabels[index].empty())
+        && CNewTrigger::EventParameterAutoDrop[index])
     {
         ExtraWindow::OnEditCComboBox(hEventParameter[index], EventParamLabels[index]);
     }
@@ -1141,7 +1144,8 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hActionParameter[index], CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels[index].empty()))
+    if (edited && (SendMessage(hActionParameter[index], CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels[index].empty())
+        && CNewTrigger::ActionParameterAutoDrop[index])
     {
         ExtraWindow::OnEditCComboBox(hActionParameter[index], ActionParamLabels[index]);
     }
@@ -1821,12 +1825,17 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     for (int i = 0; i < EVENT_PARAM_COUNT; i++)
     {
         while (SendMessage(hEventParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        CNewTrigger::EventParameterAutoDrop[i] = true;
         if (thisEvent.P3Enabled)
         {
             if (EventParamsUsage[i].first)
             {
                 EnableWindow(hEventParameter[i], TRUE);
                 ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second - 1][1]);
+                if (pParamTypes[EventParamsUsage[i].second - 1][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                {
+                    CNewTrigger::EventParameterAutoDrop[i] = false;
+                }
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].m_pchData);
             }
             else
@@ -1846,6 +1855,10 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
             {
                 EnableWindow(hEventParameter[i], TRUE);
                 ExtraWindow::LoadParams(hEventParameter[i], pParamTypes[EventParamsUsage[i].second][1]);
+                if (pParamTypes[EventParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                {
+                    CNewTrigger::EventParameterAutoDrop[i] = false;
+                }
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].m_pchData);
             }
             else
@@ -1962,6 +1975,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
         while (SendMessage(hActionParameter[i], CB_DELETESTRING, 0, NULL) != CB_ERR);
+        CNewTrigger::ActionParameterAutoDrop[i] = true;
         if (ActionParamsUsage[i].first)
         {
             ActionParamsCount++;
@@ -1976,6 +1990,10 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                     //thisAction.Params[ActionParamsUsage[i].second].MakeLower();
                     CurrentCSFActionParam = i;
                 }
+                if (pParamTypes[ActionParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
+                {
+                    CNewTrigger::ActionParameterAutoDrop[i] = false;
+                }
                 else if (pParamTypes[ActionParamsUsage[i].second][1] == "9") // triggers
                 {
                     CurrentTriggerActionParam = i;
@@ -1988,6 +2006,8 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
                 {
                     SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)Translations::TranslateOrDefault("TriggerP7Waypoint", "Waypoint"));
                     ExtraWindow::LoadParam_Waypoints(hActionParameter[i]);
+                    if (!ExtConfigs::SearchCombobox_Waypoint)
+                        CNewTrigger::ActionParameterAutoDrop[i] = false;
                 }
                 else
                     SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)Translations::TranslateOrDefault("TriggerP7Number", "Number"));

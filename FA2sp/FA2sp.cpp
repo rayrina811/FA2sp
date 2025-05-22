@@ -133,6 +133,7 @@ bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
+bool ExtConfigs::SearchCombobox_Waypoint;
 int ExtConfigs::NewTheaterType;
 int ExtConfigs::TreeViewCameo_Size;
 bool ExtConfigs::TreeViewCameo_Display;
@@ -282,6 +283,7 @@ void FA2sp::ExtConfigsInitialize()
 		ExtConfigs::TreeViewCameo_Size = 16;
 
 	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
+	ExtConfigs::SearchCombobox_Waypoint = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Waypoint");
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	if (ExtConfigs::SearchCombobox_MaxCount < 0)
 		ExtConfigs::SearchCombobox_MaxCount = INT_MAX;

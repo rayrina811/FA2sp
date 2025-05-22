@@ -146,6 +146,7 @@ private:
     static std::map<int, ppmfc::CString> TagLabels;
     static std::map<int, ppmfc::CString> HouseLabels;
     static bool Autodrop;
+    static bool WaypointAutodrop;
     static bool DropNeedUpdate;
     static std::vector<ppmfc::CString> mindControlDecisions;
 

@@ -149,6 +149,7 @@ public:
     static bool StringBufferStackAllocation;
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
+    static bool SearchCombobox_Waypoint;
     static int NewTheaterType;
     static int TreeViewCameo_Size;
     static bool TreeViewCameo_Display;

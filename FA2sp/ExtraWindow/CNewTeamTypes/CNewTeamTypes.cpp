@@ -70,6 +70,7 @@ std::map<int, ppmfc::CString> CNewTeamTypes::ScriptLabels;
 std::map<int, ppmfc::CString> CNewTeamTypes::TagLabels;
 std::map<int, ppmfc::CString> CNewTeamTypes::HouseLabels;
 bool CNewTeamTypes::Autodrop;
+bool CNewTeamTypes::WaypointAutodrop;
 bool CNewTeamTypes::DropNeedUpdate;
 std::vector<ppmfc::CString> CNewTeamTypes::mindControlDecisions;
 

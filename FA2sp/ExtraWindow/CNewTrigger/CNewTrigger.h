@@ -435,6 +435,9 @@ private:
     static std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
     static std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
 
+    static bool EventParameterAutoDrop[EVENT_PARAM_COUNT];
+    static bool ActionParameterAutoDrop[ACTION_PARAM_COUNT];
+
     static bool Autodrop;
     static bool DropNeedUpdate;
     static WNDPROC OriginalListBoxProcEvent;

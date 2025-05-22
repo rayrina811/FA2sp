@@ -53,6 +53,7 @@ std::map<int, ppmfc::CString> CNewScript::ActionParamLabels;
 std::map<int, ppmfc::CString> CNewScript::ActionExtraParamLabels;
 std::map<ppmfc::CString, bool> CNewScript::ActionHasExtraParam;
 bool CNewScript::Autodrop;
+bool CNewScript::ParamAutodrop[2];
 bool CNewScript::DropNeedUpdate;
 bool CNewScript::bInsert;
 WNDPROC CNewScript::OriginalListBoxProc;
@@ -450,7 +451,8 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionExtraParamLabels.empty()))
+    if (edited && (SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionExtraParamLabels.empty())
+        && CNewScript::ParamAutodrop[1])
     {
         ExtraWindow::OnEditCComboBox(hActionExtraParam, ActionExtraParamLabels);
     }
@@ -516,7 +518,8 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels.empty()))
+    if (edited && (SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels.empty())
+        && CNewScript::ParamAutodrop[0])
     {
         ExtraWindow::OnEditCComboBox(hActionParam, ActionParamLabels);
     }
@@ -1123,6 +1126,8 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
         if (hasParam == "1")
         {
             EnableWindow(hActionParam, TRUE);
+            CNewScript::ParamAutodrop[0] = true;
+            CNewScript::ParamAutodrop[1] = true;
             if (auto pSectionParam = fadata.GetSection("ScriptParams"))
             {
                 auto param = STDHelpers::SplitString(fadata.GetString("ScriptParams", paramIdx));
@@ -1130,12 +1135,20 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 {
                     SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0].m_pchData);
                     ExtraWindow::LoadParams(hActionParam, param[1]); 
+                    if (!ExtConfigs::SearchCombobox_Waypoint && param[1] == "1") // waypoints
+                    {
+                        CNewScript::ParamAutodrop[0] = false;
+                    }
                 }
                 if (ActionHasExtraParam[name])
                 {
                     EnableWindow(hActionExtraParam, TRUE);
                     SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2].m_pchData);
                     ExtraWindow::LoadParams(hActionExtraParam, param[3]);
+                    if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
+                    {
+                        CNewScript::ParamAutodrop[1] = false;
+                    }
                     int actionParam = atoi(atoms[1]);
                     int low = LOWORD(actionParam);
                     int high = HIWORD(actionParam);

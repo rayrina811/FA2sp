@@ -110,6 +110,7 @@ private:
     static std::map<int, ppmfc::CString> ActionParamLabels;
     static std::map<int, ppmfc::CString> ActionExtraParamLabels;
     static bool Autodrop;
+    static bool ParamAutodrop[2];
     static bool DropNeedUpdate;
     static bool bInsert;
     static WNDPROC OriginalListBoxProc;
