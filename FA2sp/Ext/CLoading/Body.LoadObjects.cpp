@@ -447,7 +447,15 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
+				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
+				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
+				{
+					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
+					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
+				}
+
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
 	};
@@ -770,7 +778,15 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
+				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
+				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
+				{
+					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
+					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
+				}
+
+				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
