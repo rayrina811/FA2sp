@@ -337,6 +337,7 @@ public:
     static std::unordered_map<int, bool> SoftTileSets; // soft = affected by shore logic
     static ppmfc::CString BitmapImporterTheater;
     static float ConditionYellow;
+    static float ConditionRed;
     static bool DeleteBuildingByIniID;
     static std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;

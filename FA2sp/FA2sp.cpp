@@ -142,6 +142,7 @@ bool ExtConfigs::UseStrictNewTheater;
 bool ExtConfigs::InGameDisplay_Shadow;
 bool ExtConfigs::InGameDisplay_Deploy;
 bool ExtConfigs::InGameDisplay_Water;
+bool ExtConfigs::InGameDisplay_Damage;
 bool ExtConfigs::InGameDisplay_Hover;
 bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
@@ -270,6 +271,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
+	ExtConfigs::InGameDisplay_Damage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Damage", true);
 	ExtConfigs::InGameDisplay_Hover = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Hover", true);
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);

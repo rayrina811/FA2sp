@@ -37,6 +37,48 @@ inline static bool IsCoordInWindow(int X, int Y)
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
 
+inline static void GetUnitImageID(ppmfc::CString& ImageID, const CUnitData& obj, const LandType& landType)
+{
+	if (ExtConfigs::InGameDisplay_Water)
+	{
+		if (landType == LandType::Water || landType == LandType::Beach)
+		{
+			ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+		}
+	}
+	if (ExtConfigs::InGameDisplay_Damage)
+	{
+		int HP = atoi(obj.Health);
+		if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+		{
+			ImageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionYellow", ImageID);
+		}
+		if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+		{
+			ImageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionRed", ImageID);
+		}
+		if (ExtConfigs::InGameDisplay_Water)
+		{
+			if (landType == LandType::Water || landType == LandType::Beach)
+			{
+				if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+				{
+					ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage.ConditionYellow", ImageID);
+				}
+				if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+				{
+					ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage.ConditionRed", ImageID);
+				}
+			}
+		}
+	}
+	// UnloadingClass is prior
+	if (ExtConfigs::InGameDisplay_Deploy && obj.Status == "Unload")
+	{
+		ImageID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", ImageID);
+	}
+}
+
 DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 {
 	auto pThis = CIsoView::GetInstance();
@@ -566,7 +608,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								int status = CLoadingExt::GBIN_NORMAL;
 								if (HP == 0)
 									status = CLoadingExt::GBIN_RUBBLE;
-								else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+								else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+									status = CLoadingExt::GBIN_DAMAGED;
+								else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
+									&& !(Variables::Rules.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::Rules.GetBool(objRender.ID, "CanOccupyFire")))
 									status = CLoadingExt::GBIN_DAMAGED;
 								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
 
@@ -659,26 +704,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CUnitData obj;
 					CMapData::Instance->GetUnitData(cell->Unit, obj);
 
+					ppmfc::CString ImageID = obj.TypeID;
+					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+
 					int nFacing = (atoi(obj.Facing) / 32) % 8;
 
-					if (ExtConfigs::InGameDisplay_Water)
-					{
-						auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-						if (landType == LandType::Water || landType == LandType::Beach)
-						{
-							obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
-						}
-					}
-					if (ExtConfigs::InGameDisplay_Deploy && obj.Status == "Unload")
-					{
-						obj.TypeID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", obj.TypeID);
-					}
+					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
-					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true);
-
-					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (!CLoadingExt::IsObjectLoaded(ImageID))
 					{
-						CLoading::Instance->LoadObjects(obj.TypeID);
+						CLoading::Instance->LoadObjects(ImageID);
 					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
@@ -1133,7 +1168,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						int status = CLoadingExt::GBIN_NORMAL;
 						if (HP == 0)
 							status = CLoadingExt::GBIN_RUBBLE;
-						else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+						else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+							status = CLoadingExt::GBIN_DAMAGED;
+						else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
+							&& !(Variables::Rules.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::Rules.GetBool(objRender.ID, "CanOccupyFire")))
 							status = CLoadingExt::GBIN_DAMAGED;
 						const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
 
@@ -1290,26 +1328,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CUnitData obj;
 					CMapData::Instance->GetUnitData(cell->Unit, obj);
 
+					ppmfc::CString ImageID = obj.TypeID;
+					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+
 					int nFacing = (atoi(obj.Facing) / 32) % 8;
 
-					if (ExtConfigs::InGameDisplay_Water)
-					{
-						auto landType = CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex);
-						if (landType == LandType::Water || landType == LandType::Beach)
-						{
-							obj.TypeID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
-						}
-					}
-					if (ExtConfigs::InGameDisplay_Deploy && obj.Status == "Unload")
-					{
-						obj.TypeID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", obj.TypeID);
-					}
+					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
-					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing);
-
-					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (!CLoadingExt::IsObjectLoaded(ImageID))
 					{
-						CLoading::Instance->LoadObjects(obj.TypeID);
+						CLoading::Instance->LoadObjects(ImageID);
 					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 

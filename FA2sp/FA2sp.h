@@ -158,6 +158,7 @@ public:
     static bool InGameDisplay_Shadow;
     static bool InGameDisplay_Deploy;
     static bool InGameDisplay_Water;
+    static bool InGameDisplay_Damage;
     static bool InGameDisplay_Hover;
     static bool InGameDisplay_AlphaImage;
     static bool InGameDisplay_Bridge;

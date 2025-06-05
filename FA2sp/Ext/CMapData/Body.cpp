@@ -62,7 +62,8 @@ int CMapDataExt::WoodBridgeSet;
 int CMapDataExt::HeightBase;
 int CMapDataExt::AutoShore_ShoreTileSet;
 int CMapDataExt::AutoShore_GreenTileSet;
-float CMapDataExt::ConditionYellow = 0.67f;
+float CMapDataExt::ConditionYellow = 0.5f;
+float CMapDataExt::ConditionRed = 0.25f;
 bool CMapDataExt::DeleteBuildingByIniID = false;
 std::unordered_set<int> CMapDataExt::ShoreTileSets;
 std::unordered_map<int, bool> CMapDataExt::SoftTileSets;
@@ -1600,7 +1601,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
 	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
 	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
-	ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.67f);
+	ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.5f);
+	ConditionRed = Variables::Rules.GetSingle("AudioVisual", "ConditionRed", 0.25f);
 
 	AutoShore_ShoreTileSet = ShorePieces;
 	AutoShore_GreenTileSet = GreenTile;
