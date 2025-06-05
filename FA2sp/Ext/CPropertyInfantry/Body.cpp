@@ -115,7 +115,7 @@ void CPropertyInfantryExt::StatusProc(WORD nCode, LPARAM lParam)
 	case CBN_DROPDOWN:
 		StatusUpdate(lParam);
 		break;
-	case CBN_SELCHANGE:
+	//case CBN_SELCHANGE:
 	case CBN_DBLCLK:
 	case CBN_CLOSEUP:
 		CurrentState(hStatusComboBox, ::SendMessage(hStatusComboBox, CB_GETCURSEL, NULL, NULL));
