@@ -4,6 +4,7 @@
 #include "../FA2Expand.h"
 #include <CShpFile.h>
 #include <vector>
+#include <algorithm>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -54,6 +55,15 @@ struct ImageDataTransfer
 {
 	char imageID[0x100];
 	ImageDataClassSafe pData;
+};
+
+struct AnimDisplayOrder
+{
+	int ZAdjust = 0;
+	int YSort = 0;
+	bool MainBody = false;
+	ppmfc::CString AnimKey = "";
+	ppmfc::CString IgnoreKey = "";
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -183,7 +193,13 @@ public:
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, ppmfc::CString name);
-	
+	void SortDisplayOrderByZAdjust(std::vector<AnimDisplayOrder>& displayOrder) {
+		std::stable_sort(displayOrder.begin(), displayOrder.end(),
+			[](const AnimDisplayOrder& a, const AnimDisplayOrder& b) {
+				return a.ZAdjust > b.ZAdjust;
+			});
+	}
+
 	struct SHPUnionData
 	{
 		unsigned char* pBuffer;

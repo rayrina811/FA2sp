@@ -467,195 +467,230 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
+
+	ppmfc::CString AnimKeys[9] = 
+	{	
+		"IdleAnim",
+		"ActiveAnim",
+		"ActiveAnimTwo",
+		"ActiveAnimThree",
+		"ActiveAnimFour",
+		"SuperAnim",
+		"SuperAnimTwo",
+		"SuperAnimThree",
+		"SuperAnimFour" 
+	};
+	ppmfc::CString IgnoreKeys[9] =
 	{
-		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
-		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
-		loadAnimFrameShape("ActiveAnimTwo", "IgnoreActiveAnim2");
-		loadAnimFrameShape("ActiveAnimThree", "IgnoreActiveAnim3");
-		loadAnimFrameShape("ActiveAnimFour", "IgnoreActiveAnim4");
-		loadAnimFrameShape("SuperAnim", "IgnoreSuperAnim1");
-		loadAnimFrameShape("SuperAnimTwo", "IgnoreSuperAnim2");
-		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
-		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
+		"IgnoreIdleAnim",
+		"IgnoreActiveAnim1",
+		"IgnoreActiveAnim2",
+		"IgnoreActiveAnim3",
+		"IgnoreActiveAnim4",
+		"IgnoreSuperAnim1",
+		"IgnoreSuperAnim2",
+		"IgnoreSuperAnim3",
+		"IgnoreSuperAnim4"
+	};
+	std::vector<AnimDisplayOrder> displayOrder;
 
-		if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-			loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr));
-		}
-
-		ppmfc::CString DictName;
-
-		unsigned char* pBuffer;
-		int width, height;
-		UnionSHP_GetAndClear(pBuffer, &width, &height);
-
-		ppmfc::CString DictNameShadow;
-		unsigned char* pBufferShadow{ 0 };
-		int widthShadow, heightShadow;
-		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
-			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
-
-		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	displayOrder.push_back({ 0,0,true,"","" });
+	for (int i = 0; i < 9; ++i)
+	{
+		displayOrder.push_back({ 
+			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "ZAdjust"),
+			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
+			false, AnimKeys[i], IgnoreKeys[i] });
+	}
+	SortDisplayOrderByZAdjust(displayOrder);
+	for (const auto& order : displayOrder)
+	{
+		if (order.MainBody)
 		{
-			if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+			loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow&& CINI::Art->GetBool(ArtID, "Shadow", true));
+		}
+		else
+		{
+			loadAnimFrameShape(order.AnimKey, order.IgnoreKey);
+		}
+	}
+
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr));
+	}
+
+	ppmfc::CString DictName;
+
+	unsigned char* pBuffer;
+	int width, height;
+	UnionSHP_GetAndClear(pBuffer, &width, &height);
+
+	ppmfc::CString DictNameShadow;
+	unsigned char* pBufferShadow{ 0 };
+	int widthShadow, heightShadow;
+	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
+		UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
+
+	if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	{
+		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+		{
+			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			ppmfc::CString BarlName = ID + "barl";
+
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			std::vector<unsigned char*> pTurImages, pBarlImages;
+			pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			std::vector<VoxelRectangle> turrect, barlrect;
+			turrect.resize(ExtConfigs::MaxVoxelFacing);
+			barlrect.resize(ExtConfigs::MaxVoxelFacing);
+
+			ppmfc::CString VXLName = BarlName + ".vxl";
+			ppmfc::CString HVAName = BarlName + ".hva";
+			if (VoxelDrawer::LoadVXLFile(VXLName))
 			{
-				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-				ppmfc::CString BarlName = ID + "barl";
-
-
-				if (!VoxelDrawer::IsVPLLoaded())
-					VoxelDrawer::LoadVPLFile("voxels.vpl");
-
-				std::vector<unsigned char*> pTurImages, pBarlImages;
-				pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-				pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-				std::vector<VoxelRectangle> turrect, barlrect;
-				turrect.resize(ExtConfigs::MaxVoxelFacing);
-				barlrect.resize(ExtConfigs::MaxVoxelFacing);
-
-				ppmfc::CString VXLName = BarlName + ".vxl";
-				ppmfc::CString HVAName = BarlName + ".hva";
-				if (VoxelDrawer::LoadVXLFile(VXLName))
+				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					if (VoxelDrawer::LoadHVAFile(HVAName))
+					for (int i = 0; i < 8; ++i)
 					{
-						for (int i = 0; i < 8; ++i)
-						{
-							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
-							if (!result)
-								break;
-						}
+						// (13 - i) % 8 for facing fix
+						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
+						if (!result)
+							break;
 					}
 				}
+			}
 
-				VXLName = TurName + ".vxl";
-				HVAName = TurName + ".hva";
-				if (VoxelDrawer::LoadVXLFile(VXLName))
+			VXLName = TurName + ".vxl";
+			HVAName = TurName + ".hva";
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					if (VoxelDrawer::LoadHVAFile(HVAName))
+					for (int i = 0; i < 8; ++i)
 					{
-						for (int i = 0; i < 8; ++i)
-						{
-							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
-							if (!result)
-								break;
-						}
+						// (13 - i) % 8 for facing fix
+						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
+						if (!result)
+							break;
 					}
 				}
+			}
 
-				for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < 8; ++i)
+			{
+				if (IsLoadingObjectView && i != 0)
+					continue;
+				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
+				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+				UnionSHP_Add(pTempBuf, width, height);
+
+				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+
+				if (pTurImages[i])
 				{
-					if (IsLoadingObjectView && i != 0)
-						continue;
-					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
-					UnionSHP_Add(pTempBuf, width, height);
+					ppmfc::CString pKey;
 
-					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+					pKey.Format("%sX%d", ID, (15 - i) % 8);
+					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+					pKey.Format("%sY%d", ID, (15 - i) % 8);
+					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
-					if (pTurImages[i])
+					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+					CncImgFree(pTurImages[i]);
+
+					if (pBarlImages[i])
 					{
-						ppmfc::CString pKey;
-
 						pKey.Format("%sX%d", ID, (15 - i) % 8);
-						int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+						int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 						pKey.Format("%sY%d", ID, (15 - i) % 8);
-						int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+						int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 
-						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
-						CncImgFree(pTurImages[i]);
-
-						if (pBarlImages[i])
-						{
-							pKey.Format("%sX%d", ID, (15 - i) % 8);
-							int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-							pKey.Format("%sY%d", ID, (15 - i) % 8);
-							int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-
-							VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
-							CncImgFree(pBarlImages[i]);
-						}
+						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
+						CncImgFree(pBarlImages[i]);
 					}
-
-					int nW = 0x100, nH = 0x100;
-					VXL_GetAndClear(pTurImages[i], &nW, &nH);
-
-					UnionSHP_Add(pTurImages[i], 0x100, 0x100, deltaX, deltaY);
-
-					unsigned char* pImage;
-					int width1, height1;
-
-					UnionSHP_GetAndClear(pImage, &width1, &height1);
-					DictName.Format("%s%d", ID, i);
-					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 				}
 
-				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
-				{
-					DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
-					SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
-				}
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pTurImages[i], &nW, &nH);
 
-				GameDeleteArray(pBuffer, width * height);
+				UnionSHP_Add(pTurImages[i], 0x100, 0x100, deltaX, deltaY);
+
+				unsigned char* pImage;
+				int width1, height1;
+
+				UnionSHP_GetAndClear(pImage, &width1, &height1);
+				DictName.Format("%s%d", ID, i);
+				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 			}
-			else //SHP anim
-			{
-				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-				for (int i = 0; i < 8; ++i)
-				{
-					if (IsLoadingObjectView && i != 0)
-						continue;
-					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
-					UnionSHP_Add(pTempBuf, width, height);
 
-					if (shadow)
-					{
-						auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
-						memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
-						UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
-					}
-
-					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
-					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 4, deltaX, deltaY, "", shadow);
-
-					unsigned char* pImage;
-					int width1, height1;
-					UnionSHP_GetAndClear(pImage, &width1, &height1);
-
-					DictName.Format("%s%d", ID, i);
-					SetImageDataSafe(pImage, DictName, width1, height1, palette);
-
-					if (shadow)
-					{
-						ppmfc::CString DictNameShadow;
-						unsigned char* pImageShadow;
-						int width1Shadow, height1Shadow;
-						UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
-						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
-						SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
-					}
-				}
-				GameDelete(pBuffer);
-				GameDelete(pBufferShadow);
-			}
-		}
-		else // No turret
-		{
-			DictName.Format("%s%d", ID, 0);
-			SetImageDataSafe(pBuffer, DictName, width, height, palette);
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
+
+			GameDeleteArray(pBuffer, width * height);
+		}
+		else //SHP anim
+		{
+			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
+			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+			for (int i = 0; i < 8; ++i)
+			{
+				if (IsLoadingObjectView && i != 0)
+					continue;
+				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
+				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+				UnionSHP_Add(pTempBuf, width, height);
+
+				if (shadow)
+				{
+					auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
+					memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
+					UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
+				}
+
+				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * 4, deltaX, deltaY, "", shadow);
+
+				unsigned char* pImage;
+				int width1, height1;
+				UnionSHP_GetAndClear(pImage, &width1, &height1);
+
+				DictName.Format("%s%d", ID, i);
+				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+
+				if (shadow)
+				{
+					ppmfc::CString DictNameShadow;
+					unsigned char* pImageShadow;
+					int width1Shadow, height1Shadow;
+					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
+					DictNameShadow.Format("%s%d\233SHADOW", ID, i);
+					SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+				}
+			}
+			GameDelete(pBuffer);
+			GameDelete(pBufferShadow);
+		}
+	}
+	else // No turret
+	{
+		DictName.Format("%s%d", ID, 0);
+		SetImageDataSafe(pBuffer, DictName, width, height, palette);
+		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
+		{
+			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
+			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
 }
@@ -805,201 +840,168 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	};
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
-	if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
+
+	ppmfc::CString AnimKeys[9] =
 	{
-		loadAnimFrameShape("IdleAnim", "IgnoreIdleAnim");
-		loadAnimFrameShape("ActiveAnim", "IgnoreActiveAnim1");
-		loadAnimFrameShape("ActiveAnimTwo", "IgnoreActiveAnim2");
-		loadAnimFrameShape("ActiveAnimThree", "IgnoreActiveAnim3");
-		loadAnimFrameShape("ActiveAnimFour", "IgnoreActiveAnim4");
-		loadAnimFrameShape("SuperAnim", "IgnoreSuperAnim1");
-		loadAnimFrameShape("SuperAnimTwo", "IgnoreSuperAnim2");
-		loadAnimFrameShape("SuperAnimThree", "IgnoreSuperAnim3");
-		loadAnimFrameShape("SuperAnimFour", "IgnoreSuperAnim4");
+		"IdleAnim",
+		"ActiveAnim",
+		"ActiveAnimTwo",
+		"ActiveAnimThree",
+		"ActiveAnimFour",
+		"SuperAnim",
+		"SuperAnimTwo",
+		"SuperAnimThree",
+		"SuperAnimFour"
+	};
+	ppmfc::CString IgnoreKeys[9] =
+	{
+		"IgnoreIdleAnim",
+		"IgnoreActiveAnim1",
+		"IgnoreActiveAnim2",
+		"IgnoreActiveAnim3",
+		"IgnoreActiveAnim4",
+		"IgnoreSuperAnim1",
+		"IgnoreSuperAnim2",
+		"IgnoreSuperAnim3",
+		"IgnoreSuperAnim4"
+	};
+	std::vector<AnimDisplayOrder> displayOrder;
 
-		if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-			loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), 1);
-		}
-
-		ppmfc::CString DictName;
-
-		unsigned char* pBuffer;
-		int width, height;
-		UnionSHP_GetAndClear(pBuffer, &width, &height);
-
-		ppmfc::CString DictNameShadow;
-		unsigned char* pBufferShadow{ 0 };
-		int widthShadow, heightShadow;
-		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
-			UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
-
-		if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	displayOrder.push_back({ 0,0,true,"","" });
+	for (int i = 0; i < 9; ++i)
+	{
+		displayOrder.push_back({
+			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "ZAdjust"),
+			CINI::Art->GetInteger(ArtID, AnimKeys[i] + "YSort"),
+			false, AnimKeys[i], IgnoreKeys[i] });
+	}
+	SortDisplayOrderByZAdjust(displayOrder);
+	for (const auto& order : displayOrder)
+	{
+		if (order.MainBody)
 		{
-			if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+			loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true));
+		}
+		else
+		{
+			loadAnimFrameShape(order.AnimKey, order.IgnoreKey);
+		}
+	}
+
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), 1);
+	}
+
+	ppmfc::CString DictName;
+
+	unsigned char* pBuffer;
+	int width, height;
+	UnionSHP_GetAndClear(pBuffer, &width, &height);
+
+	ppmfc::CString DictNameShadow;
+	unsigned char* pBufferShadow{ 0 };
+	int widthShadow, heightShadow;
+	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
+		UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
+
+	if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	{
+		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+		{
+			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			ppmfc::CString BarlName = ID + "barl";
+
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			std::vector<unsigned char*> pTurImages, pBarlImages;
+			pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			std::vector<VoxelRectangle> turrect, barlrect;
+			turrect.resize(ExtConfigs::MaxVoxelFacing);
+			barlrect.resize(ExtConfigs::MaxVoxelFacing);
+
+			ppmfc::CString VXLName = BarlName + ".vxl";
+			ppmfc::CString HVAName = BarlName + ".hva";
+			if (VoxelDrawer::LoadVXLFile(VXLName))
 			{
-				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-				ppmfc::CString BarlName = ID + "barl";
-
-
-				if (!VoxelDrawer::IsVPLLoaded())
-					VoxelDrawer::LoadVPLFile("voxels.vpl");
-
-				std::vector<unsigned char*> pTurImages, pBarlImages;
-				pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-				pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-				std::vector<VoxelRectangle> turrect, barlrect;
-				turrect.resize(ExtConfigs::MaxVoxelFacing);
-				barlrect.resize(ExtConfigs::MaxVoxelFacing);
-
-				ppmfc::CString VXLName = BarlName + ".vxl";
-				ppmfc::CString HVAName = BarlName + ".hva";
-				if (VoxelDrawer::LoadVXLFile(VXLName))
+				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					if (VoxelDrawer::LoadHVAFile(HVAName))
+					for (int i = 0; i < 8; ++i)
 					{
-						for (int i = 0; i < 8; ++i)
-						{
-							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
-							if (!result)
-								break;
-						}
+						// (13 - i) % 8 for facing fix
+						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
+						if (!result)
+							break;
 					}
 				}
+			}
 
-				VXLName = TurName + ".vxl";
-				HVAName = TurName + ".hva";
-				if (VoxelDrawer::LoadVXLFile(VXLName))
+			VXLName = TurName + ".vxl";
+			HVAName = TurName + ".hva";
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					if (VoxelDrawer::LoadHVAFile(HVAName))
+					for (int i = 0; i < 8; ++i)
 					{
-						for (int i = 0; i < 8; ++i)
-						{
-							// (13 - i) % 8 for facing fix
-							bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
-							if (!result)
-								break;
-						}
+						// (13 - i) % 8 for facing fix
+						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
+						if (!result)
+							break;
 					}
 				}
+			}
 
-				for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < 8; ++i)
+			{
+				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
+				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+				UnionSHP_Add(pTempBuf, width, height);
+
+				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+
+				if (pTurImages[i])
 				{
-					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
-					UnionSHP_Add(pTempBuf, width, height);
+					ppmfc::CString pKey;
 
-					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+					pKey.Format("%sX%d", ID, (15 - i) % 8);
+					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+					pKey.Format("%sY%d", ID, (15 - i) % 8);
+					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
-					if (pTurImages[i])
+					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
+					CncImgFree(pTurImages[i]);
+
+					if (pBarlImages[i])
 					{
-						ppmfc::CString pKey;
-
 						pKey.Format("%sX%d", ID, (15 - i) % 8);
-						int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+						int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 						pKey.Format("%sY%d", ID, (15 - i) % 8);
-						int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
+						int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 
-						VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
-						CncImgFree(pTurImages[i]);
-
-						if (pBarlImages[i])
-						{
-							pKey.Format("%sX%d", ID, (15 - i) % 8);
-							int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-							pKey.Format("%sY%d", ID, (15 - i) % 8);
-							int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-
-							VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
-							CncImgFree(pBarlImages[i]);
-						}
+						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
+						CncImgFree(pBarlImages[i]);
 					}
-
-					int nW = 0x100, nH = 0x100;
-					VXL_GetAndClear(pTurImages[i], &nW, &nH);
-
-					UnionSHP_Add(pTurImages[i], 0x100, 0x100, deltaX, deltaY);
-
-					unsigned char* pImage;
-					int width1, height1;
-
-					UnionSHP_GetAndClear(pImage, &width1, &height1);
-					if (loadAsRubble)
-						DictName.Format("%s%d\233RUBBLE", ID, i);
-					else
-						DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageDataSafe(pImage, DictName, width1, height1, palette);
 				}
 
-				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
-				{
-					if (loadAsRubble)
-						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
-					else
-						DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
-					SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
-				}
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pTurImages[i], &nW, &nH);
 
-				GameDeleteArray(pBuffer, width * height);
+				UnionSHP_Add(pTurImages[i], 0x100, 0x100, deltaX, deltaY);
+
+				unsigned char* pImage;
+				int width1, height1;
+
+				UnionSHP_GetAndClear(pImage, &width1, &height1);
+				if (loadAsRubble)
+					DictName.Format("%s%d\233RUBBLE", ID, i);
+				else
+					DictName.Format("%s%d\233DAMAGED", ID, i);
+				SetImageDataSafe(pImage, DictName, width1, height1, palette);
 			}
-			else //SHP anim
-			{
-				ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-				int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
-				bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-				for (int i = 0; i < 8; ++i)
-				{
-					auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-					memcpy_s(pTempBuf, width * height, pBuffer, width * height);
-					UnionSHP_Add(pTempBuf, width, height);
-
-					if (shadow)
-					{
-						auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
-						memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
-						UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
-					}
-
-					int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-					int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
-					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-						nStartFrame + i * 4, deltaX, deltaY, "", shadow);
-
-					unsigned char* pImage;
-					int width1, height1;
-					UnionSHP_GetAndClear(pImage, &width1, &height1);
-
-					if (loadAsRubble)
-						DictName.Format("%s%d\233RUBBLE", ID, i);
-					else
-						DictName.Format("%s%d\233DAMAGED", ID, i);
-					SetImageDataSafe(pImage, DictName, width1, height1, palette);
-
-					if (shadow)
-					{
-						ppmfc::CString DictNameShadow;
-						unsigned char* pImageShadow;
-						int width1Shadow, height1Shadow;
-						UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
-						if (loadAsRubble)
-							DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, i);
-						else
-							DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, i);
-						SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
-					}
-				}
-				GameDelete(pBuffer);
-				GameDelete(pBufferShadow);
-			}
-		}
-		else // No turret
-		{
-			if (loadAsRubble)
-				DictName.Format("%s%d\233RUBBLE", ID, 0);
-			else
-				DictName.Format("%s%d\233DAMAGED", ID, 0);
-			SetImageDataSafe(pBuffer, DictName, width, height, palette);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -1009,6 +1011,74 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 			}
+
+			GameDeleteArray(pBuffer, width * height);
+		}
+		else //SHP anim
+		{
+			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
+			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+			for (int i = 0; i < 8; ++i)
+			{
+				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
+				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+				UnionSHP_Add(pTempBuf, width, height);
+
+				if (shadow)
+				{
+					auto pTempBufShadow = GameCreateArray<unsigned char>(width * height);
+					memcpy_s(pTempBufShadow, width * height, pBufferShadow, width * height);
+					UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
+				}
+
+				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * 4, deltaX, deltaY, "", shadow);
+
+				unsigned char* pImage;
+				int width1, height1;
+				UnionSHP_GetAndClear(pImage, &width1, &height1);
+
+				if (loadAsRubble)
+					DictName.Format("%s%d\233RUBBLE", ID, i);
+				else
+					DictName.Format("%s%d\233DAMAGED", ID, i);
+				SetImageDataSafe(pImage, DictName, width1, height1, palette);
+
+				if (shadow)
+				{
+					ppmfc::CString DictNameShadow;
+					unsigned char* pImageShadow;
+					int width1Shadow, height1Shadow;
+					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
+					if (loadAsRubble)
+						DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, i);
+					else
+						DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, i);
+					SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
+				}
+			}
+			GameDelete(pBuffer);
+			GameDelete(pBufferShadow);
+		}
+	}
+	else // No turret
+	{
+		if (loadAsRubble)
+			DictName.Format("%s%d\233RUBBLE", ID, 0);
+		else
+			DictName.Format("%s%d\233DAMAGED", ID, 0);
+		SetImageDataSafe(pBuffer, DictName, width, height, palette);
+
+		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
+		{
+			if (loadAsRubble)
+				DictNameShadow.Format("%s%d\233RUBBLESHADOW", ID, 0);
+			else
+				DictNameShadow.Format("%s%d\233DAMAGEDSHADOW", ID, 0);
+			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
 }

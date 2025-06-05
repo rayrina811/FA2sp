@@ -82,6 +82,8 @@ void CViewObjectsExt::ConnectedTile_Initialize()
                         cts.Type = ConnectedTileSetTypes::PaveShore;
                     else if (type == "CityDirtRoad")
                         cts.Type = ConnectedTileSetTypes::CityDirtRoad;
+                    else if (type == "RailRoad")
+                        cts.Type = ConnectedTileSetTypes::RailRoad;
 
                     if (sptype == "SnowSnow")
                         cts.SpecialType = ConnectedTileSetSpecialTypes::SnowSnow;
@@ -198,6 +200,8 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     HTREEITEM hShore = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_Shore",-1, hCT);
     HTREEITEM hHighway = pThis == nullptr ? NULL : pThis->InsertTranslatedString("CT_PavedRoad", -1, hCT);
 
+    HTREEITEM hRailroad = pThis == nullptr ? NULL : pThis->InsertTranslatedString("Tracks", -1, hCT);
+
     std::vector<HTREEITEM> subNodes;
     subNodes.push_back(hCliffLandSnowSnow);
     subNodes.push_back(hCliffLandSnowStone);
@@ -211,6 +215,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
     subNodes.push_back(hShore);
     subNodes.push_back(hHighway);
     subNodes.push_back(hCliff);
+    subNodes.push_back(hRailroad);
 
     auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 
@@ -248,25 +253,28 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                 }
             }
 
-            if (firstTileIndex > CMapDataExt::TileDataCount || lastTileIndex > CMapDataExt::TileDataCount)
-                continue;
+            if (ct.Type != ConnectedTileSetTypes::RailRoad)
+            {
+                if (firstTileIndex > CMapDataExt::TileDataCount || lastTileIndex > CMapDataExt::TileDataCount)
+                    continue;
 
-            int firstTileset = CMapDataExt::TileData[firstTileIndex].TileSet;
-            int lastTileset = CMapDataExt::TileData[lastTileIndex].TileSet;
-            ppmfc::CString buffer;
-            buffer.Format("TileSet%04d", firstTileset);
+                int firstTileset = CMapDataExt::TileData[firstTileIndex].TileSet;
+                int lastTileset = CMapDataExt::TileData[lastTileIndex].TileSet;
+                ppmfc::CString buffer;
+                buffer.Format("TileSet%04d", firstTileset);
+
+                auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+                auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+                if (!exist || strcmp(exist2, "") == 0)
+                    continue;
+
+                buffer.Format("TileSet%04d", lastTileset);
+                exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
+                exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
+                if (!exist || strcmp(exist2, "") == 0)
+                    continue;
+            }
             
-            auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
-            auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-            if (!exist || strcmp(exist2, "") == 0)
-                continue;
-
-            buffer.Format("TileSet%04d", lastTileset);
-            exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
-            exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-            if (!exist || strcmp(exist2, "") == 0)
-                continue;
-
             ConnectedTileInfo info{};
             info.Index = i;
             info.Front = true;
@@ -379,6 +387,11 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                 if (pThis) pThis->InsertString(ct.Name, Const_ConnectedTile + index, hHighway);
                 index++;
                 break;
+            case ConnectedTileSetTypes::RailRoad:
+                TreeView_ConnectedTileMap[index] = info;
+                if (pThis) pThis->InsertString(ct.Name, Const_ConnectedTile + index, hRailroad);
+                index++;
+                break;
             case ConnectedTileSetTypes::Shore:
             case ConnectedTileSetTypes::PaveShore:
                 TreeView_ConnectedTileMap[index] = info;
@@ -424,6 +437,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     bool UrbanCliff = false;
     bool IceCliff = false;
     bool cityRoad = false;
+    bool railRoad = false;
 
     int subPos = 0;
 
@@ -479,7 +493,12 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             return 0;
         };
 
-    if (CIsoView::CurrentCommand->Type >= 9000) return; //9000+ is for parent treeview
+    if (CIsoView::CurrentCommand->Type >= 9000)
+    {
+        CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+        return;
+    }
+
     int ctIndex = CIsoView::CurrentCommand->Type;
     CurrentConnectedTileType = TreeView_ConnectedTileMap[ctIndex].Index;
     tileSet = CViewObjectsExt::ConnectedTileSets[CurrentConnectedTileType];
@@ -524,6 +543,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         cityRoad = true;
         break;
     case ConnectedTileSetTypes::Highway:
+        break;
+    case ConnectedTileSetTypes::RailRoad:
+        railRoad = true;
         break;
     case ConnectedTileSetTypes::Shore:
         if (TreeView_ConnectedTileMap[ctIndex].Front)
@@ -3638,6 +3660,321 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
         thisTile = CMapDataExt::TileData[CViewObjectsExt::CliffConnectionTile];
+    }
+    else if (tileSet.Type == ConnectedTileSetTypes::RailRoad)
+    {
+        int index = -1;
+        auto getSuitableBendy = [&tileSet, &getOppositeDirection, &opposite, &distance, &SmallDistance, &LargeDistance](int lastDirection, int direction)
+            {
+                bool met = false;
+                for (int i = 0; i < tileSet.ConnectedTile.size(); i++)
+                {
+                    if (tileSet.ConnectedTile[i].Direction0 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction1 == direction)
+                    {
+                        met = true;
+                        opposite = false;
+                    }
+                    else if (tileSet.ConnectedTile[i].Direction1 == getOppositeDirection(lastDirection) && tileSet.ConnectedTile[i].Direction0 == direction)
+                    {
+                        met = true;
+                        opposite = true;
+                    }
+                    if (met)
+                    {
+                        return i;
+                    }
+                }
+                return -1;
+            };
+        if (CViewObjectsExt::LastPlacedCT.Index == -1)
+        {
+            if (facing == 0)
+            {
+                index = 2;
+            }
+            else if (facing == 1)
+            {
+                index = 1;
+            }
+            else if (facing == 2)
+            {
+                index = 3;
+            }
+            else if (facing == 3)
+            {
+                opposite = true;
+                index = 0;
+            }
+            else if (facing == 4)
+            {
+                opposite = true;
+                index = 2;
+            }
+            else if (facing == 5)
+            {
+                opposite = true;
+                index = 1;
+            }
+            else if (facing == 6)
+            {
+                opposite = true;
+                index = 3;
+            }
+            else if (facing == 7)
+            {
+                index = 0;
+            }
+        }
+        else
+        {
+            index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);
+        }
+
+        if (index < 0)
+        {
+            if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection()) != tileSet.ConnectedTile[CViewObjectsExt::LastSuccessfulIndex].GetThisDirection(CViewObjectsExt::LastSuccessfulOpposite))
+            {
+                CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+                return;
+            }
+
+            opposite = CViewObjectsExt::LastSuccessfulOpposite;
+            index = CViewObjectsExt::LastSuccessfulIndex;
+        }
+        else
+        {
+            CViewObjectsExt::LastSuccessfulOpposite = opposite;
+            CViewObjectsExt::LastSuccessfulIndex = index;
+        }
+
+        if (!tileSet.ConnectedTile[index].TileIndices.empty())
+        {
+            CViewObjectsExt::CliffConnectionTile = tileSet.ConnectedTile[index].TileIndices[0] + tileSet.StartTile;
+        }
+        else
+        {
+            CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+            return;
+        }
+        CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+
+        if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 1)
+        {
+            offsetConnectX -= 1;
+            offsetConnectY += 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 2)
+        {
+            offsetConnectY += 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 3)
+        {
+            offsetConnectX += 1;
+            offsetConnectY += 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 4)
+        {
+            offsetConnectX += 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 5)
+        {
+            offsetConnectX += 1;
+            offsetConnectY -= 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 6)
+        {
+            offsetConnectY -= 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 7)
+        {
+            offsetConnectX -= 1;
+            offsetConnectY -= 1;
+        }
+        else if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 0)
+        {
+            offsetConnectX -= 1;
+        }
+
+        std::map<int, CellData> tmpCellDatas;
+        if (0 <= CViewObjectsExt::CliffConnectionTile && CViewObjectsExt::CliffConnectionTile < 256)
+        {
+            int repeat = 1;
+            if (facing == 0 && index == 2)
+            {
+                repeat = std::max(abs(CViewObjectsExt::CliffConnectionCoord.X - cursor.X), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 4 && index == 2)
+            {
+                repeat = std::max(abs(CViewObjectsExt::CliffConnectionCoord.X - cursor.X), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 2 && index == 3)
+            {
+                repeat = std::max(abs(CViewObjectsExt::CliffConnectionCoord.Y - cursor.Y), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 6 && index == 3)
+            {
+                repeat = std::max(abs(CViewObjectsExt::CliffConnectionCoord.Y - cursor.Y), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 1 && index == 1)
+            {
+                repeat = std::max(abs(((CViewObjectsExt::CliffConnectionCoord.X - CViewObjectsExt::CliffConnectionCoord.Y)
+                    - (cursor.X - cursor.Y)) / 2), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 5 && index == 1)
+            {
+                repeat = std::max(abs(((CViewObjectsExt::CliffConnectionCoord.X - CViewObjectsExt::CliffConnectionCoord.Y)
+                    - (cursor.X - cursor.Y)) / 2), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 7 && index == 0)
+            {
+                repeat = std::max(abs(((CViewObjectsExt::CliffConnectionCoord.X + CViewObjectsExt::CliffConnectionCoord.Y)
+                    - (cursor.X + cursor.Y)) / 2), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else if (facing == 3 && index == 0)
+            {
+                repeat = std::max(abs(((CViewObjectsExt::CliffConnectionCoord.X + CViewObjectsExt::CliffConnectionCoord.Y)
+                    - (cursor.X + cursor.Y)) / 2), 1);
+                for (int i = 0; i < repeat; ++i)
+                {
+                    int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
+                    if (pos < CMapData::Instance->CellDataCount)
+                    {
+                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    }
+                }
+            }
+            else
+            {
+                int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
+                if (pos < CMapData::Instance->CellDataCount)
+                {
+                    tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                }
+            }
+
+            if (place)
+            {
+                int l = CMapData::Instance->MapWidthPlusHeight; int t = CMapData::Instance->MapWidthPlusHeight; int r = 0; int b = 0;
+                for (const auto& [pos, _] : tmpCellDatas)
+                {
+                    int x = CMapData::Instance->GetXFromCoordIndex(pos);
+                    int y = CMapData::Instance->GetYFromCoordIndex(pos);
+                    if (x < l) l = x;
+                    if (y < t) t = y;
+                    if (x > r) r = x;
+                    if (y > b) b = y;
+                }
+                // expand 1 size for ore
+                mapData.SaveUndoRedoData(true,
+                    l - 1,
+                    t - 1,
+                    r + 2,
+                    b + 2
+                );
+            }
+
+            for (const auto& [pos, _] : tmpCellDatas)
+            {
+                CMapData::Instance->SetOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
+                CMapData::Instance->SetOverlayDataAt(pos, 0);
+            }
+
+            offsetConnectX *= repeat;
+            offsetConnectY *= repeat;
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+
+            if (place)
+            {
+                CViewObjectsExt::LastPlacedCTRecords.push_back(CViewObjectsExt::LastPlacedCT);
+                CViewObjectsExt::CliffConnectionCoordRecords.push_back(CViewObjectsExt::CliffConnectionCoord);
+                CViewObjectsExt::LastCTTileRecords.push_back(CViewObjectsExt::CliffConnectionTile);
+                CViewObjectsExt::LastHeightRecords.push_back(CViewObjectsExt::CliffConnectionHeight);
+                CViewObjectsExt::LastCTTile = CViewObjectsExt::CliffConnectionTile;
+
+                CViewObjectsExt::LastPlacedCT = CViewObjectsExt::ThisPlacedCT;
+                CViewObjectsExt::LastPlacedCT.Opposite = opposite;
+                CViewObjectsExt::NextCTHeightOffset = 0;
+
+                if (opposite)
+                {
+                    CViewObjectsExt::CliffConnectionCoord.X += offsetConnectX + offsetPlaceX + CViewObjectsExt::LastPlacedCT.ConnectionPoint0.X;
+                    CViewObjectsExt::CliffConnectionCoord.Y += offsetConnectY + offsetPlaceY + CViewObjectsExt::LastPlacedCT.ConnectionPoint0.Y;
+                }
+                else
+                {
+                    CViewObjectsExt::CliffConnectionCoord.X += offsetConnectX + offsetPlaceX + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.X;
+                    CViewObjectsExt::CliffConnectionCoord.Y += offsetConnectY + offsetPlaceY + CViewObjectsExt::LastPlacedCT.ConnectionPoint1.Y;
+                }
+            }
+            else
+            {
+                for (const auto& [pos, cell] : tmpCellDatas)
+                {
+                    CMapData::Instance->SetOverlayAt(pos, cell.Overlay);
+                    CMapData::Instance->SetOverlayDataAt(pos, cell.OverlayData);
+                }
+            }
+        }
+
+
+        CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+        return;
     }
 
     if (CViewObjectsExt::NextCTHeightOffset <= 0 && !thisTileHeightOffest)

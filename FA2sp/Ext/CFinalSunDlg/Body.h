@@ -152,7 +152,7 @@ public:
     
 
     enum ConnectedTileSetTypes{
-        Cliff = 0, CityCliff, IceCliff, DirtRoad, CityDirtRoad, Highway, Shore, PaveShore
+        Cliff = 0, CityCliff, IceCliff, DirtRoad, CityDirtRoad, Highway, Shore, PaveShore, RailRoad
     };
     enum ConnectedTileSetSpecialTypes{
         SnowSnow = 0, SnowStone, StoneStone, StoneSnow, SnowWater, StoneWater
