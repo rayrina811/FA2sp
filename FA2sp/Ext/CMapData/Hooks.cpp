@@ -896,19 +896,6 @@ DEFINE_HOOK(4C7DAF, CMapData_ResizeMap_InitializeMapDataExt, 7)
 	// load objects to avoid weird palette issue
 	CIsoView::GetInstance()->PrimarySurfaceLost();
 
-	// fix desert resize bug
-	auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
-	if (thisTheater == "DESERT")
-	{
-		CTileTypeClass::Instance = &CTileTypeInfo::Desert->Datas;
-		CTileTypeClass::InstanceCount = &CTileTypeInfo::Desert->Count;
-		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
-		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-
-		CLoading::Instance()->FreeTMPs();
-		CLoading::Instance()->InitTMPs();
-	}
-
 	for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 		for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
 			CMapData::Instance->UpdateMapPreviewAt(i, j);
