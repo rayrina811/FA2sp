@@ -3099,6 +3099,108 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     return;
 }
 
+void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<bool>& mask)
+{
+    x += 31;
+    y -= 29;
+
+    BYTE* src = (BYTE*)pd->pImageBuffer.get();
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
+
+    if (!src) return;
+    if (x + swidth < window.left || y + sheight < window.top) return;
+    if (x >= window.right || y >= window.bottom) return;
+
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT blrect = { x, y, x + swidth, y + sheight };
+
+    if (blrect.left < 0) {
+        srcRect.left = 1 - blrect.left;
+    }
+    if (blrect.top < 0) {
+        srcRect.top = 1 - blrect.top;
+    }
+    if (x + swidth > window.right) {
+        srcRect.right = swidth - ((x + swidth) - window.right);
+        blrect.right = window.right;
+    }
+    if (y + sheight > window.bottom) {
+        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
+        blrect.bottom = window.bottom;
+    }
+
+    const int maskWidth = window.right - window.left;
+    const int maskHeight = window.bottom - window.top;
+
+    for (int e = srcRect.top; e < srcRect.bottom; ++e) {
+        int left = std::max( (int)pd->pPixelValidRanges[e].First, (int)srcRect.left);
+        int right = std::min((int)pd->pPixelValidRanges[e].Last,  (int)srcRect.right - 1);
+
+        for (int i = left; i <= right; ++i) {
+            int spos = i + e * swidth;
+            BYTE val = src[spos];
+            if (!val) continue;
+
+            int dx = blrect.left + i;
+            int dy = blrect.top + e;
+
+            int localX = dx - window.left;
+            int localY = dy - window.top;
+
+            if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
+                int maskIndex = localY * maskWidth + localX;
+                if (maskIndex >= 0 && maskIndex < (int)mask.size()) {
+                    mask[maskIndex] = true;
+                }
+            }
+        }
+    }
+}
+
+void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask)
+{
+    const int bpp = 4;
+    const BGRStruct shadowColor = { 0, 0, 0 };
+    const byte alpha = 128;
+
+    const int maskWidth = window.right - window.left;
+    const int maskHeight = window.bottom - window.top;
+    const int width = boundary.dwWidth;
+    const int height = boundary.dwHeight;
+
+    BYTE* base = static_cast<BYTE*>(dst);
+    BYTE* surfaceEnd = base + boundary.dpitch * height;
+
+    for (int y = 0; y < maskHeight; ++y) {
+        for (int x = 0; x < maskWidth; ++x) {
+            int count = mask[y * maskWidth + x];
+            if (count <= 0) continue;
+
+            int dx = window.left + x;
+            int dy = window.top + y;
+
+            if (dx < 0 || dx >= (int)width || dy < 0 || dy >= (int)height) continue;
+
+            BYTE* dest = base + dy * boundary.dpitch + dx * bpp;
+            if (dest + bpp > surfaceEnd) continue;
+
+            BGRStruct ori = *(BGRStruct*)dest;
+            BGRStruct blended = ori;
+
+            float a = alpha / 255.0f;
+            float keep = powf(1.0f - a, (float)count);
+            float blend = 1.0f - keep;
+
+            blended.R = (BYTE)(shadowColor.R * blend + ori.R * keep);
+            blended.G = (BYTE)(shadowColor.G * blend + ori.G * keep);
+            blended.B = (BYTE)(shadowColor.B * blend + ori.B * keep);
+
+            memcpy(dest, &blended, bpp);
+        }
+    }
+}
+
 std::vector<MapCoord> CIsoViewExt::GetTubePath(int x1, int y1, int x2, int y2, bool first)
 {
     std::vector<MapCoord> path;

@@ -493,7 +493,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	//loop2: shadows
 	bool shadow = CIsoViewExt::DrawShadows && ExtConfigs::InGameDisplay_Shadow;
-	const unsigned char Transparency = 128;
+	int shadowMask_width = window.right - window.left;
+	int shadowMask_height = window.bottom - window.top;
+	int shadowMask_size = shadowMask_width * shadowMask_height;
+	std::vector<bool> shadowMask_Building_Infantry(shadowMask_size, false);
+	std::vector<bool> shadowMask_Terrain(shadowMask_size, false);
+	std::vector<bool> shadowMask_Overlay(shadowMask_size, false);
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
@@ -623,8 +628,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 								if (pData->pImageBuffer)
 								{
-									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+									CIsoViewExt::MaskShadowPixels(window, 
+										x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
 								}
 							}
 						}
@@ -689,8 +694,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 								y1 -= 60;
 
-							CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+							CIsoViewExt::MaskShadowPixels(window,
+								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Building_Infantry);
 						}
 					}
 				}
@@ -725,8 +730,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 							y1 -= 60;
 
+						// units are special, they overlap with each other
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, Transparency);
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + 15, pData, NULL, 128);
 					}
 				}
 			}
@@ -745,8 +751,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					int x1 = x;
 					int y1 = y;
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pData, NULL, Transparency);
+
+					CIsoViewExt::MaskShadowPixels(window, 
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
+						pData, shadowMask_Terrain);
 				}
 			}
 			if (shadow && cell->Overlay != 0xFF && CIsoViewExt::DrawOverlays)
@@ -796,11 +804,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							y1 -= 1;
 					}
 
-					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, Transparency);
+					CIsoViewExt::MaskShadowPixels(window, 
+						x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, shadowMask_Overlay);
 				}
 			}
 		}
+	}
+	if (shadow)
+	{
+		std::vector<byte> shadowMask(shadowMask_size, 0);
+		for (size_t i = 0; i < shadowMask_size; ++i) {
+			shadowMask[i] += shadowMask_Building_Infantry[i];
+			shadowMask[i] += shadowMask_Terrain[i];
+			shadowMask[i] += shadowMask_Overlay[i];
+		}
+		CIsoViewExt::DrawShadowMask(lpDesc->lpSurface, boundary, window, shadowMask);
 	}
 
 	//loop3: objects
