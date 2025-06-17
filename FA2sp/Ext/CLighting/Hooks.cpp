@@ -3,6 +3,11 @@
 #include <Helpers/Macro.h>
 #include <CINI.h>
 #include <CFinalSunDlg.h>
+#include <CLoading.h>
+#include "../../Miscs/Palettes.h"
+#include "../CFinalSunDlg/Body.h"
+#include "../CLoading/Body.h"
+bool IsUpdatingDialog = false;
 
 DEFINE_HOOK(432577, CFinalSunDlg_UpdateDialog_Translate_CLighting,5)
 {
@@ -23,6 +28,13 @@ DEFINE_HOOK(478428, CLighting_OnInitDialog, 5)
     return 0x478439;
 }
 
+DEFINE_HOOK(477920, CLighting_UpdateDialog_Init, 7)
+{
+    IsUpdatingDialog = true;
+
+    return 0;
+}
+
 DEFINE_HOOK(478407, CLighting_UpdateDialog, 7)
 {
     GET(CLighting*, pThis, ESI);
@@ -40,5 +52,50 @@ DEFINE_HOOK(478407, CLighting_UpdateDialog, 7)
     pThis->SetDlgItemText(1076, CINI::CurrentDocument->GetString("Lighting", "NukeAmbientChangeRate", "1.500000"));
     pThis->SetDlgItemText(1077, CINI::CurrentDocument->GetString("Lighting", "DominatorAmbientChangeRate", "0.000000"));
 
+    IsUpdatingDialog = false;
+
     return 0;
 }
+
+#define UPDATE_LIGHTING(hook_addr, hook_name) \
+DEFINE_HOOK(hook_addr,hook_name,7) \
+{ \
+    if (!IsUpdatingDialog && CFinalSunDlgExt::CurrentLighting != 31000)\
+    {\
+        LightingStruct::GetCurrentLighting();\
+        PalettesManager::CacheAndTintCurrentIso();\
+        int oli = 0;\
+        if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))\
+        {\
+            for (const auto& ol : *section)\
+            {\
+                if (CLoadingExt::IsOverlayLoaded(ol.second)) {\
+                    CLoading::Instance->DrawOverlay(ol.second, oli);\
+                    CIsoView::GetInstance()->UpdateDialog(false);\
+                }\
+                oli++;\
+            }\
+        }\
+        PalettesManager::RestoreCurrentIso();\
+		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {\
+            for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {\
+                CMapData::Instance->UpdateMapPreviewAt(i, j);\
+            }\
+        }\
+        LightingSourceTint::CalculateMapLamps();\
+        CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);\
+        CFinalSunDlg::Instance()->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);\
+    }\
+    return 0;\
+}
+
+UPDATE_LIGHTING(479A07, CLighting_UpdateLighting_IonBlue);
+UPDATE_LIGHTING(478F17, CLighting_UpdateLighting_Blue);
+UPDATE_LIGHTING(4797D7, CLighting_UpdateLighting_IonGreen);
+UPDATE_LIGHTING(478CE7, CLighting_UpdateLighting_Green);
+UPDATE_LIGHTING(4795A4, CLighting_UpdateLighting_IonRed);
+UPDATE_LIGHTING(478AB7, CLighting_UpdateLighting_Red);
+UPDATE_LIGHTING(479377, CLighting_UpdateLighting_IonLevel);
+UPDATE_LIGHTING(478887, CLighting_UpdateLighting_Level);
+UPDATE_LIGHTING(479147, CLighting_UpdateLighting_IonAmbient);
+UPDATE_LIGHTING(478657, CLighting_UpdateLighting_Ambient);

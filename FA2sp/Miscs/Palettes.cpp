@@ -20,6 +20,7 @@ std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::C
 std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
 bool PalettesManager::ManualReloadTMP = false;
+bool PalettesManager::NeedReloadLighting = false;
 
 void PalettesManager::Init()
 {
@@ -63,6 +64,7 @@ void PalettesManager::Release()
     PalettesManager::CalculatedObjectPaletteFiles.clear();
 
     PalettesManager::RestoreCurrentIso();
+    PalettesManager::NeedReloadLighting = true;
 
     Init();
 }
@@ -127,35 +129,33 @@ Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
 
 Palette* PalettesManager::GetPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location)
 {
-    LightingStruct lighting = LightingStruct::GetCurrentLighting();
-
     if (remap)
     {
-        auto itr = PalettesManager::CalculatedPaletteFiles[pPal].find(std::make_pair(color, lighting));
+        auto itr = PalettesManager::CalculatedPaletteFiles[pPal].find(std::make_pair(color, LightingStruct::CurrentLighting));
         if (itr != PalettesManager::CalculatedPaletteFiles[pPal].end())
             return itr->second.GetPalette();
     }
     else
     {
-        auto itr = PalettesManager::CalculatedPaletteFilesNoRemap[pPal].find(lighting);
+        auto itr = PalettesManager::CalculatedPaletteFilesNoRemap[pPal].find(LightingStruct::CurrentLighting);
         if (itr != PalettesManager::CalculatedPaletteFilesNoRemap[pPal].end())
             return itr->second.GetPalette();
     }
 
 
     auto& p = remap ? PalettesManager::CalculatedPaletteFiles[pPal].emplace(
-        std::make_pair(std::make_pair(color, lighting), LightingPalette(*pPal))
+        std::make_pair(std::make_pair(color, LightingStruct::CurrentLighting), LightingPalette(*pPal))
     ).first->second : PalettesManager::CalculatedPaletteFilesNoRemap[pPal].emplace(
-        std::make_pair(lighting, LightingPalette(*pPal))
+        std::make_pair(LightingStruct::CurrentLighting, LightingPalette(*pPal))
     ).first->second;
     if (remap)
         p.RemapColors(color);
     else
         p.ResetColors();
 
-    if (lighting != LightingStruct::NoLighting)
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
-        p.AdjustLighting(lighting, location);
+        p.AdjustLighting(LightingStruct::CurrentLighting, location);
         p.TintColors();
     }
     return p.GetPalette();

@@ -99,6 +99,26 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	pThis->ViewPosition.x += offsetX;
 	pThis->ViewPosition.y += offsetY;
 
+	if (PalettesManager::NeedReloadLighting)
+	{
+		LightingStruct::GetCurrentLighting();
+		PalettesManager::CacheAndTintCurrentIso();
+		int oli = 0;
+		if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
+		{
+			for (const auto& ol : *section)
+			{
+				if (CLoadingExt::IsOverlayLoaded(ol.second)) {
+					CLoading::Instance->DrawOverlay(ol.second, oli);
+					CIsoView::GetInstance()->UpdateDialog(false);
+				}
+				oli++;
+			}
+		}
+		PalettesManager::RestoreCurrentIso();
+		PalettesManager::NeedReloadLighting = false;
+	}
+
 	if (INIIncludes::MapINIWarn)
 	{
 		if (!CINI::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))

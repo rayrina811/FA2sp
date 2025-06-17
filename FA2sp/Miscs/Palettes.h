@@ -101,6 +101,7 @@ public:
     static void RestoreCurrentIso();
 
     static bool ManualReloadTMP;
+    static bool NeedReloadLighting;
     static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
 
     static Palette* GetCurrentIso();

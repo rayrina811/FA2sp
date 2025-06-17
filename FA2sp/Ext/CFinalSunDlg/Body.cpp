@@ -225,6 +225,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		if (CFinalSunDlgExt::CurrentLighting != id)
 		{
 			CFinalSunDlgExt::CurrentLighting = id;
+			LightingStruct::GetCurrentLighting();
 
 			PalettesManager::ManualReloadTMP = true;
 			PalettesManager::CacheAndTintCurrentIso();
