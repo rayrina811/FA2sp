@@ -3108,7 +3108,7 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
-    if (!src) return;
+    if (src == NULL) return;
     if (x + swidth < window.left || y + sheight < window.top) return;
     if (x >= window.right || y >= window.bottom) return;
 
@@ -3160,6 +3160,8 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
 
 void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask)
 {
+    if (dst == NULL) return;
+
     const int bpp = 4;
     const BGRStruct shadowColor = { 0, 0, 0 };
     const byte alpha = 128;
