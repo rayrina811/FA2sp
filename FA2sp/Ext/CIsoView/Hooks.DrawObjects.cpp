@@ -202,9 +202,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	GET_STACK(float, DrawOffsetY, STACK_OFFS(0xD18, 0xCB8));
 	LEA_STACK(LPDDSURFACEDESC2, lpDesc, STACK_OFFS(0xD18, 0x92C));
 
-	if (lpDesc->lpSurface == NULL) return 0x474DB3;
-
 	auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+	if (lpDesc->lpSurface == NULL) 
+	{
+		pThis->PrimarySurfaceLost();
+		return 0x474DB3;
+	}
+
 	DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
 	CIsoViewExt::drawOffsetX = DrawOffsetX;
 	CIsoViewExt::drawOffsetY = DrawOffsetY;
