@@ -473,7 +473,7 @@ DEFINE_HOOK(4F5E21, CToolSettingsBar_OnSelchangeBrushsize, 5)
     int by = 1;
 
     auto pSection = CINI::FAData().GetSection("BrushSizes");
-    if (pSection->GetEntities().size() > curSel)
+    if (pSection && pSection->GetEntities().size() > curSel)
     {
         auto value = pSection->GetValueAt(curSel);
         auto bs = STDHelpers::SplitString(*value, 1, "x");
