@@ -411,7 +411,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             WindowShown = true;
             OnSelchangeTrigger();
         }
-        return TRUE;
+        return FALSE;
     }
     case WM_COMMAND:
     {

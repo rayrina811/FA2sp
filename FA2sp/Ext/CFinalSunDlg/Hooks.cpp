@@ -450,9 +450,13 @@ DEFINE_HOOK(4F5F30, CToolSettingsBar_OnShowWindow, 8)
     auto pBrushSize = (ppmfc::CComboBox*)pThis->GetDlgItem(1377);
     pBrushSize->DeleteAllStrings();
 
-    for (auto& pair : CINI::FAData().GetSection("BrushSizes")->GetEntities())
+    auto pSection = CINI::FAData().GetSection("BrushSizes");
+    if (pSection)
     {
-        pBrushSize->AddString(pair.second);
+        for (auto& pair : pSection->GetEntities())
+        {
+            pBrushSize->AddString(pair.second);
+        }
     }
 
     pBrushSize->SetCurSel(0);

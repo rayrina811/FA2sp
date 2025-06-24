@@ -31,6 +31,8 @@ public:
     static ppmfc::CString Buffer;
     static std::map<ppmfc::CString, ppmfc::CString> TutorialTextsMap;
     static void* pExceptionHandler;
+    static ULONG_PTR ulCookie;
+    static ULONG_PTR ulCookieEx;
 
     static void ExtConfigsInitialize();
 };
@@ -168,6 +170,7 @@ public:
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;
     static bool UseNewToolBarCameo;
+    static bool EnableVisualStyle;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

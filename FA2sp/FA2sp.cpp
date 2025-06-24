@@ -17,6 +17,8 @@
 #include <bit>
 
 HANDLE FA2sp::hInstance;
+ULONG_PTR FA2sp::ulCookie;
+ULONG_PTR FA2sp::ulCookieEx;
 std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 std::map<ppmfc::CString, ppmfc::CString> FA2sp::TutorialTextsMap;
@@ -151,6 +153,7 @@ bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
+bool ExtConfigs::EnableVisualStyle;
 int ExtConfigs::DisplayTextSize;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
@@ -268,6 +271,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
+	ExtConfigs::EnableVisualStyle = CINI::FAData->GetBool("ExtConfigs", "EnableVisualStyle", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
 	ExtConfigs::InGameDisplay_Water = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Water", true);
@@ -446,9 +450,6 @@ BOOL APIENTRY DllMain(HANDLE hInstance, DWORD dwReason, LPVOID v)
 	return TRUE;
 }
 
-#define ENABLE_VISUAL_STYLE
-static ULONG_PTR ulCookie;
-
 bool DetachFromDebugger();
 DEFINE_HOOK(537129, ExeRun, 9)
 {
@@ -476,45 +477,6 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	}
 	
 	FA2Expand::ExeRun();
-
-#ifdef ENABLE_VISUAL_STYLE
-
-#if defined _M_IX86
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
-#elif defined _M_X64
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
-#else
-#pragma comment(linker,"/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-#endif
-	// GetModuleName
-	char ModuleNameBuffer[MAX_PATH];
-	GetModuleFileName(static_cast<HMODULE>(FA2sp::hInstance), ModuleNameBuffer, MAX_PATH);
-	int nLength = strlen(ModuleNameBuffer);
-	int i = nLength - 1;
-	for (; i >= 0; --i)
-	{
-		if (ModuleNameBuffer[i] == '\\')
-			break;
-	}
-	++i;
-	int nModuleNameLen = nLength - i;
-	memcpy(ModuleNameBuffer, ModuleNameBuffer + i, nModuleNameLen);
-	ModuleNameBuffer[nModuleNameLen] = '\0';
-
-	// Codes from 
-	// https://referencesource.microsoft.com/#System.Windows.Forms/winforms/Managed/System/WinForms/UnsafeNativeMethods.cs,8197
-	ACTCTX enableThemingActivationContext;
-	enableThemingActivationContext.cbSize = sizeof ACTCTX;
-	enableThemingActivationContext.lpSource = ModuleNameBuffer; // "FA2sp.dll"
-	enableThemingActivationContext.lpResourceName = (LPCSTR)101;
-	enableThemingActivationContext.dwFlags = ACTCTX_FLAG_RESOURCE_NAME_VALID;
-	auto hActCtx = ::CreateActCtx(&enableThemingActivationContext);
-	if (hActCtx != INVALID_HANDLE_VALUE)
-	{
-		if (::ActivateActCtx(hActCtx, &ulCookie))
-			Logger::Put("Visual Style Enabled!\n");
-	}
-#endif
 
 	return 0;
 }
@@ -544,9 +506,11 @@ DEFINE_HOOK(537208, ExeTerminate, 9)
 	// Destruct static ppmfc stuffs here
 	CViewObjectsExt::OnExeTerminate();
 
-#ifdef ENABLE_VISUAL_STYLE
-	::DeactivateActCtx(NULL, ulCookie);
-#endif
+	if (ExtConfigs::EnableVisualStyle)
+	{
+		::DeactivateActCtx(NULL, FA2sp::ulCookie);
+		::DeactivateActCtx(NULL, FA2sp::ulCookieEx);
+	}
 
 	GET(UINT, result, EAX);
 	ExitProcess(result);
