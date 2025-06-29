@@ -121,7 +121,7 @@ ppmfc::CString STDHelpers::ColorRefRGBToHexString(COLORREF color)
 std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSource, const char* pSplit)
 {
     std::vector<ppmfc::CString> ret;
-    if (pSource.GetLength() == 0)
+    if (pSplit == nullptr || pSource.GetLength() == 0)
         return ret;
 
     int nIdx = 0;
@@ -131,12 +131,15 @@ std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSourc
         if (nPos == -1)
             break;
 
-        ret.push_back(pSource.Mid(nIdx, nPos - nIdx));
-        nIdx = nPos + 1;
+        if (nPos >= nIdx)
+            ret.push_back(pSource.Mid(nIdx, nPos - nIdx));
+
+        nIdx = nPos + strlen(pSplit);
     }
     ret.push_back(pSource.Mid(nIdx));
     return ret;
 }
+
 std::vector<ppmfc::CString> STDHelpers::SplitStringMultiSplit(const ppmfc::CString& pSource, const char* pSplit)
 {
     auto splits = SplitString(pSplit, "|");
