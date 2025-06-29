@@ -13,11 +13,35 @@ DEFINE_HOOK(41B0E0, CChangeMapSize_DoDataExchange, 6)
     GET(CChangeMapSize*, pThis, ECX);
     GET_STACK(ppmfc::CDataExchange*, pDX, 0x4);
 
-    ppmfc::DDX_Text(pDX, 1036, pThis->INT_Left);
-    ppmfc::DDX_Text(pDX, 1037, pThis->INT_Top);
-    ppmfc::DDX_Text(pDX, 1373, pThis->INT_Width);
-    ppmfc::DDX_Text(pDX, 1374, pThis->INT_Height);
+	auto setDataValue = [&pDX](int index, int& value)
+		{
+            if (pDX->m_bSaveAndValidate)
+            {
+                ppmfc::CString strTemp;
+                ppmfc::DDX_Text(pDX, index, strTemp);
     
+                if (!strTemp.IsEmpty())
+                {
+                    value = atoi(strTemp);
+                }
+                else
+                {
+                    value = 0;
+                }
+            }
+            else
+            {
+                ppmfc::CString strTemp;
+                strTemp.Format("%d", value);
+                ppmfc::DDX_Text(pDX, index, strTemp);
+            }
+		};
+    
+    setDataValue(1036, pThis->INT_Left);
+    setDataValue(1037, pThis->INT_Top);
+    setDataValue(1373, pThis->INT_Width);
+    setDataValue(1374, pThis->INT_Height);
+
     return 0x41B148;
 }
 

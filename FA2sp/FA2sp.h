@@ -111,6 +111,7 @@ public:
     static bool NoHouseNameTranslation;
     static bool BetterHouseNameTranslation;
     static bool EnableMultiSelection;
+    static bool StrictExceptionFilter;
     static bool ExtendedValidationNoError;
     static bool HideNoRubbleBuilding;
     static bool ModernObjectBrowser;

@@ -65,7 +65,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 	case EXCEPTION_PRIV_INSTRUCTION:
 	case EXCEPTION_SINGLE_STEP:
 	case EXCEPTION_STACK_OVERFLOW:
-	case 0xE06D7363: // exception thrown and not caught
+	case CPP_EH_EXCEPTION: // exception thrown and not caught
 	{
 		std::wstring path = Exception::PrepareSnapshotDirectory();
 		log_file_path = path;
@@ -246,6 +246,24 @@ std::wstring Exception::FullDump(
 	return filename;
 }
 
+LONG CALLBACK Exception::VEH_Handler(PEXCEPTION_POINTERS pExs)
+{
+	DWORD code = pExs->ExceptionRecord->ExceptionCode;
+	if (code != CPP_EH_EXCEPTION && (code & 0xF0000000) != 0xC0000000)
+	{
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+
+	if (IsDebuggerPresent() && code == CPP_EH_EXCEPTION)
+	{
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+
+	Exception::ExceptionHandler(pExs);
+
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
+
 [[noreturn]] void Exception::Exit(UINT ExitCode) {
 	Logger::Raw("Exiting...\n");
 	ExitProcess(ExitCode);
@@ -257,6 +275,12 @@ DEFINE_HOOK(435270, CFinalSunDlg_DoModal, 8)
 
 	::SetUnhandledExceptionFilter(Exception::ExceptionFilter);
 	Logger::Info("FA2sp UnhandledExceptionFliter installed!\n");
+
+	if (ExtConfigs::StrictExceptionFilter)
+	{
+		::AddVectoredExceptionHandler(1, Exception::VEH_Handler);
+		Logger::Info("FA2sp VEH Handler installed!\n");
+	}
 	
 	R->EAX(pThis->ppmfc::CDialog::DoModal());
 

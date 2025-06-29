@@ -95,6 +95,7 @@ bool ExtConfigs::DDrawEmulation;
 bool ExtConfigs::NoHouseNameTranslation;
 bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
+bool ExtConfigs::StrictExceptionFilter;
 bool ExtConfigs::ExtendedValidationNoError;
 bool ExtConfigs::HideNoRubbleBuilding;
 bool ExtConfigs::ModernObjectBrowser;
@@ -343,6 +344,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::EnableMultiSelection = true; // CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection");
 
+	ExtConfigs::StrictExceptionFilter = CINI::FAData->GetBool("ExtConfigs", "StrictExceptionFilter", true);
 	ExtConfigs::ExtendedValidationNoError = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationNoError");
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");
 
