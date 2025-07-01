@@ -137,6 +137,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		ppmfc::CString directoryPath = CFinalSunApp::ExePath();
 		directoryPath += "\\CrashBackups";
 		if (!std::filesystem::exists(directoryPath.m_pchData)) {
+			VEHGuard guard(false);
 			try {
 				if (std::filesystem::create_directory(directoryPath.m_pchData)) {
 					fcrash_backup += "\\CrashBackups";
@@ -248,6 +249,10 @@ std::wstring Exception::FullDump(
 
 LONG CALLBACK Exception::VEH_Handler(PEXCEPTION_POINTERS pExs)
 {
+	if (!g_VEH_Enabled) {
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+
 	DWORD code = pExs->ExceptionRecord->ExceptionCode;
 	if (code != CPP_EH_EXCEPTION && (code & 0xF0000000) != 0xC0000000)
 	{

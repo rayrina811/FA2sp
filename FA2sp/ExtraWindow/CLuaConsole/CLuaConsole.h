@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Sol/sol.hpp"
+#include "../../FA2sp.h"
 
 #define BUFFER_SIZE 800000
 

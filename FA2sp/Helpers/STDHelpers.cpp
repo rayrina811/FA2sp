@@ -102,6 +102,7 @@ COLORREF STDHelpers::HexStringToColorRefRGB(const char* hexStr)
         hex = hex.substr(1);
     }
     if (hex.length() != 6) return 0;
+    VEHGuard guard(false);
     try {
         unsigned int color = std::stoul(hex, nullptr, 16);
         return RGB((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);

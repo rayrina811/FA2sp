@@ -1,6 +1,5 @@
 #include "CLuaConsole.h"
 #include "LuaFunctions.cpp"
-#include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/MultimapHelper.h"
@@ -1046,6 +1045,7 @@ void CLuaConsole::OnClickRun(bool fromFile)
     write_lua_console(text);
     LuaFunctions::time = timeStart;
     skipBuildingUpdate = true;
+    VEHGuard guard(false);
     try {
         sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
         if (!result.valid()) {

@@ -687,6 +687,7 @@ bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
     std::sregex_iterator itA(sa.begin(), sa.end(), re);
     std::sregex_iterator itB(sb.begin(), sb.end(), re);
     std::sregex_iterator end;
+    VEHGuard guard(false);
 
     while (itA != end && itB != end) {
 
@@ -701,12 +702,14 @@ bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
         }
         catch (const std::out_of_range& e)
         {
+            UNREFERENCED_PARAMETER(e);
         }
         try {
             numB = std::stoi((*itB)[2].str());
         }
         catch (const std::out_of_range& e)
         {
+            UNREFERENCED_PARAMETER(e);
         }
         if (numA != numB) return numA < numB;
 
@@ -728,6 +731,7 @@ bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
     std::sregex_iterator itA(sa.begin(), sa.end(), re);
     std::sregex_iterator itB(sb.begin(), sb.end(), re);
     std::sregex_iterator end;
+    VEHGuard guard(false);
 
     while (itA != end && itB != end) {
 
@@ -742,12 +746,14 @@ bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
         }
         catch (const std::out_of_range& e)
         {
+            UNREFERENCED_PARAMETER(e);
         }
         try {
             numB = std::stoi((*itB)[2].str());
         }
         catch (const std::out_of_range& e)
         {
+            UNREFERENCED_PARAMETER(e);
         }
         if (numA != numB) return numA < numB;
 
@@ -913,11 +919,12 @@ ppmfc::CString ExtraWindow::GetCloneName(ppmfc::CString oriName)
         std::string numberStr = input.substr(pos);
 
         int number = INT_MAX;
+        VEHGuard guard(false);
         try {
             number = std::stoi(numberStr);
         }
         catch (const std::out_of_range& e) {
-
+            UNREFERENCED_PARAMETER(e);
         }
         if (number < INT_MAX) {
             ++number;

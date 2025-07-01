@@ -22,6 +22,7 @@ typedef unsigned char byte;
 #define VINIFERA_END 146
 #define ABOREUS_BEGIN 147
 #define ABOREUS_END 166
+__declspec(thread) extern bool g_VEH_Enabled;
 
 class FA2sp
 {
@@ -276,5 +277,17 @@ public:
             }
         }
         return ret;
+    }
+};
+
+class VEHGuard {
+    bool oldState;
+public:
+    VEHGuard(bool enable) {
+        oldState = g_VEH_Enabled;
+        g_VEH_Enabled = enable;
+    }
+    ~VEHGuard() {
+        g_VEH_Enabled = oldState;
     }
 };

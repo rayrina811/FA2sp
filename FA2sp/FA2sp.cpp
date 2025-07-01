@@ -23,6 +23,7 @@ std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 std::map<ppmfc::CString, ppmfc::CString> FA2sp::TutorialTextsMap;
 void* FA2sp::pExceptionHandler = nullptr;
+__declspec(thread) bool g_VEH_Enabled = true;
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
@@ -344,7 +345,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::EnableMultiSelection = true; // CINI::FAData->GetBool("ExtConfigs", "EnableMultiSelection");
 
-	ExtConfigs::StrictExceptionFilter = CINI::FAData->GetBool("ExtConfigs", "StrictExceptionFilter", true);
+	ExtConfigs::StrictExceptionFilter = CINI::FAData->GetBool("ExtConfigs", "StrictExceptionFilter");
 	ExtConfigs::ExtendedValidationNoError = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationNoError");
 	ExtConfigs::HideNoRubbleBuilding = CINI::FAData->GetBool("ExtConfigs", "HideNoRubbleBuilding");
 

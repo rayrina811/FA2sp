@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <MFC/ppmfc_cstring.h>
+#include "../FA2sp.h"
 
 #include <CINI.h>
 
