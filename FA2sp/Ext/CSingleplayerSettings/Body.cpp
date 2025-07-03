@@ -56,9 +56,6 @@ BOOL CSingleplayerSettingsExt::PreTranslateMessageExt(MSG* pMsg)
 			processGeneral(1374, "PrismSupportModifier");
 			processGeneral(1376, "DefaultMirageDisguises");
 		}
-
-		pMsg->hwnd = this->m_hWnd;
-		
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);
 }
