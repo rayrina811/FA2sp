@@ -22,6 +22,8 @@ int CViewObjectsExt::CliffConnectionTile;
 int CViewObjectsExt::CliffConnectionHeight;
 int CViewObjectsExt::CliffConnectionHeightAdjust;
 ConnectedTiles CViewObjectsExt::LastPlacedCT;
+int CViewObjectsExt::LastTempPlacedCTIndex;
+int CViewObjectsExt::LastTempFacing;
 std::vector<ConnectedTiles> CViewObjectsExt::LastPlacedCTRecords;
 ConnectedTiles CViewObjectsExt::ThisPlacedCT;
 int CViewObjectsExt::LastCTTile;
@@ -464,7 +466,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
     int offsetConnectY = 0;
     int offsetPlaceX = 0;
     int offsetPlaceY = 0;
-
+    
     bool IsPavedRoadsRandom = false;
     int MultiPlaceDirection = -1;
     bool thisTileHeightOffest = false;
@@ -1913,10 +1915,22 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
         }
 
-        if (!place)
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
-
+        if (!place)
+        {
+            CViewObjectsExt::LastTempPlacedCTIndex = index;
+            CViewObjectsExt::LastTempFacing = facing;
+            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+        }
+        else
+        {
+            if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
+            {
+                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            }
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+        }
 
         if (opposite)
         {
@@ -2877,9 +2891,22 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
 
 
-        if (!place)
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+        if (!place)
+        {
+            CViewObjectsExt::LastTempPlacedCTIndex = index;
+            CViewObjectsExt::LastTempFacing = facing;
+            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+        }
+        else
+        {
+            if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
+            {
+                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            }
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+        }
 
 
         if (opposite)
@@ -3218,9 +3245,22 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             offsetConnectX -= 1;
         }
 
-        if (!place)
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+        if (!place)
+        {
+            CViewObjectsExt::LastTempPlacedCTIndex = index;
+            CViewObjectsExt::LastTempFacing = facing;
+            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+        }
+        else
+        {
+            if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
+            {
+                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            }
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+        }
 
 
         if (opposite)
@@ -3424,9 +3464,22 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             offsetConnectX -= 1;
         }
 
-        if (!place)
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+        if (!place)
+        {
+            CViewObjectsExt::LastTempPlacedCTIndex = index;
+            CViewObjectsExt::LastTempFacing = facing;
+            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+        }
+        else
+        {
+            if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
+            {
+                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            }
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+        }
 
 
         if (opposite)
@@ -3643,9 +3696,22 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             offsetConnectX -= 1;
         }
 
-        if (!place)
-            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+        if (!place)
+        {
+            CViewObjectsExt::LastTempPlacedCTIndex = index;
+            CViewObjectsExt::LastTempFacing = facing;
+            CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+        }
+        else
+        {
+            if (index != CViewObjectsExt::LastTempPlacedCTIndex || facing != CViewObjectsExt::LastTempFacing)
+            {
+                CViewObjectsExt::CliffConnectionTile = STDHelpers::RandomSelectInt(cliffConnectionTiles, true, index);
+            }
+            CViewObjectsExt::LastTempPlacedCTIndex = -1;
+            CViewObjectsExt::LastTempFacing = -1;
+        }
 
 
         if (opposite)
@@ -3727,7 +3793,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
         }
         else
         {
-            index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);
+            index = getSuitableBendy(CViewObjectsExt::LastPlacedCT.GetNextDirection(), facing);       
         }
 
         if (index < 0)
@@ -3757,6 +3823,19 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             return;
         }
         CViewObjectsExt::ThisPlacedCT = tileSet.ConnectedTile[index];
+
+        if (getOppositeDirection(CViewObjectsExt::LastPlacedCT.GetNextDirection(false))
+            == CViewObjectsExt::LastPlacedCT.GetNextDirection(true)) // straight track
+        {      
+            if (CViewObjectsExt::LastPlacedCT.Index == CViewObjectsExt::ThisPlacedCT.Index)
+            {
+                if (CViewObjectsExt::LastPlacedCT.GetNextDirection() != facing)
+                {
+                    CViewObjectsExt::IsInPlaceCliff_OnMouseMove = false;
+                    return;
+                }
+            }
+        }
 
         if (tileSet.ConnectedTile[index].GetNextDirection(opposite) == 1)
         {
@@ -4253,6 +4332,9 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
         auto dwpos = Y * mapData.MapWidthPlusHeight + X;
         CViewObjectsExt::CliffConnectionHeight = cellDatas[dwpos].Height;
         CViewObjectsExt::PlaceConnectedTile_Start = true;
+        CViewObjectsExt::LastTempPlacedCTIndex = -1;
+        CViewObjectsExt::LastTempFacing = -1;
+        Logger::Raw("23333\n");
         return;
     }
 

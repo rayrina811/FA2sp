@@ -543,6 +543,16 @@ DEFINE_HOOK(4347B8, CFinalSunDlg_OnEditUndo, 6)
     return 0;
 }
 
+DEFINE_HOOK(4353F0, CFinalSunDlg_OnEditRedo, 5)
+{
+    if (CIsoView::CurrentCommand->Command == 0x1E)
+    {
+        CFinalSunDlg::PlaySound(CFinalSunDlg::FASoundType::Error);
+        return 0x43544F;
+    }
+    return 0;
+}
+
 DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 {
     GET(const int, X, EDI);

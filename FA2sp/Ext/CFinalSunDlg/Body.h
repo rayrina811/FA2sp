@@ -321,6 +321,8 @@ public:
     static std::vector<ConnectedTiles> LastPlacedCTRecords;
     static ConnectedTiles LastPlacedCT;
     static ConnectedTiles ThisPlacedCT;
+    static int LastTempPlacedCTIndex;
+    static int LastTempFacing;
 
     static int LastCTTile;
     static std::vector<int> LastCTTileRecords;
