@@ -3638,6 +3638,9 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
     auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
     for (const auto& mc : coords)
     {
+        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+            continue;
+
         int x = mc.X;
         int y = mc.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x, y);
@@ -3651,6 +3654,9 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
 
         for (auto& coord : coords)
         {
+            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
+                continue;
+
             if (coord.X == mc.X - 1 && coord.Y == mc.Y)
             {
                 s1 = false;

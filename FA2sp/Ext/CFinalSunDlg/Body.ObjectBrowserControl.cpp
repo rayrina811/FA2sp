@@ -2369,7 +2369,7 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
     {
         for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
         {
-            if (!CMapData::Instance->IsCoordInMap(gx, gy))
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
                 continue;
 
             int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);

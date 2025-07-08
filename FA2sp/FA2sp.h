@@ -43,8 +43,8 @@ class ExtConfigs
 public:
     static bool IsQuitingProgram;
     static bool BrowserRedraw;
-    static int  ObjectBrowser_GuessMode;
-    static int  ObjectBrowser_GuessMax;
+    static int ObjectBrowser_GuessMode;
+    static int ObjectBrowser_GuessMax;
     static bool ObjectBrowser_CleanUp;
     static bool ObjectBrowser_SafeHouses;
     static bool ObjectBrowser_Foundation;
@@ -171,6 +171,7 @@ public:
     static bool DDrawScalingBilinear;
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;
+    static bool DisplayObjectsOutside;
     static bool UseNewToolBarCameo;
     static bool EnableVisualStyle;
     static ppmfc::CString CloneWithOrderedID_Digits;

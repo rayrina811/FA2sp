@@ -701,7 +701,7 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 	{
 		for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
 		{
-			if (!CMapData::Instance->IsCoordInMap(gx, gy))
+			if (!CMapDataExt::IsCoordInFullMap(gx, gy))
 				continue;
 
 			int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);

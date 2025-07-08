@@ -358,6 +358,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
+	auto isCoordInFullMap = [](int X, int Y)
+	{
+		if (!ExtConfigs::DisplayObjectsOutside)
+			return CMapData::Instance->IsCoordInMap(X, Y);
+
+		return X >= 0 && Y >= 0 &&
+			X < CMapData::Instance->MapWidthPlusHeight &&
+			Y < CMapData::Instance->MapWidthPlusHeight;
+	};
+
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
@@ -533,7 +543,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!IsCoordInWindow(X, Y))
 				continue;
 
-			if (!CMapData::Instance->IsCoordInMap(X, Y))
+			if (!isCoordInFullMap(X, Y))
 				continue;
 
 			int pos = CMapData::Instance->GetCoordIndex(X, Y);
@@ -574,7 +584,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
 							objCenter.X = objRender.X + DataExt.Height / 2;
 							objCenter.Y = objRender.Y + DataExt.Width / 2;
-							if (!CMapData::Instance->IsCoordInMap(objCenter.X, objCenter.Y))
+							if (!isCoordInFullMap(objCenter.X, objCenter.Y))
 							{
 								objCenter.X = objRender.X;
 								objCenter.Y = objRender.Y;
@@ -585,8 +595,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								for (const auto& block : *DataExt.Foundations)
 								{
 									MapCoord coord = { X + block.Y, Y + block.X };
-									if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+									if (!isCoordInFullMap(coord.X, coord.Y))
 										continue;
+
+									if (!isCoordInFullMap(objCenter.X, objCenter.Y))
+									{
+										objCenter.X = coord.X;
+										objCenter.Y = coord.Y;
+									}
 
 									auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
 									if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
@@ -606,8 +622,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									for (int dy = 0; dy < DataExt.Width; ++dy)
 									{
 										MapCoord coord = { X + dx, Y + dy };
-										if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+										if (!isCoordInFullMap(coord.X, coord.Y))
 											continue;
+
+										if (!isCoordInFullMap(objCenter.X, objCenter.Y))
+										{
+											objCenter.X = coord.X;
+											objCenter.Y = coord.Y;
+										}
 
 										auto buildingCell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
 										if (buildingCell->Unit != -1 || buildingCell->Aircraft != -1
@@ -854,7 +876,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			int Y = XplusY - X;
 			if (!IsCoordInWindow(X, Y))
 				continue;
-			if (!CMapData::Instance->IsCoordInMap(X, Y))
+			if (!isCoordInFullMap(X, Y))
 				continue;
 
 			const auto cell = CMapData::Instance->GetCellAt(X, Y);
@@ -871,93 +893,34 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			y -= DrawOffsetY;
 
 			// tiles
-			int altImage = cell->Flag.AltIndex;
-			int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-			int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
-			if (tileIndex < CMapDataExt::TileDataCount)
+			if (CMapData::Instance->IsCoordInMap(X, Y))
 			{
-				auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell](int tileIndex, int tileSubIndex, int x, int y)
-					{
-						if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
+				int altImage = cell->Flag.AltIndex;
+				int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+				int tileSubIndex = CMapDataExt::GetSafeTileIndex(cell->TileSubIndex);
+				if (tileIndex < CMapDataExt::TileDataCount)
+				{
+					auto drawTerrainAnim = [&pThis, &lpDesc, &boundary, &cell](int tileIndex, int tileSubIndex, int x, int y)
 						{
-							auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
-							if (tileAnim.AttachedSubTile == tileSubIndex)
+							if (CMapDataExt::TileAnimations.find(tileIndex) != CMapDataExt::TileAnimations.end())
 							{
-								auto pData = CLoadingExt::GetImageDataFromServer(tileAnim.ImageName);
-
-								if (pData->pImageBuffer)
+								auto& tileAnim = CMapDataExt::TileAnimations[tileIndex];
+								if (tileAnim.AttachedSubTile == tileSubIndex)
 								{
-									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-										x - pData->FullWidth / 2 + tileAnim.XOffset,
-										y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
-										pData, NULL, cell->IsHidden() ? 128 : 255, -2, -10);
+									auto pData = CLoadingExt::GetImageDataFromServer(tileAnim.ImageName);
+
+									if (pData->pImageBuffer)
+									{
+										CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+											x - pData->FullWidth / 2 + tileAnim.XOffset,
+											y - pData->FullHeight / 2 + tileAnim.YOffset + 15,
+											pData, NULL, cell->IsHidden() ? 128 : 255, -2, -10);
+									}
 								}
 							}
-						}
-					};
+						};
 
-				if (cell->Flag.RedrawTerrain)
-				{
-					if (CFinalSunApp::Instance->FrameMode)
-					{
-						if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
-						{
-							tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
-						}
-						else
-						{
-							tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
-							tileSubIndex = 0;
-						}
-					}
-
-					CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
-					int tileSet = tile.TileSet;
-					if (tile.AltTypeCount)
-					{
-						if (altImage > 0)
-						{
-							altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
-							tile = tile.AltTypes[altImage - 1];
-						}
-					}
-					if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
-					{
-						auto& subTile = tile.TileBlockDatas[tileSubIndex];
-						int x1 = x;
-						int y1 = y;
-						x1 -= 60;
-						y1 -= 30;
-
-						if (subTile.HasValidImage)
-						{
-							Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
-
-							CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
-								x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
-								cell->IsHidden() ? 128 : 255);
-
-							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
-							{
-								ppmfc::CString extraImageID;
-								extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
-								auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
-								if (pData->pImageBuffer)
-								{
-									CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-										x1 + subTile.XMinusExX + 30,
-										y1 + subTile.YMinusExY + 30,
-										pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
-								}
-							}
-							drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);
-						}
-					}
-				}
-				else
-				{
-					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
-					if (cellExt.HasAnim)
+					if (cell->Flag.RedrawTerrain)
 					{
 						if (CFinalSunApp::Instance->FrameMode)
 						{
@@ -971,11 +934,73 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								tileSubIndex = 0;
 							}
 						}
-						drawTerrainAnim(tileIndex, tileSubIndex, x, y);
+
+						CTileTypeClass tile = CMapDataExt::TileData[tileIndex];
+						int tileSet = tile.TileSet;
+						if (tile.AltTypeCount)
+						{
+							if (altImage > 0)
+							{
+								altImage = altImage < tile.AltTypeCount ? altImage : tile.AltTypeCount;
+								tile = tile.AltTypes[altImage - 1];
+							}
+						}
+						if (tileSubIndex < tile.TileBlockCount && tile.TileBlockDatas[tileSubIndex].ImageData != NULL)
+						{
+							auto& subTile = tile.TileBlockDatas[tileSubIndex];
+							int x1 = x;
+							int y1 = y;
+							x1 -= 60;
+							y1 -= 30;
+
+							if (subTile.HasValidImage)
+							{
+								Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+
+								CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
+									x1 + subTile.XMinusExX, y1 + subTile.YMinusExY, &subTile, pal,
+									cell->IsHidden() ? 128 : 255);
+
+								if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
+								{
+									ppmfc::CString extraImageID;
+									extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
+									auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
+									if (pData->pImageBuffer)
+									{
+										CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
+											x1 + subTile.XMinusExX + 30,
+											y1 + subTile.YMinusExY + 30,
+											pData, pal, cell->IsHidden() ? 128 : 255, -2, -10);
+									}
+								}
+								drawTerrainAnim(tileIndex, tileSubIndex, x1 + 60, y1 + 30);
+							}
+						}
+					}
+					else
+					{
+						auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
+						if (cellExt.HasAnim)
+						{
+							if (CFinalSunApp::Instance->FrameMode)
+							{
+								if (CMapDataExt::TileData[tileIndex].FrameModeIndex != 0xFFFF)
+								{
+									tileIndex = CMapDataExt::TileData[tileIndex].FrameModeIndex;
+								}
+								else
+								{
+									tileIndex = CMapDataExt::TileSet_starts[CMapDataExt::HeightBase] + cell->Height;
+									tileSubIndex = 0;
+								}
+							}
+							drawTerrainAnim(tileIndex, tileSubIndex, x, y);
+						}
 					}
 				}
 			}
-
+			
 			//smudges
 			if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges)
 			{
@@ -1669,6 +1694,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
+	// celltag, waypoint, annotation
 	for (int XplusY = Left + Top; XplusY < Right + Bottom; XplusY++) {
 		for (int X = 0; X < XplusY; X++) {
 			int Y = XplusY - X;
@@ -1676,7 +1702,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (!IsCoordInWindow(X, Y))
 				continue;
 
-			if (!CMapData::Instance->IsCoordInMap(X, Y))
+			if (!isCoordInFullMap(X, Y))
 				continue;
 
 			int pos = CMapData::Instance->GetCoordIndex(X, Y);

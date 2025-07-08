@@ -300,6 +300,12 @@ public:
         return CMapDataExt::CellDataExts[pos].HasAnnotation;
     }
     static void UpdateAnnotation();
+    inline static bool IsCoordInFullMap(int X, int Y)
+        {
+            return X >= 0 && Y >= 0 &&
+                X < CMapData::Instance->MapWidthPlusHeight &&
+                Y < CMapData::Instance->MapWidthPlusHeight;
+        };
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;
