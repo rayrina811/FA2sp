@@ -72,15 +72,16 @@ DEFINE_HOOK(46BD99, CIsoView_PlaceCurrentObjectAt_PlaceInfantrySubcell, 5)
 
 	CInfantryData infantry;
 
-	infantry.Status = "Guard";
-	infantry.Tag = "None";
-	infantry.Facing = "64";
-	infantry.VeterancyPercentage = "0";
-	infantry.Group = "-1";
-	infantry.IsAboveGround = "0";
-	infantry.AutoNORecruitType = "0";
-	infantry.AutoYESRecruitType = "0";
-	infantry.Health = "256";
+	infantry.Status = ExtConfigs::DefaultInfantryProperty.Status;
+	infantry.Tag = ExtConfigs::DefaultInfantryProperty.Tag;
+	infantry.Facing = ExtConfigs::DefaultInfantryProperty.Facing;
+	infantry.VeterancyPercentage = ExtConfigs::DefaultInfantryProperty.VeterancyPercentage;
+	infantry.Group = ExtConfigs::DefaultInfantryProperty.Group;
+	infantry.IsAboveGround = ExtConfigs::DefaultInfantryProperty.IsAboveGround;
+	infantry.AutoNORecruitType = ExtConfigs::DefaultInfantryProperty.AutoNORecruitType;
+	infantry.AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
+	infantry.Health = ExtConfigs::DefaultInfantryProperty.Health;
+
 	infantry.House = CIsoView::CurrentHouse();
 	infantry.SubCell.Format("%d", CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y, true));
 	infantry.TypeID = CIsoView::CurrentCommand->ObjectID;
