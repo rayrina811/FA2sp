@@ -884,6 +884,27 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	return 0;
 }
 
+DEFINE_HOOK(4C55F7, CMapData_ResizeMap_DeleteBuilding, 7)
+{
+	CMapDataExt::DeleteBuildingByIniID = true;
+	return 0;
+}
+
+DEFINE_HOOK(4C560D, CMapData_ResizeMap_DeleteBuilding_2, 6)
+{
+	CMapDataExt::DeleteBuildingByIniID = false;
+	return 0;
+}
+
+DEFINE_HOOK(4C536C, CMapData_ResizeMap_GetBuildingData, 7)
+{
+	GET(int, index, EDI);
+	REF_STACK(CBuildingData, pBld, STACK_OFFS(0x1C4, 0x130));
+
+	CMapDataExt::GetBuildingDataByIniID(index, pBld);
+	return 0;
+}
+
 DEFINE_HOOK(4C6456, CMapData_ResizeMap_ResizeCellDataExts, 8)
 {
 	// resize for addbuilding

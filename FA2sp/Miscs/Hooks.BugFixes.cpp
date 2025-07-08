@@ -170,8 +170,8 @@ DEFINE_HOOK(4564F0, CInputMessageBox_OnOK, 7)
 
 DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
 {
-	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x194));
-	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x19C));
+	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x19C));
+	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x194));
 
 	ppmfc::CString buffer;
 
