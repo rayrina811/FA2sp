@@ -506,7 +506,6 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 					if (next) break;
 					for (int j = -1; j < 2; j++) {
 						if (next) break;
-						if (i == j) continue;
 						int pos = pThis->GetCoordIndex(x + i, y + j);
 						auto& cellExt = pThis->CellDataExts[pos];
 						if (cellExt.ShoreLATNeeded) {
