@@ -657,6 +657,11 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("update_tube", []() {CMapData::Instance->UpdateFieldTubeData(FALSE); needRedraw = true; });
     Lua.set_function("update_smudge", []() {CMapData::Instance->UpdateFieldSmudgeData(FALSE); needRedraw = true; });
     Lua.set_function("update_tiles", []() {CMapData::Instance->UpdateMapFieldData(FALSE); needRedraw = true; });
+    Lua.set_function("update_trigger", []() {        
+        if (CNewTrigger::GetHandle())
+            ::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+        else
+            CMapDataExt::UpdateTriggers(); });
     Lua.set_function("redraw_window", redraw_window);
     Lua.set_function("update_minimap", [](sol::optional<int> y, sol::optional<int> x) {
         if (!x || !y) {

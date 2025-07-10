@@ -1444,7 +1444,7 @@ namespace LuaFunctions
 				ret.VeteranLevel = CINI::CurrentDocument->GetString(id.c_str(), "VeteranLevel").m_pchData;
 				ret.Priority = CINI::CurrentDocument->GetString(id.c_str(), "Priority").m_pchData;
 				ret.Max = CINI::CurrentDocument->GetString(id.c_str(), "Max").m_pchData;
-				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "Techlevel").m_pchData;
+				ret.Techlevel = CINI::CurrentDocument->GetString(id.c_str(), "TechLevel").m_pchData;
 				if (CINI::CurrentDocument->KeyExists(id.c_str(), "TransportWaypoint"))
 					ret.TransportWaypoint = STDHelpers::StringToWaypointStr(CINI::CurrentDocument->GetString(id.c_str(), "TransportWaypoint")).m_pchData;
 				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group").m_pchData;
@@ -1512,7 +1512,7 @@ namespace LuaFunctions
 			CINI::CurrentDocument->WriteString(ID.c_str(), "VeteranLevel", VeteranLevel.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Priority", Priority.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Max", Max.c_str());
-			CINI::CurrentDocument->WriteString(ID.c_str(), "Techlevel", Techlevel.c_str());
+			CINI::CurrentDocument->WriteString(ID.c_str(), "TechLevel", Techlevel.c_str());
 			if (TransportWaypoint == "")
 			{
 				UseTransportOrigin = false;
