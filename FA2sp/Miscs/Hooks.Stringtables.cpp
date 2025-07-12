@@ -14,7 +14,7 @@
 
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
-std::unordered_map<CString, CString> StringtableLoader::CSFFiles_Stringtable;
+std::unordered_map<ppmfc::CString, ppmfc::CString> StringtableLoader::CSFFiles_Stringtable;
 
 DEFINE_HOOK(4B2633, QueryUIName_init, 5)
 {
@@ -204,7 +204,7 @@ bool StringtableLoader::ParseECSFile(std::vector<ppmfc::CString> ret)
                 currentContent += left;
             }
         }
-        StringtableLoader::CSFFiles_Stringtable[CString(currentLabel)] = CString(currentContent);
+        StringtableLoader::CSFFiles_Stringtable[currentLabel] = currentContent;
         FA2sp::TutorialTextsMap[currentLabel] = currentContent;
     }
     return true;
@@ -252,7 +252,7 @@ bool StringtableLoader::ParseLLFFile(std::vector<ppmfc::CString> ret)
                 currentContent += left;
             }
         }
-        StringtableLoader::CSFFiles_Stringtable[CString(currentLabel)] = CString(currentContent);
+        StringtableLoader::CSFFiles_Stringtable[currentLabel] = currentContent;
         FA2sp::TutorialTextsMap[currentLabel] = currentContent;
     }
     return true;

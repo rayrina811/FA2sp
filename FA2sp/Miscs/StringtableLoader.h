@@ -17,7 +17,7 @@ public:
     static void WriteCSFFile();
     static bool LoadToBuffer();
 
-    static std::unordered_map<CString, CString> CSFFiles_Stringtable;
+    static std::unordered_map<ppmfc::CString, ppmfc::CString> CSFFiles_Stringtable;
     static char* pEDIBuffer;
     static bool bLoadRes;
 };
