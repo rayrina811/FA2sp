@@ -689,6 +689,72 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	}
 
+	//F5
+	if (wmID == 40053)
+	{
+		HWND hWnd = GetActiveWindow();
+		if (hWnd == CNewAITrigger::GetHandle()) {
+			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewINIEditor::GetHandle()) {
+			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewScript::GetHandle()) {
+			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewTaskforce::GetHandle()) {
+			::SendMessage(CNewTaskforce::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewTeamTypes::GetHandle()) {
+			::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CNewTrigger::GetHandle()) {
+			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+		else if (hWnd == CTerrainGenerator::GetHandle()) {
+			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
+	}
+	// CTRL+C CTRL+V
+	if (wmID == 57634 || wmID == 57637)
+	{
+		HWND hWnd = GetActiveWindow();
+		if (hWnd == CNewAITrigger::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CNewINIEditor::GetHandle()) {		
+			return TRUE;
+		}
+		else if (hWnd == CNewScript::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CNewTaskforce::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CNewTeamTypes::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CNewTrigger::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CTerrainGenerator::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CLuaConsole::GetHandle()) {
+			return TRUE;
+		}
+		else if (hWnd == CCsfEditor::GetHandle()) {
+			return TRUE;
+		}
+	}
+
 	// Search Object
 	if ((wmID == 40131|| wmID == 40132) && CMapData::Instance->MapWidthPlusHeight)
 	{
