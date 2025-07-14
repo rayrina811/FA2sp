@@ -19,6 +19,7 @@ vector<char*> INIIncludes::RulesIncludeFiles;
 map<ppmfc::CString, unsigned int> INIIncludes::CurrentINIIdxHelper;
 std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
 std::unordered_map<CINI*, CINIExt> CINIManager::propertyMap;
+bool SkipBracketFix = false;
 
 static void Trim(char* str) {
     if (!str) return;
@@ -38,6 +39,37 @@ static void Trim(char* str) {
     if (start != str) {
         memmove(str, start, strlen(start) + 1);
     }
+}
+
+DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix, 7)
+{
+    if (SkipBracketFix)
+        return 0;
+
+    LEA_STACK(char*, lpLine, STACK_OFFS(0x22FC, 0x200C));
+
+    const char* lb = strchr(lpLine, '[');
+    const char* rb = strchr(lpLine, ']');
+    const char* eq = strchr(lpLine, '=');
+
+    if (!lb || !rb || rb < lb || (eq && eq < lb)) {
+        return 0x453012;
+    }
+
+    return 0x452F56; 
+}
+
+// some maps use '[' for encryption
+DEFINE_HOOK(49D62A, CMapData_LoadMap_SkipBracketFix_1, 6)
+{
+    SkipBracketFix = true;
+    return 0;
+}
+
+DEFINE_HOOK(49D64F, CMapData_LoadMap_SkipBracketFix_2, 6)
+{
+    SkipBracketFix = false;
+    return 0;
 }
 
 DEFINE_HOOK(4530F7, CLoading_ParseINI_PlusSupport, 8)

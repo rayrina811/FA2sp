@@ -552,12 +552,18 @@ void CNewINIEditor::OnEditchangeINIEdit()
     map.DeleteSection(section);
     for (auto& line : lines)
     {
-        STDHelpers::TrimSemicolon(line);
-        line.Trim();
+        const char* lb = strchr(line, '[');
+        const char* rb = strchr(line, ']');
+        const char* eq = strchr(line, '=');
 
-        auto pair = STDHelpers::SplitKeyValue(line);
-        if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
-            map.WriteString(section, pair.first, pair.second);
+        if (!lb || !rb || rb < lb || (eq && eq < lb)) {
+            STDHelpers::TrimSemicolon(line);
+            line.Trim();
+
+            auto pair = STDHelpers::SplitKeyValue(line);
+            if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
+                map.WriteString(section, pair.first, pair.second);
+        }
     }
 
     UpdateGameObject(section);
