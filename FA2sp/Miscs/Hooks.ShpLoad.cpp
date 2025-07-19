@@ -90,18 +90,30 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		fin.read((char*)current_shape_file.m_data, size);
 		fin.close();
 		R->EAX(true);
+		return 0x525CFC;
 	}
-	else if (CMixFile::HasFile(filename, nMix))
+
+	size_t size = 0;
+	auto data = ResourcePackManager::instance().getFileData(filename, &size);
+	if (data && size > 0)
+	{
+		current_shape_file.m_data = GameCreateArray<unsigned char>(size);
+		memcpy(current_shape_file.m_data, data.get(), size);
+		R->EAX(true);
+		return 0x525CFC;
+	}
+
+	if (CMixFile::HasFile(filename, nMix))
 	{
 		Ccc_file file(true);
 		file.open(filename, CMixFile::Array[nMix - 1]);
 		current_shape_file.m_data = GameCreateArray<unsigned char>(file.get_size());
 		memcpy(current_shape_file.m_data, file.get_data(), file.get_size());
 		R->EAX(true);
+		return 0x525CFC;
 	}
-	else
-		R->EAX(false);
 
+	R->EAX(false);
     return 0x525CFC;
 }
 

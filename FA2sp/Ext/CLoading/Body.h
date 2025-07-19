@@ -4,12 +4,14 @@
 #include "../FA2Expand.h"
 #include <CShpFile.h>
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <CPalette.h>
 #include <Drawing.h>
+#include <fstream>
 
 class ImageDataClass;
 class Palette;
@@ -242,4 +244,63 @@ public:
 	static bool SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData);
 	static bool RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData);
 	static void SendRequestText(const char* text);
+};
+
+struct FileEntry 
+{
+	uint32_t offset; 
+	uint32_t enc_size; 
+	uint32_t original_size;
+};
+
+struct CaseInsensitiveHash 
+{
+	size_t operator()(const std::string& key) const {
+		std::string lower;
+		lower.reserve(key.size());
+		for (char ch : key) lower.push_back(std::tolower(static_cast<unsigned char>(ch)));
+		return std::hash<std::string>()(lower);
+	}
+};
+
+struct CaseInsensitiveEqual 
+{
+	bool operator()(const std::string& lhs, const std::string& rhs) const {
+		if (lhs.size() != rhs.size()) return false;
+		for (size_t i = 0; i < lhs.size(); ++i) {
+			if (std::tolower(static_cast<unsigned char>(lhs[i])) != std::tolower(static_cast<unsigned char>(rhs[i])))
+				return false;
+		}
+		return true;
+	}
+};
+
+class ResourcePack 
+{
+public:
+	bool load(const std::string& filename);
+	std::unique_ptr<uint8_t[]> getFileData(const std::string& filename, size_t* out_size = nullptr);
+
+private:
+	std::unordered_map<std::string, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
+	std::vector<uint8_t> file_buffer;
+	uint32_t index_size = 0; 
+	std::string file_path;
+	std::ifstream file_stream; 
+
+	bool aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output);
+	std::array<uint8_t, 32> get_aes_key();
+};
+
+class ResourcePackManager 
+{
+public:
+
+	static ResourcePackManager& instance();
+	bool loadPack(const std::string& packPath);
+	std::unique_ptr<uint8_t[]> getFileData(const std::string& filename, size_t* out_size = nullptr);
+	void clear();
+
+private:
+	std::vector<std::unique_ptr<ResourcePack>> packs;
 };

@@ -1,5 +1,6 @@
 #include "Hooks.INI.h"
 #include "../Ext/CMapData/Body.h"
+#include "../Ext/CLoading/Body.h"
 
 
 /*
@@ -117,6 +118,36 @@ DEFINE_HOOK(47FFB0, CLoading_LoadTSINI_IncludeSupport_1, 7)
     return 0;
 }
 
+DEFINE_HOOK(48028D, CLoading_LoadTSINI_PackageSupport, 5)
+{
+    CINI* xINI = INIIncludes::LoadedINIs.back();
+    if (!xINI)
+        return 0;
+
+    ppmfc::CString filename = CINIManager::GetInstance().GetProperty(xINI).Name;
+
+    size_t size = 0;
+    auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
+    if (data && size > 0)
+    {
+        std::string out_path = CFinalSunApp::Instance->FilePath();
+        out_path += "\\FinalSun";
+        out_path += filename.m_pchData;
+
+        std::ofstream fout(out_path, std::ios::binary);
+        if (fout.is_open()) 
+        {
+            fout.write(reinterpret_cast<const char*>(data.get()), static_cast<std::streamsize>(size));
+            fout.close();
+
+            // load as a mix ini
+            return 0x480337;
+        }
+    }
+
+    return 0;
+}
+
 DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 {
     if (INIIncludes::LoadedINIs.size() == 0)
@@ -164,7 +195,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     // to fit some mods that change these names
     std::string extraName = toLower(fileName);
     int theaterIniType = -1;
-    bool isRulesIni = false;
     bool isPartOfRulesIni = false;
 
     auto getOriTileSetName = [xINI](int type)
@@ -211,7 +241,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         theaterIniType = 5;
     }
     else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "RulesYR", "rulesmd.ini"))) {
-        isRulesIni = true;
         isPartOfRulesIni = true;
         INIIncludes::RulesIncludeFiles.clear();
         Variables::OrderedRulesIndicies.clear();
@@ -250,14 +279,35 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         path += fileName;
         externalPath += fileName;
 
+        bool copied = false;
         std::ifstream fin;
         fin.open(externalPath, std::ios::in | std::ios::binary);
         if (fin.is_open())  {
             fin.close();
             CopyFile(externalPath.c_str(), path.c_str(), FALSE);
+            copied = true;
         }
-        else if (CLoading::Instance->HasFile(fileName.c_str(), nMix)){
-            CMixFile::ExtractFile(fileName.c_str(), path.c_str(), nMix);
+        if (!copied)
+        {
+            size_t size = 0;
+            auto data = ResourcePackManager::instance().getFileData(fileName, &size);
+            if (data && size > 0)
+            {
+                std::ofstream fout(path, std::ios::binary);
+                if (fout.is_open())
+                {
+                    fout.write(reinterpret_cast<const char*>(data.get()), static_cast<std::streamsize>(size));
+                    fout.close();
+                    copied = true;
+                }
+            }
+        }
+        if (!copied)
+        {
+            if (CLoading::Instance->HasFile(fileName.c_str(), nMix)) {
+                CMixFile::ExtractFile(fileName.c_str(), path.c_str(), nMix);
+                copied = true;
+            }
         }
 
         ini.ClearAndLoad(path.c_str());

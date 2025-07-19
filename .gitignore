@@ -6,10 +6,6 @@ MFC42
 Debug
 Release
 .vs
-
-# Don't ignore these files:
-!Debug/vxl_drawing_lib.lib
-!Release/vxl_drawing_lib.lib
 *.rc_bak
 *.swp_bak
 *.swp
@@ -18,3 +14,15 @@ Release
 *.obj
 /FA2sp/Release_Chinese
 /Release_Chinese
+/packages/openssl-vc142.1.1.0
+
+# Don't ignore these files:
+!Debug/vxl_drawing_lib.lib
+!Release/vxl_drawing_lib.lib
+!Release/libssl.lib
+!Release/libcrypto.lib
+!Release/CncVxlRenderText.lib
+!Debug/libssl.lib
+!Debug/libcrypto.lib
+!Debug/CncVxlRenderText.lib
+

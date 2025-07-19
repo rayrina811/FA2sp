@@ -36,20 +36,20 @@ DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
 		hMix = 1919810;
 	bool findFile = false;
 	findFile = pThis->HasFile(filename);
+	auto searchNewTheater = [&findFile, &hMix, &pThis, &filename](char t)
+		{
+			if (!findFile)
+			{
+				filename.SetAt(1, t);
+				hMix = pThis->SearchFile(filename);
+				if (hMix == NULL)
+					hMix = 1919810;
+				findFile = pThis->HasFile(filename);
+			}
+		};
 
 	if (CINI::Art->GetBool(artID, "NewTheater") && strlen(artID) >= 2)
 	{
-		auto searchNewTheater = [&](char t)
-			{
-				if (!findFile)
-				{
-					filename.SetAt(1, t);
-					hMix = pThis->SearchFile(filename);
-					if (hMix == NULL)
-						hMix = 1919810;
-					findFile = pThis->HasFile(filename);
-				}
-			};
 		searchNewTheater('G');
 		searchNewTheater(artID[1]);
 		if (!ExtConfigs::UseStrictNewTheater)

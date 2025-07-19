@@ -240,6 +240,14 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
         return 0x48E5CD;
     }
 
+    size_t size = 0;
+    auto data = ResourcePackManager::instance().getFileData(lpFilename, &size);
+    if (data && size > 0)
+    {
+        R->EDI(0);
+        return 0x48E5CD;
+    }
+
     if (oriResult)
     {
         return 0x48E5CD;

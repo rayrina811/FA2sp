@@ -13,33 +13,59 @@ bool CLoadingExt::InitMixFilesFix()
 {
 	HasMdFile = true;
 
-	// Load Extra Mixes
+	// Load encrypted packages
+	ResourcePackManager::instance().clear();
+	if (auto pSection = CINI::FAData->GetSection("ExtraPackages"))
 	{
-		
-		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
+		std::map<int, ppmfc::CString> collector;
+
+		for (const auto& [key, index] : pSection->GetIndices())
+			collector[index] = key;
+
+		ppmfc::CString path;
+
+		for (const auto& [_, key] : collector)
 		{
-			std::map<int, ppmfc::CString> collector;
+			if (CINI::FAData->GetBool("ExtraPackages", key))
+				path = CFinalSunApp::Instance->ExePath;
+			else
+				path = CFinalSunApp::Instance->FilePath;
+			path += "\\" + key;
 
-			for (const auto& [key, index] : pSection->GetIndices())
-				collector[index] = key;
-
-			ppmfc::CString path;
-
-			for (const auto& [_, key] : collector)
+			if (ResourcePackManager::instance().loadPack(path.m_pchData))
 			{
-				if (CINI::FAData->GetBool("ExtraMixes", key))
-					path = CFinalSunApp::Instance->ExePath;
-				else
-					path = CFinalSunApp::Instance->FilePath;
-				path += "\\" + key;
-				if (auto id = CMixFile::Open(path, 0))
-				{
-					Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", id, path);
-				}
-				else
-				{
-					Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
-				}
+				Logger::Raw("[MixLoader][Package] %s loaded.\n", path);
+			}
+			else
+			{
+				Logger::Raw("[MixLoader][Package] %s failed!\n", path);
+			}
+		}
+	}
+	// Load Extra Mixes
+	if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
+	{
+		std::map<int, ppmfc::CString> collector;
+
+		for (const auto& [key, index] : pSection->GetIndices())
+			collector[index] = key;
+
+		ppmfc::CString path;
+
+		for (const auto& [_, key] : collector)
+		{
+			if (CINI::FAData->GetBool("ExtraMixes", key))
+				path = CFinalSunApp::Instance->ExePath;
+			else
+				path = CFinalSunApp::Instance->FilePath;
+			path += "\\" + key;
+			if (auto id = CMixFile::Open(path, 0))
+			{
+				Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", id, path);
+			}
+			else
+			{
+				Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
 			}
 		}
 	}
@@ -210,8 +236,5 @@ bool CLoadingExt::InitMixFilesFix()
 	LoadMixFile("LANGMD.MIX");
 	LoadMixFile("LANGUAGE.MIX");
 	
-
-
-
 	return true;
 }
