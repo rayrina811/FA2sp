@@ -2,43 +2,41 @@
 #include <openssl/aes.h>
 #include <cstring>
 
-bool ResourcePack::load(const std::string& filename) 
+bool ResourcePack::load(const std::string& filename)
 {
     file_path = filename;
-    file_stream.open(filename, std::ios::binary | std::ios::ate);
+    file_stream.open(filename, std::ios::binary);
     if (!file_stream) return false;
 
-    std::streamsize total_size = file_stream.tellg();
-    file_stream.seekg(0);
-    file_buffer.resize(static_cast<size_t>(total_size));
-    file_stream.read(reinterpret_cast<char*>(file_buffer.data()), total_size);
+    char header[8];
+    file_stream.read(header, 8);
+    if (file_stream.gcount() != 8 || memcmp(header, "RPCK", 4) != 0) return false;
 
-    if (memcmp(file_buffer.data(), "RPCK", 4) != 0) return false;
+    index_size = *reinterpret_cast<uint32_t*>(&header[4]);
 
-    index_size = *reinterpret_cast<uint32_t*>(&file_buffer[4]);
+    if (index_size == 0 || index_size > (10 << 20)) // index maximum 10MB
+        return false;
 
-    if (index_size == 0 || 8 + index_size > file_buffer.size()) return false;
+    std::vector<uint8_t> encrypted_index(index_size);
+    file_stream.read(reinterpret_cast<char*>(encrypted_index.data()), index_size);
+    if (file_stream.gcount() != static_cast<std::streamsize>(index_size)) return false;
 
     std::vector<uint8_t> decrypted_index;
-    if (!aesDecryptBlockwise(file_buffer.data() + 8, index_size, decrypted_index)) {
+    if (!aesDecryptBlockwise(encrypted_index.data(), index_size, decrypted_index)) {
         return false;
     }
-    size_t offset = 0;
-    while (offset + 256 + 12 <= decrypted_index.size()) {
-        std::string name(reinterpret_cast<char*>(&decrypted_index[offset]), 256);
-        name = name.c_str(); 
 
+    size_t offset = 0;
+    while (offset + 256 + sizeof(FileEntry) <= decrypted_index.size()) {
+        std::string name(reinterpret_cast<char*>(&decrypted_index[offset]), 256);
+        name = name.c_str();
         offset += 256;
 
         FileEntry entry;
         memcpy(&entry, &decrypted_index[offset], sizeof(FileEntry));
         offset += sizeof(FileEntry);
 
-        if (8 + index_size + entry.offset + entry.enc_size > file_buffer.size()) {
-            return false;
-        }
-
-        // file size can not over 200MB
+        // File size cannot over 200MB
         if (entry.enc_size == 0 || entry.enc_size > (200 << 20)) {
             return false;
         }
@@ -49,7 +47,7 @@ bool ResourcePack::load(const std::string& filename)
     return true;
 }
 
-bool ResourcePack::aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output) 
+bool ResourcePack::aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output)
 {
     if (len % AES_BLOCK_SIZE != 0) return false;
 
@@ -71,33 +69,38 @@ std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const std::string& filename
     const FileEntry& entry = it->second;
 
     size_t data_offset = 8 + index_size + entry.offset;
-    if (data_offset + entry.enc_size > file_buffer.size()) return nullptr;
 
-    const uint8_t* encrypted_data = &file_buffer[data_offset];
+    file_stream.clear();
+    file_stream.seekg(data_offset);
+    if (!file_stream) return nullptr;
 
-    std::unique_ptr<uint8_t[]> decrypted_data(new uint8_t[entry.enc_size]);
+    std::vector<uint8_t> encrypted_data(entry.enc_size);
+    file_stream.read(reinterpret_cast<char*>(encrypted_data.data()), entry.enc_size);
+    if (file_stream.gcount() != static_cast<std::streamsize>(entry.enc_size)) return nullptr;
 
-    AES_KEY aes;
-    AES_set_decrypt_key(get_aes_key().data(), 256, &aes);
+    std::vector<uint8_t> decrypted_data;
+    if (!aesDecryptBlockwise(encrypted_data.data(), entry.enc_size, decrypted_data)) {
+        return nullptr;
+    }
 
-    uint8_t iv[AES_BLOCK_SIZE] = { 0 };
-    AES_cbc_encrypt(encrypted_data, decrypted_data.get(), entry.enc_size, &aes, iv, AES_DECRYPT);
+    if (decrypted_data.size() < entry.original_size) return nullptr;
+
+    std::unique_ptr<uint8_t[]> result(new uint8_t[entry.original_size]);
+    memcpy(result.get(), decrypted_data.data(), entry.original_size);
 
     if (out_size)
         *out_size = entry.original_size;
 
-    std::unique_ptr<uint8_t[]> result(new uint8_t[entry.original_size]);
-    memcpy(result.get(), decrypted_data.get(), entry.original_size);
     return result;
 }
 
-ResourcePackManager& ResourcePackManager::instance() 
+ResourcePackManager& ResourcePackManager::instance()
 {
     static ResourcePackManager mgr;
     return mgr;
 }
 
-bool ResourcePackManager::loadPack(const std::string& packPath) 
+bool ResourcePackManager::loadPack(const std::string& packPath)
 {
     auto pack = std::make_unique<ResourcePack>();
     if (pack->load(packPath)) {

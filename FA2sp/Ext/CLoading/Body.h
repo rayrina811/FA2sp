@@ -246,12 +246,15 @@ public:
 	static void SendRequestText(const char* text);
 };
 
-struct FileEntry 
+#pragma pack(push, 1)
+struct FileEntry
 {
-	uint32_t offset; 
-	uint32_t enc_size; 
+	uint32_t offset;
+	uint32_t enc_size;
 	uint32_t original_size;
 };
+#pragma pack(pop)
+static_assert(sizeof(FileEntry) == 12, "FileEntry must be 12 bytes");
 
 struct CaseInsensitiveHash 
 {
@@ -283,7 +286,6 @@ public:
 
 private:
 	std::unordered_map<std::string, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
-	std::vector<uint8_t> file_buffer;
 	uint32_t index_size = 0; 
 	std::string file_path;
 	std::ifstream file_stream; 
