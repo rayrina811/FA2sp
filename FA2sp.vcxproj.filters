@@ -659,6 +659,9 @@
     <ClCompile Include="FA2sp\Ext\CLoading\Body.ResourcePack.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CLoading\Body.Encryption.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FA2sp\FA2sp.rc">
