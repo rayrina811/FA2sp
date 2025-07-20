@@ -214,6 +214,14 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
     fin.open(filepath, std::ios::in | std::ios::binary);
     if (fin.is_open())
     {
+        fin.close();
+        return 0x48DC52;
+    }
+
+    size_t size = 0;
+    auto data = ResourcePackManager::instance().getFileData(lpFilename, &size);
+    if (data && size > 0)
+    {
         return 0x48DC52;
     }
 

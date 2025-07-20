@@ -22,6 +22,34 @@ DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 	return 0x48A26A;
 }
 
+
+DEFINE_HOOK(48FCE1, CLoading_LoadOverlayGraphic_SearchFile, 8)
+{
+	GET(int, hMix, ESI);
+	GET_STACK(const char*, lpBuffer, STACK_OFFS(0x1C4, 0x1B4));
+	if (hMix != NULL)
+		return 0x4900B0;
+
+	ppmfc::CString filepath = CFinalSunApp::FilePath();
+	filepath += lpBuffer;
+	std::ifstream fin;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.close();
+		R->ESI(1919810);
+		return 0x4900B0;
+	}
+	size_t size = 0;
+	auto data = ResourcePackManager::instance().getFileData(lpBuffer, &size);
+	if (data && size > 0)
+	{
+		R->ESI(1919810);
+		return 0x4900B0;
+	}
+	return 0x48FCE9;
+}
+
 DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
 {
 	GET(int, hMix, ESI);

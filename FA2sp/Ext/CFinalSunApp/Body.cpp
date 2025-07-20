@@ -184,41 +184,44 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	std::string installpath = std::string(ini.GetString("TS", "Exe"));
 	installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
 
-	while (
-		!ini.KeyExists("TS", "Exe") ||
-		!ini.KeyExists("FinalSun", "FileSearchLikeTS") ||
-		!ini.KeyExists("FinalSun", "Language") ||
-		!fs::exists(installpath + "ra2.mix")
-		)
+	if (!ExtConfigs::DisableDirectoryCheck)
 	{
-		ppmfc::CString pMessage = Translations::TranslateOrDefault("LoadMixError.WrongDirectory",
-			"The game directory is incorrect. Do you want to reset?");
-
-		int result = IDYES;
-		
-		if (!firstRun)
-			result = MessageBox(NULL, pMessage, Translations::TranslateOrDefault("FatalError", "Fatal Error"), MB_YESNO | MB_ICONEXCLAMATION);
-
-
-		if (result == IDYES)
+		while (
+			!ini.KeyExists("TS", "Exe") ||
+			!ini.KeyExists("FinalSun", "FileSearchLikeTS") ||
+			!ini.KeyExists("FinalSun", "Language") ||
+			!fs::exists(installpath + "ra2.mix")
+			)
 		{
-			firstRun = false;
-			this->FileSearchLikeTS = TRUE;
-			*reinterpret_cast<int*>(0x7EE07C) = TRUE;
-			this->GetDialog()->Settings();
-			*reinterpret_cast<int*>(0x7EE07C) = FALSE;
+			ppmfc::CString pMessage = Translations::TranslateOrDefault("LoadMixError.WrongDirectory",
+				"The game directory is incorrect. Do you want to reset?");
+
+			int result = IDYES;
+
+			if (!firstRun)
+				result = MessageBox(NULL, pMessage, Translations::TranslateOrDefault("FatalError", "Fatal Error"), MB_YESNO | MB_ICONEXCLAMATION);
+
+
+			if (result == IDYES)
+			{
+				firstRun = false;
+				this->FileSearchLikeTS = TRUE;
+				*reinterpret_cast<int*>(0x7EE07C) = TRUE;
+				this->GetDialog()->Settings();
+				*reinterpret_cast<int*>(0x7EE07C) = FALSE;
+
+			}
+			if (result == IDNO)
+			{
+				exit(EXIT_SUCCESS);
+				break;
+			}
+
+			ini.ClearAndLoad(path.c_str());
+			installpath = ini.GetString("TS", "Exe");
+			installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
 
 		}
-		if (result == IDNO)
-		{
-			exit(EXIT_SUCCESS);
-			break;
-		}
-
-		ini.ClearAndLoad(path.c_str());
-		installpath = ini.GetString("TS", "Exe");
-		installpath = installpath.substr(0, installpath.find_last_of("\\") + 1);
-
 	}
 
 	this->InstallPath = ini.GetString("TS", "Exe");

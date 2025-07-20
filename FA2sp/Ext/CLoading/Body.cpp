@@ -4,6 +4,7 @@
 #include <CMixFile.h>
 #include <CINI.h>
 #include "../../Helpers/Translations.h"
+#include "../../FA2sp.h"
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
@@ -81,7 +82,7 @@ bool CLoadingExt::InitMixFilesFix()
 				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
 			else
 				Logger::Raw("[MixLoader] %s failed!\n", Mix);
-			return result;
+			return ExtConfigs::DisableDirectoryCheck || result;
 		}
 		else
 		{
@@ -90,7 +91,7 @@ bool CLoadingExt::InitMixFilesFix()
 			if (result)
 			{
 				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
-				return result;
+				return ExtConfigs::DisableDirectoryCheck || result;
 			}
 			if (int nMix = SearchFile(Mix))
 			{
@@ -99,10 +100,10 @@ bool CLoadingExt::InitMixFilesFix()
 					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
 				else
 					Logger::Raw("[MixLoader] %s failed!\n", Mix);
-				return result;
+				return ExtConfigs::DisableDirectoryCheck || result;
 			}
 			Logger::Raw("[MixLoader] %s failed!\n", Mix);
-			return result;
+			return ExtConfigs::DisableDirectoryCheck || result;
 		}
 	};
 	auto SetMixFile = [LoadMixFile](const char* Mix, int& value)

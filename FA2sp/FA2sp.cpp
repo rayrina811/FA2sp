@@ -156,6 +156,7 @@ bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
+bool ExtConfigs::DisableDirectoryCheck;
 int ExtConfigs::DisplayTextSize;
 bool ExtConfigs::DisplayObjectsOutside;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -274,6 +275,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
+	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::EnableVisualStyle = CINI::FAData->GetBool("ExtConfigs", "EnableVisualStyle", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
