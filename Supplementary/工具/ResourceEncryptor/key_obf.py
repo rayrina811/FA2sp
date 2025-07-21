@@ -39,26 +39,26 @@ def generate_obfuscated_cpp(key):
     func_definitions = []
     for i in range(8):
         func_body = []
-        func_body.append(f"unsigned char* {func_names[i]}() {{")
-        func_body.append("    static unsigned char part[4];")
+        func_body.append(f"void {func_names[i]}(unsigned char* part) {{")
         
         for j in range(4):
             idx = byte_indices[i * 4 + j]  # Use randomized byte index
             func_body.append(f"    unsigned char {var_names[idx]} = {expressions[idx]};")
             func_body.append(f"    part[{j}] = {var_names[idx]};")
         
-        func_body.append("    return part;")
         func_body.append("}")
         func_definitions.append("\n".join(func_body))
     
     # Create key assembly with corresponding randomized indices
     key_assembly = []
+    key_assembly.append("    unsigned char part[4];")
     for i in range(8):
         func_name = f"f{i:02x}"
         # Map function to the original key byte positions
         offset = byte_indices[i * 4:i * 4 + 4]
+        key_assembly.append(f"    EncryptionKey::{func_name}(part);")
         for j, byte_idx in enumerate(offset):
-            key_assembly.append(f"    seg = EncryptionKey::{func_name}(); key[{byte_idx}] = seg[{j}];")
+            key_assembly.append(f"    key[{byte_idx}] = part[{j}];")
     
     # Template for the complete C++ file
     cpp_template = """#include "Body.h"
@@ -70,7 +70,6 @@ namespace EncryptionKey {
 
 std::array<uint8_t, 32> ResourcePack::get_aes_key() {
     std::array<uint8_t, 32> key = {};
-    unsigned char* seg;
 %(randomized_key_assembly)s
     return key;
 }
