@@ -24,6 +24,7 @@
 #include "../CTileSetBrowserFrame/Body.h"
 #include "../CLoading/Body.h"
 #include "../../ExtraWindow/CSelectAutoShore/CSelectAutoShore.h"
+#include <thread>
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -416,14 +417,36 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		const auto& url = CFinalSunAppExt::ExternalLinks[wmID - 33000].first;
 		if (url.empty())
 			break;
-		if (!ShellExecute(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL))
-		{
-			ppmfc::CString pMessage = Translations::TranslateOrDefault("FailedToOpenLink",
-				"Unable to open link, please try manually:");
+		std::string command = "cmd.exe /c start \"\" \"" + url + "\"";
 
-			pMessage += " ";
-			pMessage += url.c_str();
-			MessageBox(pMessage);
+		STARTUPINFOA si = { sizeof(si) };
+		si.dwFlags = STARTF_USESHOWWINDOW;
+		si.wShowWindow = SW_HIDE;
+
+		PROCESS_INFORMATION pi;
+		BOOL success = CreateProcessA(
+			NULL,
+			const_cast<LPSTR>(command.c_str()),
+			NULL, NULL, FALSE,
+			CREATE_NO_WINDOW,
+			NULL, NULL,
+			&si, &pi
+		);
+
+		if (success) {
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+		}
+		else
+		{
+			if (!ShellExecute(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL))
+			{
+				ppmfc::CString pMessage = Translations::TranslateOrDefault("FailedToOpenLink",
+					"Unable to open link, please try manually:");
+				pMessage += " ";
+				pMessage += url.c_str();
+				MessageBox(pMessage);
+			}
 		}
 		break;
 	}
