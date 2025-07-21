@@ -71,7 +71,14 @@ DEFINE_HOOK(499D56, CMapD_OnBNChangeMapSizeClicked_ValidCheck, 7)
 		pThis->CString_Width.Format("%d", cms.INT_Width);
 		pThis->CString_Height.Format("%d", cms.INT_Height);
 		pThis->UpdateData(FALSE);
+		pThis->Update();
 	}
 
     return 0x499E30;
+}
+
+DEFINE_HOOK(499CF7, CMapD_OnBNChangeMapLocalSizeClicked, 7)
+{
+    CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    return 0;
 }

@@ -127,6 +127,7 @@ bool ExtConfigs::AISellableDefaultYes;
 bool ExtConfigs::TriggerList_AttachedTriggers;
 bool ExtConfigs::TagList_AttachedObjects;
 bool ExtConfigs::SaveMaps_BetterMapPreview;
+bool ExtConfigs::ShowMapBoundInMiniMap;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
 bool ExtConfigs::MultiSelect_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderLAT;
@@ -375,6 +376,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TriggerList_AttachedTriggers = CINI::FAData->GetBool("ExtConfigs", "TriggerList.AttachedTriggers" , true);
 	ExtConfigs::TagList_AttachedObjects = CINI::FAData->GetBool("ExtConfigs", "TagList.AttachedObjects", true);
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
+	ExtConfigs::ShowMapBoundInMiniMap = CINI::FAData->GetBool("ExtConfigs", "ShowMapBoundInMiniMap");
 
 	ExtConfigs::SkipBrushSizeChangeOnTools = CINI::FAData->GetBool("ExtConfigs", "SkipBrushSizeChangeOnTools");
 	CIsoViewExt::ScaledMax = CINI::FAData->GetDouble("ExtConfigs", "DDrawScalingMaximum", 1.5);

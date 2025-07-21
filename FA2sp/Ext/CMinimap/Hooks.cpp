@@ -6,6 +6,7 @@
 #include <CFinalSunDlg.h>
 #include <CIsoView.h>
 #include "../CIsoView/Body.h"
+#include "../../Helpers/STDHelpers.h"
 
 DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 {
@@ -39,7 +40,7 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 		CMapData::Instance->Size.Width * 2, CMapData::Instance->Size.Height,
 		pData, &bmi, DIB_RGB_COLORS, SRCCOPY);
 
-	auto GetMiniMapPos = [bmi](int i, int e)
+	auto GetMiniMapPos = [&bmi](int i, int e)
 		{
 			auto pIsoView = CIsoView::GetInstance();
 			i += pIsoView->ViewPosition.x;
@@ -66,6 +67,63 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 			y += pheight / 2;
 			return CPoint(x, y);
 		};
+
+	if (ExtConfigs::ShowMapBoundInMiniMap)
+	{
+		auto GetMiniMapPos_MapCoord = [&bmi](int X, int Y)
+			{
+				int x, y;
+				const int pheight = bmi.bmiHeader.biHeight;
+
+				const DWORD dwIsoSize = CMapData::Instance->MapWidthPlusHeight;
+				y = Y / 2 + X / 2;
+				x = dwIsoSize - X + Y;
+
+				int tx, ty;
+				tx = CMapData::Instance->Size.Width;
+				ty = CMapData::Instance->Size.Height;
+
+				ty = ty / 2 + tx / 2;
+				tx = dwIsoSize - CMapData::Instance->Size.Width + CMapData::Instance->Size.Height;
+
+				x -= tx;
+				y -= ty;
+
+				x += pheight;
+				y += pheight / 2;
+				return CPoint(x, y);
+			};
+
+		auto& map = CINI::CurrentDocument();
+		auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
+		auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
+
+		int mapwidth = atoi(size[2]);
+		int mapheight = atoi(size[3]);
+
+		int mpL = atoi(lSize[0]);
+		int mpT = atoi(lSize[1]);
+		int mpW = atoi(lSize[2]);
+		int mpH = atoi(lSize[3]);
+
+		int y1 = mpT + mpL - 2;
+		int x1 = mapwidth + mpT - mpL - 3;
+
+		int y2 = mpT + mpL + mpW - 2 + mpH + 4;
+		int x2 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+		auto topLeft2 = GetMiniMapPos_MapCoord(x1, y1);
+		auto bottomRight2 = GetMiniMapPos_MapCoord(x2, y2);
+
+		CRect borderRect;
+
+		borderRect.left = topLeft2.x;
+		borderRect.top = topLeft2.y;
+		borderRect.right = bottomRight2.x;
+		borderRect.bottom = bottomRight2.y;
+
+		pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
+	}	
 
 	RECT cr;
 	CRect selRect;
