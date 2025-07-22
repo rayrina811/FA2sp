@@ -1413,7 +1413,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					if (pData->pImageBuffer)
 					{
-						bool HoveringUnit = Variables::Rules.GetString(obj.TypeID, "SpeedType") == "Hover"
+						bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::Rules.GetString(obj.TypeID, "SpeedType") == "Hover"
 							&& (Variables::Rules.GetString(obj.TypeID, "Locomotor") == "Hover"
 								|| Variables::Rules.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
 

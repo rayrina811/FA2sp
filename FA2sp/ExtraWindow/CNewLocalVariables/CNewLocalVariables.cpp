@@ -231,6 +231,14 @@ void CNewLocalVariables::OnSelchangeVariable(bool edited)
 void CNewLocalVariables::OnClickNew()
 {
     auto key = CINI::GetAvailableKey("VariableNames");
+    if (!ExtConfigs::ExtVariables && atoi(key) >= 100)
+    {
+        ::MessageBox(m_parent->m_hWnd,
+            Translations::TranslateOrDefault("LocalVariablesExceed", "The number of local variables exceeds 100, following variables cannot be used. If you are using Phobos, please enable ExtVariables."),
+            Translations::TranslateOrDefault("LocalVariablesExceedTitle", "Too Much Local Variables"), MB_OK);
+        return;
+    }
+
     ppmfc::CString value = "New Variable,0";
     map.WriteString("VariableNames", key, value);
     ppmfc::CString text;

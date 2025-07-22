@@ -50,6 +50,7 @@ public:
     static bool ObjectBrowser_Foundation;
     static bool LoadLunarWater;
     static bool LoadCivilianStringtable;
+    static bool PasteShowOutlineDefault;
     static bool AllowIncludes;
     static bool AllowPlusEqual;
     static bool TutorialTexts_Hide;
@@ -93,6 +94,7 @@ public:
     static bool UseRGBHouseColor;
     static bool SaveMap_AutoSave;
     static int SaveMap_AutoSave_Interval;
+    static int SaveMap_AutoSave_Interval_Real;
     static int SaveMap_AutoSave_MaxCount;
     static bool SaveMap_OnlySaveMAP;
     //static bool SaveMap_MultiPlayOnlySaveYRM;
@@ -183,6 +185,23 @@ public:
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
+
+    enum SpecialOptionType : char
+    {
+        None = 0,
+        Restart = 1,
+        ReloadMap = 2,
+        SaveMap_Timer = 3,
+    };
+
+    struct DynamicOptions
+    {
+        ppmfc::CString DisplayName;
+        ppmfc::CString IniKey;
+        bool* Value;
+        SpecialOptionType Type = SpecialOptionType::None;
+    };
+    static std::vector<DynamicOptions> Options;
 };
 
 namespace std {

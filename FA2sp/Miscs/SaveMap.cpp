@@ -444,16 +444,20 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         std::ostringstream oss;
         ppmfc::CString comments;
 
-        comments += "; ";
-        comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1","本文件编码为 ANSI/GBK，请使用此格式打开");
-        comments += "\n";
-        comments += "; ";
-        comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2","Warning: If the first line appears as gibberish");
-        comments += "\n";
-        comments += "; ";
-        comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3","and Chinese characters are used, DO NOT modify this file");
-        comments += "\n";
-        comments += "\n";
+        if (ExtConfigs::SaveMap_FileEncodingComment)
+        {
+            comments += "; ";
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment1", "本文件编码为 ANSI/GBK，请使用此格式打开");
+            comments += "\n";
+            comments += "; ";
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment2", "Warning: If the first line appears as gibberish");
+            comments += "\n";
+            comments += "; ";
+            comments += Translations::TranslateOrDefault("SaveMap_FileEncodingComment3", "and Chinese characters are used, DO NOT modify this file");
+            comments += "\n";
+            comments += "\n";
+        }
+        
         comments += "; Map created with FinalAlert 2(tm) Mission Editor\n";
         comments += "; Get it at http://www.westwood.com\n";
         comments += "; note that all comments were truncated\n";

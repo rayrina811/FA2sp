@@ -57,7 +57,7 @@ void FileWatcher::start(const std::function<void(std::string, Status)>& action)
         std::this_thread::sleep_for(delay_);
 
         if (!ExtConfigs::FileWatcher)
-            return;
+            continue;
         
         if (IsSavingMap)
             continue;     

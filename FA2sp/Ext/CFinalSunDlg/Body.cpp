@@ -18,6 +18,7 @@
 #include "../../ExtraWindow/CObjectSearch/CObjectSearch.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
+#include "../../ExtraWindow/COptions/COptions.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -656,6 +657,36 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
 		}
 	}
+	if (wmID == 40162)
+	{
+		if (COptions::GetHandle() == NULL)
+			COptions::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+		}
+	}
+	auto closeFA2Window = [this, &wmID](int wmID2, ppmfc::CDialog &dialog)
+	{
+		if (wmID2 == wmID)
+		{
+			if (dialog.m_hWnd != NULL)
+			{
+				dialog.EndDialog(NULL);
+			}
+		}
+	};
+
+	closeFA2Window(40040, this->MapD);
+	closeFA2Window(40039, this->Houses);
+	closeFA2Window(40036, this->Basic);
+	closeFA2Window(40038, this->SpecialFlags);
+	closeFA2Window(40043, this->Lighting);
+	closeFA2Window(40048, this->AITriggerTypesEnable);
+	closeFA2Window(40037, this->SingleplayerSettings);
+	closeFA2Window(40042, this->Tags);
+
+
 	if (wmID == 40152 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		const ppmfc::CString title = Translations::TranslateOrDefault(
@@ -744,6 +775,31 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+
+		int newParam = 0;
+		auto refreshFA2Window = [this, &hWnd, &newParam, wmMsg](int wmID2, ppmfc::CDialog& dialog)
+			{
+				if (dialog.m_hWnd == hWnd)
+				{
+					dialog.EndDialog(IDCANCEL);
+					newParam = MAKELONG(wmID2, wmMsg);
+				}
+				return false;
+			};
+
+
+		refreshFA2Window(40040, this->MapD);
+		refreshFA2Window(40039, this->Houses);
+		refreshFA2Window(40036, this->Basic);
+		refreshFA2Window(40038, this->SpecialFlags);
+		refreshFA2Window(40043, this->Lighting);
+		refreshFA2Window(40048, this->AITriggerTypesEnable);
+		refreshFA2Window(40037, this->SingleplayerSettings);
+		refreshFA2Window(40042, this->Tags);
+
+		if (newParam != 0)
+			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+
 	}
 	// CTRL+C CTRL+V
 	if (wmID == 57634 || wmID == 57637)

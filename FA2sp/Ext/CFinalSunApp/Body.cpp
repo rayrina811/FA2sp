@@ -84,6 +84,22 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 
+	path = CFinalSunApp::ExePath;
+	path += "\\FALanguage.ini";
+	CINI::FALanguage->ClearAndLoad(path.c_str());
+	if (auto pSection = CINI::FALanguage().GetSection("Include"))
+	{
+		for (auto& pair : pSection->GetEntities())
+		{
+			std::string includePath;
+			includePath = CFinalSunApp::ExePath;
+			includePath += "\\" + pair.second;
+			if (fs::exists(includePath))
+				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
+		}
+	}
+	// No need to validate falanguage I guess
+
 	FA2sp::ExtConfigsInitialize(); // ExtConfigs
 	VoxelDrawer::Initalize();
 
@@ -157,23 +173,6 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 		}
 	}
 	
-	path = CFinalSunApp::ExePath;
-	path += "\\FALanguage.ini";
-	CINI::FALanguage->ClearAndLoad(path.c_str());
-	if (auto pSection = CINI::FALanguage().GetSection("Include"))
-	{
-		for (auto& pair : pSection->GetEntities())
-		{
-			std::string includePath;
-			includePath = CFinalSunApp::ExePath;
-			includePath += "\\" + pair.second;
-			if (fs::exists(includePath))
-				CINI::FALanguage->ParseINI(includePath.c_str(), 0, 0);
-		}
-	}
-
-	// No need to validate falanguage I guess
-
 	CINI ini;
 	path = CFinalSunApp::ExePath;
 	path += "\\FinalAlert.ini";
