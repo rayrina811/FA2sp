@@ -161,6 +161,11 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 StringtableLoader::LoadCSFFiles();
                 Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
 
+                char tmpCsfFile[0x400];
+                strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+                strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
+                DeleteFile(tmpCsfFile);
+
                 ExtraWindow::bEnterSearch = true;
                 Update(hWnd);
                 ExtraWindow::bEnterSearch = false;

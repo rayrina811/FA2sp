@@ -68,6 +68,12 @@ DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)
     FA2sp::TutorialTextsMap.clear();
     StringtableLoader::LoadCSFFiles();
     Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
+
+    char tmpCsfFile[0x400];
+    strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
+    strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
+    DeleteFile(tmpCsfFile);
+
     return 0x494341;
 }
 
