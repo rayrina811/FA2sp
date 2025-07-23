@@ -2,6 +2,7 @@
 #include <CLoading.h>
 #include <FAMemory.h>
 #include <CFinalSunApp.h>
+#include <CFinalSunDlg.h>
 
 #include "../Helpers/STDHelpers.h"
 #include "../FA2sp.h"
@@ -20,7 +21,6 @@ DEFINE_HOOK(4B2633, QueryUIName_init, 5)
 {
     return 0x4B33D1;
 }
-
 
 DEFINE_HOOK(4B33D1, QueryUIName, 9)
 {
@@ -61,35 +61,13 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
     return 0;
 }
 
-DEFINE_HOOK(492D10, CSFFiles_Stringtables_Support_1, 5)
+DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)
 {
+    CFinalSunDlg::LastSucceededOperation = 9;
     StringtableLoader::CSFFiles_Stringtable.clear();
     StringtableLoader::LoadCSFFiles();
-    StringtableLoader::bLoadRes = StringtableLoader::LoadToBuffer();
-    if (StringtableLoader::bLoadRes)
-    {
-        R->EDI(StringtableLoader::pEDIBuffer);
-        return 0x49305F;
-    }
-    else
-        return 0;
-}
-
-DEFINE_HOOK(49433B, CSFFiles_Stringtables_Support_2, 6)
-{
-    // Cleanning up
-    if (StringtableLoader::bLoadRes)
-    {
-        GameDelete(StringtableLoader::pEDIBuffer);
-        char tmpCsfFile[0x400];
-        strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
-        strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
-        DeleteFile(tmpCsfFile);
-        Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
-        //StringtableLoader::CSFFiles_Stringtable.clear();
-        StringtableLoader::bLoadRes = false;
-    }
-    return 0;
+    Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
+    return 0x494341;
 }
 
 void StringtableLoader::LoadCSFFiles()
