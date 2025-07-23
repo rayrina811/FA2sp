@@ -155,14 +155,15 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         case Controls::Reload:
             if (CODE == BN_CLICKED)
             {
+                CFinalSunDlg::LastSucceededOperation = 9;
                 StringtableLoader::CSFFiles_Stringtable.clear();
                 FA2sp::TutorialTextsMap.clear();
                 StringtableLoader::LoadCSFFiles();
-                OnEditchangeSearch();
-                char tmpCsfFile[0x400];
-                strcpy_s(tmpCsfFile, CFinalSunApp::ExePath());
-                strcat_s(tmpCsfFile, "\\RA2Tmp.csf");
-                DeleteFile(tmpCsfFile);
+                Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
+
+                ExtraWindow::bEnterSearch = true;
+                Update(hWnd);
+                ExtraWindow::bEnterSearch = false;
             }
             break;
         case Controls::Apply:

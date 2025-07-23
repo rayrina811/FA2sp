@@ -65,6 +65,7 @@ DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)
 {
     CFinalSunDlg::LastSucceededOperation = 9;
     StringtableLoader::CSFFiles_Stringtable.clear();
+    FA2sp::TutorialTextsMap.clear();
     StringtableLoader::LoadCSFFiles();
     Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
     return 0x494341;
