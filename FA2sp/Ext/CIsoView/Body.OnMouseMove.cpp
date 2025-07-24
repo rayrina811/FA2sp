@@ -134,8 +134,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         CIsoViewExt::DrawMultiMapCoordBorders(hDC, cells, ExtConfigs::CursorSelectionBound_Color);
     }
-    // property brush && delete objects
-    if (CIsoView::CurrentCommand->Command == 0x17 || CIsoView::CurrentCommand->Command == 0x2)
+    // property brush && delete objects // change owner
+    if (CIsoView::CurrentCommand->Command == 0x17 || CIsoView::CurrentCommand->Command == 0x2 || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7))
     {
         std::vector<MapCoord> cells;
         for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)

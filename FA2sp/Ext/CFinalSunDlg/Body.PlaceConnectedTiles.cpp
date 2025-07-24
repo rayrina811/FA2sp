@@ -4334,7 +4334,6 @@ void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
         CViewObjectsExt::PlaceConnectedTile_Start = true;
         CViewObjectsExt::LastTempPlacedCTIndex = -1;
         CViewObjectsExt::LastTempFacing = -1;
-        Logger::Raw("23333\n");
         return;
     }
 

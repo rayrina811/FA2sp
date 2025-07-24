@@ -71,6 +71,9 @@ LPDIRECTDRAWSURFACE7 CIsoViewExt::lpDDBackBufferZoomSurface;
 double CIsoViewExt::ScaledFactor = 1.0;
 double CIsoViewExt::ScaledMax = 1.5;
 double CIsoViewExt::ScaledMin = 0.25;
+UINT CIsoViewExt::nFlagsMove;
+bool CIsoViewExt::LastCommand::requestSubpos = false;
+CIsoViewExt::LastCommand CIsoViewExt::LastAltCommand;
 
 COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(255, 255, 255),	// level 0
@@ -807,13 +810,13 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     auto drawCellOutline = [&](int inneroffset)
         {   
             if (s1)
-            ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T);
+                ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T);
             if (s2)
-            ClipAndDrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset);
+                ClipAndDrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset);
             if (s3)
-            ClipAndDrawLine(x3L, y3L - inneroffset, x4B + 2 * inneroffset, y4B);
+                ClipAndDrawLine(x3L, y3L - inneroffset, x4B + 2 * inneroffset, y4B);
             if (s4)
-            ClipAndDrawLine(x4 + 2 * inneroffset, y4, x1L, y1L + inneroffset);
+                ClipAndDrawLine(x4 + 2 * inneroffset, y4, x1L, y1L + inneroffset);
         };
 
 
@@ -1555,7 +1558,11 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
 
 int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 {
+    if (CIsoViewExt::LastCommand::requestSubpos)
+        return CIsoViewExt::LastAltCommand.Subpos;
+
     auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+
     auto currentMapCoord = pIsoView->StartCell;
     int pos;  
     if (X != -1 && Y != -1)
@@ -3679,6 +3686,52 @@ void CIsoViewExt::DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>&
     }
 }
 
+void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color)
+{
+    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    for (const auto& mc : coords)
+    {
+        if (!CMapDataExt::IsCoordInFullMap(mc.X, mc.Y))
+            continue;
+
+        int x = mc.X;
+        int y = mc.Y;
+        CIsoView::MapCoord2ScreenCoord(x, y);
+        int drawX = x - CIsoViewExt::drawOffsetX;
+        int drawY = y - CIsoViewExt::drawOffsetY;
+
+        bool s1 = true;
+        bool s2 = true;
+        bool s3 = true;
+        bool s4 = true;
+
+        for (auto& coord : coords)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y))
+                continue;
+
+            if (coord.X == mc.X - 1 && coord.Y == mc.Y)
+            {
+                s1 = false;
+            }
+            if (coord.X == mc.X + 1 && coord.Y == mc.Y)
+            {
+                s3 = false;
+            }
+            if (coord.X == mc.X && coord.Y == mc.Y - 1)
+            {
+                s4 = false;
+            }
+
+            if (coord.X == mc.X && coord.Y == mc.Y + 1)
+            {
+                s2 = false;
+            }
+        }
+        pThis->DrawLockedCellOutline(drawX, drawY, 1, 1, color, false, false, lpDesc, s1, s2, s3, s4);
+    }
+}
+
 void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color)
 {
     auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
@@ -3697,6 +3750,82 @@ void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color
     SelectObject(hDC, hPenOld);
     DeleteObject(hPen);
     EndPaint(pThis->m_hWnd, &ps);
+}
+
+std::vector<MapCoord> CIsoViewExt::GetLinePoints(MapCoord mc1, MapCoord mc2)
+{
+    std::vector<MapCoord> points;
+
+    int dx = std::abs(mc2.X - mc1.X);
+    int dy = -std::abs(mc2.Y - mc1.Y);
+    int sx = (mc1.X < mc2.X) ? 1 : -1;
+    int sy = (mc1.Y < mc2.Y) ? 1 : -1;
+    int err = dx + dy; // error value
+
+    while (true) {
+        points.emplace_back(mc1.X, mc1.Y);
+
+        if (mc1.X == mc2.X && mc1.Y == mc2.Y)
+            break;
+
+        int e2 = 2 * err;
+
+        if (e2 >= dy) {
+            err += dy;
+            mc1.X += sx;
+        }
+        if (e2 <= dx) {
+            err += dx;
+            mc1.Y += sy;
+        }
+    }
+    return points;
+}
+
+std::vector<MapCoord> CIsoViewExt::GetLineRectangles(MapCoord start, MapCoord end, int width, int height)
+{
+    auto isOverlap = [](const MapCoord& a, const MapCoord& b, int w, int h) {
+        return !(a.X + w <= b.X || b.X + w <= a.X ||
+            a.Y + h <= b.Y || b.Y + h <= a.Y);
+        };
+
+    std::vector<MapCoord> placedRects;
+
+    int x1 = start.X;
+    int y1 = start.Y;
+    int x2 = end.X;
+    int y2 = end.Y;
+
+    int dx = std::abs(x2 - x1);
+    int dy = -std::abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+    int err = dx + dy;
+
+    while (true) {
+        MapCoord current{ x1, y1 };
+
+        bool overlap = false;
+        for (const auto& rect : placedRects) {
+            if (isOverlap(current, rect, width, height)) {
+                overlap = true;
+                break;
+            }
+        }
+
+        if (!overlap) {
+            placedRects.push_back(current);
+        }
+
+        if (x1 == x2 && y1 == y2)
+            break;
+
+        int e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x1 += sx; }
+        if (e2 <= dx) { err += dx; y1 += sy; }
+    }
+
+    return placedRects;
 }
 
 BOOL CIsoViewExt::PreTranslateMessageExt(MSG* pMsg)

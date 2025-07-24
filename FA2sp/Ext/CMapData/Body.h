@@ -200,6 +200,9 @@ struct CellDataExt
     // for terrain generation
     bool AddRandomTile = false;
 
+    // for line tool
+    bool LineToolProcessed = false;
+
     // for lighting preview
     LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
 

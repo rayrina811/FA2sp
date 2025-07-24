@@ -558,6 +558,428 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     GET(const int, X, EDI);
     GET(const int, Y, ESI);
 
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto& command = pIsoView->LastAltCommand;
+    if ((GetKeyState(VK_MENU) & 0x8000))
+    {
+        auto pMap = CMapDataExt::GetExtension();
+        if (command.isSame())
+        {
+            auto mapCoords = pIsoView->GetLinePoints({ command.X, command.Y }, { X,Y });
+
+            if (command.Command == 10) // place tile
+            {
+                pMap->SaveUndoRedoData(true, 0, 0, 0, 0);
+                int index = CMapDataExt::GetSafeTileIndex(command.Type);
+                const auto& tileData = CMapDataExt::TileData[index];
+                int width = CMapDataExt::TileData[index].Width * pIsoView->BrushSizeY;
+                int height = CMapDataExt::TileData[index].Height * pIsoView->BrushSizeX;
+
+                if (width > 1 || height > 1)
+                {
+                    mapCoords = pIsoView->GetLineRectangles({ command.X, command.Y }, { X,Y }, height, width);
+                }
+
+                for (const auto& mc : mapCoords)
+                {
+                    for (int i = 0; i < pIsoView->BrushSizeX; ++i)
+                    {
+                        for (int e = 0; e < pIsoView->BrushSizeY; ++e)
+                        {
+                            pMap->PlaceTileAt(mc.X + 1 + (i - 1) * CMapDataExt::TileData[index].Height,
+                                mc.Y + 1 + (e - 1) * CMapDataExt::TileData[index].Width, command.Type, 2);
+                        }
+                    }
+
+                }
+                if (!mapCoords.empty() && !CFinalSunApp::Instance->DisableAutoLat)
+                {
+                    std::set<MapCoord> editedCoords;
+                    for (int i = 0; i < pMap->CellDataExts.size(); ++i)
+                    {
+                        auto& cell = pMap->CellDataExts[i];
+                        if (cell.LineToolProcessed)
+                        {
+                            editedCoords.insert({ pMap->GetXFromCoordIndex(i), pMap->GetYFromCoordIndex(i) });
+                        }
+                    }
+                    std::set<MapCoord> editedLatCoords;
+                    for (const auto& p : editedCoords) {
+                        editedLatCoords.insert({ p.X + 1, p.Y });
+                        editedLatCoords.insert({ p.X - 1, p.Y });
+                        editedLatCoords.insert({ p.X, p.Y + 1 });
+                        editedLatCoords.insert({ p.X, p.Y - 1 });
+                        editedLatCoords.insert({ p.X, p.Y });
+                    }
+                    for (const auto& p : editedLatCoords)
+                    {
+                        pMap->SmoothTileAt(p.X, p.Y, true);
+                    }
+                    for (auto& cell : CMapDataExt::CellDataExts)
+                    {
+                        cell.LineToolProcessed = false;
+                    }
+                }
+            }
+            else if (command.Command == 1) // place objects
+            {
+                if (command.Type == 6) // overlay
+                {
+                    pMap->SaveUndoRedoData(true, 0, 0, 0, 0);
+                    std::vector<int> randomRockList;
+                    if (CViewObjectsExt::PlacingRandomRock >= 0)
+                    {
+                        if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
+                        {
+                            if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomRock)))
+                            {
+                                for (auto& pKey : pSection2->GetEntities())
+                                {
+                                    if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                    {
+                                        randomRockList.push_back(atoi(pKey.second));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (const auto& mc : mapCoords)
+                    {
+                        if (CViewObjectsExt::PlacingWall >= 0)
+                        {
+                            int overlay = CViewObjectsExt::PlacingWall / 5;
+                            int damageLevel = CViewObjectsExt::PlacingWall % 5 - 1;
+                            if (damageLevel == 3)
+                                damageLevel = -2;
+                            if (damageLevel == -1)
+                                damageLevel = 0;
+
+                            for (int i = 0; i < CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeX; i++)
+                                for (int j = 0; j < CFinalSunDlg::Instance->MyViewFrame.pIsoView->BrushSizeY; j++)
+                                    CMapDataExt::PlaceWallAt(pMap->GetCoordIndex(mc.X + i, mc.Y + j), overlay, damageLevel);
+
+                        }
+                        else if (!randomRockList.empty())
+                        {
+                            CIsoView::CurrentCommand->Overlay = STDHelpers::RandomSelectInt(randomRockList);
+                            CIsoView::CurrentCommand->OverlayData = 0;
+                            CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
+                        }
+                        else if (command.Param == 5) // bridge
+                        {
+                            return 0;
+                        }
+                        else
+                        {
+                            CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
+                        }
+                    }
+                }
+                else if (CViewObjectsExt::PlacingRandomSmudge >= 0)
+                {
+                    std::vector<ppmfc::CString> randomList;
+                    if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
+                    {
+                        if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomSmudge)))
+                        {
+                            for (auto& pKey : pSection2->GetEntities())
+                            {
+                                if (pKey.first != "Name" && pKey.first != "BannedTheater")
+                                {
+                                    randomList.push_back(pKey.second);
+                                }
+                            }
+                        }
+                    }
+                    for (const auto& mc : mapCoords)
+                    {
+                        auto cell = pMap->GetCellAt(mc.X, mc.Y);
+                        CSmudgeData smudge;
+                        smudge.X = mc.Y;
+                        smudge.Y = mc.X;//opposite
+                        smudge.Flag = 0;
+                        smudge.TypeID = STDHelpers::RandomSelect(randomList);
+
+                        if (cell->Smudge < 0)
+                        {
+                            auto& rules = Variables::Rules;
+                            //check overlapping
+                            int width = rules.GetInteger(smudge.TypeID, "Width", 1);
+                            int height = rules.GetInteger(smudge.TypeID, "Height", 1);
+                            bool place = true;
+                            for (auto& thisSmudge : pMap->SmudgeDatas)
+                            {
+                                if (thisSmudge.X <= 0 || thisSmudge.Y <= 0 || thisSmudge.Flag)
+                                    continue;
+                                int thisWidth = rules.GetInteger(thisSmudge.TypeID, "Width", 1);
+                                int thisHeight = rules.GetInteger(thisSmudge.TypeID, "Height", 1);
+                                int thisX = thisSmudge.Y;
+                                int thisY = thisSmudge.X;//opposite
+                                for (int i = 0; i < thisWidth; i++)
+                                    for (int j = 0; j < thisHeight; j++)
+                                        for (int k = 0; k < width; k++)
+                                            for (int l = 0; l < height; l++)
+                                                if (thisY + i == mc.Y + k && thisX + j == mc.X + l)
+                                                    place = false;
+
+                            }
+                            if (place)
+                            {
+                                pMap->SetSmudgeData(&smudge);
+                                pMap->UpdateFieldSmudgeData(false);
+                            }
+                        }
+                    }
+                }
+                else if (CViewObjectsExt::PlacingRandomInfantry >= 0)
+                {
+                    std::vector<ppmfc::CString> randomList;
+
+                    if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
+                    {
+                        auto& section = *pSection->GetValueAt(CViewObjectsExt::PlacingRandomInfantry);
+                        if (auto pSection2 = CINI::FAData().GetSection(section))
+                        {
+                            for (auto& pKey : pSection2->GetEntities())
+                            {
+                                if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing")
+                                {
+                                    randomList.push_back(pKey.second);
+                                }
+                            }
+                            CViewObjectsExt::PlacingRandomRandomFacing = CINI::FAData().GetBool(section, "RandomFacing");
+                        }
+                    }
+                    for (const auto& mc : mapCoords)
+                    {
+                        CInfantryData newTechno;
+
+                        newTechno.SubCell.Format("%d", command.Subpos);
+
+                        newTechno.House = CIsoView::CurrentHouse();
+                        newTechno.TypeID = STDHelpers::RandomSelect(randomList);
+                        newTechno.X.Format("%d", mc.X);
+                        newTechno.Y.Format("%d", mc.Y);
+
+                        newTechno.Status = ExtConfigs::DefaultInfantryProperty.Status;
+                        newTechno.Tag = ExtConfigs::DefaultInfantryProperty.Tag;
+                        newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultInfantryProperty.Facing;
+                        newTechno.VeterancyPercentage = ExtConfigs::DefaultInfantryProperty.VeterancyPercentage;
+                        newTechno.Group = ExtConfigs::DefaultInfantryProperty.Group;
+                        newTechno.IsAboveGround = ExtConfigs::DefaultInfantryProperty.IsAboveGround;
+                        newTechno.AutoNORecruitType = ExtConfigs::DefaultInfantryProperty.AutoNORecruitType;
+                        newTechno.AutoYESRecruitType = ExtConfigs::DefaultInfantryProperty.AutoYESRecruitType;
+                        newTechno.Health = ExtConfigs::DefaultInfantryProperty.Health;
+
+                        pMap->SetInfantryData(&newTechno, nullptr, nullptr, 0, -1);
+                    }
+                }
+                else if (CViewObjectsExt::PlacingRandomTerrain >= 0
+                    || CViewObjectsExt::PlacingRandomVehicle >= 0
+                    || CViewObjectsExt::PlacingRandomStructure >= 0
+                    || CViewObjectsExt::PlacingRandomAircraft >= 0
+                    )
+                {
+                    std::vector<ppmfc::CString> randomList;
+                    ppmfc::CString list;
+                    int index = 0;
+                    if (CViewObjectsExt::PlacingRandomTerrain >= 0)
+                    {
+                        list = "PlaceRandomTreeObList";
+                        index = CViewObjectsExt::PlacingRandomTerrain;
+                    }
+                    else if (CViewObjectsExt::PlacingRandomVehicle >= 0)
+                    {
+                        list = "PlaceRandomVehicleObList";
+                        index = CViewObjectsExt::PlacingRandomVehicle;
+                    }
+                    else if (CViewObjectsExt::PlacingRandomStructure >= 0)
+                    {
+                        list = "PlaceRandomBuildingObList";
+                        index = CViewObjectsExt::PlacingRandomStructure;
+                    }
+                    else if (CViewObjectsExt::PlacingRandomAircraft >= 0)
+                    {
+                        list = "PlaceRandomAircraftObList";
+                        index = CViewObjectsExt::PlacingRandomAircraft;
+                    }
+
+                    if (auto pSection = CINI::FAData().GetSection(list))
+                    {
+                        auto& section = *pSection->GetValueAt(index);
+                        if (auto pSection2 = CINI::FAData().GetSection(section))
+                        {
+                            if (auto pSection2 = CINI::FAData().GetSection(section))
+                            {
+                                for (auto& pKey : pSection2->GetEntities())
+                                {
+                                    if (pKey.first != "Name" && pKey.first != "BannedTheater" && pKey.first != "RandomFacing" && pKey.first != "AIRepairs")
+                                    {
+                                        randomList.push_back(pKey.second);
+                                    }
+                                }
+                                CViewObjectsExt::PlacingRandomRandomFacing = CINI::FAData().GetBool(section, "RandomFacing");
+                                CViewObjectsExt::PlacingRandomStructureAIRepairs = CINI::FAData().GetBool(section, "AIRepairs");
+                            }
+                        }
+                    }
+
+                    auto& Map = CMapData::Instance();
+                    for (const auto& mc : mapCoords)
+                    {
+                        auto cell = Map.TryGetCellAt(mc.X, mc.Y);
+                        if (CViewObjectsExt::PlacingRandomTerrain >= 0)
+                        {
+                            if (cell->Terrain < 0)
+                                Map.SetTerrainData(STDHelpers::RandomSelect(randomList), Map.GetCoordIndex(mc.X, mc.Y));
+                        }
+                        else if (CViewObjectsExt::PlacingRandomVehicle >= 0)
+                        {
+                            if (cell->Unit < 0)
+                            {
+                                CUnitData newTechno;
+                                newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultUnitProperty.Facing;
+                                newTechno.Health = ExtConfigs::DefaultUnitProperty.Health;
+                                newTechno.Status = ExtConfigs::DefaultUnitProperty.Status;
+                                newTechno.Tag = ExtConfigs::DefaultUnitProperty.Tag;
+                                newTechno.VeterancyPercentage = ExtConfigs::DefaultUnitProperty.VeterancyPercentage;
+                                newTechno.Group = ExtConfigs::DefaultUnitProperty.Group;
+                                newTechno.IsAboveGround = ExtConfigs::DefaultUnitProperty.IsAboveGround;
+                                newTechno.FollowsIndex = ExtConfigs::DefaultUnitProperty.FollowsIndex;
+                                newTechno.AutoNORecruitType = ExtConfigs::DefaultUnitProperty.AutoNORecruitType;
+                                newTechno.AutoYESRecruitType = ExtConfigs::DefaultUnitProperty.AutoYESRecruitType;
+
+                                newTechno.House = CIsoView::CurrentHouse();
+                                newTechno.TypeID = STDHelpers::RandomSelect(randomList);
+                                newTechno.X.Format("%d", mc.X);
+                                newTechno.Y.Format("%d", mc.Y);
+                                Map.SetUnitData(&newTechno, nullptr, nullptr, 0, "");
+                            }
+                        }
+                        else if (CViewObjectsExt::PlacingRandomStructure >= 0)
+                        {
+                            if (cell->Structure < 0)
+                            {
+                                CBuildingData newTechno;
+                                newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultBuildingProperty.Facing;
+                                newTechno.Health = ExtConfigs::DefaultBuildingProperty.Health;
+                                newTechno.Tag = ExtConfigs::DefaultBuildingProperty.Tag;
+                                newTechno.AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
+                                newTechno.AIRebuildable = ExtConfigs::DefaultBuildingProperty.AIRebuildable;
+                                newTechno.PoweredOn = ExtConfigs::DefaultBuildingProperty.PoweredOn;
+                                newTechno.Upgrades = ExtConfigs::DefaultBuildingProperty.Upgrades;
+                                newTechno.SpotLight = ExtConfigs::DefaultBuildingProperty.SpotLight;
+                                newTechno.Upgrade1 = ExtConfigs::DefaultBuildingProperty.Upgrade1;
+                                newTechno.Upgrade2 = ExtConfigs::DefaultBuildingProperty.Upgrade2;
+                                newTechno.Upgrade3 = ExtConfigs::DefaultBuildingProperty.Upgrade3;
+                                newTechno.AIRepairable = CViewObjectsExt::PlacingRandomStructureAIRepairs ? "1" : "0";
+                                newTechno.Nominal = ExtConfigs::DefaultBuildingProperty.Nominal;
+
+                                newTechno.House = CIsoView::CurrentHouse();
+                                newTechno.TypeID = STDHelpers::RandomSelect(randomList);
+                                newTechno.X.Format("%d", mc.X);
+                                newTechno.Y.Format("%d", mc.Y);
+
+                                Map.SetBuildingData(&newTechno, nullptr, nullptr, 0, "");
+                            }
+                        }
+                        else if (CViewObjectsExt::PlacingRandomAircraft >= 0)
+                        {
+                            if (cell->Aircraft < 0)
+                            {
+                                CAircraftData newTechno;
+
+                                newTechno.Facing = CViewObjectsExt::PlacingRandomRandomFacing ? STDHelpers::GetRandomFacing() : ExtConfigs::DefaultAircraftProperty.Facing;
+                                newTechno.Health = ExtConfigs::DefaultAircraftProperty.Health;
+                                newTechno.Status = ExtConfigs::DefaultAircraftProperty.Status;
+                                newTechno.Tag = ExtConfigs::DefaultAircraftProperty.Tag;
+                                newTechno.VeterancyPercentage = ExtConfigs::DefaultAircraftProperty.VeterancyPercentage;
+                                newTechno.Group = ExtConfigs::DefaultAircraftProperty.Group;
+                                newTechno.AutoNORecruitType = ExtConfigs::DefaultAircraftProperty.AutoNORecruitType;
+                                newTechno.AutoYESRecruitType = ExtConfigs::DefaultAircraftProperty.AutoYESRecruitType;
+
+                                newTechno.House = CIsoView::CurrentHouse();
+                                newTechno.TypeID = STDHelpers::RandomSelect(randomList);
+                                newTechno.X.Format("%d", mc.X);
+                                newTechno.Y.Format("%d", mc.Y);
+
+                                Map.SetAircraftData(&newTechno, nullptr, nullptr, 0, "");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (command.Type == 8) // smudge
+                    {
+                        for (const auto& mc : mapCoords)
+                        {
+                            auto cell = pMap->GetCellAt(mc.X, mc.Y);
+                            CSmudgeData smudge;
+                            smudge.X = mc.Y;
+                            smudge.Y = mc.X;//opposite
+                            smudge.Flag = 0;
+                            smudge.TypeID = command.ObjectID;
+
+                            if (cell->Smudge < 0)
+                            {
+                                auto& rules = Variables::Rules;
+                                //check overlapping
+                                int width = rules.GetInteger(smudge.TypeID, "Width", 1);
+                                int height = rules.GetInteger(smudge.TypeID, "Height", 1);
+                                bool place = true;
+                                for (auto& thisSmudge : pMap->SmudgeDatas)
+                                {
+                                    if (thisSmudge.X <= 0 || thisSmudge.Y <= 0 || thisSmudge.Flag)
+                                        continue;
+                                    int thisWidth = rules.GetInteger(thisSmudge.TypeID, "Width", 1);
+                                    int thisHeight = rules.GetInteger(thisSmudge.TypeID, "Height", 1);
+                                    int thisX = thisSmudge.Y;
+                                    int thisY = thisSmudge.X;//opposite
+                                    for (int i = 0; i < thisWidth; i++)
+                                        for (int j = 0; j < thisHeight; j++)
+                                            for (int k = 0; k < width; k++)
+                                                for (int l = 0; l < height; l++)
+                                                    if (thisY + i == mc.Y + k && thisX + j == mc.X + l)
+                                                        place = false;
+
+                                }
+                                if (place)
+                                {
+                                    pMap->SetSmudgeData(&smudge);
+                                    pMap->UpdateFieldSmudgeData(false);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        CIsoViewExt::LastCommand::requestSubpos = true;
+                        for (const auto& mc : mapCoords)
+                        {
+                            CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
+                        }
+                        CIsoViewExt::LastCommand::requestSubpos = false;
+                    }
+                }
+            }
+            else if (command.Command == 22) // random tree
+            {
+                for (const auto& mc : mapCoords)
+                {
+                    CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
+                }
+            }
+            command.reset();
+        }
+        else
+        {
+            command.record(X, Y);
+        }
+        return 0x466860;
+    }
+    command.reset();
+
     if (CIsoView::CurrentCommand->Command == 0x17)
     {
         CViewObjectsExt::ApplyPropertyBrush(X, Y);
@@ -675,6 +1097,11 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CLuaConsole::OnClickRun(CLuaConsole::runFile);
         return 0x466860;
     }
+    else if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) // change owner
+    {
+        CViewObjectsExt::ApplyChangeOwner(X, Y);
+        return 0x466860;
+    }
 
     return 0;
 }
@@ -758,6 +1185,12 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
         CLuaConsole::OnClickRun(CLuaConsole::runFile);
         return 0x45CD6D;
     }
+    else if (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) // change owner
+    {
+        CViewObjectsExt::ApplyChangeOwner(X, Y);
+        return 0x45CD6D;
+    }
+
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }
 

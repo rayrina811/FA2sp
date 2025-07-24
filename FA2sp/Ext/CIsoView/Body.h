@@ -4,6 +4,7 @@
 
 #include <CIsoView.h>
 #include "../FA2Expand.h"
+#include "../CFinalSunDlg/Body.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
@@ -105,12 +106,15 @@ public:
     static void DrawBridgeLine(HDC hDC);
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
+    static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
+    static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
+    static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
 
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -174,4 +178,81 @@ public:
     static double ScaledFactor;
     static double ScaledMax;
     static double ScaledMin;
+
+    static UINT nFlagsMove;
+
+    struct LastCommand
+    {
+        int Command = -1;
+        int Type;
+        int Param;
+        int Overlay;
+        int OverlayData;
+        int Height;
+        ppmfc::CString ObjectID;
+        int X;
+        int Y;
+        int Subpos;
+        static bool requestSubpos;
+
+        void reset()
+        {
+            Command = -1;
+        }
+
+        void record(int x, int y)
+        {
+            Command = CIsoView::CurrentCommand->Command;
+            Type = CIsoView::CurrentCommand->Type;
+            Param = CIsoView::CurrentCommand->Param;
+            Overlay = CIsoView::CurrentCommand->Overlay;
+            OverlayData = CIsoView::CurrentCommand->OverlayData;
+            Height = CIsoView::CurrentCommand->Height;
+            ObjectID = CIsoView::CurrentCommand->ObjectID;
+            X = x;
+            Y = y;
+            requestSubpos = false;
+            Subpos = CIsoViewExt::GetSelectedSubcellInfantryIdx(x, y, true);
+        }
+
+        bool isSame()
+        {
+            if (CViewObjectsExt::PlacingRandomRock >= 0)
+            {
+                return
+                    Command == CIsoView::CurrentCommand->Command &&
+                    Type == CIsoView::CurrentCommand->Type &&
+                    Param == CIsoView::CurrentCommand->Param &&
+                    OverlayData == CIsoView::CurrentCommand->OverlayData &&
+                    Height == CIsoView::CurrentCommand->Height &&
+                    ObjectID == CIsoView::CurrentCommand->ObjectID;
+            }
+            else if (CViewObjectsExt::PlacingRandomSmudge >= 0 
+                || CViewObjectsExt::PlacingRandomTerrain >= 0
+                || CViewObjectsExt::PlacingRandomInfantry >= 0
+                || CViewObjectsExt::PlacingRandomVehicle >= 0
+                || CViewObjectsExt::PlacingRandomStructure >= 0
+                || CViewObjectsExt::PlacingRandomAircraft >= 0
+                )
+            {
+                return Command == CIsoView::CurrentCommand->Command &&
+                    Type == CIsoView::CurrentCommand->Type &&
+                    Param == CIsoView::CurrentCommand->Param &&
+                    Overlay == CIsoView::CurrentCommand->Overlay &&
+                    OverlayData == CIsoView::CurrentCommand->OverlayData &&
+                    Height == CIsoView::CurrentCommand->Height;
+            }
+            return
+                Command == CIsoView::CurrentCommand->Command &&
+                Type == CIsoView::CurrentCommand->Type &&
+                Param == CIsoView::CurrentCommand->Param &&
+                Overlay == CIsoView::CurrentCommand->Overlay &&
+                OverlayData == CIsoView::CurrentCommand->OverlayData &&
+                Height == CIsoView::CurrentCommand->Height &&
+                ObjectID == CIsoView::CurrentCommand->ObjectID;
+        }
+    };
+
+    static LastCommand LastAltCommand;
+
 };

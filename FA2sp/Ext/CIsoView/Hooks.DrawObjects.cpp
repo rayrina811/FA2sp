@@ -1994,6 +1994,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			pThis->DrawLockedCellOutline(X, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
 		}
 	}
+	// line tool
+	auto& command = pThis->LastAltCommand;
+	if ((GetKeyState(VK_MENU) & 0x8000) && command.Command >= 0)
+	{
+		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
+		auto mapCoords = pThis->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });
+		CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+	}
 
 	if (CIsoViewExt::DrawBounds)
 	{

@@ -45,7 +45,7 @@ bool CMapDataExt::ResizeMapExt(MapRect* const pRect)
 	LocalSize = newLocalSize;
 	MapWidthPlusHeight = Size.Width + Size.Height;
 
-	CellDatas = new(CellData[(MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1)]);
+	CellDatas = GameCreateArray<CellData>((MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1));
 	CellDataCount = (MapWidthPlusHeight + 1) * (MapWidthPlusHeight + 1);
 
 	if (IsoPackData != NULL) GameDeleteArray(IsoPackData, IsoPackDataCount);

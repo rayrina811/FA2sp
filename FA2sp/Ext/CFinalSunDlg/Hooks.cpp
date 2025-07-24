@@ -578,6 +578,8 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;
     }
+    CIsoViewExt::LastAltCommand.reset();
+
     return 0x45EBC5;
 }
 
@@ -589,7 +591,6 @@ DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)
 
 DEFINE_HOOK(4327A1, CFinalSunDlg_QuitProgram_AfterDialog, 5)
 {
-    GameDelete(CTerrainGenerator::ini.get());
     ExtConfigs::FileWatcher = false;
 
     auto& minimap = CFinalSunDlg::Instance->MyViewFrame.Minimap;

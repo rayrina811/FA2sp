@@ -384,6 +384,12 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 				case 1: // random terrain
 				{
 					cellExt.AddRandomTile = true;
+					break;
+				}
+				case 2: // line tile
+				{
+					cellExt.LineToolProcessed = true;
+					break;
 				}
 				break;
 				default:

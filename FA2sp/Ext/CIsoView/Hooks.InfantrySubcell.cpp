@@ -183,7 +183,7 @@ DEFINE_HOOK(45B4D4, CIsoView_OnMouseMove_DrawSubcellDragLine_Target, 9)
 
 DEFINE_HOOK(46D1EC, CIsoView_PlaceCurrentObjectAt_ChangeSubcellInfantryOwner, 8)
 {
-	if (!ExtConfigs::InfantrySubCell_Edit)
+	if (!ExtConfigs::InfantrySubCell_Edit || CIsoView::GetInstance()->BrushSizeX > 1 || CIsoView::GetInstance()->BrushSizeY > 1)
 		return 0;
 
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;

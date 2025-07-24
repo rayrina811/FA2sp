@@ -1169,10 +1169,9 @@ DEFINE_HOOK(45B523, CIsoView_OnMouseMove_SkipShift, 7)
 	return 0;
 }
 
-UINT nFlagsMove;
 DEFINE_HOOK(456DA0, CIsoView_OnMouseMove_Update_nFlags, 8)
 {
-	nFlagsMove = R->Stack<UINT>(0x4);
+	CIsoViewExt::nFlagsMove = R->Stack<UINT>(0x4);
 	return 0;
 }
 
@@ -1181,10 +1180,10 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	if (CIsoView::CurrentCommand->Command != 15)
 		return 0x45BF33;
 
-	if ((nFlagsMove != MK_LBUTTON) && nFlagsMove != (MK_LBUTTON | MK_SHIFT) && (nFlagsMove != (MK_LBUTTON | MK_CONTROL | MK_SHIFT)))
+	if ((CIsoViewExt::nFlagsMove != MK_LBUTTON) && CIsoViewExt::nFlagsMove != (MK_LBUTTON | MK_SHIFT) && (CIsoViewExt::nFlagsMove != (MK_LBUTTON | MK_CONTROL | MK_SHIFT)))
 		return 0x45BF33;
 
-	if (nFlagsMove == (MK_LBUTTON | MK_SHIFT) || nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT)) // reduce lag
+	if (CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_SHIFT) || CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT)) // reduce lag
 	{
 		std::vector<int> random = { 0,0,0,0,1 };
 		if (STDHelpers::RandomSelectInt(random) == 0)
@@ -1206,7 +1205,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	if (groundClick == 0xFFFF) groundClick = 0;
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
-	auto IgnoreMorphable = nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT);
+	auto IgnoreMorphable = CIsoViewExt::nFlagsMove == (MK_LBUTTON | MK_CONTROL | MK_SHIFT);
 
 
 	for (auto& cell : CMapDataExt::CellDataExts)
@@ -1262,8 +1261,8 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 			}
 		}
 	}
-	CheckCellRise((nFlagsMove & MK_SHIFT) && !IgnoreMorphable, 0, IgnoreMorphable);
-	CheckCellLow((nFlagsMove & MK_SHIFT) && !IgnoreMorphable, 0, IgnoreMorphable);
+	CheckCellRise((CIsoViewExt::nFlagsMove & MK_SHIFT) && !IgnoreMorphable, 0, IgnoreMorphable);
+	CheckCellLow((CIsoViewExt::nFlagsMove & MK_SHIFT) && !IgnoreMorphable, 0, IgnoreMorphable);
 	for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
 	{
 		if (CMapDataExt::CellDataExts[i].Adjusted)

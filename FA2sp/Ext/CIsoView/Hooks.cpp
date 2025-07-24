@@ -859,4 +859,3 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 
 	return 0x45ED9E;
 }
-

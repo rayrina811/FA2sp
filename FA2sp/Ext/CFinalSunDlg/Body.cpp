@@ -1285,9 +1285,13 @@ bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
 		return false;
 }
 
-
 BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 {
+	if (pMsg->message == WM_SYSKEYDOWN || pMsg->message == WM_SYSKEYUP) {
+		if (pMsg->wParam == VK_MENU) {
+			return TRUE;
+		}
+	}
 	switch (pMsg->message)
 	{
 	//case WM_INITDIALOG:

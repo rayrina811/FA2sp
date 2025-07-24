@@ -335,7 +335,7 @@ private:
     static std::map<ppmfc::CString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
 
 public:
-    static std::unique_ptr<CINI> ini;
+    static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> ini;
     static MapCoord RangeFirstCell;
     static MapCoord RangeSecondCell;
     static bool UseMultiSelection;

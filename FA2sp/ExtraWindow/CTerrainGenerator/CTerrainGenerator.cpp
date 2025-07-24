@@ -12,7 +12,7 @@
 HWND CTerrainGenerator::m_hwnd;
 CTileSetBrowserFrame* CTerrainGenerator::m_parent;
 CINI& CTerrainGenerator::map = CINI::CurrentDocument;
-std::unique_ptr<CINI> CTerrainGenerator::ini = nullptr;
+std::unique_ptr<CINI, GameUniqueDeleter<CINI>> CTerrainGenerator::ini = nullptr;
 MultimapHelper& CTerrainGenerator::rules = Variables::Rules;
 HWND CTerrainGenerator::hTab;
 HWND CTerrainGenerator::hTab1Dlg;
@@ -297,7 +297,7 @@ void CTerrainGenerator::Update(HWND& hWnd)
     SendMessage(hOverride, BM_SETCHECK, bOverride, 0);
 
     if (!ini) {
-        ini = std::make_unique<CINI>();
+        ini = MakeGameUnique<CINI>();
     }
     ppmfc::CString path = CFinalSunApp::ExePath();
     path += "\\TerrainGenerator.ini";
@@ -339,6 +339,8 @@ void CTerrainGenerator::Close(HWND& hWnd)
     if (CIsoView::CurrentCommand->Command == 0x1F)
         CIsoView::CurrentCommand->Command = 0x0;
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+
+    ini = nullptr;
 
     EndDialog(hWnd, NULL);
 

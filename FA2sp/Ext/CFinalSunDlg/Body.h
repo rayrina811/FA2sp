@@ -378,6 +378,7 @@ public:
     bool UpdateEngine(int nData);
     static void OnExeTerminate();
     static void InitializeOnUpdateEngine();
+    static void ApplyChangeOwner(int X, int Y);
     static void ApplyPropertyBrush(int X, int Y);
     static void ApplyPropertyBrush_Building(int nIndex);
     static void ApplyPropertyBrush_Infantry(int nIndex);

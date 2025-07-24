@@ -781,30 +781,31 @@ void CViewObjectsExt::Redraw_Owner()
                     this->InsertString(uiname, Const_House + i, hOwner);
                     InsertingSpecialBitmap = false;
                 }
-
-            int index = 0;
-            for (const auto& player : playersAtX)
+            if (ExtConfigs::PlayerAtXForTechnos)
             {
-                if (ExtConfigs::TreeViewCameo_Display)
+                int index = 0;
+                for (const auto& player : playersAtX)
                 {
-                    InsertingSpecialBitmap = true;
-                    int full = ExtConfigs::TreeViewCameo_Size;
-                    int half = ExtConfigs::TreeViewCameo_Size / 2;
-                    int quarter = ExtConfigs::TreeViewCameo_Size / 4;
-                    SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+                        InsertingSpecialBitmap = true;
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
-                    CDC dc;
-                    dc.CreateCompatibleDC(NULL);
-                    CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                    dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
-                    dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
-                    dc.SelectObject(pOldBitmap);
-                    dc.DeleteDC();
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
+                    }
+                    this->InsertString(player, Const_House + 5000 + index++, hOwner);
+                    InsertingSpecialBitmap = false;
                 }
-                this->InsertString(player, Const_House + 5000 + index++, hOwner);
-                InsertingSpecialBitmap = false;
-            }
-                    
+            }          
         }
         else
         {
@@ -892,27 +893,30 @@ void CViewObjectsExt::Redraw_Owner()
                     InsertingSpecialBitmap = false;
                     i++;
                 }
-                int index = 0;
-                for (const auto& player : playersAtX)
+                if (ExtConfigs::PlayerAtXForTechnos)
                 {
-                    if (ExtConfigs::TreeViewCameo_Display)
+                    int index = 0;
+                    for (const auto& player : playersAtX)
                     {
-                        InsertingSpecialBitmap = true;
-                        int full = ExtConfigs::TreeViewCameo_Size;
-                        int half = ExtConfigs::TreeViewCameo_Size / 2;
-                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
-                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+                        if (ExtConfigs::TreeViewCameo_Display)
+                        {
+                            InsertingSpecialBitmap = true;
+                            int full = ExtConfigs::TreeViewCameo_Size;
+                            int half = ExtConfigs::TreeViewCameo_Size / 2;
+                            int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                            SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
 
-                        CDC dc;
-                        dc.CreateCompatibleDC(NULL);
-                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
-                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
-                        dc.SelectObject(pOldBitmap);
-                        dc.DeleteDC();
+                            CDC dc;
+                            dc.CreateCompatibleDC(NULL);
+                            CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                            dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                            dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
+                            dc.SelectObject(pOldBitmap);
+                            dc.DeleteDC();
+                        }
+                        this->InsertString(player, Const_House + 5000 + index++, hOwner);
+                        InsertingSpecialBitmap = false;
                     }
-                    this->InsertString(player, Const_House + 5000 + index++, hOwner);
-                    InsertingSpecialBitmap = false;
                 }
             }
         }
@@ -2402,6 +2406,21 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
+void CViewObjectsExt::ApplyChangeOwner(int X, int Y)
+{
+    auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+            pIsoView->DrawMouseAttachedStuff(gx, gy);
+        }
+    }  
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+}
 
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
