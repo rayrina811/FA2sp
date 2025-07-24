@@ -267,6 +267,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 	};
 
+	auto changeBrushSize = [](int index)
+	{
+		auto pSection = CINI::FAData().GetSection("BrushSizes");
+		if (pSection && pSection->GetEntities().size() > index && index >= 0)
+		{
+			auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+			auto value = pSection->GetValueAt(index);
+			auto bs = STDHelpers::SplitString(*value, 1, "x");
+			pIsoView->BrushSizeX = atoi(bs[1]);
+			pIsoView->BrushSizeY = atoi(bs[0]);
+		}
+	};
+
 	switch (wmID)
 	{
 	case 30000:
@@ -379,6 +392,22 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	case 30053:
 	{
 		CIsoViewExt::Zoom(-0.25);
+		return TRUE;
+	}
+	case 30054:
+	{
+		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
+		int index = std::max(pBrushSize->GetCurSel() - 1, 0);
+		pBrushSize->SetCurSel(index);
+		changeBrushSize(index);
+		return TRUE;
+	}
+	case 30055:
+	{
+		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
+		int index = std::min(pBrushSize->GetCurSel() + 1, pBrushSize->GetCount() - 1);
+		pBrushSize->SetCurSel(index);
+		changeBrushSize(index);
 		return TRUE;
 	}
 	case 31000:
