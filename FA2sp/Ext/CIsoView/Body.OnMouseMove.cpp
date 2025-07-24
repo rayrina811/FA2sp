@@ -490,18 +490,18 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
         auto drawWeaponRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool secondary = false, bool elite = false)
             {
-                auto weapon = mmh.GetString(ID, elite ? "ElitePrimary" :"Primary");
+                auto weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "ElitePrimary") != "" ? "ElitePrimary" : "Primary");
                 int color = 0xFFFFFF;
                 ppmfc::CString leftLine;
                 if (weapon == "") {
-                    weapon = mmh.GetString(ID, elite ? "EliteWeapon1" : "Weapon1");
+                    weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "EliteWeapon1") != "" ? "EliteWeapon1" : "Weapon1");
                 }
                 if (secondary) {
-                    weapon = mmh.GetString(ID, elite ? "EliteSecondary" : "Secondary");
+                    weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "EliteSecondary") != "" ? "EliteSecondary" : "Secondary");
 
                     if (weapon == "" && !mmh.GetBool(ID, "Gunner"))
                     {
-                        weapon = mmh.GetString(ID, elite ? "EliteWeapon2" : "Weapon2");
+                        weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "EliteWeapon2") != "" ? "EliteWeapon2" : "Weapon2");
                     }
                 }
 
