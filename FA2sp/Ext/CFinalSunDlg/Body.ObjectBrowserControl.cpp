@@ -82,6 +82,18 @@ bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
+const char* playersAtX[8]
+{
+    "<Player @ A>",
+    "<Player @ B>",
+    "<Player @ C>",
+    "<Player @ D>",
+    "<Player @ E>",
+    "<Player @ F>",
+    "<Player @ G>",
+    "<Player @ H>"
+};
+
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
 {
@@ -728,7 +740,6 @@ void CViewObjectsExt::Redraw_Owner()
     auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
     ppmfc::CString translated;
 
-
     if (ExtConfigs::ObjectBrowser_SafeHouses)
     {
         if (CMapData::Instance->IsMultiOnly())
@@ -770,6 +781,29 @@ void CViewObjectsExt::Redraw_Owner()
                     this->InsertString(uiname, Const_House + i, hOwner);
                     InsertingSpecialBitmap = false;
                 }
+
+            int index = 0;
+            for (const auto& player : playersAtX)
+            {
+                if (ExtConfigs::TreeViewCameo_Display)
+                {
+                    InsertingSpecialBitmap = true;
+                    int full = ExtConfigs::TreeViewCameo_Size;
+                    int half = ExtConfigs::TreeViewCameo_Size / 2;
+                    int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                    SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+
+                    CDC dc;
+                    dc.CreateCompatibleDC(NULL);
+                    CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                    dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                    dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
+                    dc.SelectObject(pOldBitmap);
+                    dc.DeleteDC();
+                }
+                this->InsertString(player, Const_House + 5000 + index++, hOwner);
+                InsertingSpecialBitmap = false;
+            }
                     
         }
         else
@@ -857,6 +891,28 @@ void CViewObjectsExt::Redraw_Owner()
                     this->InsertString(uiname, Const_House + i, hOwner);
                     InsertingSpecialBitmap = false;
                     i++;
+                }
+                int index = 0;
+                for (const auto& player : playersAtX)
+                {
+                    if (ExtConfigs::TreeViewCameo_Display)
+                    {
+                        InsertingSpecialBitmap = true;
+                        int full = ExtConfigs::TreeViewCameo_Size;
+                        int half = ExtConfigs::TreeViewCameo_Size / 2;
+                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+
+                        CDC dc;
+                        dc.CreateCompatibleDC(NULL);
+                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(player));
+                        dc.SelectObject(pOldBitmap);
+                        dc.DeleteDC();
+                    }
+                    this->InsertString(player, Const_House + 5000 + index++, hOwner);
+                    InsertingSpecialBitmap = false;
                 }
             }
         }
@@ -2761,6 +2817,14 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         CIsoView::CurrentCommand->Command = 0x22;
         CIsoView::CurrentCommand->Type = 1;
+        return true;
+    }
+    if (nData  >= Const_House + 5000 && nData < Const_House + 5008) // multiplayer locations
+    {
+        CIsoView::CurrentCommand->Command = 1;
+        CIsoView::CurrentCommand->Type = 7;
+        CIsoView::CurrentCommand->ObjectID = playersAtX[nData - Const_House - 5000];
+        CIsoView::CurrentHouse() = playersAtX[nData - Const_House - 5000];
         return true;
     }
 

@@ -832,7 +832,7 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
-		.Type = ExtConfigs::SpecialOptionType::None
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
