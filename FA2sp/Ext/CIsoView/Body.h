@@ -215,11 +215,18 @@ public:
             Subpos = CIsoViewExt::GetSelectedSubcellInfantryIdx(x, y, true);
         }
 
+        bool isValidCommand()
+        {
+            return
+                Command == 1 || Command == 10 || Command == 22;
+        }
+
         bool isSame()
         {
             if (CViewObjectsExt::PlacingRandomRock >= 0)
             {
                 return
+                    isValidCommand() &&
                     Command == CIsoView::CurrentCommand->Command &&
                     Type == CIsoView::CurrentCommand->Type &&
                     Param == CIsoView::CurrentCommand->Param &&
@@ -235,7 +242,9 @@ public:
                 || CViewObjectsExt::PlacingRandomAircraft >= 0
                 )
             {
-                return Command == CIsoView::CurrentCommand->Command &&
+                return
+                    isValidCommand() &&
+                    Command == CIsoView::CurrentCommand->Command &&
                     Type == CIsoView::CurrentCommand->Type &&
                     Param == CIsoView::CurrentCommand->Param &&
                     Overlay == CIsoView::CurrentCommand->Overlay &&
@@ -243,6 +252,7 @@ public:
                     Height == CIsoView::CurrentCommand->Height;
             }
             return
+                isValidCommand() &&
                 Command == CIsoView::CurrentCommand->Command &&
                 Type == CIsoView::CurrentCommand->Type &&
                 Param == CIsoView::CurrentCommand->Param &&

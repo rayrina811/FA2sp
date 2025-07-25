@@ -779,8 +779,8 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     int y1 = Y - 30;
     int x1 = X + 30;
 
-    int x2 = halfCellWidth + X + 30 - 2;
-    int y2 = quaterCellWidth + y1 - 1;
+    int x2 = halfCellWidth + X + 30;
+    int y2 = quaterCellWidth + y1 - 2;
 
     int x3 = halfCellWidth - fullCellHeight + X + 29;
     int y3 = halfCellHeight + quaterCellWidth + y1 - 1;
@@ -797,8 +797,8 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
 
     int x4B = x4;
     int y4B = y4;
-    int x2T = x2 + 2;
-    int y2T = y2 + 1;
+    int x2T = x2;
+    int y2T = y2 + 2;
     x4 -= 1;
 
     //   1

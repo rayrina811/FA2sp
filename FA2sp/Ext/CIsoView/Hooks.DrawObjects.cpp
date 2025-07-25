@@ -1996,7 +1996,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	}
 	// line tool
 	auto& command = pThis->LastAltCommand;
-	if ((GetKeyState(VK_MENU) & 0x8000) && command.Command >= 0)
+	if ((GetKeyState(VK_MENU) & 0x8000) && command.isSame())
 	{
 		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 		auto mapCoords = pThis->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });

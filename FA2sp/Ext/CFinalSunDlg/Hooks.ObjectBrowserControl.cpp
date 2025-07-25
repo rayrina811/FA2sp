@@ -560,7 +560,10 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
-    if ((GetKeyState(VK_MENU) & 0x8000))
+    if ((GetKeyState(VK_MENU) & 0x8000) &&
+        (CIsoView::CurrentCommand->Command == 1 ||
+            CIsoView::CurrentCommand->Command == 10 ||
+            CIsoView::CurrentCommand->Command == 22))
     {
         auto pMap = CMapDataExt::GetExtension();
         if (command.isSame())
