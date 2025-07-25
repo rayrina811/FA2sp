@@ -807,27 +807,38 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     //  # #
     //   3
 
-    auto drawCellOutline = [&](int inneroffset)
-        {   
-            if (s1)
-                ClipAndDrawLine(x1, y1 + inneroffset, x2T - 2 * inneroffset, y2T);
-            if (s2)
-                ClipAndDrawLine(x2 - 2 * inneroffset, y2, x3, y3 - inneroffset);
-            if (s3)
-                ClipAndDrawLine(x3L, y3L - inneroffset, x4B + 2 * inneroffset, y4B);
-            if (s4)
-                ClipAndDrawLine(x4 + 2 * inneroffset, y4, x1L, y1L + inneroffset);
-        };
 
-
-    drawCellOutline(0);
+    if (s1)
+        ClipAndDrawLine(x1, y1, x2T, y2T);
+    if (s2)
+        ClipAndDrawLine(x2, y2, x3, y3);
+    if (s3)
+        ClipAndDrawLine(x3L, y3L, x4B, y4B);
+    if (s4)
+        ClipAndDrawLine(x4, y4, x1L, y1L);
 
     
     // thicker
     if (!bUseDot)
     {
-        drawCellOutline(2);
-        drawCellOutline(1);
+        if (s1)
+            ClipAndDrawLine(x1 - 1, y1 + 2, x2T - 2, y2T + 1);
+        if (s2)
+            ClipAndDrawLine(x2 - 2, y2 - 1, x3 - 2, y3 - 1);
+        if (s3)
+            ClipAndDrawLine(x3L, y3L - 2, x4B + 1, y4B - 1);
+        if (s4)
+            ClipAndDrawLine(x4 + 4, y4, x1L + 2, y1L + 1);
+        
+
+        if (s1)
+            ClipAndDrawLine(x1 - 1, y1 + 1, x2T - 2, y2T);
+        if (s2)
+            ClipAndDrawLine(x2 - 2, y2, x3 - 1, y3 - 1);
+        if (s3)
+            ClipAndDrawLine(x3L, y3L - 1, x4B + 1, y4B);
+        if (s4)
+            ClipAndDrawLine(x4 + 2, y4, x1L, y1L + 1);
     }
 
 }
