@@ -29,8 +29,6 @@
 #include "Hooks.INI.h"
 
 std::optional<std::filesystem::file_time_type> SaveMapExt::SaveTime;
-static byte image[256 * 512 * 3]{ 0 };
-static byte imageLocal[256 * 512 * 3]{ 0 };
 
 DEFINE_HOOK(4D5505, CSaveOption_CTOR_DefaultValue, 0)
 {
@@ -107,8 +105,9 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     {
         // Generate new preview.
         Logger::Raw("SaveMap : Generating a new map preview.\n");
-        memset(image, 0, sizeof(image));
-        memset(imageLocal, 0, sizeof(imageLocal));
+
+        auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
+        auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
 
         if (ExtConfigs::SaveMaps_BetterMapPreview && CMapData::Instance->IsMultiOnly())
         {
@@ -411,7 +410,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
             }
 
 
-            auto data = lzo::compress(imageLocal, sizeof(byte) * 3 * lwidth * lheight);
+            auto data = lzo::compress(imageLocal.get(), sizeof(byte) * 3 * lwidth * lheight);
             data = base64::encode(data);
             pINI->WriteBase64String("PreviewPack", data.data(), data.length());
         }

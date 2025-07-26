@@ -862,6 +862,25 @@ void CObjectSearch::OnSearchButtonUp(HWND hWnd)
             ::MessageBox(CFinalSunDlg::Instance->m_hWnd, invalid_coord, invalid_title, MB_OK | MB_ICONWARNING);
         }
     }
+
+    int maxWidth = 0;
+    HDC hdc = GetDC(hListBox);
+    HFONT hFont = (HFONT)SendMessage(hListBox, WM_GETFONT, 0, 0);
+    HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
+
+    int count = (int)SendMessage(hListBox, LB_GETCOUNT, 0, 0);
+    for (int i = 0; i < count; ++i) {
+        TCHAR buf[512];
+        SendMessage(hListBox, LB_GETTEXT, i, (LPARAM)buf);
+        SIZE sz;
+        GetTextExtentPoint32(hdc, buf, lstrlen(buf), &sz);
+        if (sz.cx > maxWidth)
+            maxWidth = sz.cx;
+    }
+
+    SelectObject(hdc, hOldFont);
+    ReleaseDC(hListBox, hdc);
+    SendMessage(hListBox, LB_SETHORIZONTALEXTENT, maxWidth + 10, 0);
 }
 void CObjectSearch::SearchTriggers(HWND hWnd, const char* source)
 {
@@ -1305,19 +1324,24 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
     auto SearchSection = [&](int SearchObjectType)
         {
             ppmfc::CString section;
+            int tagIndex = 0;
             switch (SearchObjectType)
             {
             case FindType::Aircraft:
                 section = "Aircraft";
+                tagIndex = 7;
                 break;
             case FindType::Infantry:
                 section = "Infantry";
+                tagIndex = 8;
                 break;
             case FindType::Structure:
                 section = "Structures";
+                tagIndex = 6;
                 break;
             case FindType::Unit:
                 section = "Units";
+                tagIndex = 7;
                 break;
             default:
                 break;
@@ -1331,26 +1355,38 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                 {
                     index++;
                     auto atoms = STDHelpers::SplitString(pair.second);
-                    if (atoms.size() < 5)
+                    if (atoms.size() <= tagIndex)
                         continue;
                     auto& pID = atoms[1];
+                    auto pTag = atoms[tagIndex];
+                    if (pTag != "None")
+                    {
+                        pTag.Format("%s %s", atoms[tagIndex], ExtraWindow::GetTagName(atoms[tagIndex]));
+                    }
+                    
                     bool met = false;
+                    bool tagMet = false;
 
                     ppmfc::CString name;
                     
                     name = CMapData::GetUIName(pID);
                     if (name == "MISSING")
                         name = Variables::Rules.GetString(pID, "Name", pID);
-                    if (name != pID)
-                    {
+                    if (name != pID) {
                         ppmfc::CString tmp = name;
                         name.Format("%s (%s)", tmp, pID);
                     }
 
-                    if (IsLabelMatch(name, source))
+                    if (IsLabelMatch(name, source)) {
                         met = true;
-                    else
+                    }
+                    else if (pTag != "None" && IsLabelMatch(pTag, source)) {
+                        tagMet = true;
+                        met = true;
+                    }
+                    else {
                         continue;
+                    }
 
                     if (CObjectSearch::bPropertyBushFilter)
                     {
@@ -1405,7 +1441,10 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
 
                         HWND hListBox = GetDlgItem(hWnd, Controls::ListBox);
                         ppmfc::CString tmp = name;
-                        name.Format("%s (%d, %d) (%s)", tmp, location.second, location.first, house);
+                        if (!tagMet)
+                            name.Format("%s (%d, %d) (%s)", tmp, location.second, location.first, house);
+                        else
+                            name.Format("%s (%d, %d) (%s) (%s)", tmp, location.second, location.first, house, pTag);
                         SendMessage(
                             hListBox,
                             LB_SETITEMDATA,
