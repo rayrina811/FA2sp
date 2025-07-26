@@ -560,7 +560,36 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
-    if ((GetKeyState(VK_MENU) & 0x8000) &&
+    if ((GetKeyState(VK_MENU) & 0x8000) && CIsoView::CurrentCommand->Command == 0) // color picker
+    {
+        auto cell = CMapData::Instance->GetCellAt(X, Y);
+        if ((GetKeyState(VK_CONTROL) & 0x8000))
+        {
+            HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
+            HWND hTileComboBox = GetDlgItem(hParent, 1366);
+            int tileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
+            int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
+            char buffer[512] = { 0 };
+            ppmfc::CString tileName;
+
+            for (int idx = 0; idx < nTileCount; ++idx)
+            {
+                SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
+                tileName = buffer;
+                STDHelpers::TrimIndex(tileName);
+                if (atoi(tileName) == tileSet)
+                {
+                    SendMessage(hTileComboBox, CB_SETCURSEL, idx, NULL);
+                    SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
+                    break;
+                }
+            }
+        }
+        CIsoView::CurrentCommand->Command = 10;
+        CIsoView::CurrentCommand->Type = cell->TileIndex;
+        return 0x466860;
+    }
+    else if ((GetKeyState(VK_MENU) & 0x8000) && 
         (CIsoView::CurrentCommand->Command == 1 ||
             CIsoView::CurrentCommand->Command == 10 ||
             CIsoView::CurrentCommand->Command == 22))
