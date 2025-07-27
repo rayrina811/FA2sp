@@ -19,6 +19,14 @@ DEFINE_HOOK(56543B, FetchResource_CToolBar_LoadBitmapA, 6)
 	{
 		lpName = (char*)1025;
 	}
+	if (!ExtConfigs::UseNewToolBarCameo && (int)lpName == 225)
+	{
+		lpName = (char*)1026;
+	}
+	if (!ExtConfigs::UseNewToolBarCameo && (int)lpName == 264)
+	{
+		lpName = (char*)1027;
+	}
 
 	if (HRSRC hResInfo = FindResource(hModule, lpName, lpType)) {
 		HBITMAP hBmp = AfxLoadSysColorBitmap(hModule, hResInfo, 0);

@@ -102,4 +102,8 @@ END
 1023 BITMAP "Resources/data_waypoint.bmp"
 1024 BITMAP "Resources/data_celltag.bmp"
 1025 BITMAP "Resources/toolbarori.bmp"
+225 BITMAP "Resources/toolbar_2.bmp"
+264 BITMAP "Resources/toolbar_3.bmp"
+1026 BITMAP "Resources/toolbar_2ori.bmp"
+1027 BITMAP "Resources/toolbar_3ori.bmp"
 

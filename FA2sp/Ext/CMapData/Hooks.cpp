@@ -884,6 +884,34 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	return 0;
 }
 
+DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
+{
+	GET_BASE(char*, lpBuffer, -0x38);
+	GET_BASE(int, dwWidth, 0x8);
+	GET_BASE(int, dwHeight, 0xC);
+
+	ppmfc::CString localSize;
+	localSize.Format("%d,%d,%d,%d", 4, 5, dwWidth - 8, dwHeight - 11);
+
+	memcpy(lpBuffer, localSize.m_pchData, std::min(localSize.GetLength(), 40));
+	lpBuffer[std::min(localSize.GetLength(), 40)] = '\0';
+
+	return 0;
+}
+
+DEFINE_HOOK(4C5E1E, CMapData_ResizeMap_FixLocalSize, 7)
+{
+	REF_STACK(ppmfc::CString, lpBuffer, STACK_OFFS(0x1C4, 0x178));
+	GET_STACK(int, dwWidth, STACK_OFFS(0x1C4, -0xC));
+	GET(int, dwHeight, EDI);
+
+	Logger::Raw(lpBuffer + "\n");
+
+	lpBuffer.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
+
+	return 0x4C5E64;
+}
+
 DEFINE_HOOK(4C55F7, CMapData_ResizeMap_DeleteBuilding, 7)
 {
 	CMapDataExt::DeleteBuildingByIniID = true;
