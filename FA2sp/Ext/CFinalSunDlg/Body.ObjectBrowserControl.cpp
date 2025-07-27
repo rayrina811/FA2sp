@@ -193,9 +193,19 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 fileID = CLoadingExt::GetExtension()->GetVehicleOrAircraftFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Building:
+            {
                 imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
+
+                // some buildings share the same image while have different anims
+                ppmfc::CString ArtID = CLoadingExt::GetArtID(InsertingObjectID);
+                if (CINI::Art->KeyExists(ArtID, "Image") && CINI::Art->GetString(ArtID, "Image") != ArtID)
+                {
+                    fileID += "-";
+                    fileID += ArtID;
+                }
                 break;
+            }
             case CLoadingExt::ObjectType::Unknown:
             default:
 
