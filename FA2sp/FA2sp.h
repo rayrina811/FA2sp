@@ -52,6 +52,7 @@ public:
     static bool LoadCivilianStringtable;
     static bool PasteShowOutlineDefault;
     static bool AllowIncludes;
+    static bool AllowInherits;
     static bool AllowPlusEqual;
     static bool TutorialTexts_Hide;
     static bool TutorialTexts_Fix;
@@ -59,6 +60,11 @@ public:
     static bool SkipTipsOfTheDay;
     static bool SortByTriggerName;
     static bool SortByLabelName;
+    static bool SortByLabelName_AITrigger;
+    static bool SortByLabelName_Trigger;
+    static bool SortByLabelName_Team;
+    static bool SortByLabelName_Taskforce;
+    static bool SortByLabelName_Script;
     static bool DisplayTriggerID;
     static bool NewTriggerPlusID;
     static bool AdjustDropdownWidth;
@@ -157,7 +163,9 @@ public:
     static int RangeBound_MaxRange;
     static int SearchCombobox_MaxCount;
     static bool SearchCombobox_Waypoint;
-    static int NewTheaterType;
+    static bool NewTheaterType;
+    static bool IncludeType;
+    static bool InheritType;
     static int TreeViewCameo_Size;
     static bool TreeViewCameo_Display;
     static float LightingSource[3];

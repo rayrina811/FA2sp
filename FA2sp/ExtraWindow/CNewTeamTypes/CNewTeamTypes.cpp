@@ -241,42 +241,25 @@ void CNewTeamTypes::Update(HWND& hWnd)
         SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(country, true).m_pchData);
     }
 
-    idx = 0;
-    while (SendMessage(hTaskforce, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = map.GetSection("TaskForces"))
-    {
-        for (auto& pair : pSection->GetEntities())
-        {
-            ppmfc::CString name;
-            name.Format("%s (%s)", pair.second, map.GetString(pair.second, "Name"));
-            SendMessage(hTaskforce, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)name.m_pchData);
-        }
-    }
-
-    idx = 0;
-    while (SendMessage(hScript, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (auto pSection = map.GetSection("ScriptTypes"))
-    {
-        for (auto& pair : pSection->GetEntities())
-        {
-            ppmfc::CString name;
-            name.Format("%s (%s)", pair.second, map.GetString(pair.second, "Name"));
-            SendMessage(hScript, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)name.m_pchData);
-        }
-    }
+    int tmp = 0;
+    ExtraWindow::SortTeams(hTaskforce, "TaskForces", tmp);
+    ExtraWindow::SortTeams(hScript, "ScriptTypes", tmp);
 
     idx = 0;
     while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hTag, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"None");
-    if (auto pSection = map.GetSection("Tags"))
-    {
-        for (auto& pair : pSection->GetEntities())
-        {
+    std::vector<ppmfc::CString> labels;
+    if (auto pSection = map.GetSection("Tags")) {
+        for (auto& pair : pSection->GetEntities()) {
             auto atoms = STDHelpers::SplitString(pair.second, 1);
             ppmfc::CString name;
             name.Format("%s (%s)", pair.first, atoms[1]);
-            SendMessage(hTag, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)name.m_pchData);
+            labels.push_back(name);
         }
+    }
+    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
+    for (size_t i = 0; i < labels.size(); ++i) {
+        SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i].m_pchData);
     }
 
     idx = 0;

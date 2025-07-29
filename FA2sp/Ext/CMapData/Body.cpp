@@ -1361,7 +1361,7 @@ void CMapDataExt::UpdateIncludeIniInMap()
 {
 	if (ExtConfigs::AllowIncludes)
 	{
-		const char* includeSection = "#include";
+		const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
 		if (auto pSection = CINI::CurrentDocument->GetSection(includeSection)) {
 			INIIncludes::MapIncludedKeys.clear();
 			INIIncludes::IsFirstINI = false;

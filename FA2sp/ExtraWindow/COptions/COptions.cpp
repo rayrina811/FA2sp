@@ -5,9 +5,12 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include "../../Miscs/SaveMap.h"
+#include "../Common.h"
 
 HWND COptions::m_hwnd;
 HWND COptions::hList;
+HWND COptions::hGameEngine;
+HWND COptions::hSearch;
 CFinalSunDlg* COptions::m_parent;
 bool COptions::initialized = false;
 
@@ -36,12 +39,25 @@ void COptions::Initialize(HWND& hWnd)
     if (Translations::GetTranslationItem("Menu.Options.Preferences", buffer))
         SetWindowText(hWnd, buffer);
 
+    auto Translate = [&hWnd, &buffer](const char* pLabelName, int nIDDlgItem)
+        {
+            HWND hTarget = GetDlgItem(hWnd, nIDDlgItem);
+            if (Translations::GetTranslationItem(pLabelName, buffer))
+                SetWindowText(hTarget, buffer);
+        };
+
+    Translate("Options.Search", 1003);
+
     hList = GetDlgItem(hWnd, Controls::List);
+    //hGameEngine = GetDlgItem(hWnd, Controls::GameEngine);
+    hSearch = GetDlgItem(hWnd, Controls::Search);
+
+    //SendMessage(hGameEngine, CB_ADDSTRING, NULL, (LPARAM)(LPCSTR)Translations::TranslateOrDefault("Options.GameEngine.None", "None"));
 
     Update();
 }
 
-void COptions::Update()
+void COptions::Update(const char* filter)
 {
     initialized = false;
     ShowWindow(m_hwnd, SW_SHOW);
@@ -79,6 +95,11 @@ void COptions::Update()
     int index = 0;
     for (const auto& opt : ExtConfigs::Options)
     {
+        if (filter && strlen(filter))
+        {
+            if (!ExtraWindow::IsLabelMatch(opt.DisplayName, filter) && !ExtraWindow::IsLabelMatch(opt.IniKey, filter))
+                continue;
+        }
         LVITEM lvi = { 0 };
         lvi.mask = LVIF_TEXT;
         lvi.iItem = index;
@@ -177,7 +198,10 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
         WORD CODE = HIWORD(wParam);
         switch (ID)
         {
-
+        case Controls::Search:
+            if (CODE == EN_CHANGE)
+                OnEditchangeSearch();
+            break;
         default:
             break;
         }
@@ -197,4 +221,12 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
 
     // Process this message through default handler
     return FALSE;
+}
+
+
+void COptions::OnEditchangeSearch()
+{
+    char buffer[512]{ 0 };
+    GetWindowText(hSearch, buffer, 511);
+    Update(buffer);
 }

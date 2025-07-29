@@ -779,7 +779,18 @@ void ExtraWindow::SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedInd
         }
     }
 
+    bool tmp = ExtConfigs::SortByLabelName;
+    
+    if (section == "ScriptTypes")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Script;
+    else if (section == "TaskForces")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Taskforce;
+    else if (section == "TeamTypes")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
+
     std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+
+    ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
@@ -800,7 +811,12 @@ void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, ppmfc::CString 
         }
     }
 
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
+
     std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+
+    ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);

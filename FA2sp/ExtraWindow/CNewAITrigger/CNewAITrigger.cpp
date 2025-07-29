@@ -888,7 +888,12 @@ void CNewAITrigger::SortAITriggers(ppmfc::CString id)
         }
     }
 
+    bool tmp = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
+
     std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+
+    ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
         SendMessage(hSelectedAITrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);

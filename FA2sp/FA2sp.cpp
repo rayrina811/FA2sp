@@ -37,6 +37,7 @@ bool ExtConfigs::LoadLunarWater;
 bool ExtConfigs::LoadCivilianStringtable;
 bool ExtConfigs::PasteShowOutlineDefault;
 bool ExtConfigs::AllowIncludes;
+bool ExtConfigs::AllowInherits;
 bool ExtConfigs::AllowPlusEqual;
 bool ExtConfigs::TutorialTexts_Hide;
 bool ExtConfigs::TutorialTexts_Fix;
@@ -44,6 +45,11 @@ bool ExtConfigs::TutorialTexts_Viewer;
 bool ExtConfigs::SkipTipsOfTheDay;
 bool ExtConfigs::SortByTriggerName;
 bool ExtConfigs::SortByLabelName;
+bool ExtConfigs::SortByLabelName_AITrigger;
+bool ExtConfigs::SortByLabelName_Trigger;
+bool ExtConfigs::SortByLabelName_Team;
+bool ExtConfigs::SortByLabelName_Taskforce;
+bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
 bool ExtConfigs::DisplayTriggerID;
 bool ExtConfigs::AdjustDropdownWidth;
@@ -142,7 +148,9 @@ bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
 int ExtConfigs::SearchCombobox_MaxCount;
 bool ExtConfigs::SearchCombobox_Waypoint;
-int ExtConfigs::NewTheaterType;
+bool ExtConfigs::NewTheaterType;
+bool ExtConfigs::IncludeType;
+bool ExtConfigs::InheritType;
 int ExtConfigs::TreeViewCameo_Size;
 bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
@@ -194,6 +202,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
 	ExtConfigs::AllowIncludes = CINI::FAData->GetBool("ExtConfigs", "AllowIncludes");
+	ExtConfigs::AllowInherits = CINI::FAData->GetBool("ExtConfigs", "AllowInherits");
 	ExtConfigs::AllowPlusEqual = CINI::FAData->GetBool("ExtConfigs", "AllowPlusEqual");
 
 	ExtConfigs::TutorialTexts_Hide = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Hide");
@@ -204,6 +213,12 @@ void FA2sp::ExtConfigsInitialize()
 	
 	ExtConfigs::SortByTriggerName = CINI::FAData->GetBool("ExtConfigs", "SortByTriggerName");
 	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
+	ExtConfigs::SortByLabelName_AITrigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.AITrigger");
+	ExtConfigs::SortByLabelName_Trigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Trigger");
+	ExtConfigs::SortByLabelName_Team = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Team");
+	ExtConfigs::SortByLabelName_Taskforce = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Taskforce");
+	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
+
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
 	ExtConfigs::DisplayTriggerID = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerID");
 	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID");
@@ -299,7 +314,9 @@ void FA2sp::ExtConfigsInitialize()
 	if (ExtConfigs::TreeViewCameo_Size < 16)
 		ExtConfigs::TreeViewCameo_Size = 16;
 
-	ExtConfigs::NewTheaterType = CINI::FAData->GetInteger("ExtConfigs", "NewTheaterType", 1);
+	ExtConfigs::NewTheaterType = CINI::FAData->GetBool("ExtConfigs", "NewTheaterType", true);
+	ExtConfigs::InheritType = CINI::FAData->GetBool("ExtConfigs", "InheritType");
+	ExtConfigs::IncludeType = CINI::FAData->GetBool("ExtConfigs", "IncludeType");
 	ExtConfigs::SearchCombobox_Waypoint = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Waypoint");
 	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
 	if (ExtConfigs::SearchCombobox_MaxCount < 0)
@@ -458,6 +475,98 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InitializeMap = false;
 
 	ExtConfigs::TestNotLoaded = false;
+
+	// Editor Interface and Behavior
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TutorialTexts.Viewer", "Open CSF Viewer when editing CSF params in Trigger editor"),
+		.IniKey = "TutorialTexts.Viewer",
+		.Value = &ExtConfigs::TutorialTexts_Viewer,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.CloneWithOrderedID", "Clone triggers (teams) with increasing number instead of 'Clone'"),
+		.IniKey = "CloneWithOrderedID",
+		.Value = &ExtConfigs::CloneWithOrderedID,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AdjustDropdownWidth", "Auto-adjust label width for editors"),
+		.IniKey = "AdjustDropdownWidth",
+		.Value = &ExtConfigs::AdjustDropdownWidth,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName", "Sort selected labels in editors by name"),
+		.IniKey = "SortByLabelName",
+		.Value = &ExtConfigs::SortByLabelName,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.AITrigger", "Sort AI triggers by label name, override global setting"),
+		.IniKey = "SortByLabelName.AITrigger",
+		.Value = &ExtConfigs::SortByLabelName_AITrigger,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Trigger", "Sort triggers by label name, override global setting"),
+		.IniKey = "SortByLabelName.Trigger",
+		.Value = &ExtConfigs::SortByLabelName_Trigger,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Team", "Sort teams by label name, override global setting"),
+		.IniKey = "SortByLabelName.Team",
+		.Value = &ExtConfigs::SortByLabelName_Team,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Taskforce", "Sort taskforces by label name, override global setting"),
+		.IniKey = "SortByLabelName.Taskforce",
+		.Value = &ExtConfigs::SortByLabelName_Taskforce,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Script", "Sort scripts by label name, override global setting"),
+		.IniKey = "SortByLabelName.Script",
+		.Value = &ExtConfigs::SortByLabelName_Script,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Popup dropdown when editing waypoint params"),
+		.IniKey = "SearchCombobox.Waypoint",
+		.Value = &ExtConfigs::SearchCombobox_Waypoint,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
+		.IniKey = "VerticalLayout",
+		.Value = &ExtConfigs::VerticalLayout,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableVisualStyle", "Enable visual style (may cause Chinese input unavailable)"),
+		.IniKey = "EnableVisualStyle",
+		.Value = &ExtConfigs::EnableVisualStyle,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseNewToolBarCameo", "Use new tool bar cameo"),
+		.IniKey = "UseNewToolBarCameo",
+		.Value = &ExtConfigs::UseNewToolBarCameo,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
 
 	// Object Browser Settings
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -630,63 +739,6 @@ void FA2sp::ExtConfigsInitialize()
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
-	// Editor Interface and Behavior
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.TutorialTexts.Viewer", "Open CSF Viewer when editing CSF params in Trigger editor"),
-		.IniKey = "TutorialTexts.Viewer",
-		.Value = &ExtConfigs::TutorialTexts_Viewer,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.CloneWithOrderedID", "Clone triggers (teams) with increasing number instead of 'Clone'"),
-		.IniKey = "CloneWithOrderedID",
-		.Value = &ExtConfigs::CloneWithOrderedID,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AdjustDropdownWidth", "Auto-adjust label width for editors"),
-		.IniKey = "AdjustDropdownWidth",
-		.Value = &ExtConfigs::AdjustDropdownWidth,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName", "Sort triggers (teams) by label name"),
-		.IniKey = "SortByLabelName",
-		.Value = &ExtConfigs::SortByLabelName,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Popup dropdown when editing waypoint params"),
-		.IniKey = "SearchCombobox.Waypoint",
-		.Value = &ExtConfigs::SearchCombobox_Waypoint,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
-		.IniKey = "VerticalLayout",
-		.Value = &ExtConfigs::VerticalLayout,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.EnableVisualStyle", "Enable visual style (may cause Chinese input unavailable)"),
-		.IniKey = "EnableVisualStyle",
-		.Value = &ExtConfigs::EnableVisualStyle,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseNewToolBarCameo", "Use new tool bar cameo"),
-		.IniKey = "UseNewToolBarCameo",
-		.Value = &ExtConfigs::UseNewToolBarCameo,
-		.Type = ExtConfigs::SpecialOptionType::Restart
-		});
-
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SkipTipsOfTheDay", "Skip tips of the day"),
 		.IniKey = "SkipTipsOfTheDay",
@@ -780,9 +832,16 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares)"),
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos)"),
 		.IniKey = "AllowIncludes",
 		.Value = &ExtConfigs::AllowIncludes,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.AllowInherits", "Load inherited INI sections (Ares/Phobos)"),
+		.IniKey = "AllowInherits",
+		.Value = &ExtConfigs::AllowInherits,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -790,6 +849,20 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowPlusEqual", "Load += registries (Ares)"),
 		.IniKey = "AllowPlusEqual",
 		.Value = &ExtConfigs::AllowPlusEqual,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.IncludeType", "Set include type (Y = Phobos, N = Ares)"),
+		.IniKey = "IncludeType",
+		.Value = &ExtConfigs::IncludeType,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InheritType", "Set inherit type (Y = Phobos, N = Ares)"),
+		.IniKey = "InheritType",
+		.Value = &ExtConfigs::InheritType,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
@@ -825,6 +898,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.UseStrictNewTheater", "Use strict NewTheater rule when loading images"),
 		.IniKey = "UseStrictNewTheater",
 		.Value = &ExtConfigs::UseStrictNewTheater,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.NewTheaterType", "Set NewTheater type (Y = Ares, N = YR)"),
+		.IniKey = "NewTheaterType",
+		.Value = &ExtConfigs::NewTheaterType,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 

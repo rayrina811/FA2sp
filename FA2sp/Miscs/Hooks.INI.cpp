@@ -42,22 +42,59 @@ static void Trim(char* str) {
     }
 }
 
-DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix, 7)
+DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix_inheritSupport, 7)
 {
     if (SkipBracketFix)
         return 0;
 
     LEA_STACK(char*, lpLine, STACK_OFFS(0x22FC, 0x200C));
 
-    const char* lb = strchr(lpLine, '[');
-    const char* rb = strchr(lpLine, ']');
+    const char* lb1 = strchr(lpLine, '[');
+    const char* rb1 = strchr(lpLine, ']');
     const char* eq = strchr(lpLine, '=');
 
-    if (!lb || !rb || rb < lb || (eq && eq < lb)) {
+    if (!lb1 || !rb1 || rb1 < lb1 || (eq && eq < lb1)) {
+        // illegal section name
         return 0x453012;
     }
 
-    return 0x452F56; 
+    // ares mode
+    if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType)
+    {
+        if (rb1[1] == ':' && rb1[2] == '[') {
+            const char* lb2 = rb1 + 2;
+            const char* rb2 = strchr(lb2, ']');
+            if (rb2) {
+
+                char sectionA[128] = { 0 };
+                char sectionB[128] = { 0 };
+
+                size_t lenA = rb1 - (lb1 + 1);
+                size_t lenB = rb2 - (lb2 + 1); 
+
+                if (lenA < sizeof(sectionA) && lenB < sizeof(sectionB)) {
+                    GET_STACK(CINI*, pINI, STACK_OFFS(0x22FC, 0x22D0));
+
+                    memcpy(sectionA, lb1 + 1, lenA);
+                    sectionA[lenA] = '\0';
+
+                    memcpy(sectionB, lb2 + 1, lenB);
+                    sectionB[lenB] = '\0';
+
+                    if (auto pSectionB = pINI->GetSection(sectionB))
+                    {
+                        for (const auto& [key, value] : pSectionB->GetEntities())
+                        {
+                            pINI->WriteString(sectionA, key, value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // normal [Section]
+    return 0x452F56;
 }
 
 // some maps use '[' for encryption
@@ -264,7 +301,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
     if (ExtConfigs::AllowIncludes || isPartOfRulesIni)
     {
-        const char* includeSection = "#include";
+        const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
 
         int nMix = CLoading::Instance->SearchFile(fileName.c_str());
         CINI ini;
@@ -381,7 +418,6 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         DeleteFile(path.c_str());
     }
 
-
     ++INIIncludes::LastReadIndex;
     buffer[0] = '\0';
 
@@ -454,6 +490,29 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
             }
         }
         getOriTileSetName(theaterIniType);
+    }
+
+    // phobos mode
+    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType)
+    {
+        for (const auto& sectionA : xINI->Dict) 
+        {
+            if (xINI->KeyExists(sectionA.first, "$Inherits"))
+            {
+                auto inherits = STDHelpers::SplitString(xINI->GetString(sectionA.first, "$Inherits"));
+                for (const auto& sectionB : inherits)
+                {
+                    if (auto pSectionB = xINI->GetSection(sectionB))
+                    {
+                        for (const auto& [key, value] : pSectionB->GetEntities())
+                        {
+                            if (!xINI->KeyExists(sectionA.first, key))
+                                xINI->WriteString(sectionA.first, key, value);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (INIIncludes::LoadedINIs.size() > 0)
