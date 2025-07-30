@@ -1835,6 +1835,22 @@ void CIsoViewExt::FillArea(int X, int Y, int ID, int Subtile, int oriX, int oriY
                     CMapData::Instance->UpdateMapPreviewAt(coord.X, coord.Y);
                 }
             }
+
+            if (!CFinalSunApp::Instance->DisableAutoLat)
+            {
+                std::set<MapCoord> editedLatCoords;
+                for (const auto& p : *selectedCoords) {
+                    editedLatCoords.insert({ p.X + 1, p.Y });
+                    editedLatCoords.insert({ p.X - 1, p.Y });
+                    editedLatCoords.insert({ p.X, p.Y + 1 });
+                    editedLatCoords.insert({ p.X, p.Y - 1 });
+                    editedLatCoords.insert({ p.X, p.Y });
+                }
+                for (const auto& p : editedLatCoords)
+                {
+                    CMapDataExt::SmoothTileAt(p.X, p.Y, true);
+                }
+            }
         }
         selectedCoords->clear();
     } 
