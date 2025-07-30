@@ -50,7 +50,8 @@ public:
         CheckBoxAreTeamMembersRecruitable = 1137,
         CheckBoxIsBaseDefense = 1138,
         CheckBoxOnlyTargetHouseEnemy = 1139,
-        SearchReference = 1999
+        SearchReference = 1999,
+        ParadropAircraft = 2001
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -77,6 +78,7 @@ protected:
     static void OnSelchangeVeteranLevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeTechlevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeMindControlDecision(HWND& hWnd, bool edited = false);
+    static void OnSelchangeParadropAircrafts(HWND& hWnd, bool edited = false);
     static void OnSelchangeGroup(HWND& hWnd, bool edited = false);
     static void OnClickDelTeam(HWND& hWnd);
     static void OnClickCloTeam(HWND& hWnd);
@@ -116,6 +118,7 @@ public:
     static HWND hGroup;
     static HWND hWaypoint;
     static HWND hMindControlDecision;
+    static HWND hParadropAircraft;
     static HWND hCheckBoxLoadable;
     static HWND hCheckBoxFull;
     static HWND hCheckBoxAnnoyance;
