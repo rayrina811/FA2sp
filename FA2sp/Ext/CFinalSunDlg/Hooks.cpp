@@ -517,6 +517,9 @@ DEFINE_HOOK(4F4BF4, CTipDlg_SkipTipOfTheDay, 7)
 
 DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
 {
+    if (!CViewObjectsExt::NeedChangeTreeViewSelect)
+        return 0x45EBC5;
+
     auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
     HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
     HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);

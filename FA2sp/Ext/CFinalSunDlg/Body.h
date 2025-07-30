@@ -362,6 +362,7 @@ public:
     static bool PlacingRandomRandomFacing;
     static bool PlacingRandomStructureAIRepairs;
     static MoveBaseNode MoveBaseNode_SelectedObj;
+    static bool NeedChangeTreeViewSelect;
 
     static std::unique_ptr<CPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CPropertyInfantry> InfantryBrushDlg;

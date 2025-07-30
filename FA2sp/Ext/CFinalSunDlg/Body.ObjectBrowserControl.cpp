@@ -80,6 +80,7 @@ int CViewObjectsExt::PlacingRandomStructure;
 int CViewObjectsExt::PlacingRandomAircraft;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
+bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 const char* playersAtX[8]
@@ -2782,6 +2783,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::PlacingRandomAircraft = -1;
     CViewObjectsExt::PlacingWall = -1;
     CViewObjectsExt::PlacingRandomRandomFacing = false;
+    CViewObjectsExt::NeedChangeTreeViewSelect = true;
 
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;

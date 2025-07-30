@@ -560,7 +560,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
-    if ((GetKeyState(VK_MENU) & 0x8000) && CIsoView::CurrentCommand->Command == 0) // color picker
+    if ((GetKeyState(VK_MENU) & 0x8000) && CIsoView::CurrentCommand->Command == 0) // tile picker
     {
         auto cell = CMapData::Instance->GetCellAt(X, Y);
         if ((GetKeyState(VK_CONTROL) & 0x8000))
@@ -589,6 +589,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
         CIsoView::CurrentCommand->Type = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
         CIsoView::CurrentCommand->Param = 0;
         CIsoView::CurrentCommand->Height = 0;
+        CViewObjectsExt::NeedChangeTreeViewSelect = false;
         return 0x466860;
     }
     else if ((GetKeyState(VK_MENU) & 0x8000) && 
