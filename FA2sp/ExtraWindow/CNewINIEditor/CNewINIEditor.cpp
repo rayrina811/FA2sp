@@ -105,7 +105,6 @@ void CNewINIEditor::Initialize(HWND& hWnd)
     ExtraWindow::SetEditControlFontSize(hINIEdit, 1.4f, true, "Consolas");
     ExtraWindow::SetEditControlFontSize(hSectionList, 1.2f, false, "Consolas");
     SendMessage(hINIEdit, EM_LIMITTEXT, (WPARAM)INI_BUFFER_SIZE, 0);
-    SendMessage(hINIEdit, EM_SETUNDOLIMIT, 0, 0);
     SendMessage(hINIEdit, EM_SETEVENTMASK, 0, (LPARAM)(ENM_CHANGE));
 
 

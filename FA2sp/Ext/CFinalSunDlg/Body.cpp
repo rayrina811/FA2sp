@@ -280,6 +280,87 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 	};
 
+	auto isInChildWindow = [this]()
+		{
+			HWND hWnd = GetActiveWindow();
+			if (hWnd == CNewAITrigger::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewINIEditor::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewScript::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewTaskforce::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewTeamTypes::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewTrigger::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CTerrainGenerator::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CLuaConsole::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CCsfEditor::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == COptions::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == CNewLocalVariables::GetHandle()) {
+				return TRUE;
+			}
+			else if (hWnd == this->SingleplayerSettings.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->AITriggerTypes.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->AITriggerTypesEnable.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->ScriptTypes.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->TriggerFrame.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->Tags.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->TaskForce.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->TeamTypes.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->Houses.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->SpecialFlags.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->Lighting.GetSafeHwnd()) {
+				return TRUE;
+			}
+			else if (hWnd == this->INIEditor.GetSafeHwnd()) {
+				return TRUE;
+			}		
+			else if (hWnd == this->Basic.GetSafeHwnd()) {
+				return TRUE;
+			}	
+			else if (hWnd == this->MapD.GetSafeHwnd()) {
+				return TRUE;
+			}	
+			return FALSE;
+		};
+
 	switch (wmID)
 	{
 	case 30000:
@@ -765,6 +846,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136 && CMapData::Instance->MapWidthPlusHeight)
 	{
+		if (isInChildWindow())
+			return TRUE;
+
 		CIsoView::CurrentCommand->Command = 0x2; // delete
 		CIsoView::CurrentCommand->Type = 0;
 
@@ -804,6 +888,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTerrainGenerator::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == COptions::GetHandle()) {
+			::SendMessage(COptions::GetHandle(), 114514, 0, 0);
+			return TRUE;
+		}
 
 		int newParam = 0;
 		auto refreshFA2Window = [this, &hWnd, &newParam, wmMsg](int wmID2, ppmfc::CDialog& dialog)
@@ -830,37 +918,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
 
 	}
-	// CTRL+C CTRL+V
-	if (wmID == 57634 || wmID == 57637)
+	// CTRL+C CTRL+V CTRL+Z CTRL+Y
+	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644)
 	{
-		HWND hWnd = GetActiveWindow();
-		if (hWnd == CNewAITrigger::GetHandle()) {
+		if (isInChildWindow())
 			return TRUE;
-		}
-		else if (hWnd == CNewINIEditor::GetHandle()) {		
-			return TRUE;
-		}
-		else if (hWnd == CNewScript::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CNewTaskforce::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CNewTeamTypes::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CNewTrigger::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CTerrainGenerator::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CLuaConsole::GetHandle()) {
-			return TRUE;
-		}
-		else if (hWnd == CCsfEditor::GetHandle()) {
-			return TRUE;
-		}
 	}
 
 	// Search Object
