@@ -239,8 +239,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				for (const auto& ol : *section)
 				{				
 					if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-						CLoading::Instance->DrawOverlay(ol.second, oli);
-						CIsoView::GetInstance()->UpdateDialog(false);
+						CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
 					}
 					oli++;
 				}

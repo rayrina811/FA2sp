@@ -59,5 +59,6 @@ public:
     static bool IsFirstINI;
     static bool IsMapINI;
     static bool MapINIWarn;
+    static bool SkipBracketFix;
     static std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> MapIncludedKeys;
 };

@@ -217,7 +217,7 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
-        const auto overlay = CMapData::Instance->GetOverlayAt(
+        const auto overlay = CMapDataExt::GetExtension()->GetOverlayAt(
             CMapData::Instance->GetCoordIndex(
                 CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
         if (!CMapDataExt::IsOre(overlay))

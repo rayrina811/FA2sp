@@ -17,6 +17,7 @@
 #include <CMapData.h>
 #include <CIsoView.h>
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CLoading/Body.h"
 
 #define TERRAIN_GENERATOR_MAX 10
 #define TERRAIN_GENERATOR_DISPLAY 5
@@ -123,17 +124,17 @@ public:
                     TerrainGeneratorOverlay overlays;
                     overlays.Overlay = atoi(atoms[j]);
                     group.Items.push_back(STDHelpers::IntToString(overlays.Overlay));
-                    if (overlays.Overlay != 0xFF)
+                    if (overlays.Overlay < 0xFFFF)
                     {
-                        CLoading::Instance()->DrawOverlay(Variables::GetRulesMapValueAt("OverlayTypes", overlays.Overlay), overlays.Overlay);
-                        CIsoView::GetInstance()->UpdateDialog(false);
+                        CLoadingExt::GetExtension()->LoadOverlay(Variables::GetRulesMapValueAt("OverlayTypes", overlays.Overlay), overlays.Overlay);
 
                         if (atomsData.empty()) {
                             group.HasExtraIndex = false;
                             for (int idx = 0; idx < 60; idx++)
                             {
-                                auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
-                                if (pic && pic != NULL && pic->pImageBuffer) {
+                                auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
+                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                if (pic && pic->pImageBuffer) {
                                     overlays.AvailableOverlayData.push_back(idx);
                                 }
                             }
@@ -142,8 +143,9 @@ public:
                             group.HasExtraIndex = true;
                             for (int idx = 0; idx < 60; idx++)
                             {
-                                auto pic = OverlayData::Array[overlays.Overlay].Frames[idx];
-                                if (pic && pic != NULL && pic->pImageBuffer) {
+                                auto imageName = CLoadingExt::GetOverlayName(overlays.Overlay, idx);
+                                auto pic = CLoadingExt::GetImageDataFromServer(imageName);
+                                if (pic && pic->pImageBuffer) {
                                     for (auto& data : atomsData) {
                                         if (idx == atoi(data)) {
                                             overlays.AvailableOverlayData.push_back(idx);

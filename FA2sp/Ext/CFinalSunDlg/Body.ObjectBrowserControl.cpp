@@ -244,10 +244,22 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             }
             if (InsertingOverlay > -1)
             {
-                CLoading::Instance()->DrawOverlay(Variables::GetRulesMapValueAt("OverlayTypes", InsertingOverlay), InsertingOverlay);
-                CIsoView::GetInstance()->UpdateDialog(false);
-
-                auto pData = OverlayData::Array[InsertingOverlay].Frames[InsertingOverlayData];
+                auto imageName = CLoadingExt::GetOverlayName(InsertingOverlay, InsertingOverlayData);
+                auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+                if (!pData || !pData->pImageBuffer)
+                {
+                    auto obj = Variables::GetRulesMapValueAt("OverlayTypes", InsertingOverlay);
+                    if (!CLoadingExt::IsOverlayLoaded(obj))
+                    {
+                        bool temp = ExtConfigs::InGameDisplay_Shadow;
+                        ExtConfigs::InGameDisplay_Shadow = false;
+                        CLoadingExt::IsLoadingObjectView = true;
+                        CLoadingExt::GetExtension()->LoadOverlay(obj, InsertingOverlay);
+                        CLoadingExt::IsLoadingObjectView = false;
+                        ExtConfigs::InGameDisplay_Shadow = temp;
+                        pData = CLoadingExt::GetImageDataFromServer(imageName);
+                    }
+                }
                 if (pData && pData->pImageBuffer)
                 {
                     CBitmap cBitmap;
@@ -1646,64 +1658,66 @@ void CViewObjectsExt::Redraw_Overlay()
     InsertingOverlayData = 0;
     this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
     InsertingOverlay = -1;
-    
-    MultimapHelper mmh;
-    mmh.AddINI(&CINI::Rules());
-    auto&& overlays = mmh.ParseIndicies("OverlayTypes", true);
-    int indexWall = Wall;
-    CViewObjectsExt::WallDamageStages.clear();
-    for (size_t i = 0, sz = std::min<unsigned int>(overlays.size(), 255); i < sz; ++i)
-    {
-        ppmfc::CString buffer;
-        buffer = QueryUIName(overlays[i]);
-        if (buffer != overlays[i])
-            buffer += " (" + overlays[i] + ")";
-        ppmfc::CString id;
-        id.Format("%03d %s", i, buffer);
-        if (rules.GetBool(overlays[i], "Wall"))
-        {
-            int damageLevel = CINI::Art().GetInteger(overlays[i], "DamageLevels", 1);
-            CViewObjectsExt::WallDamageStages[i] = damageLevel;
-            InsertingOverlay = i;
-            InsertingOverlayData = 5;
-            auto thisWall = this->InsertString(
-                QueryUIName(overlays[i]),
-                Const_Overlay + i * 5 + indexWall,
-                hWalls
-            );
 
-            for (int s = 1; s < damageLevel + 1; s++)
+    if (const auto& overlays = Variables::GetRulesMapSection("OverlayTypes"))
+    {
+        int indexWall = Wall;
+        CViewObjectsExt::WallDamageStages.clear();
+        for (size_t i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+            (*overlays).size() : std::min((UINT)255, (*overlays).size()); i < sz; ++i)
+        {
+            const auto& value = (*overlays)[i].second;
+            ppmfc::CString buffer;
+            buffer = QueryUIName(value);
+            if (buffer != value)
+                buffer += " (" + value + ")";
+            ppmfc::CString id;
+            id.Format("%03d %s", i, buffer);
+            if (rules.GetBool(value, "Wall"))
             {
-                ppmfc::CString damage;
-                damage.Format("WallDamageLevelDes%d", s);
-                this->InsertString(
-                    QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault(damage, damage),
-                    Const_Overlay + i * 5 + s + indexWall,
-                    thisWall
+                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+                CViewObjectsExt::WallDamageStages[i] = damageLevel;
+                InsertingOverlay = i;
+                InsertingOverlayData = 5;
+                auto thisWall = this->InsertString(
+                    QueryUIName(value),
+                    Const_Overlay + i * 5 + indexWall,
+                    hWalls
                 );
-                InsertingOverlayData += 16;
+
+                for (int s = 1; s < damageLevel + 1; s++)
+                {
+                    ppmfc::CString damage;
+                    damage.Format("WallDamageLevelDes%d", s);
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                        Const_Overlay + i * 5 + s + indexWall,
+                        thisWall
+                    );
+                    InsertingOverlayData += 16;
+                }
+                InsertingOverlay = -1;
+                if (damageLevel > 1)
+                {
+                    this->InsertString(
+                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                        Const_Overlay + i * 5 + 4 + indexWall,
+                        thisWall);
+                }
+            }
+
+            if (IgnoreSet.find(value) == IgnoreSet.end())
+            {
+                InsertingOverlay = i;
+                if (CMapDataExt::IsOre(i))
+                    InsertingOverlayData = 11;
+                else
+                    InsertingOverlayData = 0;
+                this->InsertString(id, Const_Overlay + i, hTemp);
             }
             InsertingOverlay = -1;
-            if (damageLevel > 1)
-            {
-                this->InsertString(
-                    QueryUIName(overlays[i]) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                    Const_Overlay + i * 5 + 4 + indexWall,
-                    thisWall);
-            }
         }
-
-        if (IgnoreSet.find(overlays[i]) == IgnoreSet.end())
-        {
-            InsertingOverlay = i;
-            if (CMapDataExt::IsOre(i))
-                InsertingOverlayData = 11;
-            else
-                InsertingOverlayData = 0;
-            this->InsertString(id, Const_Overlay + i, hTemp);
-        }
-        InsertingOverlay = -1;
-    }
+    } 
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
@@ -1730,7 +1744,6 @@ void CViewObjectsExt::Redraw_Overlay()
             }
         }
     }
-
 }
 
 void CViewObjectsExt::Redraw_Waypoint()
@@ -2074,8 +2087,10 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
             {
                 moneyDelta = -pExt->GetOreValue(ovr, ovrd);
                 pExt->Overlay[olyPos] = 0xFF;
+                pExt->NewOverlay[olyPos] = 0xFFFF;
                 pExt->OverlayData[olyPos] = 0;
                 pExt->CellDatas[pos].Overlay = 0xFF;
+                pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
                 pExt->CellDatas[pos].OverlayData = 0;
             }
 
@@ -3393,7 +3408,7 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         {
             CIsoView::CurrentCommand->Command = 0;
             CIsoView::CurrentCommand->Type = 0;
-            MultiSelection::Clear2();
+            MultiSelection::Clear();
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
             return true;
         }

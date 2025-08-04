@@ -8,6 +8,40 @@
 #include "../../Algorithms/lcw.h"
 #include "../../Algorithms/lzo.h"
 
+std::string CMapDataExt::convertToExtendedOverlayPack(const std::string& input) {
+	std::string output(input.size() * 2, 0);
+
+	for (size_t i = 0; i < input.size(); ++i) {
+		uint16_t value = static_cast<uint16_t>(static_cast<unsigned char>(input[i])); 
+		if (value == 0xFF)
+			value = 0xFFFF;
+		output[i * 2] = static_cast<char>(value & 0xFF); 
+		output[i * 2 + 1] = static_cast<char>((value >> 8) & 0xFF); 
+	}
+
+	return output;
+}
+
+std::string CMapDataExt::convertFromExtendedOverlayPack(const std::string& input) {
+	if (input.size() % 2 != 0) {
+		throw std::invalid_argument("Input size must be even for 2-byte format");
+	}
+
+	std::string output(input.size() / 2, 0); 
+
+	for (size_t i = 0; i < output.size(); ++i) {
+		uint16_t value = static_cast<uint16_t>(static_cast<unsigned char>(input[i * 2])) |
+			(static_cast<uint16_t>(static_cast<unsigned char>(input[i * 2 + 1])) << 8);
+		if (value > 255) {
+			value = 255; 
+			// throw std::out_of_range("Value exceeds 1-byte range: " + std::to_string(value));
+		}
+		output[i] = static_cast<char>(value);
+	}
+
+	return output;
+}
+
 void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 {
 	UNREFERENCED_PARAMETER(Description);
@@ -26,9 +60,35 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 		INI.DeleteSection("IsoMapPack5");
 		INI.DeleteSection("Digest");
 
+		bool needNewIniFormat = INI.GetInteger("Basic", "NewINIFormat", 4) > 4;
+		if (!needNewIniFormat)
+		{
+			for (const auto& ovr : NewOverlay)
+			{
+				if (ovr != 0xffff && ovr > 0xff)
+				{
+					needNewIniFormat = true;
+				}
+			}
+		}
+		if (needNewIniFormat)
+			NewINIFormat = 5;
+		else
+			NewINIFormat = 4;
+		INI.WriteString("Basic", "NewINIFormat", STDHelpers::IntToString(NewINIFormat));
+
 		{
 			Logger::Raw("Packing overlay\n");
-			auto data = lcw::compress(Overlay, 0x40000);
+			auto data = std::string(reinterpret_cast<const char*>(NewOverlay), 0x40000 * 2);
+			if (needNewIniFormat)
+			{
+				data = lcw::compress(data.data(), 0x40000 * 2);
+			}
+			else
+			{
+				data = convertFromExtendedOverlayPack(data);
+				data = lcw::compress(data.data(), 0x40000);
+			}
 			data = base64::encode(data);
 			Logger::Raw("Saving overlay...");
 			INI.WriteBase64String("OverlayPack", data.data(), data.length());
@@ -104,4 +164,55 @@ DEFINE_HOOK(49F7A0, CMapData_Pack, 7)
 	pThis->PackExt(UpdatePreview, Description);
 
 	return 0x4A1674;
+}
+
+DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
+{
+	auto pThis = CMapDataExt::GetExtension();
+	std::memset(pThis->Overlay, 0xff, 0x40000);
+	std::memset(pThis->OverlayData, 0x0, 0x40000);
+	std::memset(pThis->NewOverlay, 0xffff, 0x40000);
+
+	int mapINIformat = pThis->INI.GetInteger("Basic", "NewINIFormat", 4);
+	bool needNewIniFormat = mapINIformat > 4;
+	if (needNewIniFormat)
+		CMapDataExt::NewINIFormat = mapINIformat;
+
+	std::string ovr = "";
+	if (auto pSection = pThis->INI.GetSection("OverlayPack"))
+	{
+		Logger::Raw("Unpacking overlay\n");
+		for (const auto& [k, v] : pSection->GetEntities())
+		{
+			ovr += v.m_pchData;
+		}
+		ovr = base64::decode(ovr.data());
+		ovr = lcw::decompress(ovr.data(), ovr.size());
+		if (needNewIniFormat)
+		{
+			memcpy(pThis->NewOverlay, ovr.data(), std::min(sizeof(pThis->NewOverlay) * 2, ovr.size()));
+		}
+		else
+		{
+			for (size_t i = 0; i < std::min(sizeof(pThis->NewOverlay), ovr.size()); ++i) 
+			{
+				BYTE overlay = static_cast<BYTE>(ovr[i]);
+				pThis->NewOverlay[i] = static_cast<WORD>(overlay == 0xFF ? 0xFFFF : overlay);
+			}
+		}
+	}
+	ovr = "";
+	if (auto pSection = pThis->INI.GetSection("OverlayDataPack"))
+	{
+		Logger::Raw("Unpacking overlaydata\n");
+		for (const auto& [k, v] : pSection->GetEntities())
+		{
+			ovr += v.m_pchData;
+		}
+		ovr = base64::decode(ovr.data());
+		ovr = lcw::decompress(ovr.data(), ovr.size());
+		memcpy(pThis->OverlayData, ovr.data(), std::min(sizeof(pThis->OverlayData), ovr.size()));
+	}
+
+	return 0x49F440;
 }

@@ -10,6 +10,7 @@
 #include "../../FA2sp.h"
 #include "../../Algorithms/Matrix3D.h"
 #include "../CMapData/Body.h"
+#include "../CFinalSunDlg/Body.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
@@ -88,6 +89,16 @@ ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bS
 		ret.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ret.Format("%s%d", ID, nFacing);
+	return ret;
+}
+
+ppmfc::CString CLoadingExt::GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow)
+{
+	ppmfc::CString ret;
+	if (bShadow)
+		ret.Format("OVRL\233%d_%dSHADOW", ovr, ovrd);
+	else
+		ret.Format("OVRL\233%d_%d", ovr, ovrd);
 	return ret;
 }
 
@@ -221,6 +232,16 @@ void CLoadingExt::ClearItemTypes()
 	LoadedObjects.clear();
 	LoadedOverlays.clear();
 	SwimableInfantries.clear();
+	ImageDataMap.clear();
+	for (auto& data : SurfaceImageDataMap)
+	{
+		if (data.second->lpSurface)
+		{
+			data.second->lpSurface->Release();
+		}
+	}
+	SurfaceImageDataMap.clear();
+	Logger::Debug("CLoadingExt::Clearing Loaded Objects.\n");
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
 		CLoadingExt::SendRequestText("CLEAR_MAP");
@@ -234,7 +255,7 @@ bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
 
 bool CLoadingExt::IsOverlayLoaded(ppmfc::CString pRegName)
 {
-	return CLoadingExt::LoadedOverlays.find(pRegName) != LoadedOverlays.end();
+	return LoadedOverlays.find(pRegName) != LoadedOverlays.end();
 }
 
 ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
@@ -2444,4 +2465,161 @@ bool CLoadingExt::LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outB
 
 	outBitmap.Attach(hBmp);
 	return true;
+}
+
+void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
+{
+	if (pRegName == "")
+		return;
+
+	CFinalSunDlg::LastSucceededOperation = 11;
+
+	Logger::Debug("CLoadingExt::LoadOverlay loading: %s\n", pRegName);
+	if (!IsLoadingObjectView)
+		LoadedOverlays.insert(pRegName);
+
+	ppmfc::CString ArtID;
+	ppmfc::CString ImageID;
+	ppmfc::CString filename;
+	int hMix = 0;
+
+	ppmfc::CString palName = "iso";
+	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
+	Palette* palette = nullptr;
+	if (typeData.Wall)
+	{
+		palName = typeData.WallPaletteName;
+		GetFullPaletteName(palName);
+		if (auto pal = PalettesManager::LoadPalette(palName)) {
+			BGRStruct houseColor{ 0,0,255 };
+			palette = PalettesManager::GetPalette(pal, houseColor);
+		}
+		else
+		{
+			palName = "iso";
+		}
+	}
+	if (!palette)
+	{
+		GetFullPaletteName(palName);
+		palette = PalettesManager::LoadPalette(palName);
+	}
+
+	ppmfc::CString lpOvrlName = pRegName;
+	STDHelpers::TrimIndex(lpOvrlName);
+
+	bool isveinhole = CINI::Rules->GetBool(lpOvrlName,"IsVeinholeMonster");
+	bool istiberium = CINI::Rules->GetBool(lpOvrlName, "Tiberium");
+	bool isveins = CINI::Rules->GetBool(lpOvrlName, "IsVeins");
+
+	ArtID = GetArtID(lpOvrlName);
+	ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
+
+
+	if (TheaterIdentifier == 'T') filename = ArtID + ".tem";
+	if (TheaterIdentifier == 'A') filename = ArtID + ".sno";
+	if (TheaterIdentifier == 'U') filename = ArtID + ".urb";
+	if (TheaterIdentifier == 'N') filename = ArtID + ".ubn";
+	if (TheaterIdentifier == 'L') filename = ArtID + ".lun";
+	if (TheaterIdentifier == 'D') filename = ArtID + ".des";
+
+	bool findFile = false;
+	hMix = SearchFile(filename);
+	findFile = HasFile(filename);
+
+	if (!findFile)
+	{
+		auto searchNewTheater = [&findFile, &hMix, this, &filename](char t)
+			{
+				if (!findFile)
+				{
+					filename.SetAt(1, t);
+					hMix = SearchFile(filename);
+					findFile = HasFile(filename);
+				}
+			};
+
+		filename = ArtID + ".shp";
+		if (strlen(ArtID) >= 2)
+		{
+			searchNewTheater(TheaterIdentifier);
+			searchNewTheater('G');
+			searchNewTheater(ArtID[1]);
+			if (!ExtConfigs::UseStrictNewTheater)
+			{
+				searchNewTheater('T');
+				searchNewTheater('A');
+				searchNewTheater('U');
+				searchNewTheater('N');
+				searchNewTheater('L');
+				searchNewTheater('D');
+			}
+		}
+		else
+		{
+			hMix = SearchFile(filename);
+			findFile = HasFile(filename);
+		}
+	}
+	auto searchOtherTheater = [this, &hMix, &filename, &ArtID, &findFile, &palette](const char* theater)
+		{
+			if (!findFile)
+			{
+				filename = ArtID + "." + theater;
+				hMix = SearchFile(filename);
+				findFile = HasFile(filename);
+				if (findFile)
+				{
+					ppmfc::CString palName;
+					palName.Format("iso%s.pal", theater);
+					palette = PalettesManager::LoadPalette(palName);
+				}
+			}
+		};
+	if (!findFile)
+	{
+		searchOtherTheater("tem");
+		searchOtherTheater("sno");
+		searchOtherTheater("urb");
+		searchOtherTheater("ubn");
+		searchOtherTheater("lun");
+		searchOtherTheater("des");
+	}
+	if (istiberium || isveinhole || isveins)
+		palette = PalettesManager::LoadPalette("temperat.pal");
+
+	if (findFile)
+	{
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		if (CMixFile::LoadSHP(filename, hMix))
+		{
+			CShpFile::GetSHPHeader(&header);
+			int nCount = std::min(header.FrameCount, (short)60);
+
+			for (int i = 0; i < nCount; ++i)
+			{
+				if (IsLoadingObjectView && i != CViewObjectsExt::InsertingOverlayData)
+					continue;
+
+				ShapeImageHeader imageHeader;
+				CShpFile::GetSHPImageHeader(i, &imageHeader);
+
+				if (imageHeader.Unknown == 0 && !CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused"))
+					continue;
+
+				CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
+				ppmfc::CString DictName = GetOverlayName(nIndex, i);
+				SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, palette);
+
+				if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
+				{
+					ppmfc::CString DictNameShadow = GetOverlayName(nIndex, i, true);
+					unsigned char* pBufferShadow{ 0 };
+					CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow, header);
+					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+				}
+			}
+		}	
+	}
 }

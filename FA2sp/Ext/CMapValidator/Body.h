@@ -7,6 +7,7 @@
 class CMapValidatorExt : public CMapValidator
 {
 public:
+	void ValidateOverlayLimit(BOOL& result);
 	void ValidateStructureOverlapping(BOOL& result);
 	void ValidateMissingParams(BOOL& result);
 	void ValidateLoopTrigger(BOOL& result);

@@ -104,8 +104,7 @@ BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 				for (const auto& ol : *section)
 				{
 					if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-						CLoading::Instance->DrawOverlay(ol.second, oli);
-						CIsoView::GetInstance()->UpdateDialog(false);
+						CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
 					}
 					oli++;
 				}

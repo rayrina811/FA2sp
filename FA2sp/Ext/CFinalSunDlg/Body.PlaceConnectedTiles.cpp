@@ -4010,7 +4010,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
             for (const auto& [pos, _] : tmpCellDatas)
             {
-                CMapData::Instance->SetOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
+                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
                 CMapData::Instance->SetOverlayDataAt(pos, 0);
             }
 
@@ -4045,7 +4045,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             {
                 for (const auto& [pos, cell] : tmpCellDatas)
                 {
-                    CMapData::Instance->SetOverlayAt(pos, cell.Overlay);
+                    CMapDataExt::GetExtension()->SetNewOverlayAt(pos, cell.Overlay);
                     CMapData::Instance->SetOverlayDataAt(pos, cell.OverlayData);
                 }
             }

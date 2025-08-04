@@ -22,85 +22,6 @@ DEFINE_HOOK(486B00, CLoading_InitMixFiles, 7)
 	return 0x48A26A;
 }
 
-
-DEFINE_HOOK(48FCE1, CLoading_LoadOverlayGraphic_SearchFile, 8)
-{
-	GET(int, hMix, ESI);
-	GET_STACK(const char*, lpBuffer, STACK_OFFS(0x1C4, 0x1B4));
-	if (hMix != NULL)
-		return 0x4900B0;
-
-	ppmfc::CString filepath = CFinalSunApp::FilePath();
-	filepath += lpBuffer;
-	std::ifstream fin;
-	fin.open(filepath, std::ios::in | std::ios::binary);
-	if (fin.is_open())
-	{
-		fin.close();
-		R->ESI(1919810);
-		return 0x4900B0;
-	}
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(lpBuffer, &size);
-	if (data && size > 0)
-	{
-		R->ESI(1919810);
-		return 0x4900B0;
-	}
-	return 0x48FCE9;
-}
-
-DEFINE_HOOK(48FDA0, CLoading_LoadOverlayGraphic_NewTheaterFix, 8)
-{
-	GET(int, hMix, ESI);
-	GET(CLoadingExt*, pThis, ECX);
-	GET_STACK(const char*, lpBuffer, STACK_OFFS(0x1C4, 0x1B4));
-	GET_STACK(const char*, artID, STACK_OFFS(0x1C4, 0x1AC));
-	if (hMix != NULL) 
-		return 0x48FE68;
-	ppmfc::CString filename = lpBuffer;
-	hMix = pThis->SearchFile(filename);
-	if (hMix == NULL) 
-		hMix = 1919810;
-	bool findFile = false;
-	findFile = pThis->HasFile(filename);
-	auto searchNewTheater = [&findFile, &hMix, &pThis, &filename](char t)
-		{
-			if (!findFile)
-			{
-				filename.SetAt(1, t);
-				hMix = pThis->SearchFile(filename);
-				if (hMix == NULL)
-					hMix = 1919810;
-				findFile = pThis->HasFile(filename);
-			}
-		};
-
-	if (CINI::Art->GetBool(artID, "NewTheater") && strlen(artID) >= 2)
-	{
-		searchNewTheater('G');
-		searchNewTheater(artID[1]);
-		if (!ExtConfigs::UseStrictNewTheater)
-		{
-			searchNewTheater('T');
-			searchNewTheater('A');
-			searchNewTheater('U');
-			searchNewTheater('N');
-			searchNewTheater('L');
-			searchNewTheater('D');
-		}
-	}
-	
-	if (findFile)
-	{
-		R->ESI(hMix);
-		R->Stack(STACK_OFFS(0x1C4, 0x1B4), filename);
-		return 0x48FE68;
-	}
-
-	return 0x48FDA8;
-}
-
 DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 {
 	GET(CLoadingExt*, pThis, ECX);
@@ -161,35 +82,6 @@ DEFINE_HOOK(4B8CFC, CMapData_CreateMap_InitMixFiles_Removal, 5)
 	};
 	reinterpret_cast<CLoadingHelper*>(CLoading::Instance())->DTOR();
 	return 0x4B8D0C;
-}
-
-DEFINE_HOOK(4903F3, CLoading_DrawOverlay_Palette, 7)
-{
-	GET(CLoadingExt*, pThis, EDI);
-	REF_STACK(ImageDataClass, pDrawData, STACK_OFFS(0x1C8, 0xC8));
-	GET_STACK(int, nOverlayIndex, STACK_OFFS(0x1C8, -0x8));
-
-	if (!CMapData::Instance->MapWidthPlusHeight) {
-		return 0;
-	}
-
-	if (nOverlayIndex >= 0 && nOverlayIndex < 256)
-	{
-		auto const& typeData = CMapDataExt::OverlayTypeDatas[nOverlayIndex];
-
-		if (typeData.Wall)
-		{
-			auto palName = typeData.WallPaletteName;
-			pThis->GetFullPaletteName(palName);
-			if (auto pal = PalettesManager::LoadPalette(palName)) {
-				BGRStruct houseColor{ 0,0,255 };
-				auto lightingPal = PalettesManager::GetPalette(pal, houseColor);
-				pDrawData.pPalette = lightingPal;
-			}
-		}
-	}
-
-	return 0;
 }
 
 DEFINE_HOOK(48E541, CLoading_InitTMPs_UpdateTileDatas, 7)

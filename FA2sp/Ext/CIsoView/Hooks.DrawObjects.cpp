@@ -109,8 +109,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 			for (const auto& ol : *section)
 			{
 				if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-					CLoading::Instance->DrawOverlay(ol.second, oli);
-					CIsoView::GetInstance()->UpdateDialog(false);
+					CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
 				}
 				oli++;
 			}
@@ -548,6 +547,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			int pos = CMapData::Instance->GetCoordIndex(X, Y);
 			auto cell = CMapData::Instance->GetCellAt(pos);
+			auto& cellExt = CMapDataExt::CellDataExts[pos];
 
 			CIsoViewExt::CurrentDrawCellLocation.X = X;
 			CIsoViewExt::CurrentDrawCellLocation.Y = Y;
@@ -806,42 +806,44 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						pData, shadowMask_Terrain);
 				}
 			}
-			if (shadow && cell->Overlay != 0xFF && CIsoViewExt::DrawOverlays)
+			if (shadow && cellExt.NewOverlay != 0xFFFF && CIsoViewExt::DrawOverlays)
 			{
-				auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
-				ppmfc::CString imageName;
-				imageName.Format("%s\233%d\233OVERLAYSHADOW", obj, cell->OverlayData);
-
-				if (!CLoadingExt::IsOverlayLoaded(obj))
-				{
-					CLoading::Instance->DrawOverlay(obj, cell->Overlay);
-					CIsoView::GetInstance()->UpdateDialog(false);
-				}
+				auto imageName = CLoadingExt::GetOverlayName(cellExt.NewOverlay, cell->OverlayData, true);
 				auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
-				if (pData->pImageBuffer)
+				if (!pData || !pData->pImageBuffer)
+				{
+					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellExt.NewOverlay);
+					if (!CLoadingExt::IsOverlayLoaded(obj))
+					{
+						CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt.NewOverlay);
+						pData = CLoadingExt::GetImageDataFromServer(imageName);
+					}
+				}
+
+				if (pData && pData->pImageBuffer)
 				{
 					int x1 = x;
 					int y1 = y;
-					if (cell->Overlay == 0xA7)
+					if (cellExt.NewOverlay == 0xA7)
 						y1 -= 45;
 					else if (
-						cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
-						cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
-						cell->Overlay != 0xED && cell->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+						cellExt.NewOverlay != 0x18 && cellExt.NewOverlay != 0x19 && // BRIDGE1, BRIDGE2
+						cellExt.NewOverlay != 0x3B && cellExt.NewOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
+						cellExt.NewOverlay != 0xED && cellExt.NewOverlay != 0xEE // BRIDGEB1, BRIDGEB2
 						)
 					{
-						if (cell->Overlay >= 0x27 && cell->Overlay <= 0x36) // Tracks
+						if (cellExt.NewOverlay >= 0x27 && cellExt.NewOverlay <= 0x36) // Tracks
 							y1 += 15;
-						else if (cell->Overlay >= 0x4A && cell->Overlay <= 0x65) // LOBRDG 1-28
+						else if (cellExt.NewOverlay >= 0x4A && cellExt.NewOverlay <= 0x65) // LOBRDG 1-28
 							y1 += 15;
-						else if (cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+						else if (cellExt.NewOverlay >= 0xCD && cellExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 							y1 += 15;
-						else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
+						else if (cellExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 						{
-							if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock
-								//|| CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock // for compatibility of blockages
-								|| CMapDataExt::OverlayTypeDatas[cell->Overlay].RailRoad)
+							if (CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].Rock
+								//|| CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].TerrainRock // for compatibility of blockages
+								|| CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].RailRoad)
 								y1 += 15;
 						}
 					}
@@ -1020,43 +1022,42 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 
 			//overlays
-			auto cellNext = CMapData::Instance->TryGetCellAt(X + 1, Y + 1);
-			if ((cell->Overlay != 0xFF || cellNext->Overlay != 0xFF) && CIsoViewExt::DrawOverlays)
+			int nextPos = CMapData::Instance->GetCoordIndex(X + 1, Y + 1);
+			if (nextPos >= CMapData::Instance->CellDataCount)
+				nextPos = 0;
+			auto cellNext = CMapData::Instance->GetCellAt(nextPos);
+			auto& cellNextExt = CMapDataExt::CellDataExts[nextPos];
+			if ((cellExt.NewOverlay != 0xFFFF || cellNextExt.NewOverlay != 0xFFFF) && CIsoViewExt::DrawOverlays)
 			{
-				ImageDataClass* pData = nullptr;		
 				if (
-					cellNext->Overlay == 0x18 || cellNext->Overlay == 0x19 || // BRIDGE1, BRIDGE2
-					cellNext->Overlay == 0x3B || cellNext->Overlay == 0x3C || // RAILBRDG1, RAILBRDG2
-					cellNext->Overlay == 0xED || cellNext->Overlay == 0xEE || // BRIDGEB1, BRIDGEB2
-					(cellNext->Overlay >= 0x4A && cellNext->Overlay <= 0x65) || // LOBRDG 1-28
-					(cellNext->Overlay >= 0xCD && cellNext->Overlay <= 0xEC) // LOBRDGB 1-4
+					cellNextExt.NewOverlay == 0x18 || cellNextExt.NewOverlay == 0x19 || // BRIDGE1, BRIDGE2
+					cellNextExt.NewOverlay == 0x3B || cellNextExt.NewOverlay == 0x3C || // RAILBRDG1, RAILBRDG2
+					cellNextExt.NewOverlay == 0xED || cellNextExt.NewOverlay == 0xEE || // BRIDGEB1, BRIDGEB2
+					(cellNextExt.NewOverlay >= 0x4A && cellNextExt.NewOverlay <= 0x65) || // LOBRDG 1-28
+					(cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 					)
 				{
-					if (OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData])
-					{
-						pData = OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData];
-					}
+					auto imageName = CLoadingExt::GetOverlayName(cellNextExt.NewOverlay, cellNext->OverlayData);
+					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+
 					if (!pData || !pData->pImageBuffer)
 					{
-						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellNext->Overlay);
+						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellNextExt.NewOverlay);
 						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
-							CLoading::Instance()->DrawOverlay(obj, cellNext->Overlay);
-							CIsoView::GetInstance()->UpdateDialog(false);
-							if (OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData])
-							{
-								pData = OverlayData::Array[cellNext->Overlay].Frames[cellNext->OverlayData];
-							}
+							CLoadingExt::GetExtension()->LoadOverlay(obj, cellNextExt.NewOverlay);
+							pData = CLoadingExt::GetImageDataFromServer(imageName);
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cellNext->Overlay >= 0x4a && cellNext->Overlay <= 0x65) && !(cellNext->Overlay >= 0xcd && cellNext->Overlay <= 0xec))
+							if (!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
+								!(cellNextExt.NewOverlay >= 0xcd && cellNextExt.NewOverlay <= 0xec))
 							{
 								char cd[10];
 								cd[0] = '0';
 								cd[1] = 'x';
-								_itoa(cellNext->Overlay, cd + 2, 16);
-								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
+								_itoa(cellNextExt.NewOverlay, cd + 2, 16);
+								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X+1,Y+1 }, cd));
 							}
 						}
 					}
@@ -1064,25 +1065,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						int x1 = x;
 						int y1 = y;
-						if (cellNext->Overlay == 0xA7)
+						if (cellNextExt.NewOverlay == 0xA7)
 							y1 -= 45;
 						else if (
-							cellNext->Overlay != 0x18 && cellNext->Overlay != 0x19 && // BRIDGE1, BRIDGE2
-							cellNext->Overlay != 0x3B && cellNext->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
-							cellNext->Overlay != 0xED && cellNext->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+							cellNextExt.NewOverlay != 0x18 && cellNextExt.NewOverlay != 0x19 && // BRIDGE1, BRIDGE2
+							cellNextExt.NewOverlay != 0x3B && cellNextExt.NewOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
+							cellNextExt.NewOverlay != 0xED && cellNextExt.NewOverlay != 0xEE // BRIDGEB1, BRIDGEB2
 							)
 						{
-							if (cellNext->Overlay >= 0x27 && cellNext->Overlay <= 0x36) // Tracks
+							if (cellNextExt.NewOverlay >= 0x27 && cellNextExt.NewOverlay <= 0x36) // Tracks
 								y1 += 15;
-							else if (cellNext->Overlay >= 0x4A && cellNext->Overlay <= 0x65) // LOBRDG 1-28
+							else if (cellNextExt.NewOverlay >= 0x4A && cellNextExt.NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
-							else if (cellNext->Overlay >= 0xCD && cellNext->Overlay <= 0xEC) // LOBRDGB 1-4
+							else if (cellNextExt.NewOverlay >= 0xCD && cellNextExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cellNext->Overlay < CMapDataExt::OverlayTypeDatas.size())
+							else if (cellNextExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cellNext->Overlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cellNext->Overlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cellNext->Overlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].Rock
+									//|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].TerrainRock // for compatibility of blockages
+									|| CMapDataExt::OverlayTypeDatas[cellNextExt.NewOverlay].RailRoad)
 									y1 += 15;
 							}
 						}
@@ -1095,43 +1096,44 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						y1 += 30;
 						y1 -= (cellNext->Height - cell->Height) * 15;
+
+						auto tmp = CIsoViewExt::CurrentDrawCellLocation;
+						CIsoViewExt::CurrentDrawCellLocation.X++;
+						CIsoViewExt::CurrentDrawCellLocation.Y++;
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNext->Overlay, false);
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellNextExt.NewOverlay, false);
+						CIsoViewExt::CurrentDrawCellLocation = tmp;
 					}
 				}
 				if (
-					cell->Overlay != 0xFF &&
-					cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
-					cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
-					cell->Overlay != 0xED && cell->Overlay != 0xEE && // BRIDGEB1, BRIDGEB2
-					!(cell->Overlay >= 0x4A && cell->Overlay <= 0x65) && // LOBRDG 1-28
-					!(cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+					cellExt.NewOverlay != 0xFFFF &&
+					cellExt.NewOverlay != 0x18 && cellExt.NewOverlay != 0x19 && // BRIDGE1, BRIDGE2
+					cellExt.NewOverlay != 0x3B && cellExt.NewOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
+					cellExt.NewOverlay != 0xED && cellExt.NewOverlay != 0xEE && // BRIDGEB1, BRIDGEB2
+					!(cellExt.NewOverlay >= 0x4A && cellExt.NewOverlay <= 0x65) && // LOBRDG 1-28
+					!(cellExt.NewOverlay >= 0xCD && cellExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 					)
 				{
-					if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
-					{
-						pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
-					}
+					auto imageName = CLoadingExt::GetOverlayName(cellExt.NewOverlay, cell->OverlayData);
+					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+
 					if (!pData || !pData->pImageBuffer)
 					{
-						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cell->Overlay);
+						auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellExt.NewOverlay);
 						if (!CLoadingExt::IsOverlayLoaded(obj))
 						{
-							CLoading::Instance()->DrawOverlay(obj, cell->Overlay);
-							CIsoView::GetInstance()->UpdateDialog(false);
-							if (OverlayData::Array[cell->Overlay].Frames[cell->OverlayData])
-							{
-								pData = OverlayData::Array[cell->Overlay].Frames[cell->OverlayData];
-							}
+							CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt.NewOverlay);
+							pData = CLoadingExt::GetImageDataFromServer(imageName);
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cell->Overlay >= 0x4a && cell->Overlay <= 0x65) && !(cell->Overlay >= 0xcd && cell->Overlay <= 0xec))
+							if (!(cellExt.NewOverlay >= 0x4a && cellExt.NewOverlay <= 0x65) &&
+								!(cellExt.NewOverlay >= 0xcd && cellExt.NewOverlay <= 0xec))
 							{
 								char cd[10];
 								cd[0] = '0';
 								cd[1] = 'x';
-								_itoa(cell->Overlay, cd + 2, 16);
+								_itoa(cellExt.NewOverlay, cd + 2, 16);
 								OverlayTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, cd));
 							}
 						}
@@ -1140,25 +1142,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						int x1 = x;
 						int y1 = y;
-						if (cell->Overlay == 0xA7)
+						if (cellExt.NewOverlay == 0xA7)
 							y1 -= 45;
 						else if (
-							cell->Overlay != 0x18 && cell->Overlay != 0x19 && // BRIDGE1, BRIDGE2
-							cell->Overlay != 0x3B && cell->Overlay != 0x3C && // RAILBRDG1, RAILBRDG2
-							cell->Overlay != 0xED && cell->Overlay != 0xEE // BRIDGEB1, BRIDGEB2
+							cellExt.NewOverlay != 0x18 && cellExt.NewOverlay != 0x19 && // BRIDGE1, BRIDGE2
+							cellExt.NewOverlay != 0x3B && cellExt.NewOverlay != 0x3C && // RAILBRDG1, RAILBRDG2
+							cellExt.NewOverlay != 0xED && cellExt.NewOverlay != 0xEE // BRIDGEB1, BRIDGEB2
 							)
 						{
-							if (cell->Overlay >= 0x27 && cell->Overlay <= 0x36) // Tracks
+							if (cellExt.NewOverlay >= 0x27 && cellExt.NewOverlay <= 0x36) // Tracks
 								y1 += 15;
-							else if (cell->Overlay >= 0x4A && cell->Overlay <= 0x65) // LOBRDG 1-28
+							else if (cellExt.NewOverlay >= 0x4A && cellExt.NewOverlay <= 0x65) // LOBRDG 1-28
 								y1 += 15;
-							else if (cell->Overlay >= 0xCD && cell->Overlay <= 0xEC) // LOBRDGB 1-4
+							else if (cellExt.NewOverlay >= 0xCD && cellExt.NewOverlay <= 0xEC) // LOBRDGB 1-4
 								y1 += 15;
-							else if (cell->Overlay < CMapDataExt::OverlayTypeDatas.size())
+							else if (cellExt.NewOverlay < CMapDataExt::OverlayTypeDatas.size())
 							{
-								if (CMapDataExt::OverlayTypeDatas[cell->Overlay].Rock
-									//|| CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock // for compatibility of blockages
-									|| CMapDataExt::OverlayTypeDatas[cell->Overlay].RailRoad)
+								if (CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].Rock
+									//|| CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].TerrainRock // for compatibility of blockages
+									|| CMapDataExt::OverlayTypeDatas[cellExt.NewOverlay].RailRoad)
 									y1 += 15;
 							}
 						}
@@ -1170,7 +1172,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								y1 -= 1;
 						}
 						CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cell->Overlay, false);
+							x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, NULL, 255, 0, 500 + cellExt.NewOverlay, false);
 					}
 				}
 			}
@@ -1641,6 +1643,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		for (int i = 0; i < Map->CellDataCount; i++)
 		{
 			auto cell = &Map->CellDatas[i];
+			auto& cellExt = CMapDataExt::CellDataExts[i];
 			int x = i % Map->MapWidthPlusHeight;
 			int y = i / Map->MapWidthPlusHeight;
 			int tileIndex = cell->TileIndex;
@@ -1652,7 +1655,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
 				if (ttype == 0x7 || ttype == 0x8 || ttype == 0xf ||
-					(cell->Overlay == 0xFF ? false : CMapDataExt::OverlayTypeDatas[cell->Overlay].TerrainRock))
+					(cellExt.NewOverlay == 0xFFFF ? false : CMapDataExt::GetOverlayTypeData(cellExt.NewOverlay).TerrainRock))
 				{
 					CIsoView::MapCoord2ScreenCoord(x, y);
 					int drawX = x - DrawOffsetX;
@@ -1924,75 +1927,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 	}
 
-	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && MultiSelection::MultiPastedCoords.empty())
+	if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !CopyPaste::PastedCoords.empty() && !CopyPaste::CopyWholeMap)
 	{
-		auto& mapData = CMapData::Instance();
-
-		auto length = mapData.MapWidthPlusHeight;
-
-		int copyx = CIsoViewExt::CopyEnd.X - CIsoViewExt::CopyStart.X + 1;
-		int copyy = CIsoViewExt::CopyEnd.Y - CIsoViewExt::CopyStart.Y + 1;
-
-		while (CIsoViewExt::CopyStart.X < 0)
-		{
-			CIsoViewExt::CopyStart.X++;
-			copyx--;
-		}
-		while (CIsoViewExt::CopyStart.Y < 0)
-		{
-			CIsoViewExt::CopyStart.Y++;
-			copyy--;
-		}
-		while (CIsoViewExt::CopyStart.X + copyx > length)
-		{
-			copyx--;
-		}
-		while (CIsoViewExt::CopyStart.Y + copyy > length)
-		{
-			copyy--;
-		}
-		for (int x = CIsoViewExt::CopyStart.X; x < CIsoViewExt::CopyStart.X + copyx; ++x)
-		{
-			int X = x;
-			int Y1 = CIsoViewExt::CopyStart.Y;
-			int Y2 = CIsoViewExt::CopyStart.Y + copyy - 1;
-			CIsoView::MapCoord2ScreenCoord(X, Y1);
-			X -= DrawOffsetX;
-			Y1 -= DrawOffsetY;
-			pThis->DrawLockedCellOutline(X, Y1, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, false, true);
-			X = x;
-			CIsoView::MapCoord2ScreenCoord(X, Y2);
-			X -= DrawOffsetX;
-			Y2 -= DrawOffsetY;
-			pThis->DrawLockedCellOutline(X, Y2, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, true, false, false);
-		}
-		for (int y = CIsoViewExt::CopyStart.Y; y < CIsoViewExt::CopyStart.Y + copyy; ++y)
-		{
-			int Y = y;
-			int X1 = CIsoViewExt::CopyStart.X;
-			int X2 = CIsoViewExt::CopyStart.X + copyx - 1;
-			CIsoView::MapCoord2ScreenCoord(X1, Y);
-			X1 -= DrawOffsetX;
-			Y -= DrawOffsetY;
-			pThis->DrawLockedCellOutline(X1, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, true, false, false, false);
-			Y = y;
-			CIsoView::MapCoord2ScreenCoord(X2, Y);
-			X2 -= DrawOffsetX;
-			Y -= DrawOffsetY;
-			pThis->DrawLockedCellOutline(X2, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc, false, false, true, false);
-		}
-	}
-	else if (CIsoViewExt::PasteShowOutline && CIsoView::CurrentCommand->Command == 21 && !MultiSelection::MultiPastedCoords.empty())
-	{
-		for (auto& coord : MultiSelection::MultiPastedCoords)
-		{
-			int X = coord.X;
-			int Y = coord.Y;
-			CIsoView::MapCoord2ScreenCoord(X, Y);
-			X -= DrawOffsetX;
-			Y -= DrawOffsetY;
-			pThis->DrawLockedCellOutline(X, Y, 1, 1, ExtConfigs::CopySelectionBound_Color, false, false, lpDesc);
-		}
+		CIsoViewExt::DrawMultiMapCoordBorders(lpDesc, CopyPaste::PastedCoords, ExtConfigs::CopySelectionBound_Color);
 	}
 	// line tool
 	auto& command = pThis->LastAltCommand;

@@ -1,0 +1,576 @@
+#include "MultiSelection.h"
+#include "CopyPaste.h"
+#include <CFinalSunDlg.h>
+#include <CIsoView.h>
+#include <Helpers/Macro.h>
+#include <Drawing.h>
+#include <CTileTypeClass.h>
+#include <CLoading.h>
+#include <CMapData.h>
+#include "../Ext/CIsoView/Body.h"
+#include "../Ext/CMapData/Body.h"
+#include <span>
+#include "../Helpers/TheaterHelpers.h"
+
+std::set<MapCoord> CopyPaste::PastedCoords;
+bool CopyPaste::CopyWholeMap = false;
+bool CopyPaste::OnLButtonDownPasted = false;
+std::vector<TileRule> CopyPaste::TileConvertRules;
+
+void CopyPaste::Copy(const std::set<MapCoord>& coords)
+{
+    std::vector<MyClipboardData> data;
+    for (const auto& coords : coords)
+    {
+        if (coords.X < 0 || coords.Y < 0 || coords.X > CMapData::Instance->MapWidthPlusHeight || coords.Y > CMapData::Instance->MapWidthPlusHeight)
+            continue;
+
+        auto pos = CMapData::Instance->GetCoordIndex(coords.X, coords.Y);
+        auto pCell = CMapData::Instance->GetCellAt(pos);
+        auto& pCellExt = CMapDataExt::CellDataExts[pos];
+        MyClipboardData item = {};
+        item.X = coords.X;
+        item.Y = coords.Y;
+        item.Overlay = pCellExt.NewOverlay;
+        item.OverlayData = pCell->OverlayData;
+        item.TileIndex = pCell->TileIndex;
+        item.TileIndexHiPart = pCell->TileIndexHiPart;
+        item.TileSubIndex = pCell->TileSubIndex;
+        item.TileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileSet;
+        item.TileSetSubIndex = pCell->TileIndex - CMapDataExt::TileSet_starts[item.TileSet];
+        item.Height = pCell->Height;
+        item.IceGrowth = pCell->IceGrowth;
+        item.Flag = pCell->Flag;
+
+        if (pCell->Terrain > -1)
+        {
+            strcpy_s(item.TerrainData, Variables::GetRulesMapValueAt("TerrainTypes", pCell->TerrainType).m_pchData);
+        }        
+        if (pCell->Smudge > -1)
+        {
+            auto& smudge = CMapData::Instance->SmudgeDatas[pCell->Smudge];
+            if (smudge.X == coords.Y && smudge.Y == coords.X)
+                strcpy_s(item.SmudgeData, Variables::GetRulesMapValueAt("SmudgeTypes", pCell->SmudgeType).m_pchData);
+        }
+        if (pCell->Structure > -1)
+        {
+            int iniIndex = CMapDataExt::StructureIndexMap[pCell->Structure];
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
+            auto atoms = STDHelpers::SplitString(value, 16);
+            if (coords.X == atoi(atoms[4]) && coords.Y == atoi(atoms[3]))
+                strcpy_s(item.BuildingData, value.m_pchData);
+        }
+        if (pCell->Aircraft > -1)
+        {
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Aircraft", pCell->Aircraft);
+            strcpy_s(item.AircraftData, value.m_pchData);
+        }
+        if (pCell->Infantry[0] > -1)
+        {
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[0]);
+            strcpy_s(item.InfantryData_1, value.m_pchData);
+        }
+        if (pCell->Infantry[1] > -1)
+        {
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[1]);
+            strcpy_s(item.InfantryData_2, value.m_pchData);
+        }
+        if (pCell->Infantry[2] > -1)
+        {
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Infantry", pCell->Infantry[2]);
+            strcpy_s(item.InfantryData_3, value.m_pchData);
+        }
+        if (pCell->Unit > -1)
+        {
+            ppmfc::CString value = CINI::CurrentDocument->GetValueAt("Units", pCell->Unit);
+            strcpy_s(item.UnitData, value.m_pchData);
+        }
+        data.push_back(item);
+    }
+
+    auto hGlobal = GlobalAlloc(GMEM_SHARE | GMEM_MOVEABLE, 12 + sizeof(MyClipboardData) * data.size());
+    if (hGlobal == NULL)
+    {
+        MessageBox(NULL, "Failed to allocate global memory!", "Error", MB_OK);
+        return;
+    }
+
+    auto pBuffer = GlobalLock(hGlobal);
+    if (pBuffer == nullptr)
+    {
+        MessageBox(NULL, "Failed to lock hGlobal handle!", "Error", MB_OK);
+        return;
+    }
+    while (GlobalUnlock(hGlobal))
+        ;
+
+    reinterpret_cast<int*>(pBuffer)[0] = 0; // Flag indicate this is multi-selection
+    reinterpret_cast<size_t*>(pBuffer)[1] = data.size();
+    reinterpret_cast<int*>(pBuffer)[2] = CLoading::Instance->TheaterIdentifier;
+    memcpy(reinterpret_cast<char*>(pBuffer) + 12, data.data(), sizeof(MyClipboardData) * data.size());
+
+    OpenClipboard(CFinalSunApp::Instance->m_pMainWnd->m_hWnd);
+    EmptyClipboard();
+    if (FALSE == SetClipboardData(CFinalSunApp::Instance->ClipboardFormat, hGlobal))
+        MessageBox(NULL, "Failed to set clipboard data", "Error", 0);
+    CloseClipboard();
+}
+
+void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length)
+{
+    CopyPaste::PastedCoords.clear();
+    if (X < 0 || Y < 0 || X > CMapData::Instance().MapWidthPlusHeight || Y > CMapData::Instance().MapWidthPlusHeight)
+        return;
+    std::span<MyClipboardData> cells{ data, data + length };
+
+    RECT bounds
+    {
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::max(),
+        std::numeric_limits<LONG>::min(),
+        std::numeric_limits<LONG>::min()
+    };
+    for (const auto& cell : cells)
+    {
+        if (cell.X < bounds.left)
+            bounds.left = cell.X;
+        if (cell.X > bounds.right)
+            bounds.right = cell.X;
+        if (cell.Y < bounds.top)
+            bounds.top = cell.Y;
+        if (cell.Y > bounds.bottom)
+            bounds.bottom = cell.Y;
+    }
+    const MapCoord center = { (int)std::ceil(double(bounds.left + bounds.right) / 2.0), (int)std::ceil(double(bounds.top + bounds.bottom) / 2.0) };
+
+    CMapData::Instance->SaveUndoRedoData(true, bounds.left - center.X + X, bounds.top - center.Y + Y,
+        bounds.right - center.X + X + 2, bounds.bottom - center.Y + Y + 2);
+
+    if (OnLButtonDownPasted && CIsoViewExt::PasteOverriding)
+    {
+        for (const auto& cell : cells)
+        {
+            int offset_x = cell.X - center.X;
+            int offset_y = cell.Y - center.Y;
+
+            if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+                continue;
+
+            auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
+
+            auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+            if (CIsoViewExt::PasteInfantries)
+                for (int subpos = 0; subpos < 3; subpos++)
+                    if (pCell->Infantry[subpos] != -1)
+                        CMapData::Instance->DeleteInfantryData(pCell->Infantry[subpos]);
+            if (CIsoViewExt::PasteUnits && pCell->Unit != -1)
+                CMapData::Instance->DeleteUnitData(pCell->Unit);
+            if (CIsoViewExt::PasteAircrafts && pCell->Aircraft != -1)
+                CMapData::Instance->DeleteAircraftData(pCell->Aircraft);
+            if (CIsoViewExt::PasteStructures && pCell->Structure != -1)
+                CMapData::Instance->DeleteBuildingData(pCell->Structure);
+            if (CIsoViewExt::PasteTerrains && pCell->Terrain != -1)
+                CMapData::Instance->DeleteTerrainData(pCell->Terrain);
+            if (CIsoViewExt::PasteSmudges && pCell->Smudge != -1)
+                CMapData::Instance->DeleteSmudgeData(pCell->Smudge);
+        }
+    }
+
+    auto lowest_height = 14;
+    for (const auto& cell : cells)
+    {
+        int offset_x = cell.X - center.X;
+        int offset_y = cell.Y - center.Y;
+
+        if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+            continue;
+
+        const auto pCell = CMapData::Instance->TryGetCellAt(X + offset_x, Y + offset_y);
+        if (pCell->Height < lowest_height)
+            lowest_height = pCell->Height;
+    }
+
+    nBaseHeight += lowest_height;
+    for (const auto& cell : cells)
+    {
+        int offset_x = cell.X - center.X;
+        int offset_y = cell.Y - center.Y;
+
+        if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+            continue;
+
+        auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
+
+        auto pCell = CMapData::Instance->GetCellAt(nCellIndex);
+        auto& pCellExt = CMapDataExt::CellDataExts[nCellIndex];
+
+        if (CIsoViewExt::PasteOverlays)
+        {
+            CMapData::Instance->DeleteTiberium(std::min(pCellExt.NewOverlay, (word)0xFF), pCell->OverlayData);
+            pCell->Overlay = std::min(cell.Overlay, (word)0xff);
+            pCellExt.NewOverlay = cell.Overlay;
+            pCell->OverlayData = cell.OverlayData;
+            CMapData::Instance->AddTiberium(std::min(pCellExt.NewOverlay, (word)0xFF), pCell->OverlayData);
+        }
+
+        if (CIsoViewExt::PasteGround)
+        {
+            if (!TileConvertRules.empty())
+            {
+                pCell->TileIndex = cell.TileIndex;
+                pCell->TileSubIndex = cell.TileSubIndex;
+                pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+                ConvertTile(*pCell);
+            }
+            else
+            {
+                if (cell.TileSet < CMapDataExt::TileSet_starts.size() - 1
+                    && CMapDataExt::TileSet_starts[cell.TileSet] + cell.TileSetSubIndex < CMapDataExt::TileSet_starts[cell.TileSet + 1])
+                    pCell->TileIndex = CMapDataExt::TileSet_starts[cell.TileSet] + cell.TileSetSubIndex;
+                else
+                    pCell->TileIndex = 0;
+                pCell->TileSubIndex = cell.TileSubIndex;
+                pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+            }
+
+            pCell->TileIndexHiPart = cell.TileIndexHiPart;
+            pCell->IceGrowth = cell.IceGrowth;
+            pCell->Flag = cell.Flag;
+        }
+
+        if (OnLButtonDownPasted && CIsoViewExt::PasteStructures && strlen(cell.BuildingData) > 0)
+        {
+            ppmfc::CString value(cell.BuildingData);
+            auto atoms = STDHelpers::SplitString(value, 16);
+            CBuildingData data;
+            data.House = atoms[0];
+            data.TypeID = atoms[1];
+            data.Health = atoms[2];
+            data.Y.Format("%d", Y + offset_y);
+            data.X.Format("%d", X + offset_x);
+            data.Facing = atoms[5];
+            data.Tag = atoms[6];
+            data.AISellable = atoms[7];
+            data.AIRebuildable = atoms[8];
+            data.PoweredOn = atoms[9];
+            data.Upgrades = atoms[10];
+            data.SpotLight = atoms[11];
+            data.Upgrade1 = atoms[12];
+            data.Upgrade2 = atoms[13];
+            data.Upgrade3 = atoms[14];
+            data.AIRepairable = atoms[15];
+            data.Nominal = atoms[16];
+            CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
+        }
+
+        if (OnLButtonDownPasted && CIsoViewExt::PasteSmudges && strlen(cell.SmudgeData) > 0)
+        {
+            CSmudgeData data;
+            data.TypeID = cell.SmudgeData;
+
+            data.X = Y + offset_y;
+            data.Y = X + offset_x;
+
+            CMapData::Instance->SetSmudgeData(&data);
+        }
+
+        if (OnLButtonDownPasted && CIsoViewExt::PasteTerrains && strlen(cell.TerrainData) > 0)
+        {
+            CMapData::Instance->SetTerrainData(cell.TerrainData, CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y));
+        }
+
+        if (OnLButtonDownPasted && CIsoViewExt::PasteUnits && strlen(cell.UnitData) > 0)
+        {
+            ppmfc::CString value(cell.UnitData);
+            auto atoms = STDHelpers::SplitString(value, 13);
+            CUnitData data;
+            data.House = atoms[0];
+            data.TypeID = atoms[1];
+            data.Health = atoms[2];
+            data.Y.Format("%d", Y + offset_y);
+            data.X.Format("%d", X + offset_x);
+            data.Facing = atoms[5];
+            data.Status = atoms[6];
+            data.Tag = atoms[7];
+            data.VeterancyPercentage = atoms[8];
+            data.Group = atoms[9];
+            data.IsAboveGround = atoms[10];
+            data.FollowsIndex = atoms[11];
+            data.AutoNORecruitType = atoms[12];
+            data.AutoYESRecruitType = atoms[13];
+
+            CMapData::Instance->SetUnitData(&data, NULL, NULL, 0, "");
+        }
+
+        if (OnLButtonDownPasted && CIsoViewExt::PasteAircrafts && strlen(cell.AircraftData) > 0)
+        {
+            ppmfc::CString value(cell.AircraftData);
+            auto atoms = STDHelpers::SplitString(value, 11);
+            CAircraftData data;
+            data.House = atoms[0];
+            data.TypeID = atoms[1];
+            data.Health = atoms[2];
+            data.Y.Format("%d", Y + offset_y);
+            data.X.Format("%d", X + offset_x);
+            data.Facing = atoms[5];
+            data.Status = atoms[6];
+            data.Tag = atoms[7];
+            data.VeterancyPercentage = atoms[8];
+            data.Group = atoms[9];
+            data.AutoNORecruitType = atoms[10];
+            data.AutoYESRecruitType = atoms[11];
+            CMapData::Instance->SetAircraftData(&data, NULL, NULL, 0, "");
+        }
+
+        for (int i = 0; i < 3; ++i)
+        {
+            const char* inf = nullptr;
+            if (i == 0)
+                inf = cell.InfantryData_1;
+            else if (i == 1)
+                inf = cell.InfantryData_2;
+            else if (i == 2)
+                inf = cell.InfantryData_3;
+            if (OnLButtonDownPasted && CIsoViewExt::PasteAircrafts && strlen(inf) > 0)
+            {
+                ppmfc::CString value(inf);
+                auto atoms = STDHelpers::SplitString(value, 13);
+                CInfantryData data;
+                data.House = atoms[0];
+                data.TypeID = atoms[1];
+                data.Health = atoms[2];
+                data.Y.Format("%d", Y + offset_y);
+                data.X.Format("%d", X + offset_x);
+                data.SubCell = atoms[5];
+                data.Status = atoms[6];
+                data.Facing = atoms[7];
+                data.Tag = atoms[8];
+                data.VeterancyPercentage = atoms[9];
+                data.Group = atoms[10];
+                data.IsAboveGround = atoms[11];
+                data.AutoNORecruitType = atoms[12];
+                data.AutoYESRecruitType = atoms[13];
+                CMapData::Instance->SetInfantryData(&data, NULL, NULL, 0, -1);
+            }
+        }
+
+
+        CMapData::Instance->UpdateMapPreviewAt(X + offset_x, Y + offset_y);
+        CopyPaste::PastedCoords.insert(MapCoord{ X + offset_x, Y + offset_y });
+    }
+}
+
+void CopyPaste::LoadTileConvertRule(char sourceTheater)
+{
+    TileConvertRules.clear();
+    ppmfc::CString iniSection;
+    iniSection.Format("%s2%sTileRules", 
+        TheaterHelpers::GetSuffix(sourceTheater), 
+        TheaterHelpers::GetSuffix(CLoading::Instance->TheaterIdentifier));
+
+    std::string path = CFinalSunApp::Instance->ExePath();
+    path += "\\TileConvertRules.ini";
+
+    CINI ini;
+    ini.ClearAndLoad(path.c_str());
+
+    if (auto pSection = ini.GetSection(iniSection))
+    {
+        for (const auto& [key, value] : pSection->GetEntities())
+        {
+            std::vector<ppmfc::CString> separates = STDHelpers::SplitString(value, "|");
+            if (separates.size() < 2) continue;
+
+            TileRule rule;
+
+            std::vector<ppmfc::CString> srcParts = STDHelpers::SplitString(separates[0], "-");
+            int srcStart = std::atoi(srcParts[0]);
+            int srcEnd = (srcParts.size() > 1) ? std::atoi(srcParts[1]) : srcStart;
+            for (int i = srcStart; i <= srcEnd; ++i)
+                rule.sourceTiles.push_back(i);
+
+            bool isRandom = separates[1].Find("~") != -1;
+            rule.isRandom = isRandom;
+
+            std::vector<ppmfc::CString> dstParts;
+            if (isRandom)
+                dstParts = STDHelpers::SplitString(separates[1], "~");
+            else
+                dstParts = STDHelpers::SplitString(separates[1], "-");
+
+            int dstStart = std::atoi(dstParts[0]);
+            int dstEnd = (dstParts.size() > 1) ? std::atoi(dstParts[1]) : dstStart;
+            for (int i = dstStart; i <= dstEnd; ++i)
+                rule.destinationTiles.push_back(i);
+
+            if (separates.size() >= 3)
+            {
+                if (separates[2] != "*") {
+                    rule.hasHeightOverride = true;
+                    rule.heightOverride = std::clamp(std::atoi(separates[2]), 0, 14);
+                }
+            }
+
+            if (separates.size() >= 4)
+            {
+                rule.hasSubIndexOverride = true;
+                rule.subIndexOverride = std::atoi(separates[3]);
+            }
+            TileConvertRules.push_back(rule);
+        }
+    }
+}
+
+void CopyPaste::ConvertTile(CellData& cell)
+{
+    for (const auto& rule : TileConvertRules)
+    {
+        if (std::find(rule.sourceTiles.begin(), rule.sourceTiles.end(), cell.TileIndex) != rule.sourceTiles.end())
+        {
+            if (rule.isRandom)
+            {
+                int rangeSize = rule.destinationTiles.size();
+                if (rangeSize > 0) {
+                    int randIndex = rand() % rangeSize;
+                    cell.TileIndex = rule.destinationTiles[randIndex];
+                }
+            }
+            else if (rule.destinationTiles.size() == 1)
+            {
+                cell.TileIndex = rule.destinationTiles[0];
+            }
+            else if (rule.destinationTiles.size() == rule.sourceTiles.size())
+            {
+                auto it = std::find(rule.sourceTiles.begin(), rule.sourceTiles.end(), cell.TileIndex);
+                int idx = std::distance(rule.sourceTiles.begin(), it);
+                cell.TileIndex = rule.destinationTiles[idx];
+            }
+            else
+            {
+                cell.TileIndex = rule.destinationTiles[0];
+            }
+
+            if (rule.hasHeightOverride)
+                cell.Height = rule.heightOverride;
+
+            if (rule.hasSubIndexOverride)
+                cell.TileSubIndex = rule.subIndexOverride;
+
+            return;
+        }
+    }
+}
+
+DEFINE_HOOK(435F10, CFinalSunDlg_Tools_Copy, 7)
+{
+    GET(CFinalSunDlg*, pThis, ECX);
+
+    pThis->PlaySound(CFinalSunDlg::FASoundType::Normal);
+
+    if (ExtConfigs::EnableMultiSelection && MultiSelection::GetCount())
+    {
+        CopyPaste::CopyWholeMap = false;
+        CopyPaste::Copy(MultiSelection::SelectedCoords);
+    }
+    else
+        CIsoView::CurrentCommand->Command = FACurrentCommand::TileCopy;
+
+    return 0x435F24;
+}
+
+DEFINE_HOOK(4C3460, CMapData_Copy, 5)
+{
+    GET(CMapDataExt*, pThis, ECX);
+    GET_STACK(int, left, 0x4);
+    GET_STACK(int, top, 0x8);
+    GET_STACK(int, right, 0xC);
+    GET_STACK(int, bottom, 0x10);
+    
+    if (left == 0 && top == 0 && right == 0 && bottom == 0)
+        CopyPaste::CopyWholeMap = true;
+    else
+        CopyPaste::CopyWholeMap = false;
+
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (right > pThis->MapWidthPlusHeight) right = pThis->MapWidthPlusHeight;
+    if (bottom > pThis->MapWidthPlusHeight) bottom = pThis->MapWidthPlusHeight;
+
+    if (right == 0) right = pThis->MapWidthPlusHeight;
+    if (bottom == 0) bottom = pThis->MapWidthPlusHeight;
+
+    std::set<MapCoord> coords;
+    for (int x = left; x < right; ++x)
+    {
+        for (int y = top; y < bottom; ++y)
+        {
+            coords.insert({ x,y });
+        }
+    }
+    CopyPaste::Copy(coords);
+
+    return 0x4C384B;
+}
+
+DEFINE_HOOK(459FFB, CIsoView_OnMouseMove_Paste_Snapshot_SkipRedo, 6)
+{
+    return 0x45A00F;
+}
+
+DEFINE_HOOK(46168E, CIsoView_OnLButtonDown_Paste_Snapshot, 6)
+{
+    CopyPaste::OnLButtonDownPasted = true;
+    return 0x4616A2;
+}
+
+DEFINE_HOOK(435F5A, CFinalSunDlg_Tools_PasteCenter, 5)
+{
+    CopyPaste::OnLButtonDownPasted = true;
+    return 0;
+}
+
+DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
+{
+    if (!ExtConfigs::EnableMultiSelection)
+        return 0;
+
+    GET_STACK(const int, X, 0x4);
+    GET_STACK(const int, Y, 0x8);
+    GET_STACK(const char, nBaseHeight, 0xC);
+
+    OpenClipboard(CFinalSunApp::Instance->m_pMainWnd->m_hWnd);
+    HANDLE hData = GetClipboardData(CFinalSunApp::Instance->ClipboardFormat);
+    auto ptr = GlobalLock(hData);
+
+    if (ptr)
+    {
+        if (reinterpret_cast<int*>(ptr)[0] == 0) // New paste
+        {
+            const auto length = reinterpret_cast<size_t*>(ptr)[1];
+            const int identifier = reinterpret_cast<int*>(ptr)[2];
+            CopyPaste::TileConvertRules.clear();
+            if (identifier != CLoading::Instance->TheaterIdentifier)
+            {
+                CopyPaste::LoadTileConvertRule(identifier);
+            }
+            const auto p = reinterpret_cast<MyClipboardData*>(reinterpret_cast<char*>(ptr) + 12);
+            CopyPaste::Paste(X, Y, nBaseHeight, p, length);
+            CopyPaste::OnLButtonDownPasted = false;
+            GlobalUnlock(hData);
+            CloseClipboard();
+            return 0x4C388B;
+        }
+        else // Vanilla paste method
+        {
+            GlobalUnlock(hData);
+            CloseClipboard();
+
+            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+            CopyPaste::OnLButtonDownPasted = false;
+            return 0;
+        }
+    }
+
+    CloseClipboard();
+    return 0x4C388B;
+}

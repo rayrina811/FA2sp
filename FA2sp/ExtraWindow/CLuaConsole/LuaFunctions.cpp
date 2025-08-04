@@ -2184,7 +2184,10 @@ namespace LuaFunctions
 	{		
 		if (!CMapData::Instance->IsCoordInMap(x, y))
 			return;
-		if (overlay > 255 || (overlay < 0 && overlayData < 0))
+
+		int OverlayCount = (*Variables::GetRulesMapSection("OverlayTypes")).size();
+		int limit = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ? 0xFFFF : 0xFF;
+		if (overlay >= limit || (overlay < 0 && overlayData < 0))
 		{
 			std::ostringstream oss;
 			oss << "Invalid Overlay: " << overlay;
@@ -2207,9 +2210,9 @@ namespace LuaFunctions
 		if (overlay < 0)
 			overlay = ovr;
 		if (overlayData < 0)
-			overlayData = ovr == 255 ? 0 : ovrd;
+			overlayData = ovr == limit ? 0 : ovrd;
 		
-		pExt->SetOverlayAt(pos, overlay);
+		pExt->SetNewOverlayAt(pos, overlay);
 		pExt->SetOverlayDataAt(pos, overlayData);
 	}
 
@@ -2219,7 +2222,7 @@ namespace LuaFunctions
 			return;
 
 		int pos = CMapData::Instance->GetCoordIndex(x, y);
-		CMapData::Instance->SetOverlayAt(pos, 255);
+		CMapDataExt::GetExtension()->SetNewOverlayAt(pos, 0xFFFF);
 		CMapData::Instance->SetOverlayDataAt(pos, 0);
 		CLuaConsole::needRedraw = true;
 	}

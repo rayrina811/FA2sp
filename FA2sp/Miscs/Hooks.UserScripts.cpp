@@ -747,13 +747,13 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             if (!UserScriptExt::IsValSet(execute))
                 break;
         }
-        unsigned char overlay = atoi(UserScriptExt::GetParam(Params, 2));
+        WORD overlay = atoi(UserScriptExt::GetParam(Params, 2));
         int x = atoi(UserScriptExt::GetParam(Params, 0));
         int y = atoi(UserScriptExt::GetParam(Params, 1));
 
         if (CMapData::Instance->IsCoordInMap(x, y)) {
             int pos = CMapData::Instance->GetCoordIndex(x, y);
-            CMapData::Instance->SetOverlayAt(pos, overlay);
+            CMapDataExt::GetExtension()->SetNewOverlayAt(pos, overlay);
             UserScriptExt::NeedRedraw = true;
         }
         break;

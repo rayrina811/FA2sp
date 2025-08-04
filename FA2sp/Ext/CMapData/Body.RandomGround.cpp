@@ -320,11 +320,11 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int Botto
                 continue;
             }
             if (override) {
-                CMapData::Instance->SetOverlayAt(pos, 255);
+                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, 0xFFFF);
                 CMapData::Instance->SetOverlayDataAt(pos, 0);
             }
             if (onlyClear) {
-                CMapData::Instance->SetOverlayAt(pos, 255);
+                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, 0xFFFF);
                 CMapData::Instance->SetOverlayDataAt(pos, 0);
                 continue;
             }
@@ -333,7 +333,7 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int Botto
                 auto& overlayGroup = overlays[randomIdx].first;
                 auto& overlay = overlayGroup[STDHelpers::RandomSelectInt(0, overlayGroup.size())];
 
-                CMapData::Instance->SetOverlayAt(pos, overlay.Overlay);
+                CMapDataExt::GetExtension()->SetNewOverlayAt(pos, overlay.Overlay);
                 CMapData::Instance->SetOverlayDataAt(pos, STDHelpers::RandomSelectInt(overlay.AvailableOverlayData));
             }
         }

@@ -249,51 +249,18 @@ DEFINE_HOOK(4FF70A, CTriggerEventsDlg_OnSelchangeParameter_FixFor23, 5)
 // area, the bug happens
 DEFINE_HOOK(4A16C0, CMapData_SetOverlayAt, 6)
 {
-	GET(CMapData*, pThis, ECX);
+	GET(CMapDataExt*, pThis, ECX);
 	GET_STACK(int, dwPos, 0x4);
 	GET_STACK(unsigned char, overlay, 0x8);
 
-	int x = pThis->GetXFromCoordIndex(dwPos);
-	int y = pThis->GetYFromCoordIndex(dwPos);
-	int olyPos = y + x * 512;
-
-	if (olyPos > 262144 || dwPos > pThis->CellDataCount) return 0x4A17B6;
-
-	// here is the problem
-	// auto& ovrl = pThis->Overlay[olyPos];
-	// auto& ovrld = pThis->OverlayData[olyPos];
-
-	auto& ovrl = pThis->CellDatas[dwPos].Overlay;
-	auto& ovrld = pThis->CellDatas[dwPos].OverlayData;
-
-	pThis->DeleteTiberium(ovrl, ovrld);
-
-	pThis->Overlay[olyPos] = overlay;
-	pThis->OverlayData[olyPos] = 0;
-	pThis->CellDatas[dwPos].Overlay = overlay;
-	pThis->CellDatas[dwPos].OverlayData = 0;
-
-	// auto& ovrl2 = pThis->Overlay[olyPos];
-	// auto& ovrld2 = pThis->OverlayData[olyPos];
-	auto& ovrl2 = pThis->CellDatas[dwPos].Overlay;
-	auto& ovrld2 = pThis->CellDatas[dwPos].OverlayData;
-	pThis->AddTiberium(ovrl2, ovrld2);
-
-	int i, e;
-	for (i = -1; i < 2; i++)
-		for (e = -1; e < 2; e++)
-			if (pThis->IsCoordInMap(x + i, y + e))
-				pThis->SmoothTiberium(pThis->GetCoordIndex(x + i, y + e));
-
-
-	pThis->UpdateMapPreviewAt(x, y);
+	pThis->SetNewOverlayAt(dwPos, overlay == 0xff ? 0xffff : overlay);
 
 	return 0x4A17B6;
 }
 
 DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 {
-	GET(CMapData*, pThis, ECX);
+	GET(CMapDataExt*, pThis, ECX);
 	GET_STACK(int, dwPos, 0x4);
 	GET_STACK(unsigned char, overlaydata, 0x8);
 
@@ -306,7 +273,7 @@ DEFINE_HOOK(4A2A10, CMapData_SetOverlayDataAt, 5)
 	//auto& ovrl = pThis->Overlay[olyPos];
 	//auto& ovrld = pThis->OverlayData[olyPos];
 
-	auto& ovrl = pThis->CellDatas[dwPos].Overlay;
+	auto& ovrl = pThis->CellDataExts[dwPos].NewOverlay;
 	auto& ovrld = pThis->CellDatas[dwPos].OverlayData;
 
 	if (CMapDataExt::IsOre(ovrl))

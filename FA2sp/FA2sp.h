@@ -186,6 +186,7 @@ public:
     static bool UseNewToolBarCameo;
     static bool EnableVisualStyle;
     static bool DisableDirectoryCheck;
+    static bool ExtOverlays;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

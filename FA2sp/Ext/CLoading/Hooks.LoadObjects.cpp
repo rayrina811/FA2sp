@@ -18,6 +18,7 @@
 #include "../CFinalSunDlg/Body.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../CMapData/Body.h"
+#include "../../Miscs/Hooks.INI.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -102,7 +103,6 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
 
     if (ExtConfigs::ReloadGameFromMapFolder)
     {
-
         std::string buffer = std::string(mapPath);
         buffer = buffer.substr(0, buffer.find_last_of("\\") + 1);
         ppmfc::CString folder = buffer.c_str();
@@ -152,6 +152,8 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
             }
         }
     }
+
+    INIIncludes::SkipBracketFix = true;
     return 0;
 }
 
@@ -186,15 +188,6 @@ DEFINE_HOOK(491FD4, CLoading_Release_SetImageDataToNullptr, 5)
 
 DEFINE_HOOK(491D00, CLoading_Release_BackBufferZoom, 5)
 {
-    CLoadingExt::ImageDataMap.clear();
-    for (auto& data : CLoadingExt::SurfaceImageDataMap)
-    {
-        if (data.second->lpSurface)
-        {
-            data.second->lpSurface->Release();
-        }
-    }
-    CLoadingExt::SurfaceImageDataMap.clear();
     CLoadingExt::ClearItemTypes();
     if (CIsoViewExt::lpDDBackBufferZoomSurface != NULL) CIsoViewExt::lpDDBackBufferZoomSurface->Release();
     return 0;
@@ -276,30 +269,15 @@ DEFINE_HOOK(525AF8, CLoading_SetCurrentTMP_ReadGameFolder, 8)
     return 0;
 }
 
-static const char* LoadingOverlayID;
-DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic_RecordHistory, 7)
+
+DEFINE_HOOK(48EE60, CLoading_LoadOverlayGraphic, 7)
 {
-    GET_STACK(const char*, overlayID, 0x4);
-    LoadingOverlayID = overlayID;
-    CLoadingExt::LoadedOverlays.insert(overlayID);
+    GET(CLoadingExt*, pThis, ECX); 
+    GET_STACK(LPCSTR, lpOvrlName, 0x4);
+    GET_STACK(int, iOvrlNum, 0x8);
 
-    return 0;
-}
+    pThis->CLoadingExt::LoadOverlay(lpOvrlName, iOvrlNum);
 
-DEFINE_HOOK(4901B5, CLoading_LoadOverlayGraphic_LoadShadow, 8)
-{
-    ShapeHeader header;
-    CShpFile::GetSHPHeader(&header);
-    auto loadingExt = (CLoadingExt*)CLoading::Instance();
-    for (int i = 0; i < std::min(header.FrameCount / 2, 60); i++)
-    {
-        ppmfc::CString DictNameShadow;
-        unsigned char* pBufferShadow[1];
-        DictNameShadow.Format("%s\233%d\233OVERLAYSHADOW", LoadingOverlayID, i);
-        CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-        loadingExt->SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-    }
-
-    return 0;
+    return 0x4909FE;
 }
 

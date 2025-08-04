@@ -89,9 +89,11 @@ public:
 	static bool IsOverlayLoaded(ppmfc::CString pRegName);
 
 	void LoadObjects(ppmfc::CString pRegName);
+	void LoadOverlay(ppmfc::CString, int nIndex);
 	
 	// except buildings
 	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static ppmfc::CString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	// only buildings
 	enum
 	{

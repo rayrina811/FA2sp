@@ -515,6 +515,21 @@ DEFINE_HOOK(4F4BF4, CTipDlg_SkipTipOfTheDay, 7)
     return 0;
 }
 
+static WORD StatusBar_Overlay = 0xFFFF;
+DEFINE_HOOK(46A13B, CFinalSunDlg_StatusBar_Overlay, 6)
+{
+    GET(int, pos, EAX);
+    StatusBar_Overlay = CMapDataExt::GetExtension()->GetOverlayAt(pos);
+    R->EAX(StatusBar_Overlay);
+    return 0x46A14B;
+}
+
+DEFINE_HOOK(46A1AD, CFinalSunDlg_StatusBar_Overlay_2, 5)
+{
+    R->EAX(StatusBar_Overlay);
+    return 0x46A1B2;
+}
+
 DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
 {
     if (!CViewObjectsExt::NeedChangeTreeViewSelect)
@@ -534,18 +549,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
         if (hRoot != NULL)
             TreeView_SelectItem(hWnd, hRoot);
     }
-
-    if (!MultiSelection::CopiedCells.empty() 
-        || !MultiSelection::MultiPastedCoords.empty()
-        || CIsoViewExt::CopyEnd.X > -1 && CIsoViewExt::CopyStart.X > -1)
+    if (!CopyPaste::PastedCoords.empty())
     {
-        MultiSelection::MultiPastedCoords.clear();
-        CIsoViewExt::CopyEnd.X = -1;
-        CIsoViewExt::CopyStart.X = -1;
-        CIsoViewExt::CopyEnd.Y = -1;
-        CIsoViewExt::CopyStart.Y = -1;
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
+    CopyPaste::PastedCoords.clear();
     if (CIsoView::CurrentCommand->Command == 0x1B)
     {
         CIsoView::CurrentCommand->Command = 0x0;

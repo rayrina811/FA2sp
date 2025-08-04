@@ -9,7 +9,6 @@
 #include "../CNewScript/CNewScript.h"
 #include "../CNewTaskforce/CNewTaskforce.h"
 #include "../CObjectSearch/CObjectSearch.h"
-
 #include <CLoading.h>
 #include <CFinalSunDlg.h>
 #include <CObjectDatas.h>

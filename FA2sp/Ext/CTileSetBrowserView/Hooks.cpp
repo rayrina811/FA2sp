@@ -7,6 +7,32 @@
 #include "../CMapData/Body.h"
 #include "../CLoading/Body.h"
 
+ImageDataClass CurrentOverlay;
+ImageDataClass* CurrentOverlayPtr = nullptr;
+void* NULLPTR = nullptr;
+
+static bool setCurrentOverlay(ImageDataClassSafe* pData)
+{
+    if (pData && pData->pImageBuffer)
+    {
+        CurrentOverlay.pImageBuffer = pData->pImageBuffer.get();
+        CurrentOverlay.pPixelValidRanges = (ImageDataClass::ValidRangeData*)pData->pPixelValidRanges.get();
+        CurrentOverlay.pPalette = pData->pPalette;
+        CurrentOverlay.ValidX = pData->ValidX;
+        CurrentOverlay.ValidY = pData->ValidY;
+        CurrentOverlay.ValidWidth = pData->ValidWidth;
+        CurrentOverlay.ValidHeight = pData->ValidHeight;
+        CurrentOverlay.FullWidth = pData->FullWidth;
+        CurrentOverlay.FullHeight = pData->FullHeight;
+        CurrentOverlay.Flag = pData->Flag;
+        CurrentOverlay.BuildingFlag = pData->BuildingFlag;
+        CurrentOverlay.IsOverlay = pData->IsOverlay;
+        CurrentOverlayPtr = &CurrentOverlay;
+        return true;
+    }
+    return false;
+}
+
 DEFINE_HOOK(4F4650, CTileSetBrowserView_GetAddedHeight, 9)
 {
     GET_STACK(int, iTileIndex, 0x4);
@@ -113,6 +139,108 @@ DEFINE_HOOK(4F34B1, CTileSetBrowserView_SelectTileSet_ExtraWidth, A)
         pThis->CurrentImageWidth = iWidth;
 
     return 0x4F34BB;
+}
+
+DEFINE_HOOK(4F2243, CTileSetBrowserView_OnDraw_LoadOverlayImage, 6)
+{
+    GET(CTileSetBrowserView*, pThis, ESI);
+    GET(const int, i, ECX);
+
+    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, i);
+    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    if (setCurrentOverlay(pData))
+    {
+        R->EAX(&CurrentOverlay);
+    }
+    return 0;
+}
+
+int OnLButtonDown_OverlayData = 0;
+DEFINE_HOOK(4F4590, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_1, 5)
+{
+    GET(CTileSetBrowserView*, pThis, EBP);
+
+    OnLButtonDown_OverlayData = 0;
+    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
+    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    if (setCurrentOverlay(pData))
+    {
+        R->ECX(&CurrentOverlayPtr);
+    }
+    else
+    {
+        R->ECX(&NULLPTR);
+    }
+    return 0x4F4596;
+}
+
+DEFINE_HOOK(4F45F7, CTileSetBrowserView_OnLButtonDown_LoadOverlayImage_2, 5)
+{
+    GET(CTileSetBrowserView*, pThis, EBP);
+
+    OnLButtonDown_OverlayData++;
+    auto imageName = CLoadingExt::GetOverlayName(pThis->SelectedOverlayIndex, OnLButtonDown_OverlayData);
+    auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+    if (setCurrentOverlay(pData))
+    {
+        R->ECX(&CurrentOverlayPtr);
+    }
+    else
+    {
+        R->ECX(&NULLPTR);
+    }
+    if (R->ESI() < 60)
+        return 0x4F4596;
+    return 0x4F3E9A;
+}
+
+DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
+{
+    GET(CTileSetBrowserView*, pThis, ESI);
+    GET(int, Overlay, EBX);
+    const int max_ovrl_img = 60;
+
+    int need_pos = -1;
+    int need_width = 0;
+    int need_height = 0;
+    int iovrlcount = 0;
+
+    if (CMapData::Instance->MapWidthPlusHeight)
+    {
+        auto obj = Variables::GetRulesMapValueAt("OverlayTypes", Overlay);
+        if (!CLoadingExt::IsOverlayLoaded(obj))
+        {
+            CLoadingExt::GetExtension()->LoadOverlay(obj, Overlay);
+        }
+        for (int i = 0; i < max_ovrl_img; i++)
+        {
+            auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
+            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            if (pData && pData->pImageBuffer)
+            {
+                iovrlcount++;
+            }
+        }
+        for (int i = 0; i < max_ovrl_img; i++)
+        {
+            auto imageName = CLoadingExt::GetOverlayName(Overlay, i);
+            auto pData = CLoadingExt::GetImageDataFromServer(imageName);
+            if (pData && pData->pImageBuffer)
+            {
+                need_pos = i;
+                need_width = pData->FullWidth;
+                need_height = pData->FullHeight;
+                break;
+            }
+        }
+    }
+    
+    R->ECX(need_pos);
+    R->EDI(need_width);
+    R->EBP(need_height);
+    R->Stack(STACK_OFFS(0x90, 0x80), iovrlcount);
+
+    return 0x4F48D0;
 }
 
 DEFINE_HOOK(4F258B, CTileSetBrowserView_OnDraw_SetOverlayFrameToDisplay, 7)

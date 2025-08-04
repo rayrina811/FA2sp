@@ -26,7 +26,7 @@ DEFINE_HOOK(4C3E20, CMapData_CalculateMoneyCount, 7)
     int nCount = 0;
 
     for (int i = 0; i < pExt->CellDataCount; ++i)
-        nCount += pExt->GetOreValueAt(pExt->CellDatas[i]);
+        nCount += pExt->GetOreValue(pExt->CellDataExts[i].NewOverlay, pExt->CellDatas[i].OverlayData);
 
     R->EAX(nCount);
 
@@ -40,7 +40,7 @@ DEFINE_HOOK(4A1DB0, CMapData_AddTiberium, 6)
     GET_STACK(unsigned char, nOverlay, 0x4);
     GET_STACK(unsigned char, nOverlayData, 0x8);
     
-    pExt->MoneyCount += CMapDataExt::GetExtension()->GetOreValue(nOverlay, nOverlayData);
+    pExt->MoneyCount += pExt->GetOreValue(nOverlay, nOverlayData);
 
     return 0x4A238E;
 }
@@ -52,7 +52,7 @@ DEFINE_HOOK(4A17C0, CMapData_DeleteTiberium, 6)
     GET_STACK(unsigned char, nOverlay, 0x4);
     GET_STACK(unsigned char, nOverlayData, 0x8);
 
-    pExt->MoneyCount -= CMapDataExt::GetExtension()->GetOreValue(nOverlay, nOverlayData);
+    pExt->MoneyCount -= pExt->GetOreValue(nOverlay, nOverlayData);
 
     return 0x4A1D9E;
 }
@@ -76,22 +76,6 @@ DEFINE_HOOK(4BB04A, CMapData_AddTube_IgnoreUselessNegativeOne, 7)
 
     return 0x4BB083;
 }
-
-//DEFINE_HOOK(47AB50, CLoading_InitPics_InitOverlayTypeDatas, 7)
-//{
-//    CMapDataExt::OverlayTypeDatas.clear();
-//
-//    for (const auto& id : Variables::Rules.ParseIndicies("OverlayTypes", true))
-//    {
-//        auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
-//        item.Rock = Variables::Rules.GetBool(id, "IsARock");
-//        item.Wall = Variables::Rules.GetBool(id, "Wall");
-//		item.WallPaletteName = CINI::Art->GetString(id, "Palette", "unit");
-//    }
-//
-//    return 0;
-//}
-
 
 DEFINE_HOOK(49DFB4, CMapData_LoadMap_InvalidTheater, 6)
 {
@@ -884,6 +868,13 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	return 0;
 }
 
+DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
+{
+	std::memset(CMapDataExt::NewOverlay, 0xffff, 0x40000);
+	CMapDataExt::NewINIFormat = 4;
+	return 0;
+}
+
 DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
 {
 	GET_BASE(char*, lpBuffer, -0x38);
@@ -904,8 +895,6 @@ DEFINE_HOOK(4C5E1E, CMapData_ResizeMap_FixLocalSize, 7)
 	REF_STACK(ppmfc::CString, lpBuffer, STACK_OFFS(0x1C4, 0x178));
 	GET_STACK(int, dwWidth, STACK_OFFS(0x1C4, -0xC));
 	GET(int, dwHeight, EDI);
-
-	Logger::Raw(lpBuffer + "\n");
 
 	lpBuffer.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
 
@@ -935,8 +924,44 @@ DEFINE_HOOK(4C536C, CMapData_ResizeMap_GetBuildingData, 7)
 
 DEFINE_HOOK(4C6456, CMapData_ResizeMap_ResizeCellDataExts, 8)
 {
-	// resize for addbuilding
 	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+	return 0;
+}
+
+DEFINE_HOOK(4C76C6, CMapData_ResizeMap_Overlay, 5)
+{
+	GET_STACK(int, x_move, STACK_OFFS(0x1C4, 0x19C));
+	GET_STACK(int, y_move, STACK_OFFS(0x1C4, 0x194));
+
+	auto pThis = CMapDataExt::GetExtension();
+	auto original = new WORD[0x40000];
+	std::copy(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), original);
+	std::fill(std::begin(pThis->NewOverlay), std::end(pThis->NewOverlay), 0xFFFF);
+
+	for (int y = 0; y < 512; ++y)
+	{
+		for (int x = 0; x < 512; ++x)
+		{
+			int new_x = x + x_move;
+			int new_y = y + y_move;
+
+			if (new_x >= 0 && new_x < 512 && new_y >= 0 && new_y < 512)
+			{
+				pThis->NewOverlay[new_y * 512 + new_x] = original[y * 512 + x];
+			}
+		}
+	}
+	delete[] original;
+
+	int u, v;
+	for (u = 0; u < pThis->MapWidthPlusHeight; u++)
+	{
+		for (v = 0; v < pThis->MapWidthPlusHeight; v++)
+		{
+			pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay = pThis->NewOverlay[v + u * 512];
+		}
+	}
+
 	return 0;
 }
 
@@ -1210,7 +1235,7 @@ DEFINE_HOOK(4A2872, CMapData_UpdateMapPreviewAt_OverlayColor, 7)
 		};
 	if (Overlay != 0xFF) 
 	{
-		const auto& color = CMapDataExt::OverlayTypeDatas[Overlay].RadarColor;
+		const auto color = CMapDataExt::GetOverlayTypeData(Overlay).RadarColor;
 		setColor(color.R, color.G, color.B);
 	}
 
@@ -1385,4 +1410,62 @@ DEFINE_HOOK(4BAEE0, CMapData_UpdateFieldTubeData, 7)
 		}
 	}
 	return 0;
+}
+
+DEFINE_HOOK(4A7830, CMapData_UpdateFieldOverlayData, 5)
+{
+	GET(CMapDataExt*, pThis, ECX);
+	GET_STACK(BOOL, bSave, 0x4);
+
+	if (bSave == FALSE)
+	{
+		int u, v;
+		for (u = 0; u < pThis->MapWidthPlusHeight; u++)
+		{
+			for (v = 0; v < pThis->MapWidthPlusHeight; v++)
+			{
+				pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay = pThis->NewOverlay[v + u * 512];
+				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].Overlay = std::min((WORD)0xff, pThis->NewOverlay[v + u * 512]);
+				pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData = pThis->OverlayData[v + u * 512];
+
+				pThis->UpdateMapPreviewAt(u, v);
+			}
+		}
+	}
+	else
+	{
+		int u, v;
+		for (u = 0; u < pThis->MapWidthPlusHeight; u++)
+		{
+			for (v = 0; v < pThis->MapWidthPlusHeight; v++)
+			{
+				pThis->NewOverlay[v + u * 512] = pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay;
+				pThis->Overlay[v + u * 512] = std::min((WORD)0xff, pThis->CellDataExts[u + v * pThis->MapWidthPlusHeight].NewOverlay);
+				pThis->OverlayData[v + u * 512] = pThis->CellDatas[u + v * pThis->MapWidthPlusHeight].OverlayData;
+			}
+		}
+	}
+
+	pThis->MoneyCount = 0;
+	for (int i = 0; i < pThis->CellDataCount; ++i)
+		pThis->MoneyCount += pThis->GetOreValue(pThis->CellDataExts[i].NewOverlay, pThis->CellDatas[i].OverlayData);
+
+	return 0;
+}
+
+DEFINE_HOOK(4A29E0, CMapData_GetOverlayAt, A)
+{
+	GET(CMapDataExt*, pThis, ECX);
+	GET_STACK(int, dwPos, 0x4);
+	if (dwPos >= pThis->CellDataCount)
+		R->EAX(0);
+	else
+		R->EAX(pThis->CellDataExts[dwPos].NewOverlay);
+
+	return 0x4A2A00;
+}
+
+DEFINE_HOOK(469557, CMapData_GetOverlayDirection_skip, 5)
+{
+	return 0x46955C;
 }

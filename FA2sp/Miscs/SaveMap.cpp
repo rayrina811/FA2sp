@@ -291,7 +291,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
                             auto overlayD = cell.OverlayData;
                             if (overlay != 255)
                             {
-                                auto& radarColor = CMapDataExt::OverlayTypeDatas[overlay].RadarColor;
+                                auto radarColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
                                 if (overlay >= 27 && overlay <= 38) //gems
                                     color = RGB(radarColor.R, radarColor.G, radarColor.B);
                                 else if (overlay >= 102 && overlay <= 166) //ores

@@ -11,6 +11,25 @@ std::unordered_set<std::string> CMapValidatorExt::StructureOverlappingIgnores;
 std::vector<ppmfc::CString> CMapValidatorExt::AttachedTriggers;
 std::vector<ppmfc::CString> CMapValidatorExt::LoopedTriggers;
 
+void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
+{
+	bool needNewIniFormat = CINI::CurrentDocument->GetInteger("Basic", "NewINIFormat", 4) > 4;
+	if (!needNewIniFormat)
+	{
+		for (const auto& ovr : CMapDataExt::NewOverlay)
+		{
+			if (ovr != 0xffff && ovr > 0xff)
+			{
+				needNewIniFormat = true;
+			}
+		}
+	}
+	if (needNewIniFormat)
+	{
+		this->InsertString(Translations::TranslateOrDefault("MV_OverlayLimit", "Overlay index exceeds 255, map will be saved with NewINIFormat = 5."), true);
+	}
+}
+
 void CMapValidatorExt::ValidateStructureOverlapping(BOOL& result)
 {
 	std::vector<std::vector<std::string>> Occupied;

@@ -9,7 +9,7 @@
 
 struct TerrainGeneratorOverlay
 {
-    unsigned char Overlay;
+    WORD Overlay;
     std::vector<int> AvailableOverlayData;
 };
 
@@ -167,8 +167,10 @@ struct TileAnimation
 
 struct CellDataExt
 {
-    short X;
-    short Y;
+    WORD X;
+    WORD Y;
+
+    WORD NewOverlay = 0xFFFF;
 
     // for preview
     bool AroundPlayerLocation = false;
@@ -176,14 +178,6 @@ struct CellDataExt
 
     // for locate cell
     bool drawCell = false;
-
-    // for copy paste
-    CBuildingData BuildingData;
-    CAircraftData AircraftData;
-    CInfantryData InfantryData[3];
-    CUnitData UnitData;
-    ppmfc::CString TerrainData;
-    ppmfc::CString SmudgeData;
 
     // for smooth water
     bool IsWater = false;
@@ -218,6 +212,24 @@ struct CellDataExt
     bool HasAnnotation = false;
 };
 
+struct UndoRedoDataExt
+{
+    int left;
+    int top;
+    int bottom;
+    int right;
+
+    std::unique_ptr<BOOL[]> bRedrawTerrain;
+    std::unique_ptr<WORD[]> overlay;
+    std::unique_ptr<BYTE[]> overlaydata;
+    std::unique_ptr<WORD[]> wGround;
+    std::unique_ptr<WORD[]> bMapData;
+    std::unique_ptr<BYTE[]> bSubTile;
+    std::unique_ptr<BYTE[]> bHeight;
+    std::unique_ptr<BYTE[]> bMapData2;
+    std::unique_ptr<BYTE[]> bRNDData;
+};
+
 class CMapDataExt : public CMapData
 {
 public:
@@ -239,10 +251,10 @@ public:
     bool ResizeMapExt(MapRect* const pRect);
     
     enum OreType { Riparius = 0, Cruentus, Vinifera, Aboreus };
-    int GetOreValue(unsigned char nOverlay, unsigned char nOverlayData);
+    int GetOreValue(unsigned short nOverlay, unsigned char nOverlayData);
     int GetOreValueAt(CellData& cell);
     void InitOreValue();
-    static bool IsOre(unsigned char nOverlay);
+    static bool IsOre(unsigned short nOverlay);
 
     bool IsTileIntact(int x, int y, int startX = -1, int startY = -1, int right = -1, int bottom = -1);
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
@@ -310,6 +322,16 @@ public:
                 Y < CMapData::Instance->MapWidthPlusHeight;
         };
 
+    std::string convertToExtendedOverlayPack(const std::string& input);
+    std::string convertFromExtendedOverlayPack(const std::string& input);
+
+    void SetNewOverlayAt(int x, int y, WORD ovr);
+    void SetNewOverlayAt(int pos, WORD ovr);
+    WORD GetOverlayAt(int x, int y);
+    WORD GetOverlayAt(int pos);
+    static OverlayTypeData GetOverlayTypeData(WORD index);
+    static void AssignCellData(CellData& dst, const CellData& src);
+
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;
     static std::vector<int> deletedKeys;
@@ -358,4 +380,8 @@ public:
     static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
+    static int NewINIFormat;
+    static WORD NewOverlay[0x40000];
+    static std::vector<UndoRedoDataExt> UndoRedoDatas;
+    static int UndoRedoDataIndex;
 };

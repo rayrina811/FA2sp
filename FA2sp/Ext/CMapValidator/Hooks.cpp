@@ -10,6 +10,7 @@ DEFINE_HOOK(4D19A0, CMapValidator_DoValidator_Extra, 5)
 	GET(CMapValidatorExt*, pThis, EDI);
 	REF_STACK(BOOL, result, STACK_OFFS(0x200, 0x168));
 	
+	pThis->ValidateOverlayLimit(result);
 	pThis->ValidateStructureOverlapping(result);
 	pThis->ValidateMissingParams(result);
 	pThis->ValidateRepeatingTaskforce(result);
@@ -36,5 +37,19 @@ DEFINE_HOOK(426A60, CMapValidator_DTOR, 7)
 {
 	CMapValidatorExt::StructureOverlappingIgnores.clear();
 
+	return 0;
+}
+
+DEFINE_HOOK(4C8200, CMapValidator_IsYRMap_Overlay, 7)
+{
+	int yroverlay = CINI::FAData->GetInteger("YROverlay", "Begin", 243);
+	for (const auto& cellExt : CMapDataExt::CellDataExts)
+	{
+		if (cellExt.NewOverlay >= yroverlay && cellExt.NewOverlay != 0xFFFF)
+		{
+			R->EAX(1);
+			return 0x4C9C42;
+		}
+	}
 	return 0;
 }

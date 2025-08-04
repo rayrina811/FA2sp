@@ -256,6 +256,7 @@
     <ClCompile Include="FA2sp\Ext\CMapData\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.RandomGround.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Body.ResizeMap.cpp" />
+    <ClCompile Include="FA2sp\Ext\CMapData\Hooks.UndoRedo.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.AutoPropertyBrush.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.BuildingTypeDatas.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.cpp" />
@@ -291,6 +292,7 @@
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
     <ClCompile Include="FA2sp\Hooks.Debug.cpp" />
     <ClCompile Include="FA2sp\MFCWindow\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp" />
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter..cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DialogStyle.cpp" />
@@ -385,6 +387,7 @@
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\Body.h" />
     <ClInclude Include="FA2sp\FA2sp.h" />
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
+    <ClInclude Include="FA2sp\Miscs\CopyPaste.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
     <ClInclude Include="FA2sp\Helpers\Helper.h" />
     <ClInclude Include="FA2sp\Helpers\InstructionSet.h" />

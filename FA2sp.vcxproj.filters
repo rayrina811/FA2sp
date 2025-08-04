@@ -264,6 +264,9 @@
     <ClInclude Include="FA2sp\ExtraWindow\COptions\COptions.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FA2sp\Miscs\CopyPaste.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FA2sp\FA2sp.cpp">
@@ -666,6 +669,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\ExtraWindow\COptions\COptions.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Ext\CMapData\Hooks.UndoRedo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

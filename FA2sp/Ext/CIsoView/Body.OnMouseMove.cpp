@@ -89,19 +89,15 @@ void CIsoViewExt::DrawCopyBound(HDC hDC)
         y2 = tmp;
     }
 
+    std::vector<MapCoord> coords;
     for (int x = x1; x <= x2; ++x)
     {
         for (int y = y1; y <= y2; ++y)
         {
-            int X = x;
-            int Y = y;
-            CIsoViewExt::MapCoord2ScreenCoord(X, Y);
-
-            pIsoView->DrawLockedCellOutlinePaint(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
-                1, 1, ExtConfigs::CopySelectionBound_Color, false, hDC, pIsoView->m_hWnd);
-
+            coords.push_back({ x,y });
         }
     }
+    CIsoViewExt::DrawMultiMapCoordBorders(hDC, coords, ExtConfigs::CopySelectionBound_Color);
 }
 
 void CIsoViewExt::DrawMouseMove(HDC hDC)
@@ -1666,40 +1662,34 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             ppmfc::CString line1;
             ppmfc::CString line2;
 
-            auto overlay = cell->Overlay;
+            int pos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
+            auto& cellExt = CMapDataExt::CellDataExts[pos];
+
+            auto overlay = cellExt.NewOverlay;
             auto overlayD = cell->OverlayData;
 
             ppmfc::CString name = "MISSING";
             ppmfc::CString ttype = "";
 
-            int index = 0;
-            if (auto pSection = CINI::Rules().GetSection("OverlayTypes"))
+            auto value = Variables::GetRulesMapValueAt("OverlayTypes", overlay);
+            if (value != "")
             {
-                for (auto& ol : pSection->GetEntities())
+                auto thisname = mmh.GetString(value, "Name");
+                name = Translations::TranslateOrDefault(thisname, thisname);
+
+                //if (CINI::Rules().GetBool(value, "NoUseTileLandType"))
+                ttype = mmh.GetString(value, "Land", "");
+                if (mmh.GetBool(value, "Tiberium"))
+                    ttype = "Tiberium";
+                if (mmh.GetBool(value, "Wall"))
                 {
-                    if (index == overlay)
-                    {
-                        auto thisname = mmh.GetString(ol.second, "Name");
-                        name = Translations::TranslateOrDefault(thisname, thisname);
-
-                        //if (CINI::Rules().GetBool(ol.second, "NoUseTileLandType"))
-                        ttype = mmh.GetString(ol.second, "Land", "");
-                        if (mmh.GetBool(ol.second, "Tiberium"))
-                            ttype = "Tiberium";
-                        if (mmh.GetBool(ol.second, "Wall"))
-                        {
-                            ttype = "Wall";
-                            if (mmh.GetBool(ol.second, "Crushable"))
-                                ttype = "Crushable Wall";
-                        }
-
-                        break;
-                    }
-                    index++;
+                    ttype = "Wall";
+                    if (mmh.GetBool(value, "Crushable"))
+                        ttype = "Crushable Wall";
                 }
             }
 
-            if (overlay != 255)
+            if (overlay != 0xffff)
             {
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Overlay.1",
                     "Overlay: %s (%d), Overlay Data: %d")

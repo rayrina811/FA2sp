@@ -206,7 +206,7 @@ public:
     static int CurrentConnectedTileType;
     static int RedrawCalledCount;
     static bool IsOpeningAnnotationDlg;
-
+    static int InsertingOverlayData;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
@@ -221,7 +221,6 @@ private:
     static CImageList m_ImageList;
     static int InsertingTileIndex;
     static int InsertingOverlay;
-    static int InsertingOverlayData;
     static bool InsertingSpecialBitmap;
     static ppmfc::CString InsertingObjectID;
     static CBitmap SpecialBitmap;

@@ -84,8 +84,12 @@ std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
+int CMapDataExt::NewINIFormat = 4;
+WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
+std::vector<UndoRedoDataExt> CMapDataExt::UndoRedoDatas;
+int CMapDataExt::UndoRedoDataIndex;
 
-int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
+int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
     if (nOverlay >= 0x66 && nOverlay <= 0x79)
         return nOverlayData * OreValue[OreType::Riparius];
@@ -99,7 +103,7 @@ int CMapDataExt::GetOreValue(unsigned char nOverlay, unsigned char nOverlayData)
         return 0;
 }
 
-bool CMapDataExt::IsOre(unsigned char nOverlay)
+bool CMapDataExt::IsOre(unsigned short nOverlay)
 {
 	if (nOverlay >= RIPARIUS_BEGIN && nOverlay <= RIPARIUS_END)
 		return true;
@@ -465,10 +469,10 @@ LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 
 void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
 {
-	auto& Map = CMapData::Instance();
-	if (!Map.IsCoordInMap(dwPos)) return;
+	auto Map = CMapDataExt::GetExtension();
+	if (!Map->IsCoordInMap(dwPos)) return;
 	if (damageStage == -1)
-		damageStage = Map.GetOverlayDataAt(dwPos) / 16;
+		damageStage = Map->GetOverlayDataAt(dwPos) / 16;
 	else if (damageStage == -2)
 	{
 		MultimapHelper mmh;
@@ -483,49 +487,49 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 	}
 
 	int overlayData = 16 * damageStage;
-	int X = Map.GetXFromCoordIndex(dwPos);
-	int Y = Map.GetYFromCoordIndex(dwPos);
+	int X = Map->GetXFromCoordIndex(dwPos);
+	int Y = Map->GetYFromCoordIndex(dwPos);
 	if (firstRun)
-		Map.SetOverlayAt(dwPos, overlay);
+		Map->SetNewOverlayAt(dwPos, overlay);
 	else
-		if (Map.GetOverlayAt(dwPos) != overlay)
+		if (Map->GetOverlayAt(dwPos) != overlay)
 			return;
 	//                              8      2    4      1
 	//                              NW     SE   SW     NE
 	const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
 
-	if (Map.IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+	if (Map->IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
 	{
-		int thisPos = Map.GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
-		if (Map.GetOverlayAt(thisPos) == overlay)
+		int thisPos = Map->GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
+		if (Map->GetOverlayAt(thisPos) == overlay)
 			overlayData += 8;
 	}
-	if (Map.IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
+	if (Map->IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
 	{
-		int thisPos = Map.GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
-		if (Map.GetOverlayAt(thisPos) == overlay)
+		int thisPos = Map->GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
+		if (Map->GetOverlayAt(thisPos) == overlay)
 			overlayData += 2;
 	}
-	if (Map.IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
+	if (Map->IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
 	{
-		int thisPos = Map.GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
-		if (Map.GetOverlayAt(thisPos) == overlay)
+		int thisPos = Map->GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
+		if (Map->GetOverlayAt(thisPos) == overlay)
 			overlayData += 4;
 	}
-	if (Map.IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
+	if (Map->IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
 	{
-		int thisPos = Map.GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
-		if (Map.GetOverlayAt(thisPos) == overlay)
+		int thisPos = Map->GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
+		if (Map->GetOverlayAt(thisPos) == overlay)
 			overlayData += 1;
 	}
-	Map.SetOverlayDataAt(dwPos, overlayData);
+	Map->SetOverlayDataAt(dwPos, overlayData);
 
 	if (firstRun)
 	{
-		PlaceWallAt(Map.GetCoordIndex(X - 1, Y), overlay, -1, false);
-		PlaceWallAt(Map.GetCoordIndex(X + 1, Y), overlay, -1, false);
-		PlaceWallAt(Map.GetCoordIndex(X, Y - 1), overlay, -1, false);
-		PlaceWallAt(Map.GetCoordIndex(X, Y + 1), overlay, -1, false);
+		PlaceWallAt(Map->GetCoordIndex(X - 1, Y), overlay, -1, false);
+		PlaceWallAt(Map->GetCoordIndex(X + 1, Y), overlay, -1, false);
+		PlaceWallAt(Map->GetCoordIndex(X, Y - 1), overlay, -1, false);
+		PlaceWallAt(Map->GetCoordIndex(X, Y + 1), overlay, -1, false);
 	}
 
 }
@@ -1357,6 +1361,116 @@ void CMapDataExt::UpdateAnnotation()
 	}
 }
 
+void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr)
+{
+	if (ovr >= 0xFF && !ExtConfigs::ExtOverlays && NewINIFormat < 5)
+		ovr = 0xFFFF;
+
+	auto pExt = GetExtension();
+	int dwPos = pExt->GetCoordIndex(x, y);
+	int olyPos = y + x * 512;
+
+	if (olyPos > 262144 || dwPos > pExt->CellDataCount) return;
+
+	auto& ovrl = pExt->CellDataExts[dwPos].NewOverlay;
+	auto& ovrld = pExt->CellDatas[dwPos].OverlayData;
+
+	pExt->DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+
+	pExt->NewOverlay[olyPos] = ovr;
+	pExt->Overlay[olyPos] = std::min(ovr, (WORD)0xff);
+	pExt->CellDataExts[dwPos].NewOverlay = ovr;
+	pExt->CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
+
+	pExt->OverlayData[olyPos] = 0;
+	pExt->CellDatas[dwPos].OverlayData = 0;
+
+	auto& ovrl2 = pExt->CellDataExts[dwPos].NewOverlay;
+	auto& ovrld2 = pExt->CellDatas[dwPos].OverlayData;
+	pExt->AddTiberium(std::min(ovrl2, (word)0xFF), ovrld2);
+
+	int i, e;
+	for (i = -1; i < 2; i++)
+		for (e = -1; e < 2; e++)
+			if (pExt->IsCoordInMap(x + i, y + e))
+				pExt->SmoothTiberium(pExt->GetCoordIndex(x + i, y + e));
+
+
+	pExt->UpdateMapPreviewAt(x, y);
+}
+
+void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr)
+{
+	auto pExt = GetExtension();
+	int x = pExt->GetXFromCoordIndex(pos);
+	int y = pExt->GetYFromCoordIndex(pos);
+	SetNewOverlayAt(x, y, ovr);
+}
+
+WORD CMapDataExt::GetOverlayAt(int x, int y)
+{
+	return GetOverlayAt(GetCoordIndex(x, y));
+}
+
+WORD CMapDataExt::GetOverlayAt(int pos)
+{
+	if (pos >= CellDataCount)
+		return 0xffff;
+	return CellDataExts[pos].NewOverlay;
+}
+
+OverlayTypeData CMapDataExt::GetOverlayTypeData(WORD index)
+{
+	if (index < CMapDataExt::OverlayTypeDatas.size())
+	{
+		return CMapDataExt::OverlayTypeDatas[index];
+	}
+	OverlayTypeData ret;
+	ret.Rock = false;
+	ret.Wall = false;
+	ret.WallPaletteName = "";
+	ret.TerrainRock = false;
+	ret.RadarColor.R = 0;
+	ret.RadarColor.G = 0;
+	ret.RadarColor.B = 0;
+
+	return ret;
+}
+
+void CMapDataExt::AssignCellData(CellData& dst, const CellData& src) 
+{
+	dst.Unit = src.Unit;
+	dst.Infantry[0] = src.Infantry[0];
+	dst.Infantry[1] = src.Infantry[1];
+	dst.Infantry[2] = src.Infantry[2];
+	dst.Aircraft = src.Aircraft;
+	dst.Structure = src.Structure;
+	dst.TypeListIndex = src.TypeListIndex;
+	dst.Terrain = src.Terrain;
+	dst.TerrainType = src.TerrainType;
+	dst.Smudge = src.Smudge;
+	dst.SmudgeType = src.SmudgeType;
+	dst.Waypoint = src.Waypoint;
+
+	dst.BaseNode.BuildingID = src.BaseNode.BuildingID;
+	dst.BaseNode.BasenodeID = src.BaseNode.BasenodeID;
+	dst.BaseNode.House = src.BaseNode.House;
+
+	dst.Overlay = src.Overlay;
+	dst.OverlayData = src.OverlayData;
+	dst.TileIndex = src.TileIndex;
+	dst.TileIndexHiPart = src.TileIndexHiPart;
+	dst.TileSubIndex = src.TileSubIndex;
+	dst.Height = src.Height;
+	dst.IceGrowth = src.IceGrowth;
+	dst.CellTag = src.CellTag;
+	dst.Tube = src.Tube;
+	dst.TubeDataIndex = src.TubeDataIndex;
+	dst.StatusFlag = src.StatusFlag;
+
+	dst.Flag = src.Flag;
+}
+
 void CMapDataExt::UpdateIncludeIniInMap()
 {
 	if (ExtConfigs::AllowIncludes)
@@ -1414,6 +1528,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	{
 		CMapDataExt::CellDataExts.clear();
 		CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
+		UndoRedoDatas.clear();
+		UndoRedoDataIndex = -1;
 	}
 
 	Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
@@ -1483,18 +1599,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			item.RadarColor.B = atoi(colors[2]);
 			ovrIdx++;
 		}
-	}
-
-	while (CMapDataExt::OverlayTypeDatas.size() < 256)
-	{
-		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
-		item.Rock = false;
-		item.Wall = false;
-		item.WallPaletteName = "";
-		item.TerrainRock = false;
-		item.RadarColor.R = 0;
-		item.RadarColor.G = 0;
-		item.RadarColor.B = 0;
 	}
 
 	if (CNewTeamTypes::GetHandle())
@@ -1831,7 +1935,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		// just update coords with overlays to show correct color
 		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 			for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
-				if (CMapData::Instance->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFF) {
+				if (CMapDataExt::GetExtension()->GetOverlayAt(CMapData::Instance->GetCoordIndex(i, j)) != 0xFFFF) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);
 				}
 			}
@@ -1841,6 +1945,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoViewExt::TubeNodes.clear();
 
 	TileAnimations.clear();
+
 	for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
 	{
 		if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())

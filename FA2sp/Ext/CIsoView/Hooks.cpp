@@ -859,3 +859,175 @@ DEFINE_HOOK(45EC1A, CIsoView_OnCommand_HandleProperty, A)
 
 	return 0x45ED9E;
 }
+
+DEFINE_HOOK(46CB77, CIsoView_DrawMouseAttachedStuff_Overlay_1, 6)
+{
+	GET(int, pos, ESI);
+	CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CIsoView::CurrentCommand->Overlay);
+	return 0x46CB89;
+}
+
+DEFINE_HOOK(46CC03, CIsoView_DrawMouseAttachedStuff_Overlay_2, 5)
+{
+	GET(int, pos, ESI);
+	GET(int, i, EBP);
+	GET(int, e, EDI);
+	CMapDataExt::GetExtension()->SetNewOverlayAt(pos + i + e * CMapData::Instance->MapWidthPlusHeight, CIsoView::CurrentCommand->Overlay);
+	return 0x46CC21;
+}
+
+DEFINE_HOOK(46CC5C, CIsoView_DrawMouseAttachedStuff_Overlay_3, 5)
+{
+	GET(int, pos, ESI);
+	CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CIsoView::CurrentCommand->Overlay);
+	return 0x46CC86;
+}
+
+DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
+{
+	auto Map = CMapDataExt::GetExtension();
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+	const int& x = point.X;
+	const int& y = point.Y;
+
+	std::unique_ptr<CellData[]> oldData = std::make_unique<CellData[]>(32 * 32);
+	WORD oldNewOverlay[32][32];
+	int i, e;
+
+	for (i = 0; i < 32; i++)
+	{
+		for (e = 0; e < 32; e++)
+		{
+			DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
+			if (dwPos >= Map->CellDataCount)
+				continue;
+
+			auto& cur_fieldExt = Map->CellDataExts[dwPos];
+			oldData[i * 32 + e] = *Map->GetCellAt(i + x + (e + y) * Map->MapWidthPlusHeight);
+			oldNewOverlay[i][e] = cur_fieldExt.NewOverlay;
+		}
+	}
+	int money = Map->MoneyCount;
+
+	pIsoView->DrawMouseAttachedStuff(x, y);
+	::RedrawWindow(pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+
+	for (i = 0; i < 32; i++)
+	{
+		for (e = 0; e < 32; e++)
+		{
+			DWORD dwPos = i + x + (e + y) * Map->MapWidthPlusHeight;
+			if (dwPos >= Map->CellDataCount)
+				continue;
+
+			auto cur_field = Map->GetCellAt(dwPos);
+			auto& cur_fieldExt = Map->CellDataExts[dwPos];
+
+			if (cur_field->Aircraft != oldData[i * 32 + e].Aircraft)
+				Map->DeleteAircraftData(cur_field->Aircraft);
+
+			int z;
+			for (z = 0; z < 3; z++)
+				if (cur_field->Infantry[z] != oldData[i * 32 + e].Infantry[z])
+				{
+					Map->DeleteInfantryData(cur_field->Infantry[z]);
+				}
+
+			if (cur_field->Structure != oldData[i * 32 + e].Structure)
+				Map->DeleteBuildingData(cur_field->Structure);
+
+			if (cur_field->Terrain != oldData[i * 32 + e].Terrain)
+				Map->DeleteTerrainData(cur_field->Terrain);
+
+			if (cur_field->Smudge != oldData[i * 32 + e].Smudge)
+				Map->DeleteSmudgeData(cur_field->Smudge);
+
+			if (cur_field->Unit != oldData[i * 32 + e].Unit)
+				Map->DeleteUnitData(cur_field->Unit);
+
+			if (cur_fieldExt.NewOverlay != oldNewOverlay[i][e])
+				Map->SetNewOverlayAt(dwPos, oldNewOverlay[i][e]);
+
+			if (cur_field->OverlayData != oldData[i * 32 + e].OverlayData)
+				Map->SetOverlayDataAt(dwPos, oldData[i * 32 + e].OverlayData);
+
+			Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
+			Map->AssignCellData(Map->CellDatas[dwPos], oldData[i * 32 + e]);
+			cur_fieldExt.NewOverlay = oldNewOverlay[i][e];
+			Map->AddTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
+		}
+	}
+	Map->MoneyCount = money;
+
+	return 0x45AEF6;
+}
+
+DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
+{
+	GET_STACK(int, dwPos, 0x4);
+
+	static int _adj[9] = { 0,1,3,4,6,7,8,10,11 };
+	auto Map = CMapDataExt::GetExtension();
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+
+	auto& ovrl = Map->CellDataExts[dwPos].NewOverlay;
+	auto& ovrld = Map->CellDatas[dwPos].OverlayData;
+
+	if (!(ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END) &&
+		!(ovrl >= CRUENTUS_BEGIN && ovrl <= CRUENTUS_END) &&
+		!(ovrl >= VINIFERA_BEGIN && ovrl <= VINIFERA_END) &&
+		!(ovrl >= ABOREUS_BEGIN && ovrl <= ABOREUS_END))
+		return 0x4C45E9;
+
+	Map->DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+
+	int i, e;
+	int x, y;
+	x = dwPos % Map->MapWidthPlusHeight;
+	y = dwPos / Map->MapWidthPlusHeight;
+	int count = 0;
+
+	for (i = -1; i < 2; i++)
+	{
+		for (e = -1; e < 2; e++)
+		{
+			int xx = x + i;
+			int yy = y + e;
+
+			if (xx < 0 || xx >= Map->MapWidthPlusHeight || yy < 0 || yy >= Map->MapWidthPlusHeight) continue;
+
+			int pos = Map->GetCoordIndex(xx, yy);
+			auto& ovrl = Map->CellDataExts[pos].NewOverlay;
+
+			if (ovrl >= RIPARIUS_BEGIN && ovrl <= RIPARIUS_END)
+			{
+				count++;
+			}
+			if (ovrl >= CRUENTUS_BEGIN && ovrl <= CRUENTUS_END)
+			{
+				count++;
+			}
+			if (ovrl >= VINIFERA_BEGIN && ovrl <= VINIFERA_END)
+			{
+				count++;
+			}
+			if (ovrl >= ABOREUS_BEGIN && ovrl <= ABOREUS_END)
+			{
+				count++;
+			}
+		}
+	}
+	if (count > 0)
+	{
+		Map->CellDatas[dwPos].OverlayData = _adj[count - 1];
+		Map->OverlayData[y + x * 512] = _adj[count - 1];
+
+		Map->AddTiberium(std::min(ovrl, (word)0xFF), _adj[count - 1]);
+	}
+	else
+	{
+		Map->AddTiberium(std::min(ovrl, (word)0xFF), ovrld);
+	}
+	return 0x4C45E9;
+}

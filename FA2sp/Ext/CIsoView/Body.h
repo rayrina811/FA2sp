@@ -107,6 +107,7 @@ public:
     static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
+    static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static CRect GetVisibleIsoViewRect();
@@ -165,9 +166,6 @@ public:
     static std::unordered_set<short> VisibleUnits;
     static std::unordered_set<short> VisibleAircrafts;
     
-    static MapCoord CopyStart;
-    static MapCoord CopyEnd;
-
     static bool IsPressingALT;
     static bool IsPressingTube;
     static std::vector<MapCoord> TubeNodes;

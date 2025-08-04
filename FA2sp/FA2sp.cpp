@@ -169,6 +169,7 @@ bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
+bool ExtConfigs::ExtOverlays;
 int ExtConfigs::DisplayTextSize;
 bool ExtConfigs::DisplayObjectsOutside;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
@@ -306,6 +307,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
+	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
 	ExtConfigs::TreeViewCameo_Size = CINI::FAData->GetInteger("ExtConfigs", "TreeViewCameo.Size", 32);
@@ -878,6 +880,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "ExtVariables",
 		.Value = &ExtConfigs::ExtVariables,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtOverlays", "Enable infinite overlay support (Phobos)"),
+		.IniKey = "ExtOverlays",
+		.Value = &ExtConfigs::ExtOverlays,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
