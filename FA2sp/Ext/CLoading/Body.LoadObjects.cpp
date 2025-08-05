@@ -396,28 +396,46 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-		int nMix = SearchFile(file);
-		if (!CLoading::HasFile(file, nMix))
-		{
-			SetGenericTheaterLetter(file);
-			nMix = SearchFile(file);
+			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+			name = CINI::Art->GetString(name, "Image", name);
+			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+
+			ppmfc::CString file = name + ".SHP";
+			if (applyNewTheater)
+				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				if (!ExtConfigs::UseStrictNewTheater)
+				SetGenericTheaterLetter(file);
+				nMix = SearchFile(file);
+				if (!CLoading::HasFile(file, nMix))
 				{
-					file = name + ".SHP";
-					nMix = SearchFile(file);
-					if (!CLoading::HasFile(file, nMix))
+					if (!ExtConfigs::UseStrictNewTheater)
+					{
+						auto searchNewTheater = [&nMix, this, &file](char t)
+							{
+								if (file.GetLength() >= 2)
+									file.SetAt(1, t);
+								nMix = SearchFile(file);
+								return HasFile(file, nMix);
+							};
+						file = name + ".SHP";
+						nMix = SearchFile(file);
+						if (!CLoading::HasFile(file, nMix))
+							if (!searchNewTheater('T'))
+								if (!searchNewTheater('A'))
+									if (!searchNewTheater('U'))
+										if (!searchNewTheater('N'))
+											if (!searchNewTheater('L'))
+												if (!searchNewTheater('D'))
+													return false;
+					}
+					else
+					{
 						return false;
-				}
-				else
-				{
-					return false;
+					}
 				}
 			}
-		}
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -476,7 +494,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
 				}
 
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
 	};
@@ -537,7 +555,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr));
+		loadSingleFrameShape(*pStr);
 	}
 
 	ppmfc::CString DictName;
@@ -761,28 +779,46 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-		int nMix = SearchFile(file);
-		if (!CLoading::HasFile(file, nMix))
-		{
-			SetGenericTheaterLetter(file);
-			nMix = SearchFile(file);
+			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+			name = CINI::Art->GetString(name, "Image", name);
+			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+
+			ppmfc::CString file = name + ".SHP";
+			if (applyNewTheater)
+				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				if (!ExtConfigs::UseStrictNewTheater)
+				SetGenericTheaterLetter(file);
+				nMix = SearchFile(file);
+				if (!CLoading::HasFile(file, nMix))
 				{
-					file = name + ".SHP";
-					nMix = SearchFile(file);
-					if (!CLoading::HasFile(file, nMix))
+					if (!ExtConfigs::UseStrictNewTheater)
+					{
+						auto searchNewTheater = [&nMix, this, &file](char t)
+							{
+								if (file.GetLength() >= 2)
+									file.SetAt(1, t);
+								nMix = SearchFile(file);
+								return HasFile(file, nMix);
+							};
+						file = name + ".SHP";
+						nMix = SearchFile(file);
+						if (!CLoading::HasFile(file, nMix))
+							if (!searchNewTheater('T'))
+								if (!searchNewTheater('A'))
+									if (!searchNewTheater('U'))
+										if (!searchNewTheater('N'))
+											if (!searchNewTheater('L'))
+												if (!searchNewTheater('D'))
+													return false;
+					}
+					else
+					{
 						return false;
-				}
-				else
-				{
-					return false;
+					}
 				}
 			}
-		}
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -842,7 +878,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
 				}
 
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
@@ -855,7 +891,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
 				}
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame, 0, 0, customPal);
+				loadSingleFrameShape(*pStr, nStartFrame, 0, 0, customPal);
 			}
 		}
 	};
@@ -910,7 +946,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	}
 
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), 1);
+		loadSingleFrameShape(*pStr, 1);
 	}
 
 	ppmfc::CString DictName;
@@ -1143,28 +1179,46 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 
 	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
-		SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-		int nMix = SearchFile(file);
-		if (!CLoading::HasFile(file, nMix))
-		{
-			SetGenericTheaterLetter(file);
-			nMix = SearchFile(file);
+			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+			name = CINI::Art->GetString(name, "Image", name);
+			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+
+			ppmfc::CString file = name + ".SHP";
+			if (applyNewTheater)
+				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
-				if (!ExtConfigs::UseStrictNewTheater)
+				SetGenericTheaterLetter(file);
+				nMix = SearchFile(file);
+				if (!CLoading::HasFile(file, nMix))
 				{
-					file = name + ".SHP";
-					nMix = SearchFile(file);
-					if (!CLoading::HasFile(file, nMix))
+					if (!ExtConfigs::UseStrictNewTheater)
+					{
+						auto searchNewTheater = [&nMix, this, &file](char t)
+							{
+								if (file.GetLength() >= 2)
+									file.SetAt(1, t);
+								nMix = SearchFile(file);
+								return HasFile(file, nMix);
+							};
+						file = name + ".SHP";
+						nMix = SearchFile(file);
+						if (!CLoading::HasFile(file, nMix))
+							if (!searchNewTheater('T'))
+								if (!searchNewTheater('A'))
+									if (!searchNewTheater('U'))
+										if (!searchNewTheater('N'))
+											if (!searchNewTheater('L'))
+												if (!searchNewTheater('D'))
+													return false;
+					}
+					else
+					{
 						return false;
-				}
-				else
-				{
-					return false;
+					}
 				}
 			}
-		}
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -1194,7 +1248,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame);
+				loadSingleFrameShape(*pStr, nStartFrame);
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
@@ -1202,7 +1256,7 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(CINI::Art->GetString(*pStr, "Image", *pStr), nStartFrame);
+				loadSingleFrameShape(*pStr, nStartFrame);
 			}
 		}
 	};
