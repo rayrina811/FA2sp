@@ -20,6 +20,10 @@ std::vector<TileRule> CopyPaste::TileConvertRules;
 void CopyPaste::Copy(const std::set<MapCoord>& coords)
 {
     std::vector<MyClipboardData> data;
+    int relativeHeight = 14;
+    int lowest = 14;
+    int highest = 0;
+
     for (const auto& coords : coords)
     {
         if (coords.X < 0 || coords.Y < 0 || coords.X > CMapData::Instance->MapWidthPlusHeight || coords.Y > CMapData::Instance->MapWidthPlusHeight)
@@ -41,6 +45,11 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         item.Height = pCell->Height;
         item.IceGrowth = pCell->IceGrowth;
         item.Flag = pCell->Flag;
+
+        relativeHeight = std::min(relativeHeight, pCell->Height - 
+            CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileBlockDatas[pCell->TileSubIndex].Height);
+        lowest = std::min(lowest, (int)pCell->Height);
+        highest = std::max(highest, (int)pCell->Height);
 
         if (pCell->Terrain > -1)
         {
@@ -86,6 +95,26 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             strcpy_s(item.UnitData, value.m_pchData);
         }
         data.push_back(item);
+    }
+
+    lowest -= relativeHeight;
+    highest -= relativeHeight;
+    while (lowest < 0)
+    {
+        relativeHeight--;
+        lowest++;
+    }   
+    while (highest > 14)
+    {
+        relativeHeight++;
+        highest--;
+    }
+    if (relativeHeight != 0)
+    {
+        for (auto& cell : data)
+        {
+            cell.Height -= relativeHeight;
+        }
     }
 
     auto hGlobal = GlobalAlloc(GMEM_SHARE | GMEM_MOVEABLE, 12 + sizeof(MyClipboardData) * data.size());
