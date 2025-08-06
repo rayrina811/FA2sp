@@ -1969,7 +1969,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		int drawX2 = x2 - DrawOffsetX;
 		int drawY2 = y2 - DrawOffsetY;
 
-		pThis->DrawLine(drawX1, drawY1 - 15, drawX2, drawY2 - 15, RGB(0, 0, 255), false, false, lpDesc);
+		pThis->DrawLine(drawX1, drawY1 - 30, drawX2, drawY2 - 30, RGB(0, 0, 255), false, false, lpDesc);
 	}
 
 	pThis->lpDDBackBufferSurface->ReleaseDC(hDC);

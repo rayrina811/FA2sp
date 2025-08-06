@@ -394,14 +394,15 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, 
+		int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
-			if (applyNewTheater)
+			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
@@ -555,7 +556,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr);
+		loadSingleFrameShape(*pStr, 0, 0, 0, "", false, 1);
 	}
 
 	ppmfc::CString DictName;
@@ -777,14 +778,15 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0,
+		int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
-			if (applyNewTheater)
+			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
@@ -946,7 +948,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	}
 
 	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 1);
+		loadSingleFrameShape(*pStr, 1, 0, 0, "", false, 1);
 	}
 
 	ppmfc::CString DictName;
@@ -1177,14 +1179,15 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
+	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0,
+		int deltaY = 0, bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
-			if (applyNewTheater)
+			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
 			int nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
@@ -1464,13 +1467,13 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		pImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		pTurretImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		pBarrelImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-		if (ExtConfigs::InGameDisplay_Shadow)
+		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 			pShadowImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
 		std::vector<VoxelRectangle> rect, turretrect, barrelrect, shadowrect;
 		rect.resize(ExtConfigs::MaxVoxelFacing);
 		turretrect.resize(ExtConfigs::MaxVoxelFacing);
 		barrelrect.resize(ExtConfigs::MaxVoxelFacing);
-		if (ExtConfigs::InGameDisplay_Shadow)
+		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 			shadowrect.resize(ExtConfigs::MaxVoxelFacing);
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
@@ -1481,7 +1484,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				{
 					// (i+6) % 8 to fix the facing
 					bool result = false;
-					if (ExtConfigs::InGameDisplay_Shadow)
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						result = VoxelDrawer::GetImageData((i + 6) % 8, pImage[i], rect[i])
 							&& VoxelDrawer::GetImageData((i + 6) % 8, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
@@ -1599,7 +1602,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 			}
 		}
-		if (ExtConfigs::InGameDisplay_Shadow)
+		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 			for (int i = 0; i < 8; ++i)
 			{
 				ppmfc::CString DictShadowName;

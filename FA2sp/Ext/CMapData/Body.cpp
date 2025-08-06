@@ -1994,7 +1994,6 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	{
 		ppmfc::CString ArtID = CLoadingExt::GetArtID(ID);
 		ppmfc::CString ImageID = CLoadingExt::GetExtension()->GetInfantryFileID(ID);
-		bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
 		ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
 		bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
@@ -2002,7 +2001,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			&& CINI::Art->KeyExists(sequenceName, "Swim");
 		if (ExtConfigs::InGameDisplay_Water && waterable)
 		{
-			CLoadingExt::SwimableInfantries.push_back(ID);
+			CLoadingExt::SwimableInfantries.insert(ID);
 		}
 	}
 

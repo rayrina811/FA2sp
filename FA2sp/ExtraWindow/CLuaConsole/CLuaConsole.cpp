@@ -39,6 +39,7 @@ HWND CLuaConsole::hInputText;
 HWND CLuaConsole::hScripts;
 HWND CLuaConsole::hRunFile;
 HWND CLuaConsole::hApply;
+HWND CLuaConsole::hSearchText;
 bool CLuaConsole::applyingScript = false;
 bool CLuaConsole::applyingScriptFirst = true;
 bool CLuaConsole::runFile = true;
@@ -117,6 +118,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Translate(1006, "LuaScriptConsoleOuput");
     Translate(1007, "LuaScriptConsoleInput");
     Translate(1008, "LuaScriptConsoleScripts");
+    Translate(1011, "Options.Search");
     Translate(Controls::Run, "LuaScriptConsoleRun");
     Translate(Controls::Apply, "LuaScriptConsoleBrush");
     Translate(Controls::RunFile, "LuaScriptConsoleRunFile");
@@ -130,6 +132,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     hInputText = GetDlgItem(hWnd, Controls::InputText);
     hRunFile = GetDlgItem(hWnd, Controls::RunFile);
     hApply = GetDlgItem(hWnd, Controls::Apply);
+    hSearchText = GetDlgItem(hWnd, Controls::SearchText);
     //hStop = GetDlgItem(hWnd, Controls::Stop);
     
     SendMessage(hOutputBox, EM_SETREADONLY, (WPARAM)TRUE, 0);
@@ -850,7 +853,7 @@ void CLuaConsole::Close(HWND& hWnd)
     CLuaConsole::m_parent = NULL;
 }
 
-void CLuaConsole::Update(HWND& hWnd)
+void CLuaConsole::Update(HWND& hWnd, const char* filter)
 {
     ShowWindow(m_hwnd, SW_SHOW);
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
@@ -860,7 +863,8 @@ void CLuaConsole::Update(HWND& hWnd)
     if (fs::exists(scriptPath) && fs::is_directory(scriptPath)) {
         for (const auto& entry : fs::directory_iterator(scriptPath)) {
             if (entry.is_regular_file() && entry.path().extension().string() == ".lua") {
-                SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)entry.path().filename().string().c_str());
+                if ((strlen(filter) && ExtraWindow::IsLabelMatch(entry.path().filename().string().c_str(), filter)) || !strlen(filter))
+                    SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)entry.path().filename().string().c_str());
             }
         }
     }
@@ -978,6 +982,10 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 runFile = SendMessage(hRunFile, BM_GETCHECK, 0, 0);
             }
             break;
+        case Controls::SearchText:
+            if (CODE == EN_CHANGE)
+                OnEditchangeSearch(hWnd);
+            break;
         default:
             break;
         }
@@ -1012,6 +1020,13 @@ void CLuaConsole::UpdateCoords(int x, int y, bool firstRun, bool holdingClick)
     Lua["holding_click"] = holdingClick;
     Lua["X"] = y;
     Lua["Y"] = x;
+}
+
+void CLuaConsole::OnEditchangeSearch(HWND& hWnd)
+{
+    char buffer[512]{ 0 };
+    GetWindowText(hSearchText, buffer, 511);
+    Update(hWnd, buffer);
 }
 
 void CLuaConsole::OnClickRun(bool fromFile)

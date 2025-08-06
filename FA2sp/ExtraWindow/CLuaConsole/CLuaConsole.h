@@ -27,6 +27,7 @@ public:
         ScriptText = 1008,
         RunFile = 1009,
         Apply = 1010,
+        SearchText = 1012,
         //Stop = 1011,
     };
     static void Create(CFinalSunDlg* pWnd);
@@ -37,11 +38,12 @@ public:
     }
     static void OnClickRun(bool fromFile);
     static void UpdateCoords(int x, int y, bool firstRun, bool holdingClick);
+    static void OnEditchangeSearch(HWND& hWnd);
 
 protected:
     static void Initialize(HWND& hWnd);
     static void Close(HWND& hWnd);
-    static void Update(HWND& hWnd);
+    static void Update(HWND& hWnd, const char* filter = "");
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -65,6 +67,7 @@ public:
     static HWND hScripts;
     static HWND hRunFile;
     static HWND hApply;
+    static HWND hSearchText;
     //static HWND hStop;
     static bool applyingScript;
     static bool applyingScriptFirst;

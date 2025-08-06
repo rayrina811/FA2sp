@@ -8,7 +8,7 @@
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
-std::vector<ppmfc::CString> CLoadingExt::SwimableInfantries;
+std::unordered_set<ppmfc::CString> CLoadingExt::SwimableInfantries;
 
 bool CLoadingExt::InitMixFilesFix()
 {

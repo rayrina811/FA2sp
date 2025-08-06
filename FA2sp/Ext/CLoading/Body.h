@@ -12,6 +12,7 @@
 #include <CPalette.h>
 #include <Drawing.h>
 #include <fstream>
+#include <set>
 
 class ImageDataClass;
 class Palette;
@@ -187,7 +188,7 @@ public:
 	static std::unordered_set<ppmfc::CString> LoadedOverlays;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
-	static std::vector<ppmfc::CString> SwimableInfantries;
+	static std::unordered_set<ppmfc::CString> SwimableInfantries;
 	ObjectType GetItemType(ppmfc::CString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);

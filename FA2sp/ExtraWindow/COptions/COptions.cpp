@@ -223,7 +223,6 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
     return FALSE;
 }
 
-
 void COptions::OnEditchangeSearch()
 {
     char buffer[512]{ 0 };
