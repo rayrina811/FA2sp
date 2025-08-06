@@ -297,6 +297,7 @@ public:
     static int CliffConnectionHeightAdjust;
     static int LastSuccessfulIndex;
     static bool LastSuccessfulOpposite;
+    static int LastSuccessfulHeightOffset;
     static bool IsUsingTXCliff;
     static bool HeightChanged;
     static bool IsInPlaceCliff_OnMouseMove;
