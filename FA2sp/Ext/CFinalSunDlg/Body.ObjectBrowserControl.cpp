@@ -1663,7 +1663,7 @@ void CViewObjectsExt::Redraw_Overlay()
     {
         int indexWall = Wall;
         CViewObjectsExt::WallDamageStages.clear();
-        for (size_t i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
             (*overlays).size() : std::min((UINT)255, (*overlays).size()); i < sz; ++i)
         {
             const auto& value = (*overlays)[i].second;
@@ -1709,7 +1709,7 @@ void CViewObjectsExt::Redraw_Overlay()
             if (IgnoreSet.find(value) == IgnoreSet.end())
             {
                 InsertingOverlay = i;
-                if (CMapDataExt::IsOre(i))
+                if (CMapDataExt::IsOre((byte)i))
                     InsertingOverlayData = 11;
                 else
                     InsertingOverlayData = 0;
