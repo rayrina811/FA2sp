@@ -1436,14 +1436,28 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				{
 					CAircraftData obj;
 					CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
+					auto imageID = obj.TypeID;
 
 					int nFacing = (atoi(obj.Facing) / 32) % 8;
 
-					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing);
-
-					if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
+					if (ExtConfigs::InGameDisplay_Damage)
 					{
-						CLoading::Instance->LoadObjects(obj.TypeID);
+						int HP = atoi(obj.Health);
+						if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
+						{
+							imageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionYellow", imageID);
+						}
+						if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
+						{
+							imageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionRed", imageID);
+						}
+					}
+
+					const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
+
+					if (!CLoadingExt::IsObjectLoaded(imageID))
+					{
+						CLoading::Instance->LoadObjects(imageID);
 					}
 					auto pData = CLoadingExt::GetImageDataFromServer(imageName);
 
