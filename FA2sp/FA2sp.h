@@ -179,6 +179,7 @@ public:
     static bool InGameDisplay_Bridge;
     static bool FlatToGroundHideExtra;
     static bool LightingPreview_MultUnitColor;
+    static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;

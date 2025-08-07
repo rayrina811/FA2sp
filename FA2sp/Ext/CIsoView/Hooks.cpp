@@ -289,35 +289,12 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 		CTileTypeClass::InstanceCount = &CTileTypeInfo::Desert->Count;
 		CMapDataExt::TileData = CTileTypeInfo::Desert().Datas;
 		CMapDataExt::TileDataCount = CTileTypeInfo::Desert().Count;
-
-		if (CFinalSunDlgExt::CurrentLighting == 31000)
-		{
-			CLoading::Instance()->FreeTMPs();
-			CLoading::Instance()->InitTMPs();
-		}
+		CLoading::Instance()->FreeTMPs();
+		CLoading::Instance()->InitTMPs();
 	}
 	if (CFinalSunDlgExt::CurrentLighting != 31000)
 	{
 		CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_UNCHECKED);
-		PalettesManager::ManualReloadTMP = true;
-		PalettesManager::CacheAndTintCurrentIso();
-		CLoading::Instance->FreeTMPs();
-		CLoading::Instance->InitTMPs();
-		int oli = 0;
-		if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
-		{
-			for (const auto& ol : *section)
-			{
-				if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-					CLoading::Instance->DrawOverlay(ol.second, oli);
-					CIsoView::GetInstance()->UpdateDialog(false);
-				}
-				oli++;
-			}
-		}
-
-		PalettesManager::RestoreCurrentIso();
-		PalettesManager::ManualReloadTMP = false;
 		LightingSourceTint::CalculateMapLamps();
 
 		CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);

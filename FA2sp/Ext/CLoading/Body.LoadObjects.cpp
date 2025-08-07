@@ -16,6 +16,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
+std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedOverlays;
@@ -2540,24 +2541,18 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 	ppmfc::CString filename;
 	int hMix = 0;
 
-	ppmfc::CString palName = "iso";
+	ppmfc::CString palName = "iso\233AutoTinted";
 	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
 	Palette* palette = nullptr;
 	if (typeData.Wall)
 	{
 		palName = typeData.WallPaletteName;
 		GetFullPaletteName(palName);
-		if (auto pal = PalettesManager::LoadPalette(palName)) {
-			BGRStruct houseColor{ 0,0,255 };
-			palette = PalettesManager::GetPalette(pal, houseColor);
-		}
-		else
-		{
-			palName = "iso";
-		}
+		palette = PalettesManager::LoadPalette(palName);
 	}
 	if (!palette)
 	{
+		palName = "iso\233AutoTinted";
 		GetFullPaletteName(palName);
 		palette = PalettesManager::LoadPalette(palName);
 	}

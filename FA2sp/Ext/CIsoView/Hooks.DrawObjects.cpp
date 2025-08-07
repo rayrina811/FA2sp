@@ -102,19 +102,6 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	if (PalettesManager::NeedReloadLighting)
 	{
 		LightingStruct::GetCurrentLighting();
-		PalettesManager::CacheAndTintCurrentIso();
-		int oli = 0;
-		if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
-		{
-			for (const auto& ol : *section)
-			{
-				if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-					CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
-				}
-				oli++;
-			}
-		}
-		PalettesManager::RestoreCurrentIso();
 		PalettesManager::NeedReloadLighting = false;
 	}
 

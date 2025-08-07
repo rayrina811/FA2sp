@@ -97,19 +97,6 @@ BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 		if (edited && CFinalSunDlgExt::CurrentLighting != 31000)
 		{
 			LightingStruct::GetCurrentLighting();
-			PalettesManager::CacheAndTintCurrentIso();
-			int oli = 0;
-			if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
-			{
-				for (const auto& ol : *section)
-				{
-					if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-						CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
-					}
-					oli++;
-				}
-			}
-			PalettesManager::RestoreCurrentIso();
 			for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 				for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);

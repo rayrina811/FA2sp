@@ -261,7 +261,12 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
 		ppmfc::CString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
-		loadingExt->SetImageDataSafe(diff, ImageID, width, height, Palette::PALETTE_ISO);
+		Palette* pal = &CMapDataExt::Palette_ISO;
+		if (tileIndex < CMapDataExt::TileDataCount)
+		{
+			pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
+		}
+		loadingExt->SetImageDataSafe(diff, ImageID, width, height, pal);
 		CLoadingExt::LoadedObjects.insert(ImageID);
 		altCount[subTileIndex]++;
 	}

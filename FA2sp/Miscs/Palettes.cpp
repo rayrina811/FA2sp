@@ -19,34 +19,7 @@ std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalett
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
 Palette* PalettesManager::CurrentIso;
-bool PalettesManager::ManualReloadTMP = false;
 bool PalettesManager::NeedReloadLighting = false;
-
-void PalettesManager::Init()
-{
-    PalettesManager::OriginPaletteFiles["isotem.pal"] = Palette::PALETTE_ISO;
-    PalettesManager::OriginPaletteFiles["isosno.pal"] = Palette::PALETTE_ISO;
-    PalettesManager::OriginPaletteFiles["isourb.pal"] = Palette::PALETTE_ISO;
-    PalettesManager::OriginPaletteFiles["isoubn.pal"] = Palette::PALETTE_ISO;
-    PalettesManager::OriginPaletteFiles["isolun.pal"] = Palette::PALETTE_ISO;
-    PalettesManager::OriginPaletteFiles["isodes.pal"] = Palette::PALETTE_ISO;
-    
-    PalettesManager::OriginPaletteFiles["unittem.pal"] = Palette::PALETTE_UNIT;
-    PalettesManager::OriginPaletteFiles["unitsno.pal"] = Palette::PALETTE_UNIT;
-    PalettesManager::OriginPaletteFiles["uniturb.pal"] = Palette::PALETTE_UNIT;
-    PalettesManager::OriginPaletteFiles["unitubn.pal"] = Palette::PALETTE_UNIT;
-    PalettesManager::OriginPaletteFiles["unitlun.pal"] = Palette::PALETTE_UNIT;
-    PalettesManager::OriginPaletteFiles["unitdes.pal"] = Palette::PALETTE_UNIT;
-
-    PalettesManager::OriginPaletteFiles["temperat.pal"] = Palette::PALETTE_THEATER;
-    PalettesManager::OriginPaletteFiles["snow.pal"] = Palette::PALETTE_THEATER;
-    PalettesManager::OriginPaletteFiles["urban.pal"] = Palette::PALETTE_THEATER;
-    PalettesManager::OriginPaletteFiles["urbann.pal"] = Palette::PALETTE_THEATER;
-    PalettesManager::OriginPaletteFiles["lunar.pal"] = Palette::PALETTE_THEATER;
-    PalettesManager::OriginPaletteFiles["desert.pal"] = Palette::PALETTE_THEATER;
-
-    PalettesManager::OriginPaletteFiles["libtem.pal"] = Palette::PALETTE_LIB;
-}
 
 void PalettesManager::Release()
 {
@@ -62,42 +35,12 @@ void PalettesManager::Release()
     PalettesManager::CalculatedPaletteFiles.clear();
     PalettesManager::CalculatedPaletteFilesNoRemap.clear();
     PalettesManager::CalculatedObjectPaletteFiles.clear();
-
-    PalettesManager::RestoreCurrentIso();
     PalettesManager::NeedReloadLighting = true;
-
-    Init();
-}
-
-void PalettesManager::CacheCurrentIso()
-{
-    if (!PalettesManager::CurrentIso)
-        PalettesManager::CurrentIso = GameCreate<Palette>();
-
-    memcpy(PalettesManager::CurrentIso, Palette::PALETTE_ISO, sizeof(Palette));
-}
-
-void PalettesManager::RestoreCurrentIso()
-{
-    if (PalettesManager::CurrentIso)
-    {
-        memcpy(Palette::PALETTE_ISO, PalettesManager::CurrentIso, sizeof(Palette));
-        GameDelete(PalettesManager::CurrentIso);
-        PalettesManager::CurrentIso = nullptr;
-    }
 }
 
 Palette* PalettesManager::GetCurrentIso()
 {
     return PalettesManager::CurrentIso;
-}
-
-void PalettesManager::CacheAndTintCurrentIso()
-{
-    PalettesManager::CacheCurrentIso();
-    BGRStruct empty;
-    auto pPal = PalettesManager::GetPalette(&CMapDataExt::Palette_ISO, empty, false);
-    memcpy(Palette::PALETTE_ISO, pPal, sizeof(Palette));
 }
 
 Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
@@ -222,23 +165,8 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
                 CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
         if (!CMapDataExt::IsOre(overlay))
         {
-            const auto lamp = LightingSourceTint::ApplyLamp(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-            float oriAmbMult = ret.Ambient - ret.Ground;
-            float newAmbMult = ret.Ambient - ret.Ground + ret.Level * CIsoViewExt::CurrentDrawCellLocation.Height + lamp.AmbientTint;
-            newAmbMult = std::clamp(newAmbMult, 0.0f, 2.0f);
-            float newRed = ret.Red + lamp.RedTint;
-            float newGreen = ret.Green + lamp.GreenTint;
-            float newBlue = ret.Blue + lamp.BlueTint;
-            newRed = std::clamp(newRed, 0.0f, 2.0f);
-            newGreen = std::clamp(newGreen, 0.0f, 2.0f);
-            newBlue = std::clamp(newBlue, 0.0f, 2.0f);
-
-            for (int i = 0; i < 256; ++i)
-            {
-                p.Colors[i].R = safeColorBtye(p.Colors[i].R / oriAmbMult / ret.Red * newAmbMult * newRed);
-                p.Colors[i].G = safeColorBtye(p.Colors[i].G / oriAmbMult / ret.Green * newAmbMult * newGreen);
-                p.Colors[i].B = safeColorBtye(p.Colors[i].B / oriAmbMult / ret.Blue * newAmbMult * newBlue);
-            }
+            p.AdjustLighting(LightingStruct::CurrentLighting, location);
+            p.TintColors();
         }   
     }
     if (MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y))

@@ -93,19 +93,12 @@ class PalettesManager
     static Palette* CurrentIso;
 
 public:
-
-    static void Init();
     static void Release();
 
-    static void CacheCurrentIso();
-    static void RestoreCurrentIso();
-
-    static bool ManualReloadTMP;
     static bool NeedReloadLighting;
     static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
 
     static Palette* GetCurrentIso();
-    static void CacheAndTintCurrentIso();
     static Palette* LoadPalette(ppmfc::CString palname);
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);

@@ -15,9 +15,11 @@ static bool setCurrentOverlay(ImageDataClassSafe* pData)
 {
     if (pData && pData->pImageBuffer)
     {
+        BGRStruct empty;
         CurrentOverlay.pImageBuffer = pData->pImageBuffer.get();
         CurrentOverlay.pPixelValidRanges = (ImageDataClass::ValidRangeData*)pData->pPixelValidRanges.get();
-        CurrentOverlay.pPalette = pData->pPalette;
+        CurrentOverlay.pPalette = ExtConfigs::LightingPreview_TintTileSetBrowserView ? 
+            PalettesManager::GetPalette(pData->pPalette, empty, false) : pData->pPalette;
         CurrentOverlay.ValidX = pData->ValidX;
         CurrentOverlay.ValidY = pData->ValidY;
         CurrentOverlay.ValidWidth = pData->ValidWidth;
@@ -302,13 +304,11 @@ DEFINE_HOOK(4F36DD, CTileSetBrowserView_RenderTile_DrawTranspInsideTiles, 5)
     if (0 <= tileIndex && tileIndex < CMapDataExt::TileDataCount)
     {
         auto pPal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
-        if (pPal != &CMapDataExt::Palette_ISO)
-        {
-            BGRStruct empty;
-            DrawTranspInsideTilesChanged = true;
-            memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
-            memcpy(Palette::PALETTE_ISO, PalettesManager::GetPalette(pPal, empty, false), sizeof(Palette));
-        }
+        BGRStruct empty;
+        DrawTranspInsideTilesChanged = true;
+        memcpy(&CLoadingExt::TempISOPalette, Palette::PALETTE_ISO, sizeof(Palette));
+        memcpy(Palette::PALETTE_ISO, ExtConfigs::LightingPreview_TintTileSetBrowserView ?
+            PalettesManager::GetPalette(pPal, empty, false) : pPal, sizeof(Palette));
     }
     return 0;
 }

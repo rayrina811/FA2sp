@@ -13,6 +13,7 @@ std::unordered_set<ppmfc::CString> CLoadingExt::SwimableInfantries;
 bool CLoadingExt::InitMixFilesFix()
 {
 	HasMdFile = true;
+	CLoadingExt::Ra2dotMixes.clear();
 
 	// Load encrypted packages
 	ResourcePackManager::instance().clear();

@@ -194,6 +194,7 @@ public:
 	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
 
 	static std::unordered_set<ppmfc::CString> LoadedObjects;
+	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:
 

@@ -70,24 +70,3 @@ REMAP_FIX_PALETTE_SET(set_addr,hook_name ## _SetPalette ,0x ## data_off,0x ## co
 #undef REMAP_FIX_JMP
 #undef REMAP_FIX_HOOK
 #undef REMAP_FIX_HOOK_NO_JMP
-
-DEFINE_HOOK(48C3F6, CIsoView_InitTMPs_SkipReset, 5)
-{
-	if (!PalettesManager::ManualReloadTMP)
-		CLoading::Instance->InitTMPs_Reset();
-	return 0x48C3FB;
-}
-
-DEFINE_HOOK(46DEF7, CIsoView_Draw_Palette_Iso_Set, 5)
-{
-	PalettesManager::CacheAndTintCurrentIso();
-	
-	return 0;
-}
-
-DEFINE_HOOK(474AE3, CIsoView_Draw_Palette_Iso_Revert, 6)
-{
-	PalettesManager::RestoreCurrentIso();
-
-	return 0;
-}

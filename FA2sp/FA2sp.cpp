@@ -164,6 +164,7 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
+bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
@@ -295,6 +296,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::LoadImageDataFromServer = CINI::FAData->GetBool("ExtConfigs", "LoadImageDataFromServer");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
+	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
@@ -688,6 +690,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.MultUnitColor", "Mult unit color when using 'Normal' lighting"),
 		.IniKey = "LightingPreview.MultUnitColor",
 		.Value = &ExtConfigs::LightingPreview_MultUnitColor,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LightingPreview.TintTileSetBrowserView", "Mult tile set brorser images when changing lighting"),
+		.IniKey = "LightingPreview.TintTileSetBrowserView",
+		.Value = &ExtConfigs::LightingPreview_TintTileSetBrowserView,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

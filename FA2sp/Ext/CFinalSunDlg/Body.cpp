@@ -229,24 +229,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CFinalSunDlgExt::CurrentLighting = id;
 			LightingStruct::GetCurrentLighting();
 
-			PalettesManager::ManualReloadTMP = true;
-			PalettesManager::CacheAndTintCurrentIso();
-			CLoading::Instance->FreeTMPs();
-			CLoading::Instance->InitTMPs();
-			int oli = 0;
-			if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
-			{
-				for (const auto& ol : *section)
-				{				
-					if (CLoadingExt::IsOverlayLoaded(ol.second)) {
-						CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);
-					}
-					oli++;
-				}
-			}
-			PalettesManager::RestoreCurrentIso();
-			PalettesManager::ManualReloadTMP = false;
-
 			for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
 				for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
 					CMapData::Instance->UpdateMapPreviewAt(i, j);

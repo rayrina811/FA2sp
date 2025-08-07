@@ -63,19 +63,6 @@ DEFINE_HOOK(hook_addr,hook_name,7) \
     if (!IsUpdatingDialog && CFinalSunDlgExt::CurrentLighting != 31000)\
     {\
         LightingStruct::GetCurrentLighting();\
-        PalettesManager::CacheAndTintCurrentIso();\
-        int oli = 0;\
-        if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))\
-        {\
-            for (const auto& ol : *section)\
-            {\
-                if (CLoadingExt::IsOverlayLoaded(ol.second)) {\
-                    CLoadingExt::GetExtension()->LoadOverlay(ol.second, oli);\
-                }\
-                oli++;\
-            }\
-        }\
-        PalettesManager::RestoreCurrentIso();\
 		for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {\
             for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {\
                 CMapData::Instance->UpdateMapPreviewAt(i, j);\
