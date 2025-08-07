@@ -74,13 +74,19 @@ bool CLoadingExt::InitMixFilesFix()
 
 	ppmfc::CString Dir = CFinalSunApp::Instance->FilePath();
 	Dir += "\\";
-	auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0)
+	auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
 	{
 		if (Parent)
 		{
 			int result = CMixFile::Open(Mix, Parent);
 			if (result)
+			{
 				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
+				if (addToRA2)
+				{
+					CLoadingExt::Ra2dotMixes.insert(result);
+				}
+			}
 			else
 				Logger::Raw("[MixLoader] %s failed!\n", Mix);
 			return ExtConfigs::DisableDirectoryCheck || result;
@@ -92,13 +98,23 @@ bool CLoadingExt::InitMixFilesFix()
 			if (result)
 			{
 				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
+				if (addToRA2)
+				{
+					CLoadingExt::Ra2dotMixes.insert(result);
+				}
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
 			if (int nMix = SearchFile(Mix))
 			{
 				result = CMixFile::Open(Mix, nMix);
 				if (result)
+				{
 					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
+					if (addToRA2)
+					{
+						CLoadingExt::Ra2dotMixes.insert(result);
+					}
+				}
 				else
 					Logger::Raw("[MixLoader] %s failed!\n", Mix);
 				return ExtConfigs::DisableDirectoryCheck || result;
@@ -133,12 +149,12 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile(filename);
 	}
 
-	if (!LoadMixFile("RA2MD.MIX"))		return false;
-	if (!LoadMixFile("RA2.MIX"))		return false;
-	if (!LoadMixFile("CACHEMD.MIX"))	return false;
-	if (!LoadMixFile("CACHE.MIX"))		return false;
-	if (!LoadMixFile("LOCALMD.MIX"))	return false;
-	if (!LoadMixFile("LOCAL.MIX"))		return false;
+	if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
+	if (!LoadMixFile("RA2.MIX", 0, true))		return false;
+	if (!LoadMixFile("CACHEMD.MIX", 0, true))	return false;
+	if (!LoadMixFile("CACHE.MIX", 0, true))		return false;
+	if (!LoadMixFile("LOCALMD.MIX", 0, true))	return false;
+	if (!LoadMixFile("LOCAL.MIX", 0, true))		return false;
 
 	// Init_Expansion_Mixfiles
 	// ECACHE and ELOCAL
@@ -167,12 +183,12 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 
 	// Init_Secondary_Mixfiles
-	if (!LoadMixFile("CONQMD.MIX"))		return false;
-	if (!LoadMixFile("GENERMD.MIX"))	return false;
-	if (!LoadMixFile("GENERIC.MIX"))	return false;
-	if (!LoadMixFile("ISOGENMD.MIX"))	return false;
-	if (!LoadMixFile("ISOGEN.MIX"))		return false;
-	if (!LoadMixFile("CONQUER.MIX"))	return false;
+	if (!LoadMixFile("CONQMD.MIX", 0, true))		return false;
+	if (!LoadMixFile("GENERMD.MIX", 0, true))	return false;
+	if (!LoadMixFile("GENERIC.MIX", 0, true))	return false;
+	if (!LoadMixFile("ISOGENMD.MIX", 0, true))	return false;
+	if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
+	if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 	//MARBLE should be ahead of normal theater mixes
 	ppmfc::CString FullPath = CFinalSunApp::ExePath();
@@ -198,45 +214,45 @@ bool CLoadingExt::InitMixFilesFix()
 
 
 	// Init_Theaters
-	LoadMixFile("TEMPERATMD.MIX");
-	LoadMixFile("ISOTEMMD.MIX");
-	LoadMixFile("TEMPERAT.MIX");
-	LoadMixFile("ISOTEMP.MIX");
-	LoadMixFile("TEM.MIX");
+	LoadMixFile("TEMPERATMD.MIX", 0, true);
+	LoadMixFile("ISOTEMMD.MIX", 0, true);
+	LoadMixFile("TEMPERAT.MIX", 0, true);
+	LoadMixFile("ISOTEMP.MIX", 0, true);
+	LoadMixFile("TEM.MIX", 0, true);
 	
-	LoadMixFile("SNOWMD.MIX");
-	LoadMixFile("ISOSNOMD.MIX");
-	LoadMixFile("SNOW.MIX");
-	LoadMixFile("ISOSNOW.MIX");
-	LoadMixFile("ISOSNO.MIX");
-	LoadMixFile("SNO.MIX");
+	LoadMixFile("SNOWMD.MIX", 0, true);
+	LoadMixFile("ISOSNOMD.MIX", 0, true);
+	LoadMixFile("SNOW.MIX", 0, true);
+	LoadMixFile("ISOSNOW.MIX", 0, true);
+	LoadMixFile("ISOSNO.MIX", 0, true);
+	LoadMixFile("SNO.MIX", 0, true);
 
-	LoadMixFile("URBANMD.MIX");
-	LoadMixFile("ISOURBMD.MIX");
-	LoadMixFile("URBAN.MIX");
-	LoadMixFile("ISOURB.MIX");
-	LoadMixFile("URB.MIX");
+	LoadMixFile("URBANMD.MIX", 0, true);
+	LoadMixFile("ISOURBMD.MIX", 0, true);
+	LoadMixFile("URBAN.MIX", 0, true);
+	LoadMixFile("ISOURB.MIX", 0, true);
+	LoadMixFile("URB.MIX", 0, true);
 
-	LoadMixFile("DESERT.MIX");
-	LoadMixFile("ISODES.MIX");
-	LoadMixFile("ISODESMD.MIX");
-	LoadMixFile("DES.MIX");
-	LoadMixFile("DESERTMD.MIX");
+	LoadMixFile("DESERT.MIX", 0, true);
+	LoadMixFile("ISODES.MIX", 0, true);
+	LoadMixFile("ISODESMD.MIX", 0, true);
+	LoadMixFile("DES.MIX", 0, true);
+	LoadMixFile("DESERTMD.MIX", 0, true);
 
-	LoadMixFile("URBANNMD.MIX");
-	LoadMixFile("ISOUBNMD.MIX");
-	LoadMixFile("URBANN.MIX");
-	LoadMixFile("ISOUBN.MIX");
-	LoadMixFile("UBN.MIX");
+	LoadMixFile("URBANNMD.MIX", 0, true);
+	LoadMixFile("ISOUBNMD.MIX", 0, true);
+	LoadMixFile("URBANN.MIX", 0, true);
+	LoadMixFile("ISOUBN.MIX", 0, true);
+	LoadMixFile("UBN.MIX", 0, true);
 
-	LoadMixFile("LUNARMD.MIX");
-	LoadMixFile("ISOLUNMD.MIX");
-	LoadMixFile("LUNAR.MIX");
-	LoadMixFile("ISOLUN.MIX");
-	LoadMixFile("LUN.MIX");
+	LoadMixFile("LUNARMD.MIX", 0, true);
+	LoadMixFile("ISOLUNMD.MIX", 0, true);
+	LoadMixFile("LUNAR.MIX", 0, true);
+	LoadMixFile("ISOLUN.MIX", 0, true);
+	LoadMixFile("LUN.MIX", 0, true);
 
-	LoadMixFile("LANGMD.MIX");
-	LoadMixFile("LANGUAGE.MIX");
+	LoadMixFile("LANGMD.MIX", 0, true);
+	LoadMixFile("LANGUAGE.MIX", 0, true);
 	
 	return true;
 }

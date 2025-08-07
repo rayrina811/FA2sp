@@ -262,7 +262,7 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		ppmfc::CString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 		Palette* pal = &CMapDataExt::Palette_ISO;
-		if (tileIndex < CMapDataExt::TileDataCount)
+		if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && CMapDataExt::TileData[tileIndex].TileSet < CMapDataExt::TileSetPalettes.size())
 		{
 			pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 		}

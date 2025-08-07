@@ -116,6 +116,8 @@ public:
 	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
 	void SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer = true);
 	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
+	// returns the mix index, -1 for in folder / pack, -2 for not found
+	int HasFileMix(ppmfc::CString filename, int nMix = -114);
 
 	static int GetITheaterIndex()
 	{

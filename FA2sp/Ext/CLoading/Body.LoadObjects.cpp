@@ -403,9 +403,17 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
+			int nMix = SearchFile(file);
+			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+			// if anim file in RA2(MD).mix, always use NewTheater = yes
+			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+			{
+				applyNewTheater = true;
+			}
+
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-			int nMix = SearchFile(file);
+			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
@@ -787,9 +795,17 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
+			int nMix = SearchFile(file);
+			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+			// if anim file in RA2(MD).mix, always use NewTheater = yes
+			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+			{
+				applyNewTheater = true;
+			}
+
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-			int nMix = SearchFile(file);
+			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
@@ -1188,9 +1204,17 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			ppmfc::CString file = name + ".SHP";
+			int nMix = SearchFile(file);
+			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+			// if anim file in RA2(MD).mix, always use NewTheater = yes
+			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+			{
+				applyNewTheater = true;
+			}
+
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-			int nMix = SearchFile(file);
+			nMix = SearchFile(file);
 			if (!CLoading::HasFile(file, nMix))
 			{
 				SetGenericTheaterLetter(file);
@@ -2019,6 +2043,37 @@ void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int H
 		pData->pPixelValidRanges[i].First = begin;
 		pData->pPixelValidRanges[i].Last = end;
 	}
+}
+
+int CLoadingExt::HasFileMix(ppmfc::CString filename, int nMix)
+{
+	ppmfc::CString filepath = CFinalSunApp::FilePath();
+	filepath += filename;
+	std::ifstream fin;
+	fin.open(filepath, std::ios::in | std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.close();
+		return -1;
+	}
+	size_t size = 0;
+	auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
+	if (data && size > 0)
+	{
+		return -1;
+	}
+	if (nMix == -114)
+	{
+		nMix = CLoading::Instance->SearchFile(filename);
+		if (CMixFile::HasFile(filename, nMix))
+			return nMix;
+		else
+			return -2;
+	}
+	if (CMixFile::HasFile(filename, nMix))
+		return nMix;
+
+	return -2;
 }
 
 void CLoadingExt::GetFullPaletteName(ppmfc::CString& PaletteName)
