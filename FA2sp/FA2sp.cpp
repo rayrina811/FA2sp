@@ -58,6 +58,7 @@ int ExtConfigs::AdjustDropdownWidth_Max;
 int ExtConfigs::DrawMapBackground_Color;
 int ExtConfigs::CopySelectionBound_Color;
 int ExtConfigs::CursorSelectionBound_Color;
+int ExtConfigs::DistanceRuler_Color;
 int ExtConfigs::WeaponRangeBound_Color;
 int ExtConfigs::WeaponRangeMinimumBound_Color;
 int ExtConfigs::SecondaryWeaponRangeBound_Color;
@@ -172,6 +173,7 @@ bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 int ExtConfigs::DisplayTextSize;
+int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
@@ -311,6 +313,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
+	ExtConfigs::DistanceRuler_Records = CINI::FAData->GetInteger("ExtConfigs", "DistanceRuler.Records", 5);
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
 	ExtConfigs::TreeViewCameo_Size = CINI::FAData->GetInteger("ExtConfigs", "TreeViewCameo.Size", 32);
 	if (ExtConfigs::TreeViewCameo_Size > 64)
@@ -367,6 +370,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::MultiSelectionColor = CINI::FAData->GetColor("ExtConfigs", "MultiSelectionColor", 0x00FF00);
 	ExtConfigs::TerrainGeneratorColor = CINI::FAData->GetColor("ExtConfigs", "TerrainGeneratorColor", 0x00FFFF);
+	ExtConfigs::DistanceRuler_Color = CINI::FAData->GetColor("ExtConfigs", "DistanceRuler.Color", 0x0000FF);
 	ExtConfigs::MultiSelectionShiftDeselect = CINI::FAData->GetBool("ExtConfigs", "MultiSelectionShiftDeselect");
 
 	ExtConfigs::RandomTerrainObjects = CINI::FAData->GetBool("ExtConfigs", "RandomTerrainObjects");

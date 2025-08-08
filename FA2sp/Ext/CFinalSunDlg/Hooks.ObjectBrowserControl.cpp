@@ -558,6 +558,17 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     GET(const int, X, EDI);
     GET(const int, Y, ESI);
 
+    if (CIsoViewExt::EnableDistanceRuler)
+    {
+        if (CIsoViewExt::DistanceRuler.empty() || 
+            (!CIsoViewExt::DistanceRuler.empty() && CIsoViewExt::DistanceRuler.back() != MapCoord{ X,Y }))
+        {
+            CIsoViewExt::DistanceRuler.push_back({ X,Y });
+            if (CIsoViewExt::DistanceRuler.size() > ExtConfigs::DistanceRuler_Records)
+                CIsoViewExt::DistanceRuler.erase(CIsoViewExt::DistanceRuler.begin());
+        }
+    }
+
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
     auto& command = pIsoView->LastAltCommand;
     if ((GetKeyState(VK_MENU) & 0x8000) && CIsoView::CurrentCommand->Command == 0) // tile picker

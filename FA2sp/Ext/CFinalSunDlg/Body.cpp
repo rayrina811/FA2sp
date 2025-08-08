@@ -596,6 +596,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		return TRUE;
 	}
+	case 40163:
+		SetLayerStatus(40163, CIsoViewExt::EnableDistanceRuler);
+		CIsoViewExt::DistanceRuler.clear();
+		return TRUE;
 	default:
 		break;
 	}
@@ -835,6 +839,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		MessageBeep(MB_ICONWARNING);
 
+		POINT ptScreen;
+		::GetCursorPos(&ptScreen);
+		::ScreenToClient(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, &ptScreen);
+		LPARAM lParam = MAKELPARAM(ptScreen.x, ptScreen.y);
+		WPARAM wParam = 0;
+		::SendMessage(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, WM_MOUSEMOVE, wParam, lParam);
 	}
 
 	//F5

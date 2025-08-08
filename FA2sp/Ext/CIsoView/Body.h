@@ -104,7 +104,7 @@ public:
     static void DrawMouseMove(HDC hDC);
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
-    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color);
+    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
@@ -112,6 +112,7 @@ public:
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
+    static void DrawDistanceRuler(HDC hDC);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -178,6 +179,9 @@ public:
     static double ScaledMin;
 
     static UINT nFlagsMove;
+
+    static std::vector<MapCoord> DistanceRuler;
+    static bool EnableDistanceRuler;
 
     struct LastCommand
     {

@@ -73,6 +73,7 @@ public:
     static int DrawMapBackground_Color;
     static int CopySelectionBound_Color;
     static int CursorSelectionBound_Color;
+    static int DistanceRuler_Color;
     static int WeaponRangeBound_Color;
     static int WeaponRangeMinimumBound_Color;
     static int SecondaryWeaponRangeBound_Color;
@@ -183,6 +184,7 @@ public:
     static bool DDrawScalingBilinear;
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;
+    static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;
     static bool UseNewToolBarCameo;
     static bool EnableVisualStyle;

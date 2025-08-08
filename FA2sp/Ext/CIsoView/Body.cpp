@@ -57,7 +57,9 @@ bool CIsoViewExt::DrawCellTagsFilter = false;
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
+bool CIsoViewExt::EnableDistanceRuler = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
+std::vector<MapCoord> CIsoViewExt::DistanceRuler;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
@@ -3499,6 +3501,70 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     }
 }
 
+void CIsoViewExt::DrawDistanceRuler(HDC hDC)
+{
+    int fontSize = ExtConfigs::DisplayTextSize;
+    if (CIsoViewExt::ScaledFactor < 0.75)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 2;
+    if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 2;
+    int lineHeight = fontSize + 2;
+    if (!CIsoViewExt::DistanceRuler.empty())
+    {
+        for (int i = 0; i < CIsoViewExt::DistanceRuler.size(); ++i)
+        {
+            int x1 = CIsoViewExt::DistanceRuler[i].X;
+            int y1 = CIsoViewExt::DistanceRuler[i].Y;
+            int x2, y2 = 0;
+            if (i == CIsoViewExt::DistanceRuler.size() - 1)
+            {
+                auto pIsoView = CIsoView::GetInstance();
+                auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+                x2 = point.X;
+                y2 = point.Y;
+                if (!CMapData::Instance->IsCoordInMap(x2, y2))
+                    return;
+            }
+            else
+            {
+                x2 = CIsoViewExt::DistanceRuler[i + 1].X;
+                y2 = CIsoViewExt::DistanceRuler[i + 1].Y;
+            }
+            MapCoord coord1 = { x1,y1 };
+            MapCoord coord2 = { x2,y2 };
+            double distance = sqrt((coord1.X - coord2.X) * (coord1.X - coord2.X) + (coord1.Y - coord2.Y) * (coord1.Y - coord2.Y));
+            ppmfc::CString buffer;
+            CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+            CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+            int drawX = x2 - CIsoViewExt::drawOffsetX + 30;
+            int drawY = y2 - CIsoViewExt::drawOffsetY - 15;
+            if (distance > 0.1)
+            {
+                CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
+                int j = 1;
+                std::ostringstream oss;
+                oss.precision(2);
+                oss << std::fixed << distance;
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
+                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                    coord2.Y, coord2.X, coord2.Y - coord1.Y, coord2.X - coord1.X);
+                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+            }
+            if (i == 0)
+            {
+                drawX = x1 - CIsoViewExt::drawOffsetX + 30;
+                drawY = y1 - CIsoViewExt::drawOffsetY - 15;
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.InitCoordinate", "XY: %d, %d"),
+                    coord1.Y, coord1.X);
+                ::TextOut(hDC, drawX, drawY + lineHeight * 1, buffer, buffer.GetLength());
+            }
+        }
+    }
+}
+
 CRect CIsoViewExt::GetVisibleIsoViewRect()
 {
     auto pThis = CIsoView::GetInstance();
@@ -3542,6 +3608,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
+        if (EnableDistanceRuler)
+        {
+            DrawDistanceRuler(hDC);
+        }
         DrawCreditOnMap(hDC);
 
         SelectObject(hDC, hOldFont);
@@ -3566,6 +3636,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
+        if (EnableDistanceRuler)
+        {
+            DrawDistanceRuler(hDC);
+        }
         DrawMouseMove(hDC);
         DrawCreditOnMap(hDC);
 
@@ -3591,6 +3665,10 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
+        if (EnableDistanceRuler)
+        {
+            DrawDistanceRuler(hDC);
+        }
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC);
 
@@ -3603,8 +3681,54 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     {
         HDC hDC;
         surface->GetDC(&hDC);
+
+        if (EnableDistanceRuler)
+        {
+            int fontSize = ExtConfigs::DisplayTextSize;
+            if (CIsoViewExt::ScaledFactor < 0.75)
+                fontSize += 2;
+            if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 2;
+            if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 2;
+            HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE, "Cambria");
+            HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
+
+            DrawDistanceRuler(hDC);
+
+            SelectObject(hDC, hOldFont);
+            DeleteObject(hFont);
+        }
         DrawBridgeLine(hDC);
         surface->ReleaseDC(hDC);
+        break;
+    }
+    case 4:
+    {
+        if (EnableDistanceRuler)
+        {
+            HDC hDC;
+            surface->GetDC(&hDC);
+            int fontSize = ExtConfigs::DisplayTextSize;
+            if (CIsoViewExt::ScaledFactor < 0.75)
+                fontSize += 2;
+            if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 2;
+            if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 2;
+            HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE, "Cambria");
+            HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
+
+            DrawDistanceRuler(hDC);
+
+            SelectObject(hDC, hOldFont);
+            DeleteObject(hFont);
+            surface->ReleaseDC(hDC);
+        }
         break;
     }
     default:
@@ -3803,7 +3927,7 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
     }
 }
 
-void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color)
+void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size)
 {
     auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
     x1 += 36 / CIsoViewExt::ScaledFactor - 6;
@@ -3814,7 +3938,7 @@ void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color
     HPEN hPen;
     HPEN hPenOld;
     BeginPaint(pThis->m_hWnd, &ps);
-    hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? 2 : 0, color);
+    hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? (2 + size) : size, color);
     hPenOld = (HPEN)SelectObject(hDC, hPen);
     MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
     LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);

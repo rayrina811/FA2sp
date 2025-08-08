@@ -83,6 +83,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
     SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
+    SetItemCheckStatus(40163, CIsoViewExt::EnableDistanceRuler);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
     SetItemCheckStatus(32001, CIsoViewExt::AutoPropertyBrush[1]);
@@ -202,6 +203,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40134, "Menu.MapTools.GlobalSearch");
     translateMenuItem(40135, "Menu.MapTools.ToolScripts");
     translateMenuItem(40136, "Menu.MapTools.DeleteObjects");
+    translateMenuItem(40163, "Menu.MapTools.DistanceRuler");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
 
@@ -528,6 +530,13 @@ DEFINE_HOOK(46A1AD, CFinalSunDlg_StatusBar_Overlay_2, 5)
 {
     R->EAX(StatusBar_Overlay);
     return 0x46A1B2;
+}
+
+DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
+{
+    if (!CIsoView::GetInstance()->IsScrolling)
+        CIsoViewExt::DistanceRuler.clear();
+    return 0;
 }
 
 DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)

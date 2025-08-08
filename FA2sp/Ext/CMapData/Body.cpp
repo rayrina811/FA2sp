@@ -2024,4 +2024,5 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	UpdateAnnotation();
+	CIsoViewExt::DistanceRuler.clear();
 }
