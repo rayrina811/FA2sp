@@ -181,7 +181,6 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 	std::string ovr = "";
 	if (auto pSection = pThis->INI.GetSection("OverlayPack"))
 	{
-		Logger::Raw("Unpacking overlay\n");
 		for (const auto& [k, v] : pSection->GetEntities())
 		{
 			ovr += v.m_pchData;
@@ -204,7 +203,6 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 	ovr = "";
 	if (auto pSection = pThis->INI.GetSection("OverlayDataPack"))
 	{
-		Logger::Raw("Unpacking overlaydata\n");
 		for (const auto& [k, v] : pSection->GetEntities())
 		{
 			ovr += v.m_pchData;
