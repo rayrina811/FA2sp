@@ -2622,7 +2622,6 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 	ArtID = GetArtID(lpOvrlName);
 	ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
-
 	if (TheaterIdentifier == 'T') filename = ArtID + ".tem";
 	if (TheaterIdentifier == 'A') filename = ArtID + ".sno";
 	if (TheaterIdentifier == 'U') filename = ArtID + ".urb";
@@ -2647,6 +2646,9 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 			};
 
 		filename = ArtID + ".shp";
+		palName = "unit";
+		GetFullPaletteName(palName);
+		palette = PalettesManager::LoadPalette(palName);
 		if (strlen(ArtID) >= 2)
 		{
 			searchNewTheater(TheaterIdentifier);
