@@ -26,7 +26,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
 
     for (const auto& coords : coords)
     {
-        if (coords.X < 0 || coords.Y < 0 || coords.X > CMapData::Instance->MapWidthPlusHeight || coords.Y > CMapData::Instance->MapWidthPlusHeight)
+        if (!CMapData::Instance->IsCoordInMap(coords.X, coords.Y))
             continue;
 
         auto pos = CMapData::Instance->GetCoordIndex(coords.X, coords.Y);
