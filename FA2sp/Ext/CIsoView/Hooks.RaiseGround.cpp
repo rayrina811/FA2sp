@@ -37,41 +37,41 @@ static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = f
 		};
 	auto getIndex = [](int x, int y)
 		{
-			if (!CMapData::Instance().IsCoordInMap(x, y))
+			if (!CMapDataExt::IsCoordInFullMap(x, y))
 				return 0;
 			return x + y * CMapData::Instance->MapWidthPlusHeight;
 		};
 	auto getNW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x, y - 1);
+			return CMapDataExt::TryGetCellAt(x, y - 1);
 		};
 	auto getSE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x, y + 1);
+			return CMapDataExt::TryGetCellAt(x, y + 1);
 		};
 	auto getNE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y);
+			return CMapDataExt::TryGetCellAt(x - 1, y);
 		};
 	auto getSW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y);
+			return CMapDataExt::TryGetCellAt(x + 1, y);
 		};
 	auto getN = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y - 1);
+			return CMapDataExt::TryGetCellAt(x - 1, y - 1);
 		};
 	auto getE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y + 1);
+			return CMapDataExt::TryGetCellAt(x - 1, y + 1);
 		};
 	auto getS = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y + 1);
+			return CMapDataExt::TryGetCellAt(x + 1, y + 1);
 		};
 	auto getW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y - 1);
+			return CMapDataExt::TryGetCellAt(x + 1, y - 1);
 		};
 	bool loop = false;
 	for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
@@ -282,7 +282,7 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 	bool loop = false;
 	auto getIndex = [](int x, int y)
 		{			
-			if (!CMapData::Instance().IsCoordInMap(x, y))
+			if (!CMapDataExt::IsCoordInFullMap(x, y))
 				return 0;
 			return x + y * CMapData::Instance->MapWidthPlusHeight;
 		};
@@ -298,35 +298,35 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 		};
 	auto getNW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x, y - 1);
+			return CMapDataExt::TryGetCellAt(x, y - 1);
 		};
 	auto getSE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x, y + 1);
+			return CMapDataExt::TryGetCellAt(x, y + 1);
 		};
 	auto getNE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y);
+			return CMapDataExt::TryGetCellAt(x - 1, y);
 		};
 	auto getSW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y);
+			return CMapDataExt::TryGetCellAt(x + 1, y);
 		};
 	auto getN = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y - 1);
+			return CMapDataExt::TryGetCellAt(x - 1, y - 1);
 		};
 	auto getE = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x - 1, y + 1);
+			return CMapDataExt::TryGetCellAt(x - 1, y + 1);
 		};
 	auto getS = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y + 1);
+			return CMapDataExt::TryGetCellAt(x + 1, y + 1);
 		};
 	auto getW = [](int x, int y)
 		{
-			return CMapData::Instance->TryGetCellAt(x + 1, y - 1);
+			return CMapDataExt::TryGetCellAt(x + 1, y - 1);
 		};
 	for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
 	{
@@ -433,8 +433,8 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 				{
 					int newX = thisX + i;
 					int newY = thisY + e;
-					if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
-					auto cell = CMapData::Instance->TryGetCellAt(newX, newY);
+					if (!CMapDataExt::IsCoordInFullMap(newX, newY)) continue;
+					auto cell = CMapDataExt::TryGetCellAt(newX, newY);
 					int ground = cell->TileIndex;
 					if (ground == 0xFFFF) ground = 0;
 					if (!CMapDataExt::TileData[ground].Morphable) continue;
@@ -483,7 +483,7 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 
 static void AdjustHeightAt(int x, int y, int offset)
 {
-	if (CMapData::Instance->IsCoordInMap(x, y))
+	if (CMapDataExt::IsCoordInFullMap(x, y))
 	{
 		auto& cell = CMapData::Instance->CellDatas[x + y * CMapData::Instance->MapWidthPlusHeight];
 		if (ExtConfigs::PlaceTileSkipHide && cell.IsHidden())
@@ -497,14 +497,14 @@ static void AdjustHeightAt(int x, int y, int offset)
 
 static void SetHeightForSameTileSet(int x, int y, int height, std::vector<int> tilesets)
 {
-	if (CMapData::Instance->IsCoordInMap(x, y))
+	if (CMapDataExt::IsCoordInFullMap(x, y))
 	{
 		int pos = x + y * CMapData::Instance->MapWidthPlusHeight;
 		int loops[3] = { 0, -1, 1 };
 		for (int i : loops)
 			for (int e : loops)
 			{
-				if (!CMapData::Instance->IsCoordInMap(x + i, y + e))
+				if (!CMapDataExt::IsCoordInFullMap(x + i, y + e))
 					continue;
 				int thisPos = x + i + (y + e) * CMapData::Instance->MapWidthPlusHeight;
 				if (CMapDataExt::CellDataExts[thisPos].Adjusted)
@@ -536,7 +536,7 @@ static void SetHeightForSameTileSet(int x, int y, int height, std::vector<int> t
 
 static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 {
-	if (CMapData::Instance->IsCoordInMap(x, y))
+	if (CMapDataExt::IsCoordInFullMap(x, y))
 	{
 		auto oriCell = CMapData::Instance->GetCellAt(x, y);
 		int oriGround = oriCell->TileIndex;
@@ -545,7 +545,7 @@ static void SetHeightForSameTileIndex(int x, int y, int height, int tileindex)
 		for (int i : loops)
 			for (int e : loops)
 			{
-				if (!CMapData::Instance->IsCoordInMap(x + i, y + e))
+				if (!CMapDataExt::IsCoordInFullMap(x + i, y + e))
 					continue;
 				int thisPos = x + i + (y + e) * CMapData::Instance->MapWidthPlusHeight;
 				if (CMapDataExt::CellDataExts[thisPos].Adjusted)
@@ -590,7 +590,7 @@ static void FindConnectedTiles(std::unordered_map<int, bool>& process, int start
 	{
 		int newX = pair[0] + startX;
 		int newY = pair[1] + startY;
-		if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
+		if (!CMapDataExt::IsCoordInFullMap(newX, newY)) continue;
 		int pos = newX + newY * CMapData::Instance->MapWidthPlusHeight;
 		if (process.find(pos) == process.end())
 			continue;
@@ -620,7 +620,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 	GET(int, X, EDI);
 	GET(int, Y, ESI);
 
-	if (!CMapData::Instance().IsCoordInMap(X, Y)) return 0x464AE4;
+	if (!CMapDataExt::IsCoordInFullMap(X, Y)) return 0x464AE4;
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
@@ -648,19 +648,19 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 		{
 			auto getNW = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x, y - 1);
+					return CMapDataExt::TryGetCellAt(x, y - 1);
 				};
 			auto getSE = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x, y + 1);
+					return CMapDataExt::TryGetCellAt(x, y + 1);
 				};
 			auto getNE = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x - 1, y);
+					return CMapDataExt::TryGetCellAt(x - 1, y);
 				};
 			auto getSW = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x + 1, y);
+					return CMapDataExt::TryGetCellAt(x + 1, y);
 				};
 			int tileSet = CMapDataExt::TileData[groundClick].TileSet;
 			int heightOffset = CMapDataExt::TileData[groundClick].TileBlockDatas[cellClick->TileSubIndex].Height;
@@ -697,7 +697,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 							int newX = thisX + i;
 							int newY = thisY + e;
 							int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-							if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+							if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 							CMapDataExt::CellDataExts[pos].CreateSlope = true;
 						}
 				}
@@ -722,7 +722,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 		{
 			for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
 			{
-				if (!CMapData::Instance->IsCoordInMap(X + f, Y + n)) continue;
+				if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 
 				int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 				auto cell = mapData.GetCellAt(X + f, Y + n);
@@ -750,7 +750,7 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 						int newX = thisX + i;
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-						if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 						CMapDataExt::CellDataExts[pos].CreateSlope = true;
 					}
 			}
@@ -781,7 +781,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 {
 	GET(int, X, EDI);
 	GET(int, Y, ESI);
-	if (!CMapData::Instance().IsCoordInMap(X, Y)) return 0x46555F;
+	if (!CMapDataExt::IsCoordInFullMap(X, Y)) return 0x46555F;
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
@@ -816,19 +816,19 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 		{
 			auto getNW = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x, y - 1);
+					return CMapDataExt::TryGetCellAt(x, y - 1);
 				};
 			auto getSE = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x, y + 1);
+					return CMapDataExt::TryGetCellAt(x, y + 1);
 				};
 			auto getNE = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x - 1, y);
+					return CMapDataExt::TryGetCellAt(x - 1, y);
 				};
 			auto getSW = [](int x, int y)
 				{
-					return CMapData::Instance->TryGetCellAt(x + 1, y);
+					return CMapDataExt::TryGetCellAt(x + 1, y);
 				};
 			int tileSet = CMapDataExt::TileData[groundClick].TileSet;
 			int heightOffset = CMapDataExt::TileData[groundClick].TileBlockDatas[cellClick->TileSubIndex].Height;
@@ -862,7 +862,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 								int newX = thisX + i;
 								int newY = thisY + e;
 								int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-								if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+								if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 
 								auto cellCheckNonMorphable = mapData.GetCellAt(pos);
 								int groundCheckNonMorphable = cellCheckNonMorphable->TileIndex;
@@ -906,7 +906,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 							int newX = thisX + i;
 							int newY = thisY + e;
 							int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-							if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+							if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 							CMapDataExt::CellDataExts[pos].CreateSlope = true;
 						}
 				}
@@ -932,7 +932,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 		{
 			for (n = loopStartY; n < loopEndY; n++)
 			{
-				if (!CMapData::Instance->IsCoordInMap(X + f, Y + n)) continue;
+				if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 
 				int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 				auto cell = mapData.GetCellAt(X + f, Y + n);
@@ -960,7 +960,7 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 						int newX = thisX + i;
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-						if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 						CMapDataExt::CellDataExts[pos].CreateSlope = true;
 					}
 			}
@@ -1007,7 +1007,7 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 	{
 		for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + f, Y + n)) continue;
+			if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 			int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 			ignoreList.push_back(pos);
 			AdjustHeightAt(X + f, Y + n, 1);
@@ -1030,7 +1030,7 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 						int newX = thisX + i;
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-						if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 						CMapDataExt::CellDataExts[pos].CreateSlope = true;
 					}
 			}
@@ -1077,7 +1077,7 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 	{
 		for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + f, Y + n)) continue;
+			if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 			int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 			ignoreList.push_back(pos);
 			AdjustHeightAt(X + f, Y + n, -1);
@@ -1099,7 +1099,7 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 						int newX = thisX + i;
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-						if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 						CMapDataExt::CellDataExts[pos].CreateSlope = true;
 					}
 			}
@@ -1131,7 +1131,7 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 						int newX = thisX + i;
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-						if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 						CMapDataExt::CellDataExts[pos].CreateSlope = true;
 					}
 			}
@@ -1196,7 +1196,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	int X = point.X;
 	int Y = point.Y;
 
-	if (!CMapData::Instance().IsCoordInMap(X, Y)) return 0x45BF33;
+	if (!CMapDataExt::IsCoordInFullMap(X, Y)) return 0x45BF33;
 
 	auto& mapData = CMapData::Instance();
 	int posClick = X + Y * mapData.MapWidthPlusHeight;
@@ -1245,7 +1245,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	{
 		for (n = loopStartY; n < loopEndY; n++)
 		{
-			if (!CMapData::Instance->IsCoordInMap(X + f, Y + n)) continue;
+			if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 			int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 			if (!IgnoreMorphable)
 				if (!process[pos]) continue;
@@ -1276,7 +1276,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 					int newX = thisX + i;
 					int newY = thisY + e;
 					int pos = CMapData::Instance->GetCoordIndex(newX, newY);
-					if (!CMapData::Instance->IsCoordInMap(pos)) continue;
+					if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
 					CMapDataExt::CellDataExts[pos].CreateSlope = true;
 				}
 		}

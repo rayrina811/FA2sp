@@ -26,7 +26,8 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
 
     for (const auto& coords : coords)
     {
-        if (!CMapData::Instance->IsCoordInMap(coords.X, coords.Y))
+        if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(coords.X, coords.Y)
+            || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(coords.X, coords.Y))
             continue;
 
         auto pos = CMapData::Instance->GetCoordIndex(coords.X, coords.Y);
@@ -182,7 +183,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
             int offset_x = cell.X - center.X;
             int offset_y = cell.Y - center.Y;
 
-            if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+            if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
+                || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
                 continue;
 
             auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);
@@ -211,7 +213,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
 
-        if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+        if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
+            || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
             continue;
 
         const auto pCell = CMapData::Instance->TryGetCellAt(X + offset_x, Y + offset_y);
@@ -225,7 +228,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         int offset_x = cell.X - center.X;
         int offset_y = cell.Y - center.Y;
 
-        if (!CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y))
+        if (!ExtConfigs::DisplayObjectsOutside && !CMapData::Instance->IsCoordInMap(X + offset_x, Y + offset_y)
+            || ExtConfigs::DisplayObjectsOutside && !CMapDataExt::IsCoordInFullMap(X + offset_x, Y + offset_y))
             continue;
 
         auto nCellIndex = CMapData::Instance->GetCoordIndex(X + offset_x, Y + offset_y);

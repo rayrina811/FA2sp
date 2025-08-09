@@ -422,6 +422,8 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
 
 void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 {
+    if (!CMapDataExt::IsCoordInFullMap(X, Y))
+        return;
     CViewObjectsExt::IsInPlaceCliff_OnMouseMove = true;
 
     auto handleExit = []()
@@ -3905,8 +3907,11 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             offsetConnectX -= 1;
         }
 
-        std::map<int, CellData> tmpCellDatas;
-        if (0 <= CViewObjectsExt::CliffConnectionTile && CViewObjectsExt::CliffConnectionTile < 256)
+        std::map<int, byte> tmpOverlayDatas;
+        std::map<int, word> tmpOverlays;
+        if (0 <= CViewObjectsExt::CliffConnectionTile &&
+            (!ExtConfigs::ExtOverlays && CViewObjectsExt::CliffConnectionTile < 256)
+            || (ExtConfigs::ExtOverlays && CViewObjectsExt::CliffConnectionTile < 65536))
         {
             int repeat = 1;
             if (facing == 0 && index == 2)
@@ -3917,7 +3922,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3929,7 +3935,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3941,7 +3948,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3953,7 +3961,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3966,7 +3975,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3979,7 +3989,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -3992,7 +4003,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY - i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX - i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -4005,7 +4017,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                     int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY + i) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX + i;
                     if (pos < CMapData::Instance->CellDataCount)
                     {
-                        tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                        tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                        tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                     }
                 }
             }
@@ -4014,14 +4027,15 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 int pos = (CliffConnectionCoord.Y - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.Y + offsetPlaceY) * mapData.MapWidthPlusHeight + CliffConnectionCoord.X - CViewObjectsExt::ThisPlacedCT.ConnectionPoint1.X + offsetPlaceX;
                 if (pos < CMapData::Instance->CellDataCount)
                 {
-                    tmpCellDatas[pos] = *CMapData::Instance->GetCellAt(pos);
+                    tmpOverlayDatas[pos] = CMapData::Instance->GetCellAt(pos)->OverlayData;
+                    tmpOverlays[pos] = CMapDataExt::CellDataExts[pos].NewOverlay;
                 }
             }
 
             if (place)
             {
                 int l = CMapData::Instance->MapWidthPlusHeight; int t = CMapData::Instance->MapWidthPlusHeight; int r = 0; int b = 0;
-                for (const auto& [pos, _] : tmpCellDatas)
+                for (const auto& [pos, _] : tmpOverlays)
                 {
                     int x = CMapData::Instance->GetXFromCoordIndex(pos);
                     int y = CMapData::Instance->GetYFromCoordIndex(pos);
@@ -4039,7 +4053,7 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
                 );
             }
 
-            for (const auto& [pos, _] : tmpCellDatas)
+            for (const auto& [pos, _] : tmpOverlays)
             {
                 CMapDataExt::GetExtension()->SetNewOverlayAt(pos, CViewObjectsExt::CliffConnectionTile);
                 CMapData::Instance->SetOverlayDataAt(pos, 0);
@@ -4074,14 +4088,16 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
             }
             else
             {
-                for (const auto& [pos, cell] : tmpCellDatas)
+                for (const auto& [pos, ovr] : tmpOverlays)
                 {
-                    CMapDataExt::GetExtension()->SetNewOverlayAt(pos, cell.Overlay);
-                    CMapData::Instance->SetOverlayDataAt(pos, cell.OverlayData);
+                    CMapDataExt::GetExtension()->SetNewOverlayAt(pos, ovr);
+                }
+                for (const auto& [pos, overd] : tmpOverlayDatas)
+                {
+                    CMapData::Instance->SetOverlayDataAt(pos, overd);
                 }
             }
         }
-
 
         handleExit();
         return;
@@ -4353,6 +4369,8 @@ void CViewObjectsExt::PlaceConnectedTile_OnMouseMove(int X, int Y, bool place)
 
 void CViewObjectsExt::PlaceConnectedTile_OnLButtonDown(int X, int Y)
 {
+    if (!CMapDataExt::IsCoordInFullMap(X, Y))
+        return;
     auto& mapData = CMapData::Instance();
     auto cellDatas = mapData.CellDatas;
 

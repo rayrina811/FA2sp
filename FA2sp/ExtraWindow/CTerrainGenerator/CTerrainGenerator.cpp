@@ -1440,6 +1440,7 @@ void CTerrainGenerator::OnSetRangeDone()
     CIsoView::CurrentCommand->Command = 0x0;
     CIsoView::CurrentCommand->Type = 0;
     CIsoView::CurrentCommand->Param = 0;
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CTerrainGenerator::OnClickAdd()

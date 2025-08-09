@@ -377,7 +377,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         mmh.AddINI(&CINI::CurrentDocument());
 
 
-        if (!Map->IsCoordInMap(point.X, point.Y))
+        if (!CMapDataExt::IsCoordInFullMap(point.X, point.Y))
         {
             SetTextAlign(hDC, TA_LEFT);
             return;
@@ -1955,7 +1955,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             }
         }
     }
-    if (CMapData::Instance().IsCoordInMap(point.X, point.Y))
+    if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y) 
+        || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {
         pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
             cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);

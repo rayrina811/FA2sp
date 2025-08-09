@@ -883,7 +883,7 @@ DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
 	GET_BASE(int, dwHeight, 0xC);
 
 	ppmfc::CString localSize;
-	localSize.Format("%d,%d,%d,%d", 4, 5, dwWidth - 8, dwHeight - 11);
+	localSize.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
 
 	memcpy(lpBuffer, localSize.m_pchData, std::min(localSize.GetLength(), 40));
 	lpBuffer[std::min(localSize.GetLength(), 40)] = '\0';
@@ -1185,7 +1185,7 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 							{
 								for (int dx = 0; dx < DataExt.Height; ++dx)
 								{
-									if (!mapData->IsCoordInMap(bnX + dx, bnY + dy))
+									if (!CMapDataExt::IsCoordInFullMap(bnX + dx, bnY + dy))
 										continue;
 									int pos = mapData->GetCoordIndex(bnX + dx, bnY + dy);
 									auto& cellExt = CMapDataExt::CellDataExts[pos];
@@ -1201,7 +1201,7 @@ DEFINE_HOOK(4A6FB0, CMapData_UpdateFieldBasenodeData, 6)
 						{
 							for (const auto& block : *DataExt.Foundations)
 							{
-								if (!mapData->IsCoordInMap(bnX + block.X, bnY + block.Y))
+								if (!CMapDataExt::IsCoordInFullMap(bnX + block.X, bnY + block.Y))
 									continue;
 								int pos = mapData->GetCoordIndex(bnX + block.X, bnY + block.Y);
 								auto& cellExt = CMapDataExt::CellDataExts[pos];

@@ -43,6 +43,7 @@ std::vector<BuildingRenderData> CMapDataExt::BuildingRenderDatasFix;
 std::vector<OverlayTypeData> CMapDataExt::OverlayTypeDatas;
 CellDataExt CMapDataExt::CellDataExt_FindCell;
 std::vector<CellDataExt> CMapDataExt::CellDataExts;
+CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
@@ -319,7 +320,7 @@ void CMapDataExt::SetHeightAt(int x, int y, int height)
 
 	if (height < 0) height = 0;
 	if (height > 14) height = 14;
-	if (this->IsCoordInMap(x, y))
+	if (this->IsCoordInFullMap(x, y))
 		this->CellDatas[x + y * this->MapWidthPlusHeight].Height = height;
 }
 
@@ -921,7 +922,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getNW = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x, y - 1);
+			if (!CMapDataExt::IsCoordInFullMap(x, y - 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x, y - 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 1)
 					return cellthis->Height - height;
@@ -930,8 +933,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			return cellthis->Height - height;
 		};
 	auto getSE = [height, x, y, isMorphable]()
-		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x, y + 1);
+		{			
+			if (!CMapDataExt::IsCoordInFullMap(x, y + 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x, y + 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 1)
 					return cellthis->Height - height;
@@ -940,8 +945,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			return cellthis->Height - height;
 		};
 	auto getNE = [height, x, y, isMorphable]()
-		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x - 1, y);
+		{			
+			if (!CMapDataExt::IsCoordInFullMap(x - 1, y))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 1)
 					return cellthis->Height - height;
@@ -951,7 +958,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getSW = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x + 1, y);
+			if (!CMapDataExt::IsCoordInFullMap(x + 1, y))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 1)
 					return cellthis->Height - height;
@@ -961,7 +970,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getN = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x - 1, y - 1);
+			if (!CMapDataExt::IsCoordInFullMap(x - 1, y - 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y - 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 2)
 					return cellthis->Height - height;
@@ -971,7 +982,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getE = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x - 1, y + 1);
+			if (!CMapDataExt::IsCoordInFullMap(x - 1, y + 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y + 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 2)
 					return cellthis->Height - height;
@@ -981,7 +994,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getS = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x + 1, y + 1);
+			if (!CMapDataExt::IsCoordInFullMap(x + 1, y + 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y + 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 2)
 					return cellthis->Height - height;
@@ -991,7 +1006,9 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getW = [height, x, y, isMorphable]()
 		{
-			auto cellthis = CMapData::Instance->TryGetCellAt(x + 1, y - 1);
+			if (!CMapDataExt::IsCoordInFullMap(x + 1, y - 1))
+				return 0;
+			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y - 1);
 			if (!isMorphable(cellthis))
 				if (cellthis->Height - height <= 2)
 					return cellthis->Height - height;

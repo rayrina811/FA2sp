@@ -321,6 +321,38 @@ public:
                 X < CMapData::Instance->MapWidthPlusHeight &&
                 Y < CMapData::Instance->MapWidthPlusHeight;
         };
+    inline static bool IsCoordInFullMap(int CoordIndex)
+    {
+        return IsCoordInFullMap(CMapData::Instance->GetXFromCoordIndex(CoordIndex), CMapData::Instance->GetYFromCoordIndex(CoordIndex));
+    }
+    static CellData ExtTempCellData;
+    inline static CellData* TryGetCellAt(int X, int Y)
+    {
+        if (IsCoordInFullMap(X, Y))
+            return CMapData::Instance->GetCellAt(X, Y);
+        else
+        {
+            ExtTempCellData.Infantry[0] = -1;
+            ExtTempCellData.Infantry[1] = -1;
+            ExtTempCellData.Infantry[2] = -1;
+            ExtTempCellData.Unit = -1;
+            ExtTempCellData.Aircraft = -1;
+            ExtTempCellData.Structure = -1;
+            ExtTempCellData.BaseNode.BasenodeID = -1;
+            ExtTempCellData.BaseNode.BuildingID = -1;
+            ExtTempCellData.Terrain = -1;
+            ExtTempCellData.Smudge = -1;
+            ExtTempCellData.Height = 0;
+            ExtTempCellData.TileIndex = 0;
+            ExtTempCellData.TileSubIndex = 0;
+            ExtTempCellData.Flag.NotAValidCell = 1;
+            return &ExtTempCellData;
+        }
+    }
+    inline static CellData* TryGetCellAt(int nIndex)
+    {
+        TryGetCellAt(CMapData::Instance->GetXFromCoordIndex(nIndex), CMapData::Instance->GetYFromCoordIndex(nIndex));
+    }
 
     std::string convertToExtendedOverlayPack(const std::string& input);
     std::string convertFromExtendedOverlayPack(const std::string& input);

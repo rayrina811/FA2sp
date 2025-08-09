@@ -1008,3 +1008,95 @@ DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
 	}
 	return 0x4C45E9;
 }
+
+static inline bool commandHasBorderRange(int command)
+{
+	switch (command)
+	{
+	case 20:
+	case 21:
+	case 0x1F:
+	case 0x1E:
+		return true;
+	case 0x1B:
+	case 0x2:
+	case 0:
+		if (ExtConfigs::DisplayObjectsOutside && !CIsoView::GetInstance()->Drag)
+			return true;
+		break;
+	case 1:
+		// delete overlays
+		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
+			return true;
+		break;
+	case 5:
+		// delete nodes
+		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 2)
+			return true;
+		break;
+	case 3:
+		// delete waypoint
+		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 1)
+			return true;
+		break;
+	case 4:
+		// delete celltag
+		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 1)
+			return true;
+		break;
+	case 6:
+		// delete tube
+		if (ExtConfigs::DisplayObjectsOutside)
+			return true;
+		break;
+	case 0x1D:
+		// add/delete multi-selection
+		if (ExtConfigs::DisplayObjectsOutside && 
+			(CIsoView::CurrentCommand->Type == 3 || CIsoView::CurrentCommand->Type == 4 
+				|| CIsoView::CurrentCommand->Type == 10 || CIsoView::CurrentCommand->Type == 11))
+			return true;
+		break;
+	case 0x21:
+		// delete annotation
+		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type != 0)
+			return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
+DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1, 9)
+{
+	GET(int, command, EDX);
+	if (commandHasBorderRange(command))
+		return 0x4572B9;
+	return 0x457235;
+}
+
+DEFINE_HOOK(4572B9, CIsoView_OnMouseMove_MouseRange_2, 5)
+{
+	GET(int, X, EBX);
+	GET(int, Y, ESI);
+	if (CMapDataExt::IsCoordInFullMap(X, Y))
+		return 0x4572E1;
+
+	return 0x456EB6;
+}
+
+DEFINE_HOOK(4615F0, CIsoView_OnLButtonDown_MouseRange, 5)
+{
+	GET(int, command, ECX);
+	if (commandHasBorderRange(command))
+		return 0x461651;
+	return 0x4615FA;
+}
+
+//DEFINE_HOOK(466C8E, CIsoView_OnLButtonUp_MouseRange, 5)
+//{
+//	GET(int, command, EDX);
+//	if (commandHasBorderRange(command))
+//		return 0x466CEC;
+//	return 0x466C98;
+//}

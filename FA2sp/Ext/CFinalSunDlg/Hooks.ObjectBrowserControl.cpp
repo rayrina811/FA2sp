@@ -1068,7 +1068,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             CTerrainGenerator::RangeSecondCell.X = X;
             CTerrainGenerator::RangeSecondCell.Y = Y;
             CTerrainGenerator::OnSetRangeDone();
-            return 0x466860;
+            return 0x46686A;
         }
     }
     else if (CIsoView::CurrentCommand->Command == 0x20)
