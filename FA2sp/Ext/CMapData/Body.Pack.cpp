@@ -171,7 +171,7 @@ DEFINE_HOOK(49EF81, CMapData_UnPack_OverlayData, 8)
 	auto pThis = CMapDataExt::GetExtension();
 	std::memset(pThis->Overlay, 0xff, 0x40000);
 	std::memset(pThis->OverlayData, 0x0, 0x40000);
-	std::memset(pThis->NewOverlay, 0xffff, 0x40000);
+	std::memset(pThis->NewOverlay, 0xffff, 0x80000);
 
 	int mapINIformat = pThis->INI.GetInteger("Basic", "NewINIFormat", 4);
 	bool needNewIniFormat = mapINIformat > 4;

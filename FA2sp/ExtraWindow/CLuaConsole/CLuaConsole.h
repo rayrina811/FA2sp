@@ -47,7 +47,6 @@ protected:
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
-
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;

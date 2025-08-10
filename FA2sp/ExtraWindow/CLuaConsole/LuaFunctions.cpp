@@ -851,7 +851,9 @@ namespace LuaFunctions
 
 		void apply() const
 		{
-			auto pCell = CMapData::Instance->GetCellAt(this->X, this->Y);
+			int pos = CMapData::Instance->GetCoordIndex(this->X, this->Y);
+			auto pCell = CMapData::Instance->GetCellAt(pos);
+			auto& pCellExt = CMapDataExt::CellDataExts[pos];
 			//pCell->Unit = this->Unit;
 			//pCell->Infantry[0] = this->Infantry[0];
 			//pCell->Infantry[1] = this->Infantry[1];
@@ -867,17 +869,19 @@ namespace LuaFunctions
 			//pCell->BaseNode.BuildingID = this->BuildingID;
 			//pCell->BaseNode.BasenodeID = this->BasenodeID;
 			//pCell->BaseNode.House = this->House.c_str();
-			if (pCell->Overlay != this->Overlay || pCell->OverlayData != this->OverlayData)
+			if (pCellExt.NewOverlay != this->Overlay || pCell->OverlayData != this->OverlayData)
 			{
 				int olyPos = this->Y + this->X * 512;
 				if (olyPos < 262144)
 				{
-					CMapData::Instance->Overlay[olyPos] = this->Overlay;
+					CMapData::Instance->Overlay[olyPos] = this->Overlay > 0xff ? 0xff : this->Overlay;
+					CMapDataExt::NewOverlay[olyPos] = this->Overlay ;
 					CMapData::Instance->OverlayData[olyPos] = this->OverlayData;
 				}
 				CLuaConsole::recalculateOre = true;
 			}
-			pCell->Overlay = this->Overlay;
+			pCell->Overlay = this->Overlay > 0xff ? 0xff : this->Overlay;
+			pCellExt.NewOverlay = this->Overlay;
 			pCell->OverlayData = this->OverlayData;
 			pCell->TileIndex = this->TileIndex;
 			//pCell->TileIndexHiPart = this->TileIndexHiPart;
@@ -914,7 +918,7 @@ namespace LuaFunctions
 		int BasenodeID;
 		std::string House;
 
-		unsigned char Overlay;
+		unsigned short Overlay;
 		unsigned char OverlayData;
 		unsigned short TileIndex;
 		unsigned short TileIndexHiPart;
@@ -1030,7 +1034,7 @@ namespace LuaFunctions
 		TimePoint savedTime;
 		std::string fileName;
 		std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> INI;
-		unsigned char Overlay[0x40000];
+		unsigned short Overlay[0x40000];
 		unsigned char OverlayData[0x40000];
 		std::vector<CellData> CellDatas;
 	};
@@ -3192,8 +3196,8 @@ namespace LuaFunctions
 			c.BuildingID = -1;
 			c.BasenodeID = -1;
 			c.House = "";
-			c.Overlay = -1;
-			c.OverlayData = -1;
+			c.Overlay = 0xFFFF;
+			c.OverlayData = 0;
 			c.TileIndex = -1;
 			c.TileIndexHiPart = -1;
 			c.TileSubIndex = -1;
@@ -3211,7 +3215,9 @@ namespace LuaFunctions
 			return c;
 		}
 
-		auto pCell = CMapData::Instance->GetCellAt(x, y);
+		int pos = CMapData::Instance->GetCoordIndex(x, y);
+		auto pCell = CMapData::Instance->GetCellAt(pos);
+		auto& pCellExt = CMapDataExt::CellDataExts[pos];
 		c.X = x;
 		c.Y = y;
 		c.Unit = pCell->Unit;
@@ -3229,7 +3235,7 @@ namespace LuaFunctions
 		c.BuildingID = pCell->BaseNode.BuildingID;
 		c.BasenodeID = pCell->BaseNode.BasenodeID;
 		c.House = pCell->BaseNode.House.m_pchData;
-		c.Overlay = pCell->Overlay;
+		c.Overlay = pCellExt.NewOverlay;
 		c.OverlayData = pCell->OverlayData;
 		c.TileIndex = pCell->TileIndex;
 		c.TileIndexHiPart = pCell->TileIndexHiPart;
@@ -3521,7 +3527,7 @@ namespace LuaFunctions
 				section[key] = value;
 			}
 		}
-		memcpy(snapshot.Overlay, CMapData::Instance->Overlay, sizeof(CMapData::Instance->Overlay));
+		memcpy(snapshot.Overlay, CMapDataExt::NewOverlay, sizeof(CMapDataExt::NewOverlay));
 		memcpy(snapshot.OverlayData, CMapData::Instance->OverlayData, sizeof(CMapData::Instance->OverlayData));
 
 		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
@@ -3597,7 +3603,7 @@ namespace LuaFunctions
 				ini->WriteString(pSection, key, value);
 			}
 		}
-		memcpy(CMapData::Instance->Overlay, snapshot.Overlay, sizeof(snapshot.Overlay));
+		memcpy(CMapDataExt::NewOverlay, snapshot.Overlay, sizeof(snapshot.Overlay));
 		memcpy(CMapData::Instance->OverlayData, snapshot.OverlayData, sizeof(snapshot.OverlayData));
 
 		for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)

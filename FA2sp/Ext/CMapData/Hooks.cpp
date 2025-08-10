@@ -869,9 +869,15 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	return 0;
 }
 
+DEFINE_HOOK(4B85D0, CMapData_CreateMap_ClearTileData, 5)
+{
+	CMapDataExt::TileData = nullptr;
+	return 0;
+}
+
 DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
 {
-	std::memset(CMapDataExt::NewOverlay, 0xffff, 0x40000);
+	std::memset(CMapDataExt::NewOverlay, 0xffff, 0x80000);
 	CMapDataExt::NewINIFormat = 4;
 	return 0;
 }
