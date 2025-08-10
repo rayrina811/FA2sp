@@ -1009,7 +1009,7 @@ DEFINE_HOOK(4C4480, CIsoView_SmoothTiberium, 5)
 	return 0x4C45E9;
 }
 
-static inline bool commandHasBorderRange(int command)
+static inline bool commandHasBorderRange(int command, int x = 1919, int y = 810)
 {
 	switch (command)
 	{
@@ -1017,49 +1017,49 @@ static inline bool commandHasBorderRange(int command)
 	case 21:
 	case 0x1F:
 	case 0x1E:
-		return true;
+		return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 	case 0x1B:
 	case 0x2:
 	case 0:
 		if (ExtConfigs::DisplayObjectsOutside && !CIsoView::GetInstance()->Drag)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 1:
 		// delete overlays
 		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 5:
 		// delete nodes
 		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 2)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 3:
 		// delete waypoint
 		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 1)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 4:
 		// delete celltag
 		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type == 1)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 6:
 		// delete tube
 		if (ExtConfigs::DisplayObjectsOutside)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 0x1D:
 		// add/delete multi-selection
 		if (ExtConfigs::DisplayObjectsOutside && 
 			(CIsoView::CurrentCommand->Type == 3 || CIsoView::CurrentCommand->Type == 4 
 				|| CIsoView::CurrentCommand->Type == 10 || CIsoView::CurrentCommand->Type == 11))
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	case 0x21:
 		// delete annotation
 		if (ExtConfigs::DisplayObjectsOutside && CIsoView::CurrentCommand->Type != 0)
-			return true;
+			return (x == 1919 && y == 810) ? true : CMapDataExt::IsCoordInFullMap(x, y);
 		break;
 	default:
 		break;
@@ -1088,7 +1088,9 @@ DEFINE_HOOK(4572B9, CIsoView_OnMouseMove_MouseRange_2, 5)
 DEFINE_HOOK(4615F0, CIsoView_OnLButtonDown_MouseRange, 5)
 {
 	GET(int, command, ECX);
-	if (commandHasBorderRange(command))
+	GET(int, x, EDI);
+	GET(int, y, ESI);
+	if (commandHasBorderRange(command, x, y))
 		return 0x461651;
 	return 0x4615FA;
 }

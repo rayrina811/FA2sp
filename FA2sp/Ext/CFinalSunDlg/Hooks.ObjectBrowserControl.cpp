@@ -273,7 +273,7 @@ DEFINE_HOOK(4F3C00, CTileSetBrowserView_OnLButtonDown, 7)
 //    return 0;
 //}
 
-DEFINE_HOOK(457207, CIsoView_OnMouseMove_Cliff, 5)
+DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
 {
     auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
     if (CIsoView::CurrentCommand->Command == 0x1E)
