@@ -106,7 +106,7 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 
 		{
 			Logger::Raw("Packing isomappack\n");
-			auto data = lzo::compress(IsoPackData, IsoPackDataCount * sizeof(IsoMapPack5Entry));
+			auto data = lzo::compressIsoMapPack5(IsoPackData, IsoPackDataCount * sizeof(IsoMapPack5Entry));
 			data = base64::encode(data);
 			Logger::Raw("Saving isomappack...");
 			INI.WriteBase64String("IsoMapPack5", data.data(), data.length());
