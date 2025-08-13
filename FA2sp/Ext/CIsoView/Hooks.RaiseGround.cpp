@@ -1297,31 +1297,3 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	return 0x45BF33;
 }
 
-DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
-{
-	if (CIsoView::CurrentCommand->Command == 15) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)Translations::TranslateOrDefault("FlattenGroundMessage",
-				"Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)Translations::TranslateOrDefault("HeightenAndLowerTileMessage",
-				"Ctrl: Create slope on the edges"));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	else if (CLoading::Instance->TheaterIdentifier == 'N' && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19)) {
-		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
-			(LPARAM)(Translations::TranslateOrDefault("PressAToSwitchCliff", "Press key 'A' to switch cliff type")));
-		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
-		return 0x45CD82;
-	}
-	return 0;
-}
-

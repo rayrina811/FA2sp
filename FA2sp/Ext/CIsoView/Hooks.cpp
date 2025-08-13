@@ -19,6 +19,7 @@
 #include "../../Miscs/Palettes.h"
 #include <CShpFile.h>
 #include <CMixFile.h>
+#include "../../Miscs/TheaterInfo.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -1112,14 +1113,27 @@ DEFINE_HOOK(4615F0, CIsoView_OnLButtonDown_MouseRange, 5)
 //	return 0x466C98;
 //}
 
-DEFINE_HOOK(459D50, CIsoView_OnMouseMove_CliffBack_NewUrban_1, 6)
+DEFINE_HOOK(459D50, CIsoView_OnMouseMove_CliffBack_Alt_1, 6)
 {
-	if (CLoading::Instance->TheaterIdentifier == 'N' && CIsoView::GetInstance()->KeyboardAMode)
+	if (TheaterInfo::CurrentInfoHasCliff2 && CIsoView::GetInstance()->KeyboardAMode)
 		CIsoViewExt::CliffBackAlt = true;
 	return 0;
 }
 
-DEFINE_HOOK(459D7B, CIsoView_OnMouseMove_CliffBack_NewUrban_2, 7)
+DEFINE_HOOK(459D7B, CIsoView_OnMouseMove_CliffBack_Alt__2, 7)
+{
+	CIsoViewExt::CliffBackAlt = false;
+	return 0;
+}
+
+DEFINE_HOOK(459BFA, CIsoView_OnMouseMove_CliffFront_Alt__1, 7)
+{
+	if (TheaterInfo::CurrentInfoHasCliff2 && CIsoView::GetInstance()->KeyboardAMode)
+		CIsoViewExt::CliffBackAlt = true;
+	return 0;
+}
+
+DEFINE_HOOK(459C28, CIsoView_OnMouseMove_CliffFront_Alt_2, 7)
 {
 	CIsoViewExt::CliffBackAlt = false;
 	return 0;
@@ -1129,5 +1143,70 @@ DEFINE_HOOK(41B250, CIsoView_DrawCliff_NewUrban, 7)
 {
 	if (CIsoViewExt::CliffBackAlt)
 		R->Stack(0x14, TRUE);
+	return 0;
+}
+
+DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
+{
+	if (CIsoView::CurrentCommand->Command == 15) {
+		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
+			(LPARAM)Translations::TranslateOrDefault("FlattenGroundMessage",
+				"Shift: Steep slope, Ctrl+Shift:  Ignore non-morphable tiles"));
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+		return 0x45CD82;
+	}
+	else if (CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14) {
+		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
+			(LPARAM)Translations::TranslateOrDefault("HeightenAndLowerTileMessage",
+				"Ctrl: Create slope on the edges"));
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+		return 0x45CD82;
+	}
+	else if (TheaterInfo::CurrentInfoHasCliff2 && (CIsoView::CurrentCommand->Command == 18 || CIsoView::CurrentCommand->Command == 19)) {
+		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
+			(LPARAM)(Translations::TranslateOrDefault("PressAToSwitchCliff", "Press key 'A' to switch cliff type")));
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+		return 0x45CD82;
+	}
+	else if (CIsoView::CurrentCommand->Command == 0x1E) {
+		ppmfc::CString text = "";
+		ppmfc::CString buffer;
+		for (int i = 0; i < 10; ++i)
+		{
+			int ctIndex = CIsoView::CurrentCommand->Type;
+			auto& info = CViewObjectsExt::TreeView_ConnectedTileMap[ctIndex];
+			auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
+			if (tileSet.ToSetPress[i] > -1)
+			{
+				for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
+				{
+					if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
+					{
+						auto& tileSet2 = CViewObjectsExt::ConnectedTileSets[info2.Index];
+						buffer.Format(Translations::TranslateOrDefault("PressNumberToSwitchConnectedType", "Press number key %d to switch to %s")
+							, i, tileSet2.Name);
+						if (tileSet2.WaterCliff)
+						{
+							buffer += " ";
+							buffer += Translations::TranslateOrDefault("SwitchConnectedTypeIsWaterCliff", "(Water)");
+						}
+						buffer += ", ";
+						text += buffer;
+					}
+				}
+			}
+		}
+		if (text != "")
+		{
+			text.Delete(text.GetLength() - 2, 2);
+			SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0, (LPARAM)text.m_pchData);
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+			return 0x45CD82;
+		}
+	}
 	return 0;
 }

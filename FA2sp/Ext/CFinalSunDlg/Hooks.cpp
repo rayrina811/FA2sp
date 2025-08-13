@@ -532,6 +532,22 @@ DEFINE_HOOK(46A1AD, CFinalSunDlg_StatusBar_Overlay_2, 5)
     return 0x46A1B2;
 }
 
+DEFINE_HOOK(43533D, CFinalSunDlg_OnMaptoolsFrontcliff, 9)
+{
+    int cliff = CINI::CurrentTheater->GetInteger("General", "CliffSet", 1919810);
+    if (CMapDataExt::IsValidTileSet(cliff))
+        return 0x435350;
+    return 0;
+}
+
+DEFINE_HOOK(4353BD, CFinalSunDlg_OnMaptoolsBackcliff, 9)
+{
+    int cliff = CINI::CurrentTheater->GetInteger("General", "CliffSet", 1919810);
+    if (CMapDataExt::IsValidTileSet(cliff))
+        return 0x4353D0;
+    return 0;
+}
+
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
 {
     if (!CIsoView::GetInstance()->IsScrolling)

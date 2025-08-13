@@ -18,4 +18,5 @@ public:
 
 	static std::vector<InfoStruct> CurrentInfo;
 	static std::vector<InfoStruct> CurrentInfoNonMorphable;
+	static bool CurrentInfoHasCliff2;
 };

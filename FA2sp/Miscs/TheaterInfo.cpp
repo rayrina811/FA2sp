@@ -11,6 +11,7 @@
 
 #include "../Helpers/STDHelpers.h"
 #include "../FA2sp.h"
+#include "../Ext/CMapData/Body.h"
 
 const char* TheaterInfo::GetInfoSection()
 {
@@ -34,6 +35,7 @@ const char* TheaterInfo::GetInfoSection()
 
 void TheaterInfo::UpdateTheaterInfo()
 {
+	CurrentInfoHasCliff2 = false;
 	CurrentInfo.clear();
 	auto const pSection = GetInfoSection();
 	ppmfc::CString buffer = CINI::FAData->GetString(pSection, "Morphables");
@@ -44,17 +46,7 @@ void TheaterInfo::UpdateTheaterInfo()
 	{
 		auto& str2 = buffer2s[i];
 		i++;
-		ppmfc::CString buffer3;
-		buffer3.Format("TileSet%04d", atoi(str));
-		auto exist = CINI::CurrentTheater->GetBool(buffer3, "AllowToPlace", true);
-		auto exist2 = CINI::CurrentTheater->GetString(buffer3, "FileName", "");
-
-		ppmfc::CString buffer4;
-		buffer4.Format("TileSet%04d", atoi(str2));
-		auto exist3 = CINI::CurrentTheater->GetString(buffer4, "FileName", "");
-
-
-		if (!exist || strcmp(exist2, "") == 0 || strcmp(exist3, "") == 0)
+		if (!CMapDataExt::IsValidTileSet(atoi(str)) || !CMapDataExt::IsValidTileSet(atoi(str2)))
 			continue;
 
 		CurrentInfo.emplace_back(InfoStruct());
@@ -63,6 +55,15 @@ void TheaterInfo::UpdateTheaterInfo()
 		CurrentInfo.back().Ramp = atoi(str2);
 		CurrentInfo.back().RampIndex = CTileTypeClass::GetTileIndex(CurrentInfo.back().Ramp);
 		j++;
+	}
+	auto cliff2 = CINI::FAData->GetInteger(pSection, "Cliffs2", 1919810);
+	auto cliffWater2 = CINI::FAData->GetInteger(pSection, "CliffsWater2", 1919810);
+	if (CMapDataExt::IsValidTileSet(cliff2) && CMapDataExt::IsValidTileSet(cliffWater2))
+	{
+		CMapData::Cliff2 = cliff2;
+		CMapData::Cliffs2Count = CTileTypeClass::GetTileIndex(cliff2);
+		CMapData::CliffWaters2 = cliffWater2;
+		CurrentInfoHasCliff2 = true;
 	}
 
 	CurrentInfoNonMorphable.clear();
@@ -73,12 +74,7 @@ void TheaterInfo::UpdateTheaterInfo()
 	for (auto& str : STDHelpers::SplitString(buffer))
 	{
 		i++;
-		ppmfc::CString buffer3;
-		buffer3.Format("TileSet%04d", atoi(str));
-		auto exist = CINI::CurrentTheater->GetBool(buffer3, "AllowToPlace", true);
-		auto exist2 = CINI::CurrentTheater->GetString(buffer3, "FileName", "");
-
-		if (!exist || strcmp(exist2, "") == 0)
+		if (!CMapDataExt::IsValidTileSet(atoi(str)))
 			continue;
 
 		CurrentInfoNonMorphable.emplace_back(InfoStruct());
@@ -91,6 +87,7 @@ void TheaterInfo::UpdateTheaterInfo()
 }
 std::vector<InfoStruct> TheaterInfo::CurrentInfo;
 std::vector<InfoStruct> TheaterInfo::CurrentInfoNonMorphable;
+bool TheaterInfo::CurrentInfoHasCliff2 = false;
 
 DEFINE_HOOK(49D121, CMapData_UpdateINIFile_UpdateTheaterInfos, 7)
 {

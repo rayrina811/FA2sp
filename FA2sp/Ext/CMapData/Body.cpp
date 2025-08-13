@@ -1315,7 +1315,8 @@ bool CMapDataExt::IsValidTileSet(int tileset)
 
 	auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
 	auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-	if (!exist || strcmp(exist2, "") == 0)
+	auto exist3 = CINI::CurrentTheater->GetInteger(buffer, "TilesInSet");
+	if (!exist || strcmp(exist2, "") == 0 || exist3 < 1)
 		return false;
 	return true;
 }
