@@ -52,6 +52,7 @@ BEGIN
     VK_OEM_MINUS,   30052,                  VIRTKEY, CONTROL, NOINVERT
     VK_OEM_4,   	30054,                  VIRTKEY, NOINVERT
     VK_OEM_6,   	30055,                  VIRTKEY, NOINVERT
+	"D",   			30056,                  VIRTKEY, CONTROL, NOINVERT
     "5",            30008,                  VIRTKEY, CONTROL, NOINVERT
     "6",            30009,                  VIRTKEY, CONTROL, NOINVERT
     "7",            30010,                  VIRTKEY, CONTROL, NOINVERT

@@ -183,6 +183,8 @@ public:
     static std::vector<MapCoord> DistanceRuler;
     static bool EnableDistanceRuler;
 
+    static bool CliffBackAlt;
+
     struct LastCommand
     {
         int Command = -1;

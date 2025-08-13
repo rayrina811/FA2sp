@@ -58,6 +58,7 @@ bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableDistanceRuler = false;
+bool CIsoViewExt::CliffBackAlt = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::DistanceRuler;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";

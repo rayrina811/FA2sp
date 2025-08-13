@@ -34,7 +34,7 @@ public:
     }
 
     static bool IsSquareSelecting;
-    static bool ShiftKeyIsDown;
+    static bool Control_D_IsDown;
     static BGRStruct ColorHolder[0x1000];
     static std::set<MapCoord> SelectedCoords;
     static MapCoord LastAddedCoord;

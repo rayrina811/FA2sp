@@ -1067,8 +1067,17 @@ static inline bool commandHasBorderRange(int command, int x = 1919, int y = 810)
 	return false;
 }
 
-DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1, 9)
+#pragma comment(lib, "imm32.lib") 
+DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 {
+	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+	HIMC hIMC = ::ImmGetContext(pIsoView->GetSafeHwnd());
+	if (hIMC)
+	{
+		::ImmAssociateContext(pIsoView->GetSafeHwnd(), NULL);
+		::ImmReleaseContext(pIsoView->GetSafeHwnd(), hIMC);
+	}
+
 	GET(int, command, EDX);
 	if (commandHasBorderRange(command))
 		return 0x4572B9;
@@ -1102,3 +1111,23 @@ DEFINE_HOOK(4615F0, CIsoView_OnLButtonDown_MouseRange, 5)
 //		return 0x466CEC;
 //	return 0x466C98;
 //}
+
+DEFINE_HOOK(459D50, CIsoView_OnMouseMove_CliffBack_NewUrban_1, 6)
+{
+	if (CLoading::Instance->TheaterIdentifier == 'N' && CIsoView::GetInstance()->KeyboardAMode)
+		CIsoViewExt::CliffBackAlt = true;
+	return 0;
+}
+
+DEFINE_HOOK(459D7B, CIsoView_OnMouseMove_CliffBack_NewUrban_2, 7)
+{
+	CIsoViewExt::CliffBackAlt = false;
+	return 0;
+}
+
+DEFINE_HOOK(41B250, CIsoView_DrawCliff_NewUrban, 7)
+{
+	if (CIsoViewExt::CliffBackAlt)
+		R->Stack(0x14, TRUE);
+	return 0;
+}

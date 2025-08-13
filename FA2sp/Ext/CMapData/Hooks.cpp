@@ -877,7 +877,7 @@ DEFINE_HOOK(4B85D0, CMapData_CreateMap_ClearTileData, 5)
 
 DEFINE_HOOK(4B9CB5, CMapData_CreateMap_ClearOverlay, 5)
 {
-	std::memset(CMapDataExt::NewOverlay, 0xffff, 0x80000);
+	std::fill(std::begin(CMapDataExt::NewOverlay), std::end(CMapDataExt::NewOverlay), 0xFFFF);
 	CMapDataExt::NewINIFormat = 4;
 	return 0;
 }

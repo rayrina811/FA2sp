@@ -25,7 +25,7 @@
 std::set<MapCoord> MultiSelection::SelectedCoords;
 MapCoord MultiSelection::LastAddedCoord;
 bool MultiSelection::IsSquareSelecting = false;
-bool MultiSelection::ShiftKeyIsDown = false;
+bool MultiSelection::Control_D_IsDown = false;
 BGRStruct MultiSelection::ColorHolder[0x1000];
 bool MultiSelection::AddBuildingOptimize = false;
 CMultiSelectionOptionDlg MultiSelection::dlg;
@@ -247,41 +247,18 @@ DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
 
     if (nChar == 'D')
     {
-        if (CIsoView::ControlKeyIsDown)
-			MultiSelection::Clear();
+        if (MultiSelection::Control_D_IsDown)
+            MultiSelection::Control_D_IsDown = false;
 		else
-			CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
-
+            CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
         pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else if (nChar == 'A')
         pThis->KeyboardAMode = !pThis->KeyboardAMode;
-    else if (nChar == VK_CONTROL)
-        CIsoView::ControlKeyIsDown = true;
-    else if (nChar == VK_SHIFT)
-        MultiSelection::ShiftKeyIsDown = true;
 
     R->EAX(pThis->Default());
 
     return 0x4694A9;
-}
-
-DEFINE_HOOK(46BC30, CIsoView_OnKeyUp, 5)
-{
-    if (!ExtConfigs::EnableMultiSelection)
-        return 0;
-
-    GET(CIsoView*, pThis, ECX);
-    GET_STACK(UINT, nChar, 0x4);
-
-    if (nChar == VK_CONTROL)
-        CIsoView::ControlKeyIsDown = false;
-    else if (nChar == VK_SHIFT)
-        MultiSelection::ShiftKeyIsDown = false;
-
-    R->EAX(pThis->Default());
-
-    return 0x46BC46;
 }
 
 DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)

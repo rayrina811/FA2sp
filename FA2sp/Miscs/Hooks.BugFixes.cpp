@@ -168,7 +168,7 @@ DEFINE_HOOK(4564F0, CInputMessageBox_OnOK, 7)
 	return 0x4565A5;
 }
 
-DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
+DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 {
 	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x19C));
 	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x194));
@@ -229,6 +229,32 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenode, 5)
 		}
 	}
 	CMapData::Instance->UpdateFieldBasenodeData(false);
+
+	if (auto pSection = CINI::CurrentDocument->GetSection("Tubes"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(value, 5);
+
+			MapCoord StartCoord = { atoi(atoms[1]),atoi(atoms[0]) };
+			MapCoord EndCoord = { atoi(atoms[4]),atoi(atoms[3]) };
+			StartCoord += {XOFF, YOFF};
+			EndCoord += {XOFF, YOFF};
+			atoms[1].Format("%d", StartCoord.X);
+			atoms[0].Format("%d", StartCoord.Y);
+			atoms[4].Format("%d", EndCoord.X);
+			atoms[3].Format("%d", EndCoord.Y);
+			ppmfc::CString val;
+			for (auto& atom : atoms)
+			{
+				val += atom;
+				val += ",";
+			}
+			val.Delete(val.GetLength() - 1, 1);
+			CINI::CurrentDocument->WriteString(pSection, key, val);
+		}
+	}
+	CMapData::Instance->UpdateFieldTubeData(false);
 
 	return 0;
 }

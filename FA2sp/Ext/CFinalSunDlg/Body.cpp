@@ -26,6 +26,7 @@
 #include "../CLoading/Body.h"
 #include "../../ExtraWindow/CSelectAutoShore/CSelectAutoShore.h"
 #include <thread>
+#include "../../Miscs/MultiSelection.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
@@ -441,7 +442,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		SetMenuStatusFalse(30018, CIsoViewExt::DrawAircraftsFilter);
 		SetMenuStatusFalse(30019, CIsoViewExt::DrawBasenodesFilter);
 		SetMenuStatusFalse(30020, CIsoViewExt::DrawCellTagsFilter);
-		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		return TRUE;
 	case 30051:
 		CIsoViewExt::Zoom(0.0);
@@ -470,6 +471,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		int index = std::min(pBrushSize->GetCurSel() + 1, pBrushSize->GetCount() - 1);
 		pBrushSize->SetCurSel(index);
 		changeBrushSize(index);
+		return TRUE;
+	}
+	case 30056:
+	{
+		MultiSelection::Control_D_IsDown = true;
+		MultiSelection::Clear();
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		return TRUE;
 	}
 	case 31000:
