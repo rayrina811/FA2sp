@@ -608,7 +608,7 @@
     <ClCompile Include="FA2sp\Ext\CMapData\Hooks.CreateShore.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter..cpp">
+    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FA2sp\Miscs\Hooks.UserScripts.cpp">

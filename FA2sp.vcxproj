@@ -294,7 +294,7 @@
     <ClCompile Include="FA2sp\MFCWindow\Hooks.cpp" />
     <ClCompile Include="FA2sp\Miscs\CopyPaste.cpp" />
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
-    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter..cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DialogStyle.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ExtLocalVariables.cpp" />
