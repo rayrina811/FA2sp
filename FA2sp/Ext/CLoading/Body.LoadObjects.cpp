@@ -758,6 +758,8 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	int facings = ExtConfigs::ExtFacings ? 32 : 8;
+	AvailableFacings[ID] = facings;
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -1001,11 +1003,11 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				VoxelDrawer::LoadVPLFile("voxels.vpl");
 
 			std::vector<unsigned char*> pTurImages, pBarlImages;
-			pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-			pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			pTurImages.resize(facings, nullptr);
+			pBarlImages.resize(facings, nullptr);
 			std::vector<VoxelRectangle> turrect, barlrect;
-			turrect.resize(ExtConfigs::MaxVoxelFacing);
-			barlrect.resize(ExtConfigs::MaxVoxelFacing);
+			turrect.resize(facings);
+			barlrect.resize(facings);
 
 			ppmfc::CString VXLName = BarlName + ".vxl";
 			ppmfc::CString HVAName = BarlName + ".hva";
@@ -1013,10 +1015,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (13 - i) % 8 for facing fix
-						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pBarlImages[i], barlrect[i]);
 						if (!result)
 							break;
 					}
@@ -1029,17 +1030,16 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (13 - i) % 8 for facing fix
-						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pTurImages[i], turrect[i]);
 						if (!result)
 							break;
 					}
 				}
 			}
 
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
 				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
@@ -1052,9 +1052,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				{
 					ppmfc::CString pKey;
 
-					pKey.Format("%sX%d", ID, (15 - i) % 8);
+					pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
-					pKey.Format("%sY%d", ID, (15 - i) % 8);
+					pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
 					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
@@ -1062,9 +1062,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 					if (pBarlImages[i])
 					{
-						pKey.Format("%sX%d", ID, (15 - i) % 8);
+						pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 						int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-						pKey.Format("%sY%d", ID, (15 - i) % 8);
+						pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 						int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 
 						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
@@ -1104,7 +1104,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
 				auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
@@ -1120,7 +1120,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
 				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * 4, deltaX, deltaY, "", shadow);
+					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
 
 				unsigned char* pImage;
 				int width1, height1;
