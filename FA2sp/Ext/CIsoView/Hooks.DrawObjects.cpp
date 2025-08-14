@@ -643,7 +643,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 								int nFacing = 0;
 								if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
-									nFacing = 7 - (objRender.Facing / 32) % 8;
+								{
+									int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+									nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+								}
 
 								const int HP = objRender.Strength;
 								int status = CLoadingExt::GBIN_NORMAL;
@@ -748,7 +751,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					ppmfc::CString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
-					int nFacing = (atoi(obj.Facing) / 32) % 8;
+					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
+					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
@@ -1221,7 +1225,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					{
 						int nFacing = 0;
 						if (Variables::Rules.GetBool(objRender.ID, "Turret"))
-							nFacing = 7 - (objRender.Facing / 32) % 8;
+						{
+							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+							nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+						}
 
 						const int HP = objRender.Strength;
 						int status = CLoadingExt::GBIN_NORMAL;
@@ -1390,7 +1397,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					ppmfc::CString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
-					int nFacing = (atoi(obj.Facing) / 32) % 8;
+					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
+					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
@@ -1438,7 +1446,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CMapData::Instance->GetAircraftData(cell->Aircraft, obj);
 					auto imageID = obj.TypeID;
 
-					int nFacing = (atoi(obj.Facing) / 32) % 8;
+					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
+					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 
 					if (ExtConfigs::InGameDisplay_Damage)
 					{

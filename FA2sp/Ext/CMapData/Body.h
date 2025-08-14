@@ -304,8 +304,8 @@ public:
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
     static int GetInfantryAt(int dwPos, int dwSubPos = -1);
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
-    static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing);
-    static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord);
+    static ppmfc::CString GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings = 8);
+    static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset);
     static void UpdateIncludeIniInMap();

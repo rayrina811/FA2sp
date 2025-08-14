@@ -80,6 +80,8 @@ bool ExtConfigs::BaseNodeIndex_Background;
 bool ExtConfigs::BaseNodeIndex;
 int ExtConfigs::BaseNodeIndex_Background_Color;
 bool ExtConfigs::ExtWaypoints;
+bool ExtConfigs::ExtFacings;
+bool ExtConfigs::ExtFacings_Drag;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
 bool ExtConfigs::UndoRedo_HoldPlaceOverlay;
@@ -288,6 +290,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::Waypoint_SkipCheckList = CINI::FAData->GetString("ExtConfigs", "Waypoint.SkipCheckList");
 
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
+	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
+	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
@@ -900,6 +904,20 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "ExtOverlays",
 		.Value = &ExtConfigs::ExtOverlays,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings", "Enable 32 facings support"),
+		.IniKey = "ExtFacings",
+		.Value = &ExtConfigs::ExtFacings,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.Drag", "Allow drag units into 32 facings"),
+		.IniKey = "ExtFacings.Drag",
+		.Value = &ExtConfigs::ExtFacings_Drag,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

@@ -16,6 +16,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
+std::unordered_map<ppmfc::CString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
@@ -83,6 +84,13 @@ ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(const ppmfc::CStr
 	return itr->second.get();
 }
 
+int CLoadingExt::GetAvailableFacing(const ppmfc::CString& ID)
+{
+	auto itr = AvailableFacings.find(ID);
+	if (itr == AvailableFacings.end())
+		return 8;
+	return itr->second;
+}
 ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
 	ppmfc::CString ret;
@@ -234,6 +242,7 @@ void CLoadingExt::ClearItemTypes()
 	LoadedOverlays.clear();
 	SwimableInfantries.clear();
 	ImageDataMap.clear();
+	AvailableFacings.clear();
 	for (auto& data : SurfaceImageDataMap)
 	{
 		if (data.second->lpSurface)
@@ -358,6 +367,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	ppmfc::CString ArtID = GetArtID(ID);
 	ppmfc::CString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	int facings = ExtConfigs::ExtFacings ? 32 : 8;
+	AvailableFacings[ID] = facings;
 
 	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -592,11 +603,11 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 				VoxelDrawer::LoadVPLFile("voxels.vpl");
 
 			std::vector<unsigned char*> pTurImages, pBarlImages;
-			pTurImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-			pBarlImages.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			pTurImages.resize(facings, nullptr);
+			pBarlImages.resize(facings, nullptr);
 			std::vector<VoxelRectangle> turrect, barlrect;
-			turrect.resize(ExtConfigs::MaxVoxelFacing);
-			barlrect.resize(ExtConfigs::MaxVoxelFacing);
+			turrect.resize(facings);
+			barlrect.resize(facings);
 
 			ppmfc::CString VXLName = BarlName + ".vxl";
 			ppmfc::CString HVAName = BarlName + ".hva";
@@ -604,10 +615,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (13 - i) % 8 for facing fix
-						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pBarlImages[i], barlrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pBarlImages[i], barlrect[i]);
 						if (!result)
 							break;
 					}
@@ -620,17 +630,16 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (13 - i) % 8 for facing fix
-						bool result = VoxelDrawer::GetImageData((13 - i) % 8, pTurImages[i], turrect[i]);
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings, pTurImages[i], turrect[i]);
 						if (!result)
 							break;
 					}
 				}
 			}
 
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
 				if (IsLoadingObjectView && i != 0)
 					continue;
@@ -645,9 +654,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 				{
 					ppmfc::CString pKey;
 
-					pKey.Format("%sX%d", ID, (15 - i) % 8);
+					pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
-					pKey.Format("%sY%d", ID, (15 - i) % 8);
+					pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaY = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
 
 					VXL_Add(pTurImages[i], turrect[i].X + turdeltaX, turrect[i].Y + turdeltaY, turrect[i].W, turrect[i].H);
@@ -655,9 +664,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 					if (pBarlImages[i])
 					{
-						pKey.Format("%sX%d", ID, (15 - i) % 8);
+						pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 						int barldeltaX = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
-						pKey.Format("%sY%d", ID, (15 - i) % 8);
+						pKey.Format("%sY%d", ID, (15 - i * 8 / facings) % 8);
 						int barldeltaY = CINI::FAData->GetInteger("BuildingVoxelBarrelsRA2", pKey);
 
 						VXL_Add(pBarlImages[i], barlrect[i].X + barldeltaX, barlrect[i].Y + barldeltaY, barlrect[i].W, barlrect[i].H);
@@ -691,7 +700,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
 				if (IsLoadingObjectView && i != 0)
 					continue;
@@ -709,7 +718,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
 				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-					nStartFrame + i * 4, deltaX, deltaY, "", shadow);
+					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
 
 				unsigned char* pImage;
 				int width1, height1;
@@ -1476,9 +1485,11 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	ppmfc::CString ImageID = GetVehicleOrAircraftFileID(ID);
 	bool bHasTurret = Variables::Rules.GetBool(ID, "Turret");
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
+		AvailableFacings[ID] = facings;
 		ppmfc::CString FileName = ImageID + ".vxl";
 		ppmfc::CString HVAName = ImageID + ".hva";
 
@@ -1489,34 +1500,34 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		GetFullPaletteName(PaletteName);
 
 		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage, pShadowImage;
-		pImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-		pTurretImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
-		pBarrelImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+		pImage.resize(facings, nullptr);
+		pTurretImage.resize(facings, nullptr);
+		pBarrelImage.resize(facings, nullptr);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-			pShadowImage.resize(ExtConfigs::MaxVoxelFacing, nullptr);
+			pShadowImage.resize(facings, nullptr);
 		std::vector<VoxelRectangle> rect, turretrect, barrelrect, shadowrect;
-		rect.resize(ExtConfigs::MaxVoxelFacing);
-		turretrect.resize(ExtConfigs::MaxVoxelFacing);
-		barrelrect.resize(ExtConfigs::MaxVoxelFacing);
+		rect.resize(facings);
+		turretrect.resize(facings);
+		barrelrect.resize(facings);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-			shadowrect.resize(ExtConfigs::MaxVoxelFacing);
+			shadowrect.resize(facings);
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
 		{
 			if (VoxelDrawer::LoadHVAFile(HVAName))
 			{
-				for (int i = 0; i < 8; ++i)
+				for (int i = 0; i < facings; ++i)
 				{
-					// (i+6) % 8 to fix the facing
+					int actFacing = (i + facings - 2 * facings / 8) % facings;
 					bool result = false;
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
-						result = VoxelDrawer::GetImageData((i + 6) % 8, pImage[i], rect[i])
-							&& VoxelDrawer::GetImageData((i + 6) % 8, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
+						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i])
+							&& VoxelDrawer::GetImageData(actFacing, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
 					}
 					else
 					{
-						result = VoxelDrawer::GetImageData((i + 6) % 8, pImage[i], rect[i]);
+						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i]);
 					}
 					if (!result)
 						return;
@@ -1538,10 +1549,10 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (i+6) % 8 to fix the facing
-						bool result = VoxelDrawer::GetImageData((i + 6) % 8, pTurretImage[i], turretrect[i], F, L, H);
+						int actFacing = (i + facings - 2 * facings / 8) % facings;
+						bool result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H);
 						if (!result)
 							break;
 					}
@@ -1554,19 +1565,19 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			{
 				if (VoxelDrawer::LoadHVAFile(barlHVAName))
 				{
-					for (int i = 0; i < 8; ++i)
+					for (int i = 0; i < facings; ++i)
 					{
-						// (i+6) % 8 to fix the facing
-						bool result = VoxelDrawer::GetImageData((i + 6) % 8, pBarrelImage[i], barrelrect[i], F, L, H);
+						int actFacing = (i + facings - 2 * facings / 8) % facings;
+						bool result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i], F, L, H);
 						if (!result)
 							break;
 					}
 				}
 			}
 
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != 2)
+				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
 				ppmfc::CString DictName;
 				DictName.Format("%s%d", ID, i);
@@ -1609,9 +1620,9 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		}
 		else
 		{
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != 2)
+				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
 				ppmfc::CString DictName;
 				DictName.Format("%s%d", ID, i);
@@ -1628,7 +1639,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			}
 		}
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < facings; ++i)
 			{
 				ppmfc::CString DictShadowName;
 				DictShadowName.Format("%s%d\233SHADOW", ID, i);
@@ -1648,24 +1659,26 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		int facingCount = CINI::Art->GetInteger(ArtID, "Facings", 8);
 		if (facingCount % 8 != 0)
 			facingCount = (facingCount + 7) / 8 * 8;
-		int framesToRead[8];
+		AvailableFacings[ID] = facingCount;
+		int targetFacings = ExtConfigs::ExtFacings ? facingCount : 8;
+		std::vector<int> framesToRead(targetFacings);
 		if (CINI::Art->KeyExists(ArtID, "StandingFrames"))
 		{
 			int nStartStandFrame = CINI::Art->GetInteger(ArtID, "StartStandFrame", 0);
 			int nStandingFrames = CINI::Art->GetInteger(ArtID, "StandingFrames", 1);
-			for (int i = 0; i < 8; ++i)
-				framesToRead[i] = nStartStandFrame + (i * facingCount / 8) * nStandingFrames;
+			for (int i = 0; i < targetFacings; ++i)
+				framesToRead[i] = nStartStandFrame + (i * facingCount / targetFacings) * nStandingFrames;
 		}
 		else
 		{
 			int nStartWalkFrame = CINI::Art->GetInteger(ArtID, "StartWalkFrame", 0);
 			int nWalkFrames = CINI::Art->GetInteger(ArtID, "WalkFrames", 1);
-			for (int i = 0; i < 8; ++i) {
-				framesToRead[i] = nStartWalkFrame + (i * facingCount / 8) * nWalkFrames;
+			for (int i = 0; i < targetFacings; ++i) {
+				framesToRead[i] = nStartWalkFrame + (i * facingCount / targetFacings) * nWalkFrames;
 			}
 		}
 
-		std::rotate(framesToRead, framesToRead + 1, framesToRead + 8);
+		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
 
 		ppmfc::CString FileName = ImageID + ".shp";
 		int nMix = this->SearchFile(FileName);
@@ -1676,9 +1689,9 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			unsigned char* FramesBuffersShadow[2];
 			CMixFile::LoadSHP(FileName, nMix);
 			CShpFile::GetSHPHeader(&header);
-			for (int i = 0; i < 8; ++i)
+			for (int i = 0; i < targetFacings; ++i)
 			{
-				if (IsLoadingObjectView && i != 2)
+				if (IsLoadingObjectView && i != targetFacings / 8 * 2)
 					continue;
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 				ppmfc::CString DictName;
@@ -1701,10 +1714,10 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 					
 					// turret start from 0 + WalkFrames * Facings, ignore StartWalkFrame
 					// and always has 32 facings
-					turretFrameToRead = facingCount * nWalkFrames + ((1 + i) % 8) * 32 / 8;
+					turretFrameToRead = facingCount * nWalkFrames + ((targetFacings / 8 + i) % targetFacings) * 32 / targetFacings;
 
 					CLoadingExt::LoadSHPFrameSafe(turretFrameToRead, 1, &FramesBuffers[1], header);
-					Matrix3D mat(F, L, H, i);
+					Matrix3D mat(F, L, H, i, targetFacings);
 
 					UnionSHP_Add(FramesBuffers[0], header.Width, header.Height);
 					UnionSHP_Add(FramesBuffers[1], header.Width, header.Height, mat.OutputX, mat.OutputY);

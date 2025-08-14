@@ -95,6 +95,8 @@ public:
     static int BaseNodeIndex_Background_Color;
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
+    static bool ExtFacings;
+    static bool ExtFacings_Drag;
     static int UndoRedoLimit;
     static bool UndoRedo_ShiftPlaceTile;
     static bool UndoRedo_HoldPlaceOverlay;

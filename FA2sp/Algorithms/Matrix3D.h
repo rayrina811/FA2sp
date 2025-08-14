@@ -8,12 +8,13 @@ public:
     const double DEG_TO_RAD = PI / 180.0;
     const double SIN_60 = sin(60 * DEG_TO_RAD);
 
-    Matrix3D(double f, double l, double h, int facing)
+    Matrix3D(double f, double l, double h, int facing, int facingCount)
     {
         F = f;
         L = l;
         H = h;
-        Facing = facing % 8;
+        FacingCount = facingCount;
+        Facing = facing % FacingCount;
         OutputX = 0.0;
         OutputY = 0.0;
         TransformCoordinates();
@@ -37,7 +38,8 @@ public:
         else
             xyAngle = atan2(-L, F) / DEG_TO_RAD;
 
-        double rad = (45.0 - Facing * 45.0 - xyAngle) * DEG_TO_RAD;
+        double rad = (45.0 - Facing * 360.0 / FacingCount - xyAngle) * DEG_TO_RAD;
+
         double length = sqrt(F * F + L * L);
         OutputX = cos(rad) * length;
         OutputY = sin(rad) * length;
@@ -54,6 +56,7 @@ private:
     double L;
     double H;
     int Facing;
+    int FacingCount;
 public:
     double OutputX;
     double OutputY;

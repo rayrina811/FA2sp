@@ -554,7 +554,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		{
 			Map->GetInfantryData(m_id, infantry);
 			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
-			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing);
+			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteInfantryData(m_id);
 			Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
 		}
@@ -562,7 +562,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		{
 			Map->GetUnitData(m_id, unit);
 			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
-			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing);
+			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteUnitData(m_id);
 			Map->SetUnitData(&unit, NULL, NULL, 0, "");
 		}
@@ -570,7 +570,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		{
 			Map->GetAircraftData(m_id, aircraft);
 			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
-			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing);
+			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			Map->DeleteAircraftData(m_id);
 			Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
 		}
@@ -578,7 +578,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		{
 			Map->GetBuildingData(m_id, structure);
 			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
-			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing);
+			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
 			CMapDataExt::SkipUpdateBuildingInfo = true;
 			Map->DeleteBuildingData(m_id);
 			Map->SetBuildingData(&structure, NULL, NULL, 0, "");

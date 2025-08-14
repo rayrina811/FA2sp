@@ -195,6 +195,7 @@ public:
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
 
+	static std::unordered_map<ppmfc::CString, int> AvailableFacings;
 	static std::unordered_set<ppmfc::CString> LoadedObjects;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
@@ -234,6 +235,7 @@ public:
 	static ImageDataClassSafe* GetImageDataFromServer(const ppmfc::CString& name);
 	static bool IsSurfaceImageLoaded(const ppmfc::CString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const ppmfc::CString& name);
+	static int GetAvailableFacing(const ppmfc::CString& ID);
 
 	static HANDLE hPipeData;
 	static std::atomic<bool> PingServerRunning;

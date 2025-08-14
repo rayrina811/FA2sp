@@ -55,7 +55,7 @@ bool VoxelDrawer::LoadHVAFile(ppmfc::CString name)
 bool VoxelDrawer::GetImageData(unsigned int nFacing, unsigned char*& pBuffer, int& width,
     int& height, int& x, int& y, const int F, const int L, const int H, bool Shadow)
 {
-    const unsigned int nIndex = nFacing * 4;
+    const unsigned int nIndex = ExtConfigs::ExtFacings ? nFacing : nFacing * 4;
     CncImgPrepareVXLCache(nIndex, F, L, H);
     if (Shadow)
         CncImgGetShadowImageFrame(nIndex, &width, &height, &x, &y);

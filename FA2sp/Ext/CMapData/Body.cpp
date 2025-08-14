@@ -1182,93 +1182,37 @@ std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
 	return result;
 }
 
-ppmfc::CString CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing)
+ppmfc::CString CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, ppmfc::CString currentFacing, int numFacings)
 {
 	if (oldMapCoord == newMapCoord)
 		return currentFacing;
-	if (oldMapCoord.X == newMapCoord.X)
-	{
-		if (newMapCoord.Y >= oldMapCoord.Y)
-			return "64";
-		else
-			return "192";
-	}
-	else
-	{
-		auto Tan = (double)(newMapCoord.Y - oldMapCoord.Y) / (double)(newMapCoord.X - oldMapCoord.X);
-		auto radian = (atan(Tan) / M_PI) * 180.0;
-		if (newMapCoord.X >= oldMapCoord.X)
-		{
-			if (radian >= 67.5)
-				return "64";
-			else if (radian >= 22.5)
-				return "96";
-			else if (radian >= -22.5)
-				return "128";
-			else if (radian >= -67.5)
-				return "160";
-			else
-				return "192";
-		}
-		else
-		{
-			if (radian >= 67.5)
-				return "192";
-			else if (radian >= 22.5)
-				return "224";
-			else if (radian >= -22.5)
-				return "0";
-			else if (radian >= -67.5)
-				return "32";
-			else
-				return "64";
-		}
-	}
-	return "0";
+	return STDHelpers::IntToString(GetFacing(oldMapCoord, newMapCoord, numFacings) * 256 / numFacings);
 }
-int CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord)
+
+int CMapDataExt::GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings)
 {
 	if (oldMapCoord == newMapCoord)
 		return 0;
-	if (oldMapCoord.X == newMapCoord.X)
-	{
-		if (newMapCoord.Y >= oldMapCoord.Y)
-			return 2;
-		else
-			return 6;
-	}
-	else
-	{
-		auto Tan = (double)(newMapCoord.Y - oldMapCoord.Y) / (double)(newMapCoord.X - oldMapCoord.X);
-		auto radian = (atan(Tan) / M_PI) * 180.0;
-		if (newMapCoord.X >= oldMapCoord.X)
-		{
-			if (radian >= 67.5)
-				return 2;
-			else if (radian >= 22.5)
-				return 3;
-			else if (radian >= -22.5)
-				return 4;
-			else if (radian >= -67.5)
-				return 5;
-			else
-				return 6;
-		}
-		else
-		{
-			if (radian >= 67.5)
-				return 6;
-			else if (radian >= 22.5)
-				return 7;
-			else if (radian >= -22.5)
-				return 0;
-			else if (radian >= -67.5)
-				return 1;
-			else
-				return 2;
-		}
-	}
-	return 0;
+
+	double dx = (double)(newMapCoord.X - oldMapCoord.X);
+	double dy = (double)(oldMapCoord.Y - newMapCoord.Y); 
+
+	double angle = atan2(dy, dx);
+
+	angle += M_PI;
+
+	if (angle < 0)
+		angle += 2 * M_PI;
+	else if (angle >= 2 * M_PI)
+		angle -= 2 * M_PI;
+
+	double sector = (2 * M_PI) / numFacings;
+
+	int facing = (int)floor(angle / sector + 0.5);
+	if (facing >= numFacings)
+		facing -= numFacings;
+
+	return facing;
 }
 
 int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
