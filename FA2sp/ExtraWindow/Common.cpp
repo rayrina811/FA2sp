@@ -4,6 +4,7 @@
 #include "CNewScript/CNewScript.h"
 #include "../Helpers/Translations.h"
 #include "CObjectSearch/CObjectSearch.h"
+#include "../Helpers/FString.h"
 #include <regex>
 #include <string>
 #include <vector>
@@ -17,16 +18,16 @@ MultimapHelper& ExtraWindow::rules = Variables::Rules;
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
 
-ppmfc::CString ExtraWindow::GetTeamDisplayName(const char* id)
+FString ExtraWindow::GetTeamDisplayName(const char* id)
 {
-    ppmfc::CString name;
+    FString name;
     name.Format("%s (%s)", id, map.GetString(id, "Name"));
     return name;
 }
-ppmfc::CString ExtraWindow::GetAITriggerDisplayName(const char* id)
+FString ExtraWindow::GetAITriggerDisplayName(const char* id)
 {
-    ppmfc::CString name = "";
-    auto atoms = STDHelpers::SplitString(map.GetString("AITriggerTypes", id));
+    FString name = "";
+    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id));
     if (atoms.size() < 1)
         return name;
 
@@ -72,55 +73,55 @@ void ExtraWindow::SetEditControlFontSize(HWND hWnd, float nFontSizeMultiplier, b
     }
 }
 
-ppmfc::CString ExtraWindow::FormatTriggerDisplayName(const char* id, const char* name)
+FString ExtraWindow::FormatTriggerDisplayName(const char* id, const char* name)
 {
-    ppmfc::CString ret;
+    FString ret;
     ret.Format("%s (%s)", id, name);
     return ret;
 }
 
-ppmfc::CString ExtraWindow::GetTriggerDisplayName(const char* id)
+FString ExtraWindow::GetTriggerDisplayName(const char* id)
 {
-    ppmfc::CString name;
+    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = STDHelpers::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
+    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
     name.Format("%s (%s)", id, atoms[2]);
     return name;
 }
 
-ppmfc::CString ExtraWindow::GetTriggerName(const char* id)
+FString ExtraWindow::GetTriggerName(const char* id)
 {
-    ppmfc::CString name;
+    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = STDHelpers::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
+    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"));
     return atoms[2];
 }
 
-ppmfc::CString ExtraWindow::GetAITriggerName(const char* id)
+FString ExtraWindow::GetAITriggerName(const char* id)
 {
-    ppmfc::CString name;
+    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = STDHelpers::SplitString(map.GetString("AITriggerTypes", id, "MISSING"));
+    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id, "MISSING"));
     return atoms[0];
 }
 
-ppmfc::CString ExtraWindow::GetTagName(const char* id)
+FString ExtraWindow::GetTagName(const char* id)
 {
-    ppmfc::CString name;
+    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = STDHelpers::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
+    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"));
     return atoms[1];
 }
 
-ppmfc::CString ExtraWindow::GetEventDisplayName(const char* id, int index)
+FString ExtraWindow::GetEventDisplayName(const char* id, int index)
 {
-    ppmfc::CString name;
-    ppmfc::CString name2;
-    ppmfc::CString atom = STDHelpers::SplitString(fadata.GetString("EventsRA2", id, "MISSING"))[0];
+    FString name;
+    FString name2;
+    FString atom = FString::SplitString(fadata.GetString("EventsRA2", id, "MISSING"))[0];
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);
@@ -128,11 +129,11 @@ ppmfc::CString ExtraWindow::GetEventDisplayName(const char* id, int index)
     return name2;
 }
 
-ppmfc::CString ExtraWindow::GetActionDisplayName(const char* id, int index)
+FString ExtraWindow::GetActionDisplayName(const char* id, int index)
 {
-    ppmfc::CString name;
-    ppmfc::CString name2;
-    ppmfc::CString atom = STDHelpers::SplitString(fadata.GetString("ActionsRA2", id, "MISSING"))[0];
+    FString name;
+    FString name2;
+    FString atom = FString::SplitString(fadata.GetString("ActionsRA2", id, "MISSING"))[0];
     name.Format("%s %s", id, atom);
     if (index >= 0)
         name2.Format("[%d] %s", index, name);
@@ -196,11 +197,11 @@ void ExtraWindow::SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone)
     }
 }
 
-void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
+void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
 {
-    ppmfc::CString addonN1 = "-1 - ";
-    ppmfc::CString addonN2 = "-2 - ";
-    ppmfc::CString addonN3 = "-3 - ";
+    FString addonN1 = "-1 - ";
+    FString addonN2 = "-2 - ";
+    FString addonN3 = "-3 - ";
 
     while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
     switch (atoi(idx)) {
@@ -214,15 +215,15 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
 
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house")).m_pchData);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house")).m_pchData);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house")).c_str());
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house")).c_str());
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player")).c_str());
         break;
     case 4:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).m_pchData);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house")).c_str());
         break;
     case 5:
         LoadParam_CountryList(hWnd);
@@ -231,7 +232,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
     case 6:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_MultiAres(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
         break;
     case 7:
         LoadParam_CountryList(hWnd);
@@ -256,20 +257,20 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
     case 13:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).c_str());
         break;
     case 14:
         LoadParam_CountryList(hWnd);
         LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).m_pchData);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).c_str());
+        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).c_str());
         break;
     default:
         if (atoi(idx) >= 500)
         {
             if (auto pSectionNewParamTypes = fadata.GetSection("NewParamTypes"))
             {
-                auto atoms3 = STDHelpers::SplitString(fadata.GetString("NewParamTypes", idx), 4);
+                auto atoms3 = FString::SplitString(fadata.GetString("NewParamTypes", idx.c_str()).m_pchData, 4);
                 auto& sectionName = atoms3[0];
                 auto& loadFrom = atoms3[1];
                 auto& strictOrder = atoms3[2];
@@ -282,20 +283,20 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                 if (useValue == "1")
                 {
                     int i = 0;
-                    for (auto& kvp : mmh.GetSection(sectionName))
+                    for (auto& kvp : mmh.GetSection(sectionName.c_str()))
                     {
-                        ppmfc::CString output;
+                        FString output;
                         output.Format("%s", kvp.second);
                         if (showUIName == "1")
                         {
-                            ppmfc::CString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
+                            FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                             if (uiname != kvp.second && uiname != "")
                             {
-                                ppmfc::CString tmp = output;
+                                FString tmp = output;
                                 output.Format("%s - %s", tmp, uiname);
                             }
                         }
-                        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
+                        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
                         i++;
                     }
                 }
@@ -305,63 +306,63 @@ void ExtraWindow::LoadParams(HWND& hWnd, ppmfc::CString idx)
                     {
                         // rules
                         if (loadFrom == "1" || loadFrom == "2") {
-                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName))
+                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName.c_str()) : Variables::GetRulesMapSection(sectionName.c_str()))
                             {
                                 int idx = 0;
                                 for (auto& pair : *indicies)
                                 {
-                                    ppmfc::CString output;
+                                    FString output;
                                     output.Format("%d - %s", idx, pair.second);
                                     if (showUIName == "1")
                                     {
-                                        ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                                        FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
                                         if (uiname != pair.second && uiname != "")
                                         {
-                                            ppmfc::CString tmp = output;
+                                            FString tmp = output;
                                             output.Format("%s - %s", tmp, uiname);
                                         }
                                     }
-                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.m_pchData);
+                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.c_str());
                                     idx++;
                                 }
                             }
                         }
                         else {
-                            auto&& entries = mmh.ParseIndicies(sectionName, true);
+                            auto&& entries = mmh.ParseIndicies(sectionName.c_str(), true);
                             for (size_t i = 0, sz = entries.size(); i < sz; i++)
                             {
-                                ppmfc::CString output;
+                                FString output;
                                 output.Format("%d - %s", i, entries[i]);
                                 if (showUIName == "1")
                                 {
-                                    ppmfc::CString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
+                                    FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
                                     if (uiname != entries[i] && uiname != "")
                                     {
-                                        ppmfc::CString tmp = output;
+                                        FString tmp = output;
                                         output.Format("%s - %s", tmp, uiname);
                                     }
                                 }
-                                SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
+                                SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
                             }
                         }
                     }
                     else
                     {
                         int i = 0;
-                        for (auto& kvp : mmh.GetUnorderedUnionSection(sectionName))
+                        for (auto& kvp : mmh.GetUnorderedUnionSection(sectionName.c_str()))
                         {
-                            ppmfc::CString output;
+                            FString output;
                             output.Format("%s - %s", kvp.first, kvp.second);
                             if (showUIName == "1")
                             {
-                                ppmfc::CString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
+                                FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                                 if (uiname != kvp.second && uiname != "")
                                 {
-                                    ppmfc::CString tmp = output;
+                                    FString tmp = output;
                                     output.Format("%s - %s", tmp, uiname);
                                 }
                             }
-                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
+                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
                             i++;
                         }
                     }
@@ -380,13 +381,13 @@ void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
     {
         for (auto& kvp : pSection->GetEntities())
         {
-            ppmfc::CString output;
+            FString output;
             int point = atoi(kvp.second);
             int x = point % 1000;
             int y = point / 1000;
 
             output.Format("%s - (%d, %d)", kvp.first, x, y);
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
             i++;
         }
     }
@@ -395,13 +396,13 @@ void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
 
 void ExtraWindow::LoadParam_ActionList(HWND& hWnd)
 {
-    ppmfc::CString key;
-    ppmfc::CString text;
+    FString key;
+    FString text;
     for (int i = 0; i < 50; i++)
     {
         key.Format("%d", i);
-        auto value = map.GetString(CNewScript::CurrentScriptID, key);
-        auto atoms = STDHelpers::SplitString(value, 1);
+        auto value = map.GetString(CNewScript::CurrentScriptID, key.c_str());
+        auto atoms = FString::SplitString(value, 1);
         key.Format("%d", i + 1);
         if (value != "")
         {
@@ -415,7 +416,7 @@ void ExtraWindow::LoadParam_ActionList(HWND& hWnd)
             else
                 text.Format("%s - [%s - %s]", key, atoms[0], atoms[1]);
 
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text.c_str());
         }
     }
 }
@@ -436,16 +437,16 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
                 rIdx++;
                 continue;
             }
-            ppmfc::CString output;
+            FString output;
                 output.Format("%d - %s", rIdx, pair.second);
-                ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
                 if (uiname != pair.second && uiname != "")
                 {
-                    ppmfc::CString tmp = output;
+                    FString tmp = output;
                     output.Format("%s - %s", tmp, uiname);
                 }
 
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
             rIdx++;
         }
     }
@@ -462,20 +463,20 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
             {
                 for (auto& pair : *indicies)
                 {
-                    ppmfc::CString output;
+                    FString output;
                     output.Format("%s", pair.second);
-                    ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+                    FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
                     switch (style)
                     {
                     case 0:
                     {
-                        ppmfc::CString tmp = output;
+                        FString tmp = output;
                         output.Format("%s - %s", tmp, uiname);
                     }
                     break;
                     case 1:
                     {
-                        ppmfc::CString tmp = output;
+                        FString tmp = output;
                         output.Format("%s - %s", tmp, uiname);
                     }
                     break;
@@ -484,9 +485,9 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
                     }
 
                     if (sort)
-                        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.m_pchData);
+                        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
                     else
-                        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.m_pchData);
+                        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
                 }
             }
         };
@@ -561,11 +562,11 @@ void ExtraWindow::LoadParam_Tags(HWND& hWnd)
         int idx = 0;
         for (auto& kvp : pSection->GetEntities())
         {
-            auto tagAtoms = STDHelpers::SplitString(kvp.second);
+            auto tagAtoms = FString::SplitString(kvp.second);
             if (tagAtoms.size() < 3) continue;
-            ppmfc::CString text;
+            FString text;
             text.Format("%s - %s", kvp.first, tagAtoms[1]);
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.c_str());
         }
     }
 }
@@ -585,17 +586,17 @@ void ExtraWindow::LoadParam_Stringtables(HWND& hWnd)
 
 }
 
-bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
+bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
 {
     if (!labels.empty())
     {
         char buffer[512]{ 0 };
         GetWindowText(hWnd, buffer, 511);
-        ppmfc::CString text(buffer);
+        FString text(buffer);
         SendMessage(hWnd, CB_GETLBTEXT, SendMessage(hWnd, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
         labels.clear();
         int idx = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
         if (idx == CB_ERR)
@@ -603,7 +604,7 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& 
             if (isComboboxSelectOnly)
                 SendMessage(hWnd, CB_SETCURSEL, 0, NULL);
             else
-                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
+                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)text.c_str());
         }
         else
             SendMessage(hWnd, CB_SETCURSEL, idx, NULL);
@@ -618,7 +619,7 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& 
     return true;
 }
 
-void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels)
+void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
 {
     if ((SendMessage(hWnd, CB_GETCOUNT, NULL, NULL) > ExtConfigs::SearchCombobox_MaxCount 
         || labels.size() > ExtConfigs::SearchCombobox_MaxCount) 
@@ -637,7 +638,7 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
         {
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
         }
         labels.clear();
     }
@@ -650,7 +651,7 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
     {
         SendMessage(hWnd, CB_GETLBTEXT, idx, (LPARAM)buffer2);
         bool del = false;
-        ppmfc::CString tmp(buffer2);
+        FString tmp(buffer2);
         if (!(IsLabelMatch(buffer2, buffer) || strcmp(buffer, "")   == 0))
         {
             deletedLabels.push_back(idx);
@@ -670,13 +671,13 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& lab
     SetCursor(hCursor);
 }
 
-bool ExtraWindow::SortLabels(ppmfc::CString a, ppmfc::CString b)
+bool ExtraWindow::SortLabels(FString a, FString b)
 {
     if (!ExtConfigs::SortByLabelName) {
         return a < b;
     }
-    STDHelpers::TrimIndexElse(a);
-    STDHelpers::TrimIndexElse(b);
+    FString::TrimIndexElse(a);
+    FString::TrimIndexElse(b);
     a = a.Mid(1, a.GetLength() - 2);
     b = b.Mid(1, b.GetLength() - 2);
 
@@ -769,10 +770,10 @@ bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
     return sa < sb;
 }
 
-void ExtraWindow::SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedIndex, ppmfc::CString id)
+void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id)
 {
     while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
     if (auto pSection = map.GetSection(section)) {
         for (auto& pair : pSection->GetEntities()) {
             labels.push_back(ExtraWindow::GetTeamDisplayName(pair.second));
@@ -793,18 +794,18 @@ void ExtraWindow::SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedInd
     ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
     }
     if (id != "") {
-        selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).m_pchData);
+        selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
         SendMessage(hWnd, CB_SETCURSEL, selectedIndex, NULL);
     }
 }
 
-void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, ppmfc::CString id)
+void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
 {
     while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
     if (auto pSection = map.GetSection("AITriggerTypes")) {
         for (auto& pair : pSection->GetEntities()) {
             labels.push_back(ExtraWindow::GetAITriggerDisplayName(pair.first));
@@ -819,10 +820,10 @@ void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, ppmfc::CString 
     ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
     }
     if (id != "") {
-        selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).m_pchData);
+        selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).c_str());
         SendMessage(hWnd, CB_SETCURSEL, selectedIndex, NULL);
     }
 }
@@ -916,9 +917,9 @@ bool ExtraWindow::IsLabelMatch(const char* target, const char* source, bool exac
     return false;
 }
 
-ppmfc::CString ExtraWindow::GetCloneName(ppmfc::CString oriName)
+FString ExtraWindow::GetCloneName(FString oriName)
 {
-    ppmfc::CString newName = oriName;
+    FString newName = oriName;
     if (ExtConfigs::CloneWithOrderedID)
     {
         std::string input(oriName);
@@ -962,7 +963,7 @@ ppmfc::CString ExtraWindow::GetCloneName(ppmfc::CString oriName)
 
     return newName;
 }
-void ExtraWindow::LoadFrom(MultimapHelper& mmh, ppmfc::CString loadfrom)
+void ExtraWindow::LoadFrom(MultimapHelper& mmh, FString loadfrom)
 {
     if (loadfrom == "0" || loadfrom == "fadata")
         mmh.AddINI(&CINI::FAData);

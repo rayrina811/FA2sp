@@ -14,20 +14,20 @@
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-std::unordered_map<ppmfc::CString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
-std::unordered_set<ppmfc::CString> CLoadingExt::LoadedObjects;
-std::unordered_map<ppmfc::CString, int> CLoadingExt::AvailableFacings;
+std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
-std::unordered_set<ppmfc::CString> CLoadingExt::LoadedOverlays;
+std::unordered_set<FString> CLoadingExt::LoadedOverlays;
 int CLoadingExt::TallestBuildingHeight = 0;
 
-std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
-std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
-std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
+std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
+std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 
-bool CLoadingExt::IsImageLoaded(const ppmfc::CString& name)
+bool CLoadingExt::IsImageLoaded(const FString& name)
 {
 	auto itr = ImageDataMap.find(name);
 	if (itr == ImageDataMap.end())
@@ -35,7 +35,7 @@ bool CLoadingExt::IsImageLoaded(const ppmfc::CString& name)
 	return itr->second->pImageBuffer != nullptr;
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const ppmfc::CString& name)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
 {
 	auto itr = ImageDataMap.find(name);
 	if (itr == ImageDataMap.end())
@@ -47,7 +47,7 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const ppmfc::CString& name)
 	return itr->second.get();
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(const ppmfc::CString& name)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(const FString& name)
 {
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
@@ -64,7 +64,7 @@ ImageDataClassSafe* CLoadingExt::GetImageDataFromServer(const ppmfc::CString& na
 	return GetImageDataFromMap(name);
 }
 
-bool CLoadingExt::IsSurfaceImageLoaded(const ppmfc::CString& name)
+bool CLoadingExt::IsSurfaceImageLoaded(const FString& name)
 {
 	auto itr = SurfaceImageDataMap.find(name);
 	if (itr == SurfaceImageDataMap.end())
@@ -72,7 +72,7 @@ bool CLoadingExt::IsSurfaceImageLoaded(const ppmfc::CString& name)
 	return itr->second->lpSurface != nullptr;
 }
 
-ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(const ppmfc::CString& name)
+ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(const FString& name)
 {
 	auto itr = SurfaceImageDataMap.find(name);
 	if (itr == SurfaceImageDataMap.end())
@@ -84,16 +84,16 @@ ImageDataClassSurface* CLoadingExt::GetSurfaceImageDataFromMap(const ppmfc::CStr
 	return itr->second.get();
 }
 
-int CLoadingExt::GetAvailableFacing(const ppmfc::CString& ID)
+int CLoadingExt::GetAvailableFacing(const FString& ID)
 {
 	auto itr = AvailableFacings.find(ID);
 	if (itr == AvailableFacings.end())
 		return 8;
 	return itr->second;
 }
-ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
+FString CLoadingExt::GetImageName(FString ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
-	ppmfc::CString ret;
+	FString ret;
 	if (bShadow || bDeploy || bWater)
 		ret.Format("%s%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
@@ -101,9 +101,9 @@ ppmfc::CString CLoadingExt::GetImageName(ppmfc::CString ID, int nFacing, bool bS
 	return ret;
 }
 
-ppmfc::CString CLoadingExt::GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow)
+FString CLoadingExt::GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow)
 {
-	ppmfc::CString ret;
+	FString ret;
 	if (bShadow)
 		ret.Format("OVRL\233%d_%dSHADOW", ovr, ovrd);
 	else
@@ -111,9 +111,9 @@ ppmfc::CString CLoadingExt::GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow)
 	return ret;
 }
 
-ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing, int state, bool bShadow)
+FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow)
 {
-	ppmfc::CString ret;
+	FString ret;
 	if (state == GBIN_DAMAGED)
 	{
 		if (bShadow)
@@ -153,13 +153,13 @@ ppmfc::CString CLoadingExt::GetBuildingImageName(ppmfc::CString ID, int nFacing,
 	return ret;
 }
 
-CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)
+CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 {
 	if (ID == "")
 		ObjectType::Unknown;
 	if (ObjectTypes.size() == 0)
 	{
-		auto load = [](ppmfc::CString type, ObjectType e)
+		auto load = [](FString type, ObjectType e)
 		{
 			auto section = Variables::Rules.GetSection(type);
 			for (auto& pair : section)
@@ -180,7 +180,7 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(ppmfc::CString ID)
 	return ObjectType::Unknown;
 }
 
-void CLoadingExt::LoadObjects(ppmfc::CString ID)
+void CLoadingExt::LoadObjects(FString ID)
 {
 	if (ID == "")
 		return;
@@ -189,7 +189,6 @@ void CLoadingExt::LoadObjects(ppmfc::CString ID)
 	if (!IsLoadingObjectView)
 		LoadedObjects.insert(ID);
 
-	// GlobalVars::CMapData->UpdateCurrentDocument();
 	auto eItemType = GetItemType(ID);
 	switch (eItemType)
 	{
@@ -258,33 +257,33 @@ void CLoadingExt::ClearItemTypes()
 	}
 }
 
-bool CLoadingExt::IsObjectLoaded(ppmfc::CString pRegName)
+bool CLoadingExt::IsObjectLoaded(FString pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
 }
 
-bool CLoadingExt::IsOverlayLoaded(ppmfc::CString pRegName)
+bool CLoadingExt::IsOverlayLoaded(FString pRegName)
 {
 	return LoadedOverlays.find(pRegName) != LoadedOverlays.end();
 }
 
-ppmfc::CString CLoadingExt::GetTerrainOrSmudgeFileID(ppmfc::CString ID)
+FString CLoadingExt::GetTerrainOrSmudgeFileID(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
 	return ImageID;
 }
 
-ppmfc::CString CLoadingExt::GetBuildingFileID(ppmfc::CString ID)
+FString CLoadingExt::GetBuildingFileID(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
-	ppmfc::CString backupID = ImageID;
+	FString backupID = ImageID;
 	SetTheaterLetter(ImageID, ExtConfigs::NewTheaterType ? 1 : 0);
 
-	ppmfc::CString validator = ImageID + ".SHP";
+	FString validator = ImageID + ".SHP";
 	int nMix = this->SearchFile(validator);
 	if (!CLoading::HasFile(validator, nMix))
 	{
@@ -300,11 +299,11 @@ ppmfc::CString CLoadingExt::GetBuildingFileID(ppmfc::CString ID)
 	return ImageID;
 }
 
-ppmfc::CString CLoadingExt::GetInfantryFileID(ppmfc::CString ID)
+FString CLoadingExt::GetInfantryFileID(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
+	FString ArtID = GetArtID(ID);
 
-	ppmfc::CString ImageID = ArtID;
+	FString ImageID = ArtID;
 
 	if (ExtConfigs::ArtImageSwap)
 		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
@@ -320,16 +319,16 @@ ppmfc::CString CLoadingExt::GetInfantryFileID(ppmfc::CString ID)
 	return ImageID;
 }
 
-ppmfc::CString CLoadingExt::GetArtID(ppmfc::CString ID)
+FString CLoadingExt::GetArtID(FString ID)
 {
 	return Variables::Rules.GetString(ID, "Image", ID);
 }
 
-ppmfc::CString CLoadingExt::GetVehicleOrAircraftFileID(ppmfc::CString ID)
+FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
+	FString ArtID = GetArtID(ID);
 
-	ppmfc::CString ImageID = ArtID;
+	FString ImageID = ArtID;
 
 	if (ExtConfigs::ArtImageSwap)
 		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
@@ -337,7 +336,7 @@ ppmfc::CString CLoadingExt::GetVehicleOrAircraftFileID(ppmfc::CString ID)
 	return ImageID;
 }
 
-void CLoadingExt::LoadBuilding(ppmfc::CString ID)
+void CLoadingExt::LoadBuilding(FString ID)
 {
 	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
@@ -362,15 +361,15 @@ void CLoadingExt::LoadBuilding(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
+void CLoadingExt::LoadBuilding_Normal(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
-	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
 	{
 		PaletteName = "iso\233NotAutoTinted";
@@ -379,9 +378,9 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
+	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
+		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
@@ -406,14 +405,14 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, 
-		int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, 
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
-			ppmfc::CString file = name + ".SHP";
+			FString file = name + ".SHP";
 			int nMix = SearchFile(file);
 			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
 			// if anim file in RA2(MD).mix, always use NewTheater = yes
@@ -495,14 +494,14 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
+	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
 	{
 		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				ppmfc::CString customPal = "";
+				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
@@ -528,7 +527,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
 
-	ppmfc::CString AnimKeys[9] = 
+	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
 		"ActiveAnim",
@@ -540,7 +539,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		"SuperAnimThree",
 		"SuperAnimFour" 
 	};
-	ppmfc::CString IgnoreKeys[9] =
+	FString IgnoreKeys[9] =
 	{
 		"IgnoreIdleAnim",
 		"IgnoreActiveAnim1",
@@ -579,13 +578,13 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		loadSingleFrameShape(*pStr, 0, 0, 0, "", false, 1);
 	}
 
-	ppmfc::CString DictName;
+	FString DictName;
 
 	unsigned char* pBuffer;
 	int width, height;
 	UnionSHP_GetAndClear(pBuffer, &width, &height);
 
-	ppmfc::CString DictNameShadow;
+	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
 	int widthShadow, heightShadow;
 	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -595,8 +594,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	{
 		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
 		{
-			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-			ppmfc::CString BarlName = ID + "barl";
+			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString BarlName = ID + "barl";
 
 
 			if (!VoxelDrawer::IsVPLLoaded())
@@ -609,8 +608,8 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 			turrect.resize(facings);
 			barlrect.resize(facings);
 
-			ppmfc::CString VXLName = BarlName + ".vxl";
-			ppmfc::CString HVAName = BarlName + ".hva";
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
 			if (VoxelDrawer::LoadVXLFile(VXLName))
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
@@ -652,7 +651,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 				if (pTurImages[i])
 				{
-					ppmfc::CString pKey;
+					FString pKey;
 
 					pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
@@ -697,7 +696,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 		}
 		else //SHP anim
 		{
-			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 			for (int i = 0; i < facings; ++i)
@@ -729,7 +728,7 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 
 				if (shadow)
 				{
-					ppmfc::CString DictNameShadow;
+					FString DictNameShadow;
 					unsigned char* pImageShadow;
 					int width1Shadow, height1Shadow;
 					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
@@ -753,15 +752,15 @@ void CLoadingExt::LoadBuilding_Normal(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
+void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
-	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
 	{
 		PaletteName = "iso\233NotAutoTinted";
@@ -770,9 +769,9 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
+	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
+		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
@@ -798,14 +797,14 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0,
-		int deltaY = 0, ppmfc::CString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
-			ppmfc::CString file = name + ".SHP";
+			FString file = name + ".SHP";
 			int nMix = SearchFile(file);
 			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
 			// if anim file in RA2(MD).mix, always use NewTheater = yes
@@ -887,15 +886,15 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
+	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
 	{
-		ppmfc::CString damagedAnimkey = animkey + "Damaged";
+		FString damagedAnimkey = animkey + "Damaged";
 		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				ppmfc::CString customPal = "";
+				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
@@ -916,7 +915,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
 				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				ppmfc::CString customPal = "";
+				FString customPal = "";
 				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
 					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
 					customPal.Replace("~~~", GetTheaterSuffix());
@@ -928,7 +927,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
 
-	ppmfc::CString AnimKeys[9] =
+	FString AnimKeys[9] =
 	{
 		"IdleAnim",
 		"ActiveAnim",
@@ -940,7 +939,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		"SuperAnimThree",
 		"SuperAnimFour"
 	};
-	ppmfc::CString IgnoreKeys[9] =
+	FString IgnoreKeys[9] =
 	{
 		"IgnoreIdleAnim",
 		"IgnoreActiveAnim1",
@@ -979,13 +978,13 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		loadSingleFrameShape(*pStr, 1, 0, 0, "", false, 1);
 	}
 
-	ppmfc::CString DictName;
+	FString DictName;
 
 	unsigned char* pBuffer;
 	int width, height;
 	UnionSHP_GetAndClear(pBuffer, &width, &height);
 
-	ppmfc::CString DictNameShadow;
+	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
 	int widthShadow, heightShadow;
 	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -995,8 +994,8 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	{
 		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
 		{
-			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
-			ppmfc::CString BarlName = ID + "barl";
+			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString BarlName = ID + "barl";
 
 
 			if (!VoxelDrawer::IsVPLLoaded())
@@ -1009,8 +1008,8 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 			turrect.resize(facings);
 			barlrect.resize(facings);
 
-			ppmfc::CString VXLName = BarlName + ".vxl";
-			ppmfc::CString HVAName = BarlName + ".hva";
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
 			if (VoxelDrawer::LoadVXLFile(VXLName))
 			{
 				if (VoxelDrawer::LoadHVAFile(HVAName))
@@ -1050,7 +1049,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 				if (pTurImages[i])
 				{
-					ppmfc::CString pKey;
+					FString pKey;
 
 					pKey.Format("%sX%d", ID, (15 - i * 8 / facings) % 8);
 					int turdeltaX = CINI::FAData->GetInteger("BuildingVoxelTurretsRA2", pKey);
@@ -1101,7 +1100,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 		}
 		else //SHP anim
 		{
-			ppmfc::CString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 			for (int i = 0; i < facings; ++i)
@@ -1134,7 +1133,7 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 
 				if (shadow)
 				{
-					ppmfc::CString DictNameShadow;
+					FString DictNameShadow;
 					unsigned char* pImageShadow;
 					int width1Shadow, height1Shadow;
 					UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
@@ -1168,18 +1167,18 @@ void CLoadingExt::LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble)
 	}
 }
 
-void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
+void CLoadingExt::LoadBuilding_Rubble(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetBuildingFileID(ID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
-	ppmfc::CString PaletteName = "iso\233NotAutoTinted";
+	FString PaletteName = "iso\233NotAutoTinted";
 	GetFullPaletteName(PaletteName);
 	auto pal = PalettesManager::LoadPalette(PaletteName);
 
-	auto loadBuildingFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
+	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
-		ppmfc::CString file = name + ".SHP";
+		FString file = name + ".SHP";
 		int nMix = SearchFile(file);
 		// building can be displayed without the body
 		if (!CLoading::HasFile(file, nMix))
@@ -1205,14 +1204,14 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadSingleFrameShape = [&](ppmfc::CString name, int nFrame = 0, int deltaX = 0,
+	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
 		int deltaY = 0, bool shadow = false, int forceNewTheater = -1) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
-			ppmfc::CString file = name + ".SHP";
+			FString file = name + ".SHP";
 			int nMix = SearchFile(file);
 			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
 			// if anim file in RA2(MD).mix, always use NewTheater = yes
@@ -1277,9 +1276,9 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](ppmfc::CString animkey, ppmfc::CString ignorekey)
+	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
 	{
-		ppmfc::CString damagedAnimkey = animkey + "Damaged";
+		FString damagedAnimkey = animkey + "Damaged";
 		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
@@ -1307,12 +1306,12 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 			int width, height;
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
-			ppmfc::CString DictName = ID + "0\233RUBBLE";
+			FString DictName = ID + "0\233RUBBLE";
 			SetImageDataSafe(pBuffer, DictName, width, height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
-				ppmfc::CString DictNameShadow;
+				FString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
 				int widthShadow, heightShadow;
 				UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
@@ -1328,28 +1327,28 @@ void CLoadingExt::LoadBuilding_Rubble(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::LoadInfantry(ppmfc::CString ID)
+void CLoadingExt::LoadInfantry(FString ID)
 {	
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetInfantryFileID(ID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetInfantryFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 
-	ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
+	FString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
 	bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
 	bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer" 
 		&& CINI::Art->KeyExists(sequenceName, "Swim");
-	ppmfc::CString frames = CINI::Art->GetString(sequenceName, "Guard", "0,1,1");
+	FString frames = CINI::Art->GetString(sequenceName, "Guard", "0,1,1");
 	int framesToRead[8];
 	int frameStart, frameStep;
 	sscanf_s(frames, "%d,%d,%d", &frameStart, &framesToRead[0], &frameStep);
 	for (int i = 0; i < 8; ++i)
 		framesToRead[i] = frameStart + i * frameStep;
 
-	ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	GetFullPaletteName(PaletteName);
 	auto pal = PalettesManager::LoadPalette(PaletteName);
 	
-	ppmfc::CString FileName = ImageID + ".shp";
+	FString FileName = ImageID + ".shp";
 	int nMix = this->SearchFile(FileName);
 	if (CLoading::HasFile(FileName, nMix))
 	{
@@ -1363,14 +1362,14 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 				continue;
 
 			CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers, header);
-			ppmfc::CString DictName;
+			FString DictName;
 			DictName.Format("%s%d", ID, i);
 			// DictName.Format("%s%d", ImageID, i);
 			SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
-				ppmfc::CString DictNameShadow;
+				FString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
 				DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
@@ -1380,7 +1379,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 
 		if (ExtConfigs::InGameDisplay_Deploy && deployable)
 		{
-			ppmfc::CString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
+			FString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
 			int framesToReadDeploy[8];
 			int frameStartDeploy, frameStepDeploy;
 			sscanf_s(framesDeploy, "%d,%d,%d", &frameStartDeploy, &framesToReadDeploy[0], &frameStepDeploy);
@@ -1390,13 +1389,13 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			for (int i = 0; i < 8; ++i)
 			{
 				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
-				ppmfc::CString DictNameDeploy;
+				FString DictNameDeploy;
 				DictNameDeploy.Format("%s%d\233DEPLOY", ID, i);
 				SetImageDataSafe(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
 				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 				{
-					ppmfc::CString DictNameShadow;
+					FString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
 					DictNameShadow.Format("%s%d\233DEPLOYSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
@@ -1407,7 +1406,7 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 		
 		if (ExtConfigs::InGameDisplay_Water && waterable)
 		{
-			ppmfc::CString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
+			FString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
 			int framesToReadWater[8];
 			int frameStartWater, frameStepWater;
 			sscanf_s(framesWater, "%d,%d,%d", &frameStartWater, &framesToReadWater[0], &frameStepWater);
@@ -1417,13 +1416,13 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 			for (int i = 0; i < 8; ++i)
 			{
 				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
-				ppmfc::CString DictNameWater;
+				FString DictNameWater;
 				DictNameWater.Format("%s%d\233WATER", ID, i);
 				SetImageDataSafe(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
 
 				if (ExtConfigs::InGameDisplay_Shadow)
 				{
-					ppmfc::CString DictNameShadow;
+					FString DictNameShadow;
 					unsigned char* pBufferShadow{ 0 };
 					DictNameShadow.Format("%s%d\233WATERSHADOW", ID, i);
 					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
@@ -1434,11 +1433,11 @@ void CLoadingExt::LoadInfantry(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
+void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetTerrainOrSmudgeFileID(ID);
-	ppmfc::CString FileName = ImageID + this->GetFileExtension();
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetTerrainOrSmudgeFileID(ID);
+	FString FileName = ImageID + this->GetFileExtension();
 	int nMix = this->SearchFile(FileName);
 	if (CLoading::HasFile(FileName, nMix))
 	{
@@ -1447,9 +1446,9 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 		CMixFile::LoadSHP(FileName, nMix);
 		CShpFile::GetSHPHeader(&header);
 		CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
-		ppmfc::CString DictName;
+		FString DictName;
 		DictName.Format("%s%d", ID, 0);
-		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
+		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
 		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::Rules.GetBool(ID, "SpawnsTiberium"))
 		{
 			PaletteName = "unitsno.pal";
@@ -1460,7 +1459,7 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 
 		if (ExtConfigs::InGameDisplay_Shadow && terrain)
 		{
-			ppmfc::CString DictNameShadow;
+			FString DictNameShadow;
 			unsigned char* pBufferShadow[1];
 			DictNameShadow.Format("%s%d\233SHADOW", ID, 0);
 			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
@@ -1479,10 +1478,10 @@ void CLoadingExt::LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain)
 	}
 }
 
-void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
+void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 {
-	ppmfc::CString ArtID = GetArtID(ID);
-	ppmfc::CString ImageID = GetVehicleOrAircraftFileID(ID);
+	FString ArtID = GetArtID(ID);
+	FString ImageID = GetVehicleOrAircraftFileID(ID);
 	bool bHasTurret = Variables::Rules.GetBool(ID, "Turret");
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
@@ -1490,13 +1489,13 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
 		AvailableFacings[ID] = facings;
-		ppmfc::CString FileName = ImageID + ".vxl";
-		ppmfc::CString HVAName = ImageID + ".hva";
+		FString FileName = ImageID + ".vxl";
+		FString HVAName = ImageID + ".hva";
 
 		if (!VoxelDrawer::IsVPLLoaded())
 			VoxelDrawer::LoadVPLFile("voxels.vpl");
 
-		ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 		GetFullPaletteName(PaletteName);
 
 		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage, pShadowImage;
@@ -1543,8 +1542,8 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			else if (s_count == 1) L = H = 0;
 			else if (s_count == 2) H = 0;
 
-			ppmfc::CString turFileName = ImageID + "tur.vxl";
-			ppmfc::CString turHVAName = ImageID + "tur.hva";
+			FString turFileName = ImageID + "tur.vxl";
+			FString turHVAName = ImageID + "tur.hva";
 			if (VoxelDrawer::LoadVXLFile(turFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))
@@ -1559,8 +1558,8 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				}
 			}
 
-			ppmfc::CString barlFileName = ImageID + "barl.vxl";
-			ppmfc::CString barlHVAName = ImageID + "barl.hva";
+			FString barlFileName = ImageID + "barl.vxl";
+			FString barlHVAName = ImageID + "barl.hva";
 			if (VoxelDrawer::LoadVXLFile(barlFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(barlHVAName))
@@ -1579,7 +1578,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			{
 				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
-				ppmfc::CString DictName;
+				FString DictName;
 				DictName.Format("%s%d", ID, i);
 				//DictName.Format("%s%d", ImageID, i);
 
@@ -1591,7 +1590,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 					VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
 					CncImgFree(pImage[i]);
 				}
-				ppmfc::CString pKey;
+				FString pKey;
 				if (pTurretImage[i])
 				{
 					pKey.Format("%sX%d", ID, i);
@@ -1624,7 +1623,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 			{
 				if (IsLoadingObjectView && i != facings / 8 * 2)
 					continue;
-				ppmfc::CString DictName;
+				FString DictName;
 				DictName.Format("%s%d", ID, i);
 				// DictName.Format("%s%d", ImageID, i);
 
@@ -1641,7 +1640,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 			for (int i = 0; i < facings; ++i)
 			{
-				ppmfc::CString DictShadowName;
+				FString DictShadowName;
 				DictShadowName.Format("%s%d\233SHADOW", ID, i);
 
 				unsigned char* outBuffer;
@@ -1680,7 +1679,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 		std::rotate(framesToRead.begin(), framesToRead.begin() + 1 * targetFacings / 8, framesToRead.end());
 
-		ppmfc::CString FileName = ImageID + ".shp";
+		FString FileName = ImageID + ".shp";
 		int nMix = this->SearchFile(FileName);
 		if (CLoading::HasFile(FileName, nMix))
 		{
@@ -1694,10 +1693,10 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 				if (IsLoadingObjectView && i != targetFacings / 8 * 2)
 					continue;
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
-				ppmfc::CString DictName;
+				FString DictName;
 				DictName.Format("%s%d", ID, i);
 				// DictName.Format("%s%d", ImageID, i);
-				ppmfc::CString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
+				FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 				GetFullPaletteName(PaletteName);
 				
 				if (bHasTurret)
@@ -1729,7 +1728,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
-						ppmfc::CString DictNameShadow;
+						FString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						CLoadingExt::LoadSHPFrameSafe(turretFrameToRead + header.FrameCount / 2, 1, &FramesBuffersShadow[1], header);
@@ -1747,7 +1746,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 					SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
-						ppmfc::CString DictNameShadow;
+						FString DictNameShadow;
 						DictNameShadow.Format("%s%d\233SHADOW", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						SetImageDataSafe(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
@@ -1758,7 +1757,7 @@ void CLoadingExt::LoadVehicleOrAircraft(ppmfc::CString ID)
 	}
 }
 
-void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer)
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer)
 {
 	if (ExtConfigs::LoadImageDataFromServer && toServer)
 	{
@@ -1826,7 +1825,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	GameDeleteArray(pBuffer, FullWidth * FullHeight);
 }
 
-void CLoadingExt::SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
+void CLoadingExt::SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
 {
 	auto pData = ImageDataMapHelper::GetImageDataFromMap(NameInDict);
 	SetImageData(pBuffer, pData, FullWidth, FullHeight, pPal);
@@ -2058,9 +2057,48 @@ void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int H
 	}
 }
 
-int CLoadingExt::HasFileMix(ppmfc::CString filename, int nMix)
+void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 {
-	ppmfc::CString filepath = CFinalSunApp::FilePath();
+	if (string.GetLength() < 2)
+		return;
+
+	if (this->TheaterIdentifier != 0)
+	{
+		if (mode == 1)
+		{
+			// Ares code here
+			char c0 = string[0];
+			char c1 = string[1] & ~0x20; // evil hack to uppercase
+			if (isalpha(static_cast<unsigned char>(c0))) {
+				if (c1 == 'A' || c1 == 'T') {
+					string.SetAt(1, this->TheaterIdentifier);
+				}
+			}
+		}
+		else
+		{
+			// vanilla YR logic
+			char c0 = string[0] & ~0x20;
+			char c1 = string[1] & ~0x20;
+			if (c0 == 'G' || c0 == 'N' || c0 == 'C' || c0 == 'Y') {
+				if (c1 == 'A' || c1 == 'T') {
+					string.SetAt(1, this->TheaterIdentifier);
+				}
+			}
+		}
+	}
+}
+void CLoadingExt::SetGenericTheaterLetter(FString& string)
+{
+	if (string.GetLength() < 2)
+		return;
+
+	string.SetAt(1, 'G');
+}
+
+int CLoadingExt::HasFileMix(FString filename, int nMix)
+{
+	FString filepath = CFinalSunApp::FilePath();
 	filepath += filename;
 	std::ifstream fin;
 	fin.open(filepath, std::ios::in | std::ios::binary);
@@ -2070,7 +2108,7 @@ int CLoadingExt::HasFileMix(ppmfc::CString filename, int nMix)
 		return -1;
 	}
 	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
+	auto data = ResourcePackManager::instance().getFileData(filename, &size);
 	if (data && size > 0)
 	{
 		return -1;
@@ -2089,7 +2127,7 @@ int CLoadingExt::HasFileMix(ppmfc::CString filename, int nMix)
 	return -2;
 }
 
-void CLoadingExt::GetFullPaletteName(ppmfc::CString& PaletteName)
+void CLoadingExt::GetFullPaletteName(FString& PaletteName)
 {
 	const int len = PaletteName.GetLength();
 	if (len >= 4 &&
@@ -2186,7 +2224,7 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 	CShpFile::LoadFrame(nFrame, nFrameCount, ppBuffer);
 }
 
-void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
+void CLoadingExt::LoadBitMap(FString ImageID, const CBitmap& cBitmap)
 {
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
@@ -2203,7 +2241,7 @@ void CLoadingExt::LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap)
 	LoadedObjects.insert(ImageID);
 }
 
-void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame, bool toServer)
+void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame, bool toServer)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	loadingExt->GetFullPaletteName(PalName);
@@ -2223,7 +2261,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc
 	}
 }
 
-void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame, bool toServer)
+void CLoadingExt::LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer)
 {
 	if (pPal)
 	{
@@ -2242,7 +2280,7 @@ void CLoadingExt::LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palet
 	}
 }
 
-void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame)
+void CLoadingExt::LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	loadingExt->GetFullPaletteName(PalName);
@@ -2311,7 +2349,7 @@ void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileNa
 	}
 }
 
-void CLoadingExt::LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal)
+void CLoadingExt::LoadShpToSurface(FString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal)
 {
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	CBitmap bitmap;
@@ -2504,7 +2542,7 @@ bool CLoadingExt::LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap)
 	return false;
 }
 
-bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor)
+bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor)
 {
 	if (!pBitmap) return false;
 
@@ -2582,7 +2620,7 @@ bool CLoadingExt::SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& file
 	return true;
 }
 
-bool CLoadingExt::LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap)
+bool CLoadingExt::LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap)
 {
 	HBITMAP hBmp = (HBITMAP)::LoadImage(nullptr, filePath,
 		IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
@@ -2593,7 +2631,7 @@ bool CLoadingExt::LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outB
 	return true;
 }
 
-void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
+void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 {
 	if (pRegName == "")
 		return;
@@ -2604,12 +2642,12 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 	if (!IsLoadingObjectView)
 		LoadedOverlays.insert(pRegName);
 
-	ppmfc::CString ArtID;
-	ppmfc::CString ImageID;
-	ppmfc::CString filename;
+	FString ArtID;
+	FString ImageID;
+	FString filename;
 	int hMix = 0;
 
-	ppmfc::CString palName = "iso\233AutoTinted";
+	FString palName = "iso\233AutoTinted";
 	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
 	Palette* palette = nullptr;
 	if (typeData.Wall)
@@ -2625,8 +2663,8 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 		palette = PalettesManager::LoadPalette(palName);
 	}
 
-	ppmfc::CString lpOvrlName = pRegName;
-	STDHelpers::TrimIndex(lpOvrlName);
+	FString lpOvrlName = pRegName;
+	FString::TrimIndex(lpOvrlName);
 
 	bool isveinhole = CINI::Rules->GetBool(lpOvrlName,"IsVeinholeMonster");
 	bool istiberium = CINI::Rules->GetBool(lpOvrlName, "Tiberium");
@@ -2692,7 +2730,7 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 				findFile = HasFile(filename);
 				if (findFile)
 				{
-					ppmfc::CString palName;
+					FString palName;
 					palName.Format("iso%s.pal", theater);
 					palette = PalettesManager::LoadPalette(palName);
 				}
@@ -2731,12 +2769,12 @@ void CLoadingExt::LoadOverlay(ppmfc::CString pRegName, int nIndex)
 					continue;
 
 				CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
-				ppmfc::CString DictName = GetOverlayName(nIndex, i);
+				FString DictName = GetOverlayName(nIndex, i);
 				SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, palette);
 
 				if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
 				{
-					ppmfc::CString DictNameShadow = GetOverlayName(nIndex, i, true);
+					FString DictNameShadow = GetOverlayName(nIndex, i, true);
 					unsigned char* pBufferShadow{ 0 };
 					CLoadingExt::LoadSHPFrameSafe(i + header.FrameCount / 2, 1, &pBufferShadow, header);
 					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);

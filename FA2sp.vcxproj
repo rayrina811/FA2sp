@@ -82,7 +82,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;_X86_;NDEBUG;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>
@@ -119,7 +119,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NDEBUG;NOMINMAX;CHINESE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;_X86_;NDEBUG;NOMINMAX;CHINESE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>
@@ -159,7 +159,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;NOMINMAX;SYR_VER=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_CRT_SECURE_NO_WARNINGS;_X86_;NOMINMAX;SYR_VER=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>
@@ -353,9 +353,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewScript\CNewScript.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTaskforce\CNewTaskforce.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\CNewTeamTypes.h" />
-    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\resource.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h" />
-    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\resource.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CObjectSearch\CObjectSearch.h" />
     <ClInclude Include="FA2sp\ExtraWindow\Common.h" />
     <ClInclude Include="FA2sp\ExtraWindow\COptions\COptions.h" />
@@ -387,6 +385,7 @@
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\Body.h" />
     <ClInclude Include="FA2sp\FA2sp.h" />
     <ClInclude Include="FA2sp\FA2sp.Constants.h" />
+    <ClInclude Include="FA2sp\Helpers\FString.h" />
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h" />
     <ClInclude Include="FA2sp\Miscs\FileWatcher.h" />
     <ClInclude Include="FA2sp\Helpers\Helper.h" />

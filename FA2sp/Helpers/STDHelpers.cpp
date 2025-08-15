@@ -20,6 +20,15 @@ ppmfc::CString STDHelpers::RandomSelect(std::vector<ppmfc::CString>& vec) {
     return vec[index];
 }
 
+FString STDHelpers::RandomSelect(std::vector<FString>& vec) {
+    std::random_device rd; 
+    std::mt19937 gen(rd()); 
+    std::uniform_int_distribution<int> dis(0, vec.size() - 1); 
+
+    int index = dis(gen); 
+    return vec[index];
+}
+
 int STDHelpers::RandomSelectInt(std::vector<int>& vec, bool record, int thisCT) {
     if (vec.empty())
         return 0;

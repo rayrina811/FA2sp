@@ -105,7 +105,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     {
         std::string buffer = std::string(mapPath);
         buffer = buffer.substr(0, buffer.find_last_of("\\") + 1);
-        ppmfc::CString folder = buffer.c_str();
+        FString folder = buffer.c_str();
 
         std::string buffer2 = std::string(CFinalSunApp::FilePath);
         std::transform(buffer.begin(), buffer.end(), buffer.begin(), (int(*)(int))tolower);
@@ -115,7 +115,7 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
         {
             if (std::filesystem::exists(buffer + "ra2.mix"))
             {
-                ppmfc::CString pMessage = Translations::TranslateOrDefault("LoadFromOtherGameDirectory",
+                FString pMessage = Translations::TranslateOrDefault("LoadFromOtherGameDirectory",
                     "You seem to have read a map from another game directory.\nClick 'OK' to reload the resources in this directory.");
 
                 auto text = MessageBox(CFinalSunDlg::Instance->m_hWnd, pMessage, "FA2sp", MB_OKCANCEL | MB_ICONEXCLAMATION);
@@ -201,7 +201,7 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
     if (nMIx)
         return 0x48DC52;
 
-    ppmfc::CString filepath = CFinalSunApp::FilePath();
+    FString filepath = CFinalSunApp::FilePath();
     filepath += lpFilename;
     std::ifstream fin;
     fin.open(filepath, std::ios::in | std::ios::binary);
@@ -230,7 +230,7 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
     GET(unsigned int, nMix, EDI);
     GET(BOOL, oriResult, EAX);
 
-    ppmfc::CString filepath = CFinalSunApp::FilePath();
+    FString filepath = CFinalSunApp::FilePath();
     filepath += lpFilename;
     std::ifstream fin;
     fin.open(filepath, std::ios::in | std::ios::binary);

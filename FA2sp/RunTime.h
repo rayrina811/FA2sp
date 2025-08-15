@@ -1,7 +1,6 @@
 #pragma once
 
-#include <Helpers/Macro.h>
-#include "Logger.h"
+#include <FA2PP.h>
 
 class RunTime
 {

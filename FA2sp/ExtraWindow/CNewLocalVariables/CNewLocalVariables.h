@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../CNewScript/CNewScript.h"
+#include "../../Helpers/FString.h"
 
 // A static window class
 class CNewLocalVariables
@@ -35,14 +36,14 @@ protected:
     static void OnSelchangeVariable(bool edited = false);
     static void OnClickNew();
     static void OnClickSearchReference();
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly);
+    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly);
 
 
 private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
     static CINI& map;
-    static std::map<int, ppmfc::CString> VaribaleLabels;
+    static std::map<int, FString> VaribaleLabels;
 
     static HWND hVariables;
     static HWND hName;
@@ -50,7 +51,7 @@ private:
     static HWND hNew;
     static HWND hSearch;
     static int SelectedIndex;
-    static ppmfc::CString SelectedKey;
+    static FString SelectedKey;
 
 
 };

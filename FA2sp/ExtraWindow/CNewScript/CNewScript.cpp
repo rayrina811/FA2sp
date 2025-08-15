@@ -46,12 +46,12 @@ HWND CNewScript::hInsert;
 HWND CNewScript::hSearchReference;
 
 int CNewScript::SelectedScriptIndex = -1;
-ppmfc::CString CNewScript::CurrentScriptID;
-std::map<int, ppmfc::CString> CNewScript::ScriptLabels;
-std::map<int, ppmfc::CString> CNewScript::ActionTypeLabels;
-std::map<int, ppmfc::CString> CNewScript::ActionParamLabels;
-std::map<int, ppmfc::CString> CNewScript::ActionExtraParamLabels;
-std::map<ppmfc::CString, bool> CNewScript::ActionHasExtraParam;
+FString CNewScript::CurrentScriptID;
+std::map<int, FString> CNewScript::ScriptLabels;
+std::map<int, FString> CNewScript::ActionTypeLabels;
+std::map<int, FString> CNewScript::ActionParamLabels;
+std::map<int, FString> CNewScript::ActionExtraParamLabels;
+std::map<FString, bool> CNewScript::ActionHasExtraParam;
 bool CNewScript::Autodrop;
 bool CNewScript::ParamAutodrop[2];
 bool CNewScript::DropNeedUpdate;
@@ -80,7 +80,7 @@ void CNewScript::Create(CFinalSunDlg* pWnd)
 
 void CNewScript::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("ScriptTypesTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -168,9 +168,9 @@ void CNewScript::Update(HWND& hWnd)
     {
         for (auto& pair : pSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second, 4);
+            auto atoms = FString::SplitString(pair.second, 4);
             if (atoms[2] == "0")
-                SendMessage(hActionType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)atoms[0].m_pchData);
+                SendMessage(hActionType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)atoms[0]);
         }
     }
 
@@ -178,9 +178,9 @@ void CNewScript::Update(HWND& hWnd)
     {
         for (auto& kvp : pSection->GetEntities())
         {
-            auto atoms2 = STDHelpers::SplitString(kvp.second, 4);
-            ppmfc::CString name = atoms2[0];
-            STDHelpers::TrimIndex(name);
+            auto atoms2 = FString::SplitString(kvp.second, 4);
+            FString name = atoms2[0];
+            FString::TrimIndex(name);
             auto& paramIdx = atoms2[1];
             auto& disable = atoms2[2];
             auto& hasParam = atoms2[3];
@@ -189,7 +189,7 @@ void CNewScript::Update(HWND& hWnd)
             {
                 if (auto pSectionParam = fadata.GetSection("ScriptParams"))
                 {
-                    auto param = STDHelpers::SplitString(fadata.GetString("ScriptParams", paramIdx));
+                    auto param = FString::SplitString(fadata.GetString("ScriptParams", paramIdx));
                     if (param.size() == 4)
                     {
                         ActionHasExtraParam[name] = true;
@@ -334,10 +334,10 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
 
                 DropNeedUpdate = true;
 
-                ppmfc::CString name;
+                FString name;
                 name.Format("%s (%s)", CurrentScriptID, buffer);
                 SendMessage(hSelectedScript, CB_DELETESTRING, SelectedScriptIndex, NULL);
-                SendMessage(hSelectedScript, CB_INSERTSTRING, SelectedScriptIndex, (LPARAM)(LPCSTR)name.m_pchData);
+                SendMessage(hSelectedScript, CB_INSERTSTRING, SelectedScriptIndex, (LPARAM)(LPCSTR)name);
                 SendMessage(hSelectedScript, CB_SETCURSEL, SelectedScriptIndex, NULL);
             }
             break;
@@ -438,16 +438,16 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
         return;
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     if (!ActionHasExtraParam[atoms[0]])
         return;
 
     int curSel = SendMessage(hActionExtraParam, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -471,7 +471,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -487,15 +487,15 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     map.WriteString(CurrentScriptID, key, value);
     text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
 
-    ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
-    STDHelpers::TrimIndexElse(actionName);
-    STDHelpers::TrimIndexElse(actionName);
+    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString::TrimIndexElse(actionName);
+    FString::TrimIndexElse(actionName);
 
-    ppmfc::CString tmp = text;
+    FString tmp = text;
     text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
 
 }
@@ -514,7 +514,7 @@ void CNewScript::OnSelchangeActionParam(bool edited)
         return;
     int curSel = SendMessage(hActionParam, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -538,17 +538,17 @@ void CNewScript::OnSelchangeActionParam(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
     text.Replace(",", "");
 
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     int param = atoi(text);
     if (ActionHasExtraParam[atoms[0]])
     {
@@ -566,14 +566,14 @@ void CNewScript::OnSelchangeActionParam(bool edited)
         map.WriteString(CurrentScriptID, key, value);
         text.Format("[%s] : %s - %d", key, atoms[0], param);
     }
-    ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
-    STDHelpers::TrimIndexElse(actionName);
-    STDHelpers::TrimIndexElse(actionName);
-    ppmfc::CString tmp = text;
+    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString::TrimIndexElse(actionName);
+    FString::TrimIndexElse(actionName);
+    FString tmp = text;
     text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
 
 }
@@ -592,7 +592,7 @@ void CNewScript::OnSelchangeActionType(bool edited)
         return;
     int curSel = SendMessage(hActionType, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -615,24 +615,24 @@ void CNewScript::OnSelchangeActionType(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
     text.Replace(",", "");
 
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     int actionIdx = atoi(text);
     auto value = map.GetString(CurrentScriptID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     value.Format("%s,%s", text, atoms[1]);
 
     map.WriteString(CurrentScriptID, key, value);
 
     value = map.GetString(CurrentScriptID, key);
-    atoms = STDHelpers::SplitString(value, 1);
+    atoms = FString::SplitString(value, 1);
     if (ActionHasExtraParam[atoms[0]])
     {
         int actionParam = atoi(atoms[1]);
@@ -644,14 +644,14 @@ void CNewScript::OnSelchangeActionType(bool edited)
     {
         text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
     }
-    ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
-    STDHelpers::TrimIndexElse(actionName);
-    STDHelpers::TrimIndexElse(actionName);
-    ppmfc::CString tmp = text;
+    FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+    FString::TrimIndexElse(actionName);
+    FString::TrimIndexElse(actionName);
+    FString tmp = text;
     text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
 
     UpdateActionAndParam(actionIdx, -1, false);
@@ -705,10 +705,10 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         return;
     }
 
-    ppmfc::CString pID;
+    FString pID;
     SendMessage(hSelectedScript, CB_GETLBTEXT, SelectedScriptIndex, (LPARAM)buffer);
     pID = buffer;
-    STDHelpers::TrimIndex(pID);
+    FString::TrimIndex(pID);
 
     CurrentScriptID = pID;
     while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -717,15 +717,15 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         auto name = map.GetString(pID, "Name");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
 
-        std::vector<ppmfc::CString> sortedList;
+        std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)
         {
-            ppmfc::CString key;
+            FString key;
             key.Format("%d", i);
             auto value = map.GetString(pID, key);
             if (value != "")
             {
-                if (STDHelpers::SplitString(value).size() == 2)
+                if (FString::SplitString(value).size() == 2)
                     sortedList.push_back(value);
             }
             map.DeleteKey(pID, key);
@@ -733,9 +733,9 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         int i = 0;
         for (auto& value : sortedList)
         {
-            auto atoms = STDHelpers::SplitString(value, 1);
-            ppmfc::CString text;
-            ppmfc::CString key;
+            auto atoms = FString::SplitString(value, 1);
+            FString text;
+            FString key;
             key.Format("%d", i);
             if (ActionHasExtraParam[atoms[0]])
             {
@@ -747,13 +747,13 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             else
                 text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
 
-            ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
-            STDHelpers::TrimIndexElse(actionName);
-            STDHelpers::TrimIndexElse(actionName);
-            ppmfc::CString tmp = text;
+            FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
+            FString::TrimIndexElse(actionName);
+            FString::TrimIndexElse(actionName);
+            FString tmp = text;
             text.Format("%s\t%s", tmp, actionName);
             
-            SendMessage(hActionsListBox, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(hActionsListBox, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)text);
             map.WriteString(pID, key, value);
             i++;
         }
@@ -782,11 +782,11 @@ void CNewScript::OnCloseupScript()
 
 void CNewScript::OnClickNewScript()
 {
-    ppmfc::CString key = CINI::GetAvailableKey("ScriptTypes");
-    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
-    ppmfc::CString buffer2;
+    FString key = CINI::GetAvailableKey("ScriptTypes");
+    FString value = CMapDataExt::GetAvailableIndex();
+    FString buffer2;
 
-    ppmfc::CString newName = "";
+    FString newName = "";
     if (ScriptSort::CreateFromScriptSort)
         newName = ScriptSort::Instance.GetCurrentPrefix();
     newName += "New script";
@@ -810,12 +810,12 @@ void CNewScript::OnClickDelScript(HWND& hWnd)
         return;
 
     map.DeleteSection(CurrentScriptID);
-    std::vector<ppmfc::CString> deteleKeys;
+    std::vector<FString> deteleKeys;
     if (auto pSection = map.GetSection("ScriptTypes"))
     {
         for (auto& pair : pSection->GetEntities())
         {
-            if (pair.second == CurrentScriptID)
+            if (CurrentScriptID == pair.second)
                 deteleKeys.push_back(pair.first);
         }
     }
@@ -838,25 +838,25 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         return;
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
-        ppmfc::CString key = CINI::GetAvailableKey("ScriptTypes");
-        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
+        FString key = CINI::GetAvailableKey("ScriptTypes");
+        FString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 
         auto oldname = CINI::CurrentDocument->GetString(CurrentScriptID, "Name", "New script");
-        ppmfc::CString newName = ExtraWindow::GetCloneName(oldname);
+        FString newName = ExtraWindow::GetCloneName(oldname);
 
         CINI::CurrentDocument->WriteString(value, "Name", newName);
 
-        auto copyitem = [&value](ppmfc::CString key)
+        auto copyitem = [&value](FString key)
             {
                 if (auto ppStr = map.TryGetString(CurrentScriptID, key)) {
-                    ppmfc::CString str = *ppStr;
+                    FString str = *ppStr;
                     str.Trim();
                     map.WriteString(value, key, str);
                 }
             };
-        ppmfc::CString buffer;
+        FString buffer;
         for (int i = 0; i < 50; i++)
         {
             buffer.Format("%d", i);
@@ -878,20 +878,20 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         return;
 
     char buffer[512]{ 0 };
-    ppmfc::CString text;
-    ppmfc::CString keyThis;
+    FString text;
+    FString keyThis;
     if (bInsert)
     {
         int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-        std::vector<ppmfc::CString> sortedList;
+        std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)
         {
-            ppmfc::CString key;
+            FString key;
             key.Format("%d", i);
             auto value = map.GetString(CurrentScriptID, key);
             if (value != "")
             {
-                if (STDHelpers::SplitString(value).size() == 2)
+                if (FString::SplitString(value).size() == 2)
                     sortedList.push_back(value);
             }
             map.DeleteKey(CurrentScriptID, key);
@@ -901,9 +901,9 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         int i = 0;
         for (auto& value : sortedList)
         {
-            auto atoms = STDHelpers::SplitString(value, 1);
-            ppmfc::CString text;
-            ppmfc::CString key;
+            auto atoms = FString::SplitString(value, 1);
+            FString text;
+            FString key;
             key.Format("%d", i);
             map.WriteString(CurrentScriptID, key, value);
             i++;
@@ -917,13 +917,13 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         map.WriteString(CurrentScriptID, keyThis, "0,0");
 
         text.Format("[%s] : %s - %s", keyThis, "0", "0");
-        ppmfc::CString actionName = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", "0"))[0];
-        STDHelpers::TrimIndexElse(actionName);
-        STDHelpers::TrimIndexElse(actionName);
-        ppmfc::CString tmp = text;
+        FString actionName = FString::SplitString(fadata.GetString("ScriptsRA2", "0"))[0];
+        FString::TrimIndexElse(actionName);
+        FString::TrimIndexElse(actionName);
+        FString tmp = text;
         text.Format("%s\t%s", tmp, actionName);
 
-        SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text.m_pchData);
+        SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
         SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
     }
     OnSelchangeActionListbox();
@@ -939,24 +939,24 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
 
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
     char buffer[512]{ 0 };
-    ppmfc::CString text;
-    ppmfc::CString key;
-    ppmfc::CString key2;
+    FString text;
+    FString key;
+    FString key2;
     key.Format("%d", count);
     key2.Format("%d", idx);
 
     if (bInsert)
     {
         auto copied = map.GetString(CurrentScriptID, key2, "0,0");
-        std::vector<ppmfc::CString> sortedList;
+        std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)
         {
-            ppmfc::CString key;
+            FString key;
             key.Format("%d", i);
             auto value = map.GetString(CurrentScriptID, key);
             if (value != "")
             {
-                if (STDHelpers::SplitString(value).size() == 2)
+                if (FString::SplitString(value).size() == 2)
                     sortedList.push_back(value);
             }
             map.DeleteKey(CurrentScriptID, key);
@@ -966,9 +966,9 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         int i = 0;
         for (auto& value : sortedList)
         {
-            auto atoms = STDHelpers::SplitString(value, 1);
-            ppmfc::CString text;
-            ppmfc::CString key;
+            auto atoms = FString::SplitString(value, 1);
+            FString text;
+            FString key;
             key.Format("%d", i);
             map.WriteString(CurrentScriptID, key, value);
             i++;
@@ -981,7 +981,7 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
         map.WriteString(CurrentScriptID, key, map.GetString(CurrentScriptID, key2, "0,0"));
 
         SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
-        auto atoms = STDHelpers::SplitString(buffer, " ");
+        auto atoms = FString::SplitString(buffer, " ");
         bool first = true;
         for (auto& atom : atoms)
         {
@@ -994,7 +994,7 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
                 text += " " + atom;
         }
 
-        SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text.m_pchData);
+        SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
         SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
     }
     OnSelchangeActionListbox();
@@ -1006,7 +1006,7 @@ void CNewScript::OnClickDeleteAction(HWND& hWnd)
         return;
     int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     map.DeleteKey(CurrentScriptID, key);
 
@@ -1026,24 +1026,24 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
         return;
 
     char buffer[512]{ 0 };
-    ppmfc::CString text;
-    ppmfc::CString text2;
+    FString text;
+    FString text2;
 
     int idx2 = idx - 1;
     if (reverse)
         idx2 = idx + 1;
 
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
-    ppmfc::CString key2;
+    FString key2;
     key2.Format("%d", idx2);
     auto value2 = map.GetString(CurrentScriptID, key2);
     map.WriteString(CurrentScriptID, key, value2);
     map.WriteString(CurrentScriptID, key2, value);
 
     SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
-    auto atoms = STDHelpers::SplitString(buffer, " ");
+    auto atoms = FString::SplitString(buffer, " ");
     bool first = true;
     for (auto& atom : atoms)
     {
@@ -1056,10 +1056,10 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
             text += " " + atom;
     }
     SendMessage(hActionsListBox, LB_DELETESTRING, idx2, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx2, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx2, (LPARAM)(LPCSTR)text);
 
     SendMessage(hActionsListBox, LB_GETTEXT, idx2, (LPARAM)buffer);
-    atoms = STDHelpers::SplitString(buffer, " ");
+    atoms = FString::SplitString(buffer, " ");
     first = true;
     for (auto& atom : atoms)
     {
@@ -1072,7 +1072,7 @@ void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
             text += " " + atom;
     }
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
 
     OnSelchangeScript(false, idx2);
 }
@@ -1088,28 +1088,28 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
     if (listBoxCurChanged > 49)
         listBoxCurChanged = 49;
 
-    ppmfc::CString key;
-    ppmfc::CString buffer;
+    FString key;
+    FString buffer;
     key.Format("%d", listBoxCurChanged);
     auto value = map.GetString(CurrentScriptID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     if (auto pSection = fadata.GetSection("ScriptsRA2"))
     {
-        ppmfc::CString action;
+        FString action;
         action.Format("%d", actionChanged);
         if (actionChanged < 0)
         {
             action = atoms[0];
         }
-        auto atoms2 = STDHelpers::SplitString(fadata.GetString("ScriptsRA2", action, action + " - MISSING,0,1,0,MISSING"), 4);
-        ppmfc::CString name = atoms2[0];
+        auto atoms2 = FString::SplitString(fadata.GetString("ScriptsRA2", action, action + " - MISSING,0,1,0,MISSING"), 4);
+        FString name = atoms2[0];
         auto& paramIdx = atoms2[1];
         auto& disable = atoms2[2];
         auto& hasParam = atoms2[3];
         auto& description = atoms2[4];
         if (changeActionIdx)
         {
-            int ActionIdx = SendMessage(hActionType, CB_FINDSTRINGEXACT, 0, (LPARAM)name.m_pchData);
+            int ActionIdx = SendMessage(hActionType, CB_FINDSTRINGEXACT, 0, (LPARAM)name);
             if (ActionIdx != CB_ERR)
             {
                 SendMessage(hActionType, CB_SETCURSEL, ActionIdx, NULL);
@@ -1117,12 +1117,12 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             else
             {
                 SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
-                SendMessage(hActionType, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
+                SendMessage(hActionType, WM_SETTEXT, 0, (LPARAM)name);
             }
         }
 
-        SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(description).m_pchData);
-        STDHelpers::TrimIndex(name);
+        SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(description));
+        FString::TrimIndex(name);
         if (hasParam == "1")
         {
             EnableWindow(hActionParam, TRUE);
@@ -1130,10 +1130,10 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             CNewScript::ParamAutodrop[1] = true;
             if (auto pSectionParam = fadata.GetSection("ScriptParams"))
             {
-                auto param = STDHelpers::SplitString(fadata.GetString("ScriptParams", paramIdx));
+                auto param = FString::SplitString(fadata.GetString("ScriptParams", paramIdx));
                 if (param.size() >= 2)
                 {
-                    SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0].m_pchData);
+                    SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0]);
                     ExtraWindow::LoadParams(hActionParam, param[1]); 
                     if (!ExtConfigs::SearchCombobox_Waypoint && param[1] == "1") // waypoints
                     {
@@ -1143,7 +1143,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 if (ActionHasExtraParam[name])
                 {
                     EnableWindow(hActionExtraParam, TRUE);
-                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2].m_pchData);
+                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
                     ExtraWindow::LoadParams(hActionExtraParam, param[3]);
                     if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
                     {
@@ -1154,20 +1154,20 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                     int high = HIWORD(actionParam);
 
                     buffer.Format("%d - ", low);
-                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer.m_pchData);
+                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
                     if (idx == CB_ERR)
                     {
                         buffer.Format("%d", low);
-                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)buffer.m_pchData);
+                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)buffer);
                     }
                     else
                         SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                     buffer.Format("%d - ", high);
-                    idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer.m_pchData);
+                    idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
                     if (idx == CB_ERR)
                     {
                         buffer.Format("%d", high);
-                        SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)buffer.m_pchData);
+                        SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)buffer);
                     }
                     else
                         SendMessage(hActionExtraParam, CB_SETCURSEL, idx, NULL);
@@ -1175,16 +1175,16 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 else
                 {
                     Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
-                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer.m_pchData);
+                    SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
                     EnableWindow(hActionExtraParam, FALSE);
                     SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
                     auto& actionParam = atoms[1];
-                    ppmfc::CString buffer;
+                    FString buffer;
                     buffer.Format("%s - ", actionParam);
-                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer.m_pchData);
+                    int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
                     if (idx == CB_ERR)
                     {
-                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam.m_pchData);
+                        SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);
                     }
                     else
                         SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
@@ -1198,9 +1198,9 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
             SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)"");
             Translations::GetTranslationItem("ScriptTypesActionParam", buffer);
-            SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)buffer.m_pchData);
+            SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
             Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
-            SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer.m_pchData);
+            SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
 
     }

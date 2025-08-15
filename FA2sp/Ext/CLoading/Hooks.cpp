@@ -149,8 +149,8 @@ DEFINE_HOOK(47AB50, CLoading_InitPics_LoadDLLBitmaps, 7)
 				if (entry.path().extension() == ".bmp")
 				{
 					CBitmap bmp;
-					if (CLoadingExt::LoadBMPToCBitmap(entry.path().c_str(), bmp))
-						CLoadingExt::LoadBitMap(entry.path().filename().c_str(), bmp);
+					if (CLoadingExt::LoadBMPToCBitmap(entry.path().string(), bmp))
+						CLoadingExt::LoadBitMap(entry.path().filename().string(), bmp);
 				}
 			}
 		}
@@ -259,7 +259,7 @@ DEFINE_HOOK(52D098, CLoading_DrawTMP_5, 5)
 		}
 
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
-		ppmfc::CString ImageID;
+		FString ImageID;
 		ImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, subTileIndex, altCount[subTileIndex]);
 		Palette* pal = &CMapDataExt::Palette_ISO;
 		if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && CMapDataExt::TileData[tileIndex].TileSet < CMapDataExt::TileSetPalettes.size())

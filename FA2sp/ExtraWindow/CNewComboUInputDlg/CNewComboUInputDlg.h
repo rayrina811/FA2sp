@@ -1,5 +1,9 @@
+#pragma once
+
 #include <vector>
-#include "../../FA2sp.h"
+#include "FA2PP.h"
+#include "../../FA2sp/Helpers/FString.h"
+#include "../../Helpers/MultimapHelper.h"
 
 #define COMBOUINPUT_HOUSES 0
 #define COMBOUINPUT_COUNTRIES 1
@@ -14,12 +18,12 @@ class CNewComboUInputDlg : public ppmfc::CDialog
 {
 public:
 	int m_type;
-	std::vector<ppmfc::CString> m_ManualStrings;
+	std::vector<FString> m_ManualStrings;
 	CNewComboUInputDlg(CWnd* pParent = NULL);
-	ppmfc::CString m_Caption;
-	ppmfc::CString m_Combo;
-	ppmfc::CString m_ComboOri;
-	ppmfc::CString m_Section;
+	FString m_Caption;
+	FString m_Combo;
+	FString m_ComboOri;
+	FString m_Section;
 	std::vector<std::string> m_CustomStrings;
 	bool ReadValue = true;
 	bool LoadValueAsName = false;

@@ -99,7 +99,7 @@ DEFINE_HOOK(490EF0, CLoading_InitializeDDraw, 6)
 	for (int i = 0; i <= 300; ++i)
 	{
 		hr = pIsoView->lpDD7->CreateSurface(&dds, &pIsoView->lpDDPrimarySurface, nullptr);
-		Logger::Raw("Return code: 0x%x\n", hr);
+		Logger::Raw("Return code: 0x%x\n", (int)hr);
 
 		if (FAILED(hr))
 		{

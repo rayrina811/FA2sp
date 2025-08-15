@@ -12,7 +12,7 @@
 HWND CNewLocalVariables::m_hwnd;
 CFinalSunDlg* CNewLocalVariables::m_parent;
 CINI& CNewLocalVariables::map = CINI::CurrentDocument;
-std::map<int, ppmfc::CString> CNewLocalVariables::VaribaleLabels;
+std::map<int, FString> CNewLocalVariables::VaribaleLabels;
 
 HWND CNewLocalVariables::hVariables;
 HWND CNewLocalVariables::hName;
@@ -20,7 +20,7 @@ HWND CNewLocalVariables::hValue;
 HWND CNewLocalVariables::hNew;
 HWND CNewLocalVariables::hSearch;
 int CNewLocalVariables::SelectedIndex;
-ppmfc::CString CNewLocalVariables::SelectedKey;
+FString CNewLocalVariables::SelectedKey;
 
 void CNewLocalVariables::Create(CFinalSunDlg* pWnd)
 {
@@ -44,7 +44,7 @@ void CNewLocalVariables::Create(CFinalSunDlg* pWnd)
 
 void CNewLocalVariables::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("LocalVariablesTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -116,15 +116,15 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
-                auto atom = STDHelpers::SplitString(map.GetString("VariableNames", SelectedKey), 1);
-                ppmfc::CString value;
+                auto atom = FString::SplitString(map.GetString("VariableNames", SelectedKey), 1);
+                FString value;
                 value.Format("%s,%s", buffer, atom[1]);
                 map.WriteString("VariableNames", SelectedKey, value);
-                ppmfc::CString text;
+                FString text;
                 text.Format("%s - %s", SelectedKey, value);
 
                 SendMessage(hVariables, CB_DELETESTRING, SelectedIndex, NULL);
-                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text.m_pchData);
+                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text);
                 SendMessage(hVariables, CB_SETCURSEL, SelectedIndex, NULL);
             }
             break;
@@ -133,15 +133,15 @@ BOOL CALLBACK CNewLocalVariables::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LP
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hValue, buffer, 511);
-                auto atom = STDHelpers::SplitString(map.GetString("VariableNames", SelectedKey), 1);
-                ppmfc::CString value;
+                auto atom = FString::SplitString(map.GetString("VariableNames", SelectedKey), 1);
+                FString value;
                 value.Format("%s,%s", atom[0], buffer);
                 map.WriteString("VariableNames", SelectedKey, value);
-                ppmfc::CString text;
+                FString text;
                 text.Format("%s - %s", SelectedKey, value);
 
                 SendMessage(hVariables, CB_DELETESTRING, SelectedIndex, NULL);
-                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text.m_pchData);
+                SendMessage(hVariables, CB_INSERTSTRING, SelectedIndex, (LPARAM)(LPCSTR)text);
                 SendMessage(hVariables, CB_SETCURSEL, SelectedIndex, NULL);
             }
             break;
@@ -175,12 +175,12 @@ void CNewLocalVariables::Update()
     if (auto pSection = map.GetSection("VariableNames"))
     {
         int i = 0;
-        ppmfc::CString key;
+        FString key;
         for (const auto& [key, value] : pSection->GetEntities())
         { 
-            ppmfc::CString text;
+            FString text;
             text.Format("%s - %s", key, value);
-            SendMessage(hVariables, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(hVariables, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text);
             i++;
         }
     }
@@ -215,17 +215,17 @@ void CNewLocalVariables::OnSelchangeVariable(bool edited)
         return;
     }
 
-    ppmfc::CString key;
+    FString key;
     SendMessage(hVariables, CB_GETLBTEXT, SelectedIndex, (LPARAM)buffer);
     key = buffer;
-    STDHelpers::TrimIndex(key);
+    FString::TrimIndex(key);
 
     SelectedKey = key;
 
-    auto atom = STDHelpers::SplitString(map.GetString("VariableNames", key), 1);
+    auto atom = FString::SplitString(map.GetString("VariableNames", key), 1);
 
-    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)atom[0].m_pchData);
-    SendMessage(hValue, WM_SETTEXT, 0, (LPARAM)atom[1].m_pchData);
+    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)atom[0]);
+    SendMessage(hValue, WM_SETTEXT, 0, (LPARAM)atom[1]);
 }
 
 void CNewLocalVariables::OnClickNew()
@@ -239,17 +239,17 @@ void CNewLocalVariables::OnClickNew()
         return;
     }
 
-    ppmfc::CString value = "New Variable,0";
+    FString value = "New Variable,0";
     map.WriteString("VariableNames", key, value);
-    ppmfc::CString text;
+    FString text;
     text.Format("%s - %s", key, value);
     int index = SendMessage(hVariables, CB_GETCOUNT, NULL, NULL);
-    SendMessage(hVariables, CB_INSERTSTRING, index, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hVariables, CB_INSERTSTRING, index, (LPARAM)(LPCSTR)text);
     SendMessage(hVariables, CB_SETCURSEL, index, NULL);
     OnSelchangeVariable();
 }
 
-void CNewLocalVariables::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
+void CNewLocalVariables::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
 {
     if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
     {

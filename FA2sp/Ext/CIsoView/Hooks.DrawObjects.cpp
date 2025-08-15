@@ -37,7 +37,7 @@ inline static bool IsCoordInWindow(int X, int Y)
 		X < Y + VisibleCoordTL.X - VisibleCoordTL.Y + EXTRA_BORDER;
 }
 
-inline static void GetUnitImageID(ppmfc::CString& ImageID, const CUnitData& obj, const LandType& landType)
+inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const LandType& landType)
 {
 	if (ExtConfigs::InGameDisplay_Water)
 	{
@@ -500,7 +500,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			{
 				Palette* pal = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[tileIndex].TileSet];
 
-				ppmfc::CString extraImageID;
+				FString extraImageID;
 				extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
 				auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 				if (pData->pImageBuffer)
@@ -748,7 +748,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CUnitData obj;
 					CMapData::Instance->GetUnitData(cell->Unit, obj);
 
-					ppmfc::CString ImageID = obj.TypeID;
+					FString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
@@ -956,7 +956,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 								if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 								{
-									ppmfc::CString extraImageID;
+									FString extraImageID;
 									extraImageID.Format("EXTRAIMAGE\233%d%d%d", tileIndex, tileSubIndex, altImage);
 									auto pData = CLoadingExt::GetImageDataFromServer(extraImageID);
 									if (pData->pImageBuffer)
@@ -1394,7 +1394,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					CUnitData obj;
 					CMapData::Instance->GetUnitData(cell->Unit, obj);
 
-					ppmfc::CString ImageID = obj.TypeID;
+					FString ImageID = obj.TypeID;
 					GetUnitImageID(ImageID, obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
@@ -1748,7 +1748,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								int n = atoi(name);
 								if (n < 1000000)
 								{
-									ppmfc::CString buffer;
+									FString buffer;
 									buffer.Format("%08d", n + 1000000);
 									if (buffer == id)
 									{
@@ -1898,7 +1898,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			y -= DrawOffsetY;
 			x += 23;
 			y -= 15;
-			auto atoms = STDHelpers::SplitString(value, 6);
+			auto atoms = FString::SplitString(value, 6);
 			int fontSize = std::min(100, atoi(atoms[0]));
 			fontSize = std::max(10, fontSize);
 			bool bold = STDHelpers::IsTrue(atoms[1]);
@@ -1906,15 +1906,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			auto textColor = STDHelpers::HexStringToColorRefRGB(atoms[3]);
 			auto bgColor = STDHelpers::HexStringToColorRefRGB(atoms[4]);
 
-			ppmfc::CString text = atoms[5];
+			FString text = atoms[5];
 			for (int i = 6; i < atoms.size() - 1; i++)
 			{
 				text += ",";
 				text += atoms[i];
 			}
 			text.Replace("\\n", "\n");
-			std::string str(text.m_pchData);
-			auto result = STDHelpers::StringToWString(str);
+			auto result = STDHelpers::StringToWString(text);
 
 			if (folded)
 			{

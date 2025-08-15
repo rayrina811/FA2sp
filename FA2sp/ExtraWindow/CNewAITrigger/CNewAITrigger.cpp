@@ -46,10 +46,10 @@ HWND CNewAITrigger::hSkrimish;
 
 int CNewAITrigger::SelectedAITriggerIndex = -1;
 std::unique_ptr<AITrigger> CNewAITrigger::CurrentAITrigger;
-std::map<int, ppmfc::CString> CNewAITrigger::AITriggerLabels;
-std::map<int, ppmfc::CString> CNewAITrigger::TeamLabels[2];
-std::map<int, ppmfc::CString> CNewAITrigger::ComparisonObjectLabels;
-std::map<int, ppmfc::CString> CNewAITrigger::CountryLabels;
+std::map<int, FString> CNewAITrigger::AITriggerLabels;
+std::map<int, FString> CNewAITrigger::TeamLabels[2];
+std::map<int, FString> CNewAITrigger::ComparisonObjectLabels;
+std::map<int, FString> CNewAITrigger::CountryLabels;
 bool CNewAITrigger::Autodrop;
 bool CNewAITrigger::DropNeedUpdate;
 
@@ -76,7 +76,7 @@ void CNewAITrigger::Create(CFinalSunDlg* pWnd)
 
 void CNewAITrigger::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("AITriggerEditorTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -160,9 +160,9 @@ void CNewAITrigger::Update(HWND& hWnd)
     {
         for (auto& pair : pSection->GetEntities())
         {
-            ppmfc::CString text;
+            FString text;
             text.Format("%s - %s", pair.first, pair.second);
-            SendMessage(hSide, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(hSide, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text);
         }
     }
     
@@ -175,7 +175,7 @@ void CNewAITrigger::Update(HWND& hWnd)
         {
             if (pair.second == "GDI" || pair.second == "Nod")
                 continue;
-            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(pair.second, true).m_pchData);
+            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)STDHelpers::ParseHouseName(pair.second, true));
         }
     }
 
@@ -183,47 +183,47 @@ void CNewAITrigger::Update(HWND& hWnd)
     idx = 0;
     while (SendMessage(hComparator, CB_DELETESTRING, 0, NULL) != CB_ERR);
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("0 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator1", "Less than")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator1", "Less than")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("1 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator2", "Less than or equal to")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator2", "Less than or equal to")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("2 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator3", "Equal to")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator3", "Equal to")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("3 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator4", "Greater than or equal to")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("3 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator4", "Greater than or equal to")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("4 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator5", "Greater than")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("4 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator5", "Greater than")));
     SendMessage(hComparator, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("5 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator6", "Not equal to")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("5 - ") + Translations::TranslateOrDefault("AITriggerEditorComparator6", "Not equal to")));
 
     idx = 0;
     while (SendMessage(hConditionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("-1 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("-1 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition-1", "Always true")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("0 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition0", "Enemy house owns X object <Comparator> N")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("0 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition0", "Enemy house owns X object <Comparator> N")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("1 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition1", "Owning house owns X object <Comparator> N")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("1 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition1", "Owning house owns X object <Comparator> N")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("2 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition2", "Enemy house in low power (yellow)")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("2 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition2", "Enemy house in low power (yellow)")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("3 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition3", "Enemy house in low power (red)")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("3 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition3", "Enemy house in low power (red)")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("4 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition4", "Enemy house has credits <Comparator> N")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("4 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition4", "Enemy house has credits <Comparator> N")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("5 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition5", "Iron Curtain is about to be ready")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("5 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition5", "Iron Curtain is about to be ready")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("6 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition6", "ChronoSphere is about to be ready")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("6 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition6", "ChronoSphere is about to be ready")));
     SendMessage(hConditionType, CB_INSERTSTRING, idx++, 
-        (LPARAM)(LPCSTR)(ppmfc::CString("7 - ") + 
-            Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")).m_pchData);
+        (LPARAM)(LPCSTR)(FString("7 - ") + 
+            Translations::TranslateOrDefault("AITriggerEditorCondition7", "Neutral/civilian house owns X object <Comparator> N")));
 
     idx = 0;
     while (SendMessage(hComparisonObject, CB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -295,7 +295,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
-                ppmfc::CString name(buffer);
+                FString name(buffer);
                 name.Replace(",", "");
 
                 CurrentAITrigger->Name = name;
@@ -304,7 +304,7 @@ BOOL CALLBACK CNewAITrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentAITrigger->ID, CurrentAITrigger->Name);
                 SendMessage(hSelectedAITrigger, CB_DELETESTRING, SelectedAITriggerIndex, NULL);
-                SendMessage(hSelectedAITrigger, CB_INSERTSTRING, SelectedAITriggerIndex, (LPARAM)(LPCSTR)newName.m_pchData);
+                SendMessage(hSelectedAITrigger, CB_INSERTSTRING, SelectedAITriggerIndex, (LPARAM)(LPCSTR)newName);
                 SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
             }
             break;
@@ -499,10 +499,10 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
         return;
     }
 
-    ppmfc::CString pID;
+    FString pID;
     SendMessage(hSelectedAITrigger, CB_GETLBTEXT, SelectedAITriggerIndex, (LPARAM)buffer);
     pID = buffer;
-    STDHelpers::TrimIndex(pID);
+    FString::TrimIndex(pID);
 
     CurrentAITrigger = AITrigger::create(pID);
 
@@ -513,53 +513,53 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
     SendMessage(hBaseDefense, BM_SETCHECK, CurrentAITrigger->IsBaseDefense, 0);
     SendMessage(hSkrimish, BM_SETCHECK, CurrentAITrigger->IsForSkirmish, 0);
 
-    auto setCurselOrSetText = [](HWND& hwnd, ppmfc::CString text) {
+    auto setCurselOrSetText = [](HWND& hwnd, FString text) {
             int idx = ExtraWindow::FindCBStringExactStart(hwnd, text + " ");
             if (idx != CB_ERR) {
                 SendMessage(hwnd, CB_SETCURSEL, idx, NULL);
             }
             else {
-                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
+                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
             }
         };
 
-    int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)Miscs::ParseHouseName(CurrentAITrigger->House, true).m_pchData);
+    int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)STDHelpers::ParseHouseName(CurrentAITrigger->House, true));
     if (idx != CB_ERR) {
         SendMessage(hCountry, CB_SETCURSEL, idx, NULL);
     }
     else {
-        SendMessage(hCountry, WM_SETTEXT, 0, (LPARAM)CurrentAITrigger->House.m_pchData);
+        SendMessage(hCountry, WM_SETTEXT, 0, (LPARAM)CurrentAITrigger->House);
     }
 
     setCurselOrSetText(hSide, CurrentAITrigger->Side);
     setCurselOrSetText(hConditionType, CurrentAITrigger->ConditionType);
-    ppmfc::CString comparator;
+    FString comparator;
     comparator.Format("%d", CurrentAITrigger->Comparator[1]);
     setCurselOrSetText(hComparator, comparator);
     setCurselOrSetText(hComparisonObject, CurrentAITrigger->ComparisonObject);
     setCurselOrSetText(hTeam1, CurrentAITrigger->Team1);
     setCurselOrSetText(hTeam2, CurrentAITrigger->Team2);
-    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentAITrigger->Name.m_pchData);
-    ppmfc::CString amount;
+    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentAITrigger->Name);
+    FString amount;
     amount.Format("%d", CurrentAITrigger->Comparator[0]);
-    SendMessage(hAmount, WM_SETTEXT, 0, (LPARAM)amount.m_pchData);
+    SendMessage(hAmount, WM_SETTEXT, 0, (LPARAM)amount);
     std::ostringstream oss;
     oss.precision(6);
     oss << std::fixed << CurrentAITrigger->InitialWeight;
-    std::string initial = oss.str();
+    FString initial = oss.str();
     oss.str("");
     oss.precision(6);
     oss << std::fixed << CurrentAITrigger->MinWeight;
-    std::string min = oss.str();
+    FString min = oss.str();
     oss.str("");
     oss.precision(6);
     oss << std::fixed << CurrentAITrigger->MaxWeight;
-    std::string max = oss.str();
+    FString max = oss.str();
     oss.str("");
 
-    SendMessage(hInitialWeight, WM_SETTEXT, 0, (LPARAM)initial.c_str());
-    SendMessage(hMinWeight, WM_SETTEXT, 0, (LPARAM)min.c_str());
-    SendMessage(hMaxWeight, WM_SETTEXT, 0, (LPARAM)max.c_str());
+    SendMessage(hInitialWeight, WM_SETTEXT, 0, (LPARAM)initial);
+    SendMessage(hMinWeight, WM_SETTEXT, 0, (LPARAM)min);
+    SendMessage(hMaxWeight, WM_SETTEXT, 0, (LPARAM)max);
 
     //CurrentAITrigger->Save();
     DropNeedUpdate = false;
@@ -571,7 +571,7 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
         return;
     int curSel = SendMessage(hCountry, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -589,7 +589,7 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
     {
         GetWindowText(hCountry, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hCountry, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -600,13 +600,13 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<all>";
 
     text.Replace(",", "");
 
-    CurrentAITrigger->House = Miscs::ParseHouseName(text, false);
+    CurrentAITrigger->House = STDHelpers::ParseHouseName(text, false);
     CurrentAITrigger->Save();
 }
 
@@ -616,7 +616,7 @@ void CNewAITrigger::OnSelchangeSide(bool edited)
         return;
     int curSel = SendMessage(hSide, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
 
     if (curSel >= 0 && curSel < SendMessage(hSide, CB_GETCOUNT, NULL, NULL))
@@ -628,7 +628,7 @@ void CNewAITrigger::OnSelchangeSide(bool edited)
     {
         GetWindowText(hSide, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hSide, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hSide, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hSide, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -639,7 +639,7 @@ void CNewAITrigger::OnSelchangeSide(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -655,7 +655,7 @@ void CNewAITrigger::OnSelchangeConditionType()
         return;
     int curSel = SendMessage(hConditionType, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
 
     if (curSel >= 0 && curSel < SendMessage(hConditionType, CB_GETCOUNT, NULL, NULL))
@@ -666,7 +666,7 @@ void CNewAITrigger::OnSelchangeConditionType()
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "-1";
 
@@ -682,7 +682,7 @@ void CNewAITrigger::OnSelchangeComparator()
         return;
     int curSel = SendMessage(hComparator, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
 
     if (curSel >= 0 && curSel < SendMessage(hComparator, CB_GETCOUNT, NULL, NULL))
@@ -693,7 +693,7 @@ void CNewAITrigger::OnSelchangeComparator()
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -709,7 +709,7 @@ void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
         return;
     int curSel = SendMessage(hComparisonObject, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -727,7 +727,7 @@ void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
     {
         GetWindowText(hComparisonObject, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hComparisonObject, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hComparisonObject, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hComparisonObject, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -738,7 +738,7 @@ void CNewAITrigger::OnSelchangeComparisonObject(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<none>";
 
@@ -755,7 +755,7 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
         return;
     int curSel = SendMessage(hwnd, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -773,7 +773,7 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
     {
         GetWindowText(hwnd, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hwnd, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -784,7 +784,7 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<none>";
 
@@ -799,8 +799,8 @@ void CNewAITrigger::OnSelchangeTeam(int index, bool edited)
 
 void CNewAITrigger::OnClickNewAITrigger()
 {
-    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
-    ppmfc::CString value = "New AI Trigger,<none>,<all>,1,-1,<none>,0000000000000000000000000000000000000000000000000000000000000000,50.000000,30.000000,50.000000,1,0,1,0,<none>,1,1,1";
+    FString id = CMapDataExt::GetAvailableIndex();
+    FString value = "New AI Trigger,<none>,<all>,1,-1,<none>,0000000000000000000000000000000000000000000000000000000000000000,50.000000,30.000000,50.000000,1,0,1,0,<none>,1,1,1";
 
     map.WriteString("AITriggerTypes", id, value);
     map.WriteBool("AITriggerTypesEnable", id, true);
@@ -813,7 +813,7 @@ void CNewAITrigger::OnClickCloAITrigger()
 {
     if (!CurrentAITrigger) return;
 
-    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
+    FString id = CMapDataExt::GetAvailableIndex();
     AITrigger trigger2;
     trigger2 = *CurrentAITrigger;
     trigger2.ID = id;
@@ -826,7 +826,7 @@ void CNewAITrigger::OnClickCloAITrigger()
 void CNewAITrigger::OnClickDelAITrigger()
 {
     if (!CurrentAITrigger) return;
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("AITriggerDeleteMessage",
+    FString pMessage = Translations::TranslateOrDefault("AITriggerDeleteMessage",
         "Are you sure to delete this AI trigger?");
 
     int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("AITriggerDeleteTitle", "Delete AI Trigger"), MB_YESNO);
@@ -849,7 +849,7 @@ void CNewAITrigger::OnClickDelAITrigger()
     }
 }
 
-void CNewAITrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
+void CNewAITrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
 {
     if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
     {
@@ -878,10 +878,10 @@ void CNewAITrigger::OnSeldropdownAITrigger(HWND& hWnd)
     SortAITriggers(CurrentAITrigger->ID);
 }
 
-void CNewAITrigger::SortAITriggers(ppmfc::CString id)
+void CNewAITrigger::SortAITriggers(FString id)
 {
     while (SendMessage(hSelectedAITrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
     if (auto pSection = map.GetSection("AITriggerTypes")) {
         for (auto& pair : pSection->GetEntities()) {
             labels.push_back(ExtraWindow::GetAITriggerDisplayName(pair.first));
@@ -896,10 +896,10 @@ void CNewAITrigger::SortAITriggers(ppmfc::CString id)
     ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hSelectedAITrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hSelectedAITrigger, CB_INSERTSTRING, i, labels[i]);
     }
     if (id != "") {
-        SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).m_pchData);
+        SelectedAITriggerIndex = SendMessage(hSelectedAITrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id));
         SendMessage(hSelectedAITrigger, CB_SETCURSEL, SelectedAITriggerIndex, NULL);
     }
 }

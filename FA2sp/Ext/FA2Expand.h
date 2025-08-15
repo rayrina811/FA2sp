@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../Logger.h"
 #include "../RunTime.h"
 
 #include <Helpers/Macro.h>

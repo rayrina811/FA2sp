@@ -1,5 +1,7 @@
+#pragma once
+
 #include <vector>
-#include "../../FA2sp.h"
+#include <FA2PP.h>
 
 class CSelectAutoShore : public ppmfc::CDialog
 {

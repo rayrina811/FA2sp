@@ -2,6 +2,7 @@
 
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/FString.h"
 #include "../../Miscs/TheaterInfo.h"
 #include "../../FA2sp.h"
 #include <CINI.h>
@@ -173,8 +174,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 return item;
             }
 
-            ppmfc::CString imageName;
-            ppmfc::CString fileID;
+            FString imageName;
+            FString fileID;
             auto eItemType = CLoadingExt::GetExtension()->GetItemType(InsertingObjectID);
             switch (eItemType)
             {
@@ -185,7 +186,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             case CLoadingExt::ObjectType::Terrain:
             case CLoadingExt::ObjectType::Smudge:
                 imageName = CLoadingExt::GetImageName(InsertingObjectID, 0);
-                fileID = CINI::CurrentDocument->GetString("Map", "Theater") + "-" +
+                fileID = FString(CINI::CurrentDocument->GetString("Map", "Theater")) + "-" +
                     CLoadingExt::GetExtension()->GetTerrainOrSmudgeFileID(InsertingObjectID);
                 break;
             case CLoadingExt::ObjectType::Vehicle:

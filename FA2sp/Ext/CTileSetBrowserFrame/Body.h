@@ -3,6 +3,7 @@
 #include <CTileSetBrowserFrame.h>
 #include "../FA2Expand.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../FA2sp/Helpers/FString.h"
 
 class NOVTABLE CTileSetBrowserFrameExt : public CTileSetBrowserFrame
 {

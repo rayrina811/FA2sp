@@ -76,7 +76,7 @@ Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
 std::vector<std::vector<int>> CMapDataExt::Tile_to_lat;
 std::vector<int> CMapDataExt::TileSet_starts;
-std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
+std::unordered_map<FString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
@@ -227,16 +227,16 @@ void CMapDataExt::UpdateTriggers()
 	}
 }
 
-ppmfc::CString CMapDataExt::AddTrigger(std::shared_ptr<Trigger> trigger) {
+FString CMapDataExt::AddTrigger(std::shared_ptr<Trigger> trigger) {
 	if (!trigger) {
 		return "";
 	}
-	ppmfc::CString id = trigger->ID;
+	FString id = trigger->ID;
 	CMapDataExt::Triggers[id] = std::move(trigger);
 	return id;
 }
 
-ppmfc::CString CMapDataExt::AddTrigger(ppmfc::CString id) {
+FString CMapDataExt::AddTrigger(FString id) {
 	std::shared_ptr<Trigger> trigger(Trigger::create(id));
 
 	if (!trigger) {
@@ -247,7 +247,7 @@ ppmfc::CString CMapDataExt::AddTrigger(ppmfc::CString id) {
 	return id;
 }
 
-std::shared_ptr<Trigger> CMapDataExt::GetTrigger(ppmfc::CString id) {
+std::shared_ptr<Trigger> CMapDataExt::GetTrigger(FString id) {
 	auto it = CMapDataExt::Triggers.find(id);
 	if (it != CMapDataExt::Triggers.end()) {
 		return std::shared_ptr<Trigger>(it->second.get(), [](Trigger*) {});
@@ -255,7 +255,7 @@ std::shared_ptr<Trigger> CMapDataExt::GetTrigger(ppmfc::CString id) {
 	return nullptr;
 }
 
-void CMapDataExt::DeleteTrigger(ppmfc::CString id)
+void CMapDataExt::DeleteTrigger(FString id)
 {
 	auto it = CMapDataExt::Triggers.find(id);
 	if (it != CMapDataExt::Triggers.end()) {
@@ -922,7 +922,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getNW = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x, y - 1))
+			if (!CMapData::Instance->IsCoordInMap(x, y - 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x, y - 1);
 			if (!isMorphable(cellthis))
@@ -934,7 +934,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getSE = [height, x, y, isMorphable]()
 		{			
-			if (!CMapDataExt::IsCoordInFullMap(x, y + 1))
+			if (!CMapData::Instance->IsCoordInMap(x, y + 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x, y + 1);
 			if (!isMorphable(cellthis))
@@ -946,7 +946,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getNE = [height, x, y, isMorphable]()
 		{			
-			if (!CMapDataExt::IsCoordInFullMap(x - 1, y))
+			if (!CMapData::Instance->IsCoordInMap(x - 1, y))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y);
 			if (!isMorphable(cellthis))
@@ -958,7 +958,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getSW = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x + 1, y))
+			if (!CMapData::Instance->IsCoordInMap(x + 1, y))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y);
 			if (!isMorphable(cellthis))
@@ -970,7 +970,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getN = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x - 1, y - 1))
+			if (!CMapData::Instance->IsCoordInMap(x - 1, y - 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y - 1);
 			if (!isMorphable(cellthis))
@@ -982,7 +982,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getE = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x - 1, y + 1))
+			if (!CMapData::Instance->IsCoordInMap(x - 1, y + 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x - 1, y + 1);
 			if (!isMorphable(cellthis))
@@ -994,7 +994,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getS = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x + 1, y + 1))
+			if (!CMapData::Instance->IsCoordInMap(x + 1, y + 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y + 1);
 			if (!isMorphable(cellthis))
@@ -1006,7 +1006,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		};
 	auto getW = [height, x, y, isMorphable]()
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x + 1, y - 1))
+			if (!CMapData::Instance->IsCoordInMap(x + 1, y - 1))
 				return 0;
 			auto cellthis = CMapData::Instance->GetCellAt(x + 1, y - 1);
 			if (!isMorphable(cellthis))

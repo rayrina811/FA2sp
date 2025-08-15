@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../../Helpers/FString.h"
 
 // A static window class
 class CNewScript
@@ -101,14 +102,14 @@ public:
     static HWND hActionExtraParamDes;
     static HWND hInsert;
     static HWND hSearchReference;
-    static ppmfc::CString CurrentScriptID;
-    static std::map<ppmfc::CString, bool> ActionHasExtraParam;
+    static FString CurrentScriptID;
+    static std::map<FString, bool> ActionHasExtraParam;
 private:
     static int SelectedScriptIndex;
-    static std::map<int, ppmfc::CString> ScriptLabels;
-    static std::map<int, ppmfc::CString> ActionTypeLabels;
-    static std::map<int, ppmfc::CString> ActionParamLabels;
-    static std::map<int, ppmfc::CString> ActionExtraParamLabels;
+    static std::map<int, FString> ScriptLabels;
+    static std::map<int, FString> ActionTypeLabels;
+    static std::map<int, FString> ActionParamLabels;
+    static std::map<int, FString> ActionExtraParamLabels;
     static bool Autodrop;
     static bool ParamAutodrop[2];
     static bool DropNeedUpdate;

@@ -40,9 +40,9 @@ HWND CNewTaskforce::hUnitType;
 HWND CNewTaskforce::hSearchReference;
 
 int CNewTaskforce::SelectedTaskForceIndex = -1;
-ppmfc::CString CNewTaskforce::CurrentTaskForceID;
-std::map<int, ppmfc::CString> CNewTaskforce::TaskForceLabels;
-std::map<int, ppmfc::CString> CNewTaskforce::UnitTypeLabels;
+FString CNewTaskforce::CurrentTaskForceID;
+std::map<int, FString> CNewTaskforce::TaskForceLabels;
+std::map<int, FString> CNewTaskforce::UnitTypeLabels;
 bool CNewTaskforce::Autodrop;
 bool CNewTaskforce::DropNeedUpdate;
 WNDPROC CNewTaskforce::OriginalListBoxProc;
@@ -69,7 +69,7 @@ void CNewTaskforce::Create(CFinalSunDlg* pWnd)
 
 void CNewTaskforce::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("TaskforceTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -258,10 +258,10 @@ BOOL CALLBACK CNewTaskforce::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 DropNeedUpdate = true;
 
-                ppmfc::CString name;
+                FString name;
                 name.Format("%s (%s)", CurrentTaskForceID, buffer);
                 SendMessage(hSelectedTaskforce, CB_DELETESTRING, SelectedTaskForceIndex, NULL);
-                SendMessage(hSelectedTaskforce, CB_INSERTSTRING, SelectedTaskForceIndex, (LPARAM)(LPCSTR)name.m_pchData);
+                SendMessage(hSelectedTaskforce, CB_INSERTSTRING, SelectedTaskForceIndex, (LPARAM)(LPCSTR)name);
                 SendMessage(hSelectedTaskforce, CB_SETCURSEL, SelectedTaskForceIndex, NULL);
             }
             break;
@@ -337,20 +337,20 @@ void CNewTaskforce::OnEditchangeNumber()
     char buffer[512]{ 0 };
     GetWindowText(hNumber, buffer, 511);
     int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentTaskForceID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     value.Format("%s,%s", buffer, atoms[1]);
 
     map.WriteString(CurrentTaskForceID, key, value);
 
     value = map.GetString(CurrentTaskForceID, key);
-    atoms = STDHelpers::SplitString(value, 1);
-    ppmfc::CString text;
+    atoms = FString::SplitString(value, 1);
+    FString text;
     text.Format("%s %s (%s)", atoms[0], atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
     SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hUnitsListBox, LB_SETCURSEL, idx, NULL);
 
 }
@@ -371,21 +371,21 @@ void CNewTaskforce::OnSelchangeUnitListbox()
     if (idx > 5)
         idx = 5;
 
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentTaskForceID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
 
-    SendMessage(hNumber, WM_SETTEXT, 0, (LPARAM)atoms[0].m_pchData);
+    SendMessage(hNumber, WM_SETTEXT, 0, (LPARAM)atoms[0]);
 
-    ppmfc::CString text;
+    FString text;
     text.Format("%s (%s)", atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
-    int unitIdx = SendMessage(hUnitType, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+    int unitIdx = SendMessage(hUnitType, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
 
     if (unitIdx != CB_ERR)
         SendMessage(hUnitType, CB_SETCURSEL, unitIdx, NULL);
     else
-        SendMessage(hUnitType, WM_SETTEXT, 0, (LPARAM)atoms[1].m_pchData);
+        SendMessage(hUnitType, WM_SETTEXT, 0, (LPARAM)atoms[1]);
 
 }
 
@@ -395,7 +395,7 @@ void CNewTaskforce::OnSelchangeUnitType(bool edited)
         return;
     int curSel = SendMessage(hUnitType, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
     
@@ -418,26 +418,26 @@ void CNewTaskforce::OnSelchangeUnitType(bool edited)
     if (!text)
         return;
     
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "None")
         text = "";
 
     text.Replace(",", "");
 
     int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentTaskForceID, key);
-    auto atoms = STDHelpers::SplitString(value, 1);
+    auto atoms = FString::SplitString(value, 1);
     value.Format("%s,%s", atoms[0], text);
     
     map.WriteString(CurrentTaskForceID, key, value);
 
     value = map.GetString(CurrentTaskForceID, key);
-    atoms = STDHelpers::SplitString(value, 1);
+    atoms = FString::SplitString(value, 1);
     text.Format("%s %s (%s)", atoms[0], atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
     SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hUnitsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
     SendMessage(hUnitsListBox, LB_SETCURSEL, idx, NULL);
 }
 
@@ -484,10 +484,10 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     }
 
-    ppmfc::CString pID;
+    FString pID;
     SendMessage(hSelectedTaskforce, CB_GETLBTEXT, SelectedTaskForceIndex, (LPARAM)buffer);
     pID = buffer;
-    STDHelpers::TrimIndex(pID);
+    FString::TrimIndex(pID);
 
     CurrentTaskForceID = pID;
     while (SendMessage(hUnitsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -498,15 +498,15 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)group.m_pchData);
 
-        std::vector<ppmfc::CString> sortedList;
+        std::vector<FString> sortedList;
         for (int i = 0; i < 6; i++)
         {
-            ppmfc::CString key;
+            FString key;
             key.Format("%d", i);
             auto value = map.GetString(pID, key);
             if (value != "")
             {
-                if (STDHelpers::SplitString(value).size() == 2)
+                if (FString::SplitString(value).size() == 2)
                     sortedList.push_back(value);
             }
             map.DeleteKey(pID, key);
@@ -514,11 +514,11 @@ void CNewTaskforce::OnSelchangeTaskforce(bool edited, int specificIdx)
         int i = 0;
         for (auto& value : sortedList)
         {
-            auto atoms = STDHelpers::SplitString(value, 1);
-            ppmfc::CString text;
+            auto atoms = FString::SplitString(value, 1);
+            FString text;
             text.Format("%s %s (%s)", atoms[0], atoms[1], CViewObjectsExt::QueryUIName(atoms[1], true));
-            SendMessage(hUnitsListBox, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)text.m_pchData);
-            ppmfc::CString key;
+            SendMessage(hUnitsListBox, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)text);
+            FString key;
             key.Format("%d", i);
             map.WriteString(pID, key, value);
             i++;
@@ -546,11 +546,11 @@ void CNewTaskforce::OnCloseupTaskforce()
 
 void CNewTaskforce::OnClickNewTaskforce()
 {
-    ppmfc::CString key = CINI::GetAvailableKey("TaskForces");
-    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
-    ppmfc::CString buffer2;
+    FString key = CINI::GetAvailableKey("TaskForces");
+    FString value = CMapDataExt::GetAvailableIndex();
+    FString buffer2;
 
-    ppmfc::CString newName = "";
+    FString newName = "";
     if (TaskforceSort::CreateFromTaskForceSort)
         newName = TaskforceSort::Instance.GetCurrentPrefix();
     newName += "New task force";
@@ -575,12 +575,12 @@ void CNewTaskforce::OnClickDelTaskforce(HWND& hWnd)
         return;
 
     map.DeleteSection(CurrentTaskForceID);
-    std::vector<ppmfc::CString> deteleKeys;
+    std::vector<FString> deteleKeys;
     if (auto pSection = map.GetSection("TaskForces"))
     {
         for (auto& pair : pSection->GetEntities())
         {
-            if (pair.second == CurrentTaskForceID)
+            if (CurrentTaskForceID == pair.second)
                 deteleKeys.push_back(pair.first); 
         }
     }
@@ -603,20 +603,20 @@ void CNewTaskforce::OnClickCloTaskforce(HWND& hWnd)
         return;
     if (SendMessage(hSelectedTaskforce, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTaskForceIndex >= 0)
     {
-        ppmfc::CString key = CINI::GetAvailableKey("TaskForces");
-        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
+        FString key = CINI::GetAvailableKey("TaskForces");
+        FString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("TaskForces", key, value);
 
         auto oldname = CINI::CurrentDocument->GetString(CurrentTaskForceID, "Name", "New task force");
-        ppmfc::CString newName = ExtraWindow::GetCloneName(oldname);
+        FString newName = ExtraWindow::GetCloneName(oldname);
        
         CINI::CurrentDocument->WriteString(value, "Name", newName);
 
-        auto copyitem = [&value](ppmfc::CString key)
+        auto copyitem = [&value](FString key)
             {
                 if (auto ppStr = map.TryGetString(CurrentTaskForceID, key)) {
-                    ppmfc::CString str = *ppStr;
+                    FString str = *ppStr;
                     str.Trim();
                     map.WriteString(value, key, str);
                 }
@@ -645,13 +645,13 @@ void CNewTaskforce::OnClickAddUnit(HWND& hWnd)
         return;
 
     char buffer[512]{ 0 };
-    ppmfc::CString text;
-    ppmfc::CString key;
+    FString text;
+    FString key;
     key.Format("%d", count);
     map.WriteString(CurrentTaskForceID, key, "1,E1");
 
     text.Format("%s %s (%s)", "1", "E1", CViewObjectsExt::QueryUIName("E1", true));
-    SendMessage(hUnitsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text.m_pchData);
+    SendMessage(hUnitsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
     SendMessage(hUnitsListBox, LB_SETCURSEL, count, NULL);
     OnSelchangeUnitListbox();
 }
@@ -661,7 +661,7 @@ void CNewTaskforce::OnClickDeleteUnit(HWND& hWnd)
         return;
     int idx = SendMessage(hUnitsListBox, LB_GETCURSEL, 0, NULL);
     SendMessage(hUnitsListBox, LB_DELETESTRING, idx, NULL);
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", idx);
     map.DeleteKey(CurrentTaskForceID, key);
 

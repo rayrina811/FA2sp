@@ -36,7 +36,7 @@ void TriggerSort::LoadAllTriggers()
         {
             if (auto atri = CMapDataExt::GetTrigger(trigger->AttachedTrigger))
             {
-                TriggerTags[trigger->ID] = trigger->AttachedTrigger;
+                TriggerTags[trigger->ID] = trigger->AttachedTrigger.c_str();
             }
             TriggerTagsParent[trigger->AttachedTrigger].push_back(trigger->ID);
         }

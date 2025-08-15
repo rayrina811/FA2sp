@@ -7,8 +7,9 @@
 #include <CMapData.h>
 #include "TheaterHelpers.h"
 #include "../FA2sp.Constants.h"
+#include "FString.h"
 
-CString FinalAlertConfig::lpPath;
+ppmfc::CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
 
 // Load after ExePath is initialized
@@ -69,6 +70,33 @@ bool Translations::GetTranslationItem(const char* pLabelName, ppmfc::CString& re
     return false;
 }
 
+bool Translations::GetTranslationItem(const char* pLabelName, FString& ret)
+{
+    auto& falanguage = CINI::FALanguage();
+
+    for (const auto& language : Translations::pLanguage)
+    {
+        if (strstr(language, "RenameID") != NULL)
+            continue;
+        if (auto section = falanguage.GetSection(language))
+        {
+            auto itr = section->GetEntities().find(pLabelName);
+            if (itr != section->GetEntities().end())
+            {
+                FString buffer = itr->second;
+                buffer.Replace("\\n", "\n");
+                buffer.Replace("\\t", "\t");
+                buffer.Replace("\\r", "\r");
+                TranslateStringVariables(9, buffer, __str(PROGRAM_TITLE));
+                ret = buffer;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 const char* Translations::TranslateOrDefault(const char* lpLabelName, const char* lpDefault)
 {
     for (const auto& language : Translations::pLanguage)
@@ -104,7 +132,7 @@ const char* Translations::TranslateStringVariables(int n, const char* originalte
     seekedstring[1] = 0;
     strcat(seekedstring, c);
 
-    ppmfc::CString orig = originaltext;
+    FString orig = originaltext;
     if (orig.Find(seekedstring) < 0) return orig;
 
     orig.Replace(seekedstring, inserttext);

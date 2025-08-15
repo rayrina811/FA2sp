@@ -63,16 +63,16 @@ HWND CNewTeamTypes::hCheckBoxOnlyTargetHouseEnemy;
 HWND CNewTeamTypes::hSearchReference;
 
 int CNewTeamTypes::SelectedTeamIndex = -1;
-ppmfc::CString CNewTeamTypes::CurrentTeamID;
-std::map<int, ppmfc::CString> CNewTeamTypes::TaskForceLabels;
-std::map<int, ppmfc::CString> CNewTeamTypes::TeamLabels;
-std::map<int, ppmfc::CString> CNewTeamTypes::ScriptLabels;
-std::map<int, ppmfc::CString> CNewTeamTypes::TagLabels;
-std::map<int, ppmfc::CString> CNewTeamTypes::HouseLabels;
+FString CNewTeamTypes::CurrentTeamID;
+std::map<int, FString> CNewTeamTypes::TaskForceLabels;
+std::map<int, FString> CNewTeamTypes::TeamLabels;
+std::map<int, FString> CNewTeamTypes::ScriptLabels;
+std::map<int, FString> CNewTeamTypes::TagLabels;
+std::map<int, FString> CNewTeamTypes::HouseLabels;
 bool CNewTeamTypes::Autodrop;
 bool CNewTeamTypes::WaypointAutodrop;
 bool CNewTeamTypes::DropNeedUpdate;
-std::vector<ppmfc::CString> CNewTeamTypes::mindControlDecisions;
+std::vector<FString> CNewTeamTypes::mindControlDecisions;
 
 
 void CNewTeamTypes::Create(CFinalSunDlg* pWnd)
@@ -97,7 +97,7 @@ void CNewTeamTypes::Create(CFinalSunDlg* pWnd)
 
 void CNewTeamTypes::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("TeamTypesTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -189,12 +189,12 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
 
     mindControlDecisions.clear();
-    mindControlDecisions.push_back(ppmfc::CString("0 - ") + Translations::TranslateOrDefault("MindControlDecisions.0", "Don't use this logic"));
-    mindControlDecisions.push_back(ppmfc::CString("1 - ") + Translations::TranslateOrDefault("MindControlDecisions.1", "Recruit"));
-    mindControlDecisions.push_back(ppmfc::CString("2 - ") + Translations::TranslateOrDefault("MindControlDecisions.2", "Send to Grinder"));
-    mindControlDecisions.push_back(ppmfc::CString("3 - ") + Translations::TranslateOrDefault("MindControlDecisions.3", "Send to Bio Reactor"));
-    mindControlDecisions.push_back(ppmfc::CString("4 - ") + Translations::TranslateOrDefault("MindControlDecisions.4", "Assign to hunt"));
-    mindControlDecisions.push_back(ppmfc::CString("5 - ") + Translations::TranslateOrDefault("MindControlDecisions.5", "Do nothing"));
+    mindControlDecisions.push_back(FString("0 - ") + Translations::TranslateOrDefault("MindControlDecisions.0", "Don't use this logic"));
+    mindControlDecisions.push_back(FString("1 - ") + Translations::TranslateOrDefault("MindControlDecisions.1", "Recruit"));
+    mindControlDecisions.push_back(FString("2 - ") + Translations::TranslateOrDefault("MindControlDecisions.2", "Send to Grinder"));
+    mindControlDecisions.push_back(FString("3 - ") + Translations::TranslateOrDefault("MindControlDecisions.3", "Send to Bio Reactor"));
+    mindControlDecisions.push_back(FString("4 - ") + Translations::TranslateOrDefault("MindControlDecisions.4", "Assign to hunt"));
+    mindControlDecisions.push_back(FString("5 - ") + Translations::TranslateOrDefault("MindControlDecisions.5", "Do nothing"));
 
     Update(hWnd);
 }
@@ -247,11 +247,11 @@ void CNewTeamTypes::Update(HWND& hWnd)
 
     idx = 0;
     while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
-            auto atoms = STDHelpers::SplitString(pair.second, 1);
-            ppmfc::CString name;
+            auto atoms = FString::SplitString(pair.second, 1);
+            FString name;
             name.Format("%s (%s)", pair.first, atoms[1]);
             labels.push_back(name);
         }
@@ -259,7 +259,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
     std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
     SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i]);
     }
 
     idx = 0;
@@ -304,7 +304,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
     idx = 0;
     while (SendMessage(hMindControlDecision, CB_DELETESTRING, 0, NULL) != CB_ERR);
     for (auto& decision : mindControlDecisions)
-        SendMessage(hMindControlDecision, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)decision.m_pchData);
+        SendMessage(hMindControlDecision, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)decision);
 
     Autodrop = false;
     ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
@@ -370,10 +370,10 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 DropNeedUpdate = true;
 
-                ppmfc::CString name;
+                FString name;
                 name.Format("%s (%s)", CurrentTeamID, buffer);
                 SendMessage(hSelectedTeam, CB_DELETESTRING, SelectedTeamIndex, NULL);
-                SendMessage(hSelectedTeam, CB_INSERTSTRING, SelectedTeamIndex, (LPARAM)(LPCSTR)name.m_pchData);
+                SendMessage(hSelectedTeam, CB_INSERTSTRING, SelectedTeamIndex, (LPARAM)(LPCSTR)name);
                 SendMessage(hSelectedTeam, CB_SETCURSEL, SelectedTeamIndex, NULL);
 
                 ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
@@ -594,7 +594,7 @@ void CNewTeamTypes::OnSelchangeTransportWaypoint(HWND& hWnd, bool edited)
         (LPARAM)buffer);
     if (edited)
         GetWindowText(hTransportWaypoint, buffer, 511);
-    ppmfc::CString text = buffer;
+    FString text = buffer;
     text.Trim();
     if (text == "None")
     {
@@ -617,7 +617,7 @@ void CNewTeamTypes::OnSelchangeWaypoint(HWND& hWnd, bool edited)
         (LPARAM)buffer);
     if (edited)
         GetWindowText(hWaypoint, buffer, 511);
-    ppmfc::CString text = buffer;
+    FString text = buffer;
     text.Trim();
 
     map.WriteString(CurrentTeamID, "Waypoint", STDHelpers::WaypointToString(text));
@@ -628,7 +628,7 @@ void CNewTeamTypes::OnSelchangeTaskForce(bool edited)
     if (SelectedTeamIndex < 0)
         return;
     int curSel = SendMessage(hTaskforce, CB_GETCURSEL, NULL, NULL);
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -651,7 +651,7 @@ void CNewTeamTypes::OnSelchangeTaskForce(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "None")
         text = "";
 
@@ -671,7 +671,7 @@ void CNewTeamTypes::OnSelchangeScript(bool edited)
     if (SelectedTeamIndex < 0)
         return;
     int curSel = SendMessage(hScript, CB_GETCURSEL, NULL, NULL);
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -692,7 +692,7 @@ void CNewTeamTypes::OnSelchangeScript(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "None")
         text = "";
 
@@ -712,7 +712,7 @@ void CNewTeamTypes::OnSelchangeTag(bool edited)
     if (SelectedTeamIndex < 0)
         return;
     int curSel = SendMessage(hTag, CB_GETCURSEL, NULL, NULL);
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -731,7 +731,7 @@ void CNewTeamTypes::OnSelchangeTag(bool edited)
         text = buffer;
     }
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "None")
         text = "";
 
@@ -756,7 +756,7 @@ void CNewTeamTypes::OnSelchangeHouse(bool edited)
         return;
     int curSel = SendMessage(hHouse, CB_GETCURSEL, NULL, NULL);
     int count = SendMessage(hHouse, CB_GETCOUNT, NULL, NULL);
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -802,7 +802,7 @@ void CNewTeamTypes::OnSelchangeVeteranLevel(HWND& hWnd, bool edited)
     int curSel = SendMessage(hVeteranLevel, CB_GETCURSEL, NULL, NULL);
     int count = SendMessage(hVeteranLevel, CB_GETCOUNT, NULL, NULL);
     char buffer[512]{ 0 };
-    ppmfc::CString text;
+    FString text;
     if (curSel >= 0 && curSel < count)
     {
         SendMessage(hVeteranLevel, CB_GETLBTEXT, curSel, (LPARAM)buffer);
@@ -812,7 +812,7 @@ void CNewTeamTypes::OnSelchangeVeteranLevel(HWND& hWnd, bool edited)
     {
         GetWindowText(hVeteranLevel, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hVeteranLevel, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hVeteranLevel, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hVeteranLevel, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -833,7 +833,7 @@ void CNewTeamTypes::OnSelchangeTechlevel(HWND& hWnd, bool edited)
     int curSel = SendMessage(hTechlevel, CB_GETCURSEL, NULL, NULL);
     int count = SendMessage(hTechlevel, CB_GETCOUNT, NULL, NULL);
     char buffer[512]{ 0 };
-    ppmfc::CString text;
+    FString text;
     if (curSel >= 0 && curSel < count)
     {
         SendMessage(hTechlevel, CB_GETLBTEXT, curSel, (LPARAM)buffer);
@@ -843,7 +843,7 @@ void CNewTeamTypes::OnSelchangeTechlevel(HWND& hWnd, bool edited)
     {
         GetWindowText(hTechlevel, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hTechlevel, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hTechlevel, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hTechlevel, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -864,7 +864,7 @@ void CNewTeamTypes::OnSelchangeGroup(HWND& hWnd, bool edited)
     int curSel = SendMessage(hGroup, CB_GETCURSEL, NULL, NULL);
     int count = SendMessage(hGroup, CB_GETCOUNT, NULL, NULL);
     char buffer[512]{ 0 };
-    ppmfc::CString text;
+    FString text;
     if (curSel >= 0 && curSel < count)
     {
         SendMessage(hGroup, CB_GETLBTEXT, curSel, (LPARAM)buffer);
@@ -874,7 +874,7 @@ void CNewTeamTypes::OnSelchangeGroup(HWND& hWnd, bool edited)
     {
         GetWindowText(hGroup, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hGroup, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hGroup, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hGroup, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -895,7 +895,7 @@ void CNewTeamTypes::OnSelchangeMindControlDecision(HWND& hWnd, bool edited)
     int curSel = SendMessage(hMindControlDecision, CB_GETCURSEL, NULL, NULL);
     int count = SendMessage(hMindControlDecision, CB_GETCOUNT, NULL, NULL);
     char buffer[512]{ 0 };
-    ppmfc::CString text;
+    FString text;
     if (curSel >= 0 && curSel < count)
     {
         SendMessage(hMindControlDecision, CB_GETLBTEXT, curSel, (LPARAM)buffer);
@@ -905,7 +905,7 @@ void CNewTeamTypes::OnSelchangeMindControlDecision(HWND& hWnd, bool edited)
     {
         GetWindowText(hMindControlDecision, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)text);
         if (idx != CB_ERR)
         {
             SendMessage(hMindControlDecision, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -999,10 +999,10 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         return;
     }
 
-    ppmfc::CString pID;
+    FString pID;
     SendMessage(hSelectedTeam, CB_GETLBTEXT, SelectedTeamIndex, (LPARAM)buffer);
     pID = buffer;
-    STDHelpers::TrimIndex(pID);
+    FString::TrimIndex(pID);
 
     CurrentTeamID = pID;
     if (auto pTeam = map.GetSection(pID))
@@ -1027,10 +1027,10 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         bool found = false;
         for (int idx = 0; idx < SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            ppmfc::CString id;
+            FString id;
             SendMessage(hTaskforce, CB_GETLBTEXT, idx, (LPARAM)buffer);
             id = buffer;
-            STDHelpers::TrimIndex(id);
+            FString::TrimIndex(id);
             if (id == taskforce)
             {
                 SendMessage(hTaskforce, CB_SETCURSEL, idx, NULL);
@@ -1046,10 +1046,10 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         found = false;
         for (int idx = 0; idx < SendMessage(hScript, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            ppmfc::CString id;
+            FString id;
             SendMessage(hScript, CB_GETLBTEXT, idx, (LPARAM)buffer);
             id = buffer;
-            STDHelpers::TrimIndex(id);
+            FString::TrimIndex(id);
             if (id == script)
             {
                 SendMessage(hScript, CB_SETCURSEL, idx, NULL);
@@ -1065,10 +1065,10 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         found = false;
         for (int idx = 0; idx < SendMessage(hTag, CB_GETCOUNT, NULL, NULL); idx++)
         {
-            ppmfc::CString id;
+            FString id;
             SendMessage(hTag, CB_GETLBTEXT, idx, (LPARAM)buffer);
             id = buffer;
-            STDHelpers::TrimIndex(id);
+            FString::TrimIndex(id);
             if (id == tag)
             {
                 SendMessage(hTag, CB_SETCURSEL, idx, NULL);
@@ -1130,12 +1130,12 @@ void CNewTeamTypes::OnCloseupTeamtypes()
 
 void CNewTeamTypes::OnClickNewTeam()
 {
-    ppmfc::CString key = CINI::GetAvailableKey("TeamTypes");
-    ppmfc::CString value = CMapDataExt::GetAvailableIndex();
+    FString key = CINI::GetAvailableKey("TeamTypes");
+    FString value = CMapDataExt::GetAvailableIndex();
     char buffer[512];
-    ppmfc::CString buffer2;
+    FString buffer2;
 
-    ppmfc::CString newName = "";
+    FString newName = "";
     if (TeamSort::CreateFromTeamSort)
         newName = TeamSort::Instance.GetCurrentPrefix();
     newName += "New Teamtype";
@@ -1155,7 +1155,7 @@ void CNewTeamTypes::OnClickNewTeam()
     {
         SendMessage(hScript, CB_GETLBTEXT, 0, (LPARAM)buffer);
         buffer2 = buffer;
-        STDHelpers::TrimIndex(buffer2);
+        FString::TrimIndex(buffer2);
         map.WriteString(value, "Script", buffer2);
     }
     else
@@ -1169,7 +1169,7 @@ void CNewTeamTypes::OnClickNewTeam()
     if (SendMessage(hWaypoint, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hWaypoint, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        map.WriteString(value, "Waypoint", STDHelpers::WaypointToString(buffer));
+        map.WriteString(value, "Waypoint", STDHelpers::WaypointToString(ppmfc::CString(buffer)));
     }
     else
         map.WriteString(value, "Waypoint", "A");
@@ -1181,7 +1181,7 @@ void CNewTeamTypes::OnClickNewTeam()
     {
         SendMessage(hTaskforce, CB_GETLBTEXT, 0, (LPARAM)buffer);
         buffer2 = buffer;
-        STDHelpers::TrimIndex(buffer2);
+        FString::TrimIndex(buffer2);
         map.WriteString(value, "TaskForce", buffer2);
     }
     else
@@ -1219,12 +1219,12 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
         return;
 
     map.DeleteSection(CurrentTeamID);
-    std::vector<ppmfc::CString> deteleKeys;
+    std::vector<FString> deteleKeys;
     if (auto pSection = map.GetSection("TeamTypes"))
     {
         for (auto& pair : pSection->GetEntities())
         {
-            if (pair.second == CurrentTeamID)
+            if (CurrentTeamID == pair.second)
                 deteleKeys.push_back(pair.first); 
         }
     }
@@ -1247,20 +1247,20 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         return;
     if (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTeamIndex >= 0)
     {
-        ppmfc::CString key = CINI::GetAvailableKey("TeamTypes");
-        ppmfc::CString value = CMapDataExt::GetAvailableIndex();
+        FString key = CINI::GetAvailableKey("TeamTypes");
+        FString value = CMapDataExt::GetAvailableIndex();
 
         CINI::CurrentDocument->WriteString("TeamTypes", key, value);
 
         auto oldname = CINI::CurrentDocument->GetString(CurrentTeamID, "Name", "New Teamtype");
-        ppmfc::CString newName = ExtraWindow::GetCloneName(oldname);
+        FString newName = ExtraWindow::GetCloneName(oldname);
 
         CINI::CurrentDocument->WriteString(value, "Name", newName);
 
-        auto copyitem = [&value](ppmfc::CString key)
+        auto copyitem = [&value](FString key)
             {
                 if (auto ppStr = map.TryGetString(CurrentTeamID, key)) {
-                    ppmfc::CString str = *ppStr;
+                    FString str = *ppStr;
                     str.Trim();
                     map.WriteString(value, key, str);
                 }

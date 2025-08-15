@@ -315,7 +315,7 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                     std::vector<ppmfc::CString> pParamTypes[2];
                     pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
                     pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
-                    ppmfc::CString thisWp = "-1";
+                    FString thisWp = "-1";
                     if (thisEvent.Params[0] == "2")
                     {
                         if (pParamTypes[0][1] == "1")// waypoint
@@ -357,7 +357,7 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                 for (auto& thisAction : trigger->Actions)
                 {
                     auto actionInfos = STDHelpers::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-                    ppmfc::CString thisWp = "-1";
+                    FString thisWp = "-1";
                     ppmfc::CString paramType[7];
                     for (int i = 0; i < 7; i++)
                         paramType[i] = actionInfos[i + 1];

@@ -65,15 +65,15 @@ int CNewTrigger::SelectedActionIndex = -1;
 int CNewTrigger::ActionParamsCount;
 int CNewTrigger::LastActionParamsCount;
 bool CNewTrigger::WindowShown;
-ppmfc::CString CNewTrigger::CurrentTriggerID;
+FString CNewTrigger::CurrentTriggerID;
 std::shared_ptr<Trigger> CNewTrigger::CurrentTrigger;
-std::map<int, ppmfc::CString> CNewTrigger::TriggerLabels;
-std::map<int, ppmfc::CString> CNewTrigger::AttachedTriggerLabels;
-std::map<int, ppmfc::CString> CNewTrigger::HouseLabels;
-std::map<int, ppmfc::CString> CNewTrigger::ActionTypeLabels;
-std::map<int, ppmfc::CString> CNewTrigger::EventTypeLabels;
-std::map<int, ppmfc::CString> CNewTrigger::ActionParamLabels[ACTION_PARAM_COUNT];
-std::map<int, ppmfc::CString> CNewTrigger::EventParamLabels[EVENT_PARAM_COUNT];
+std::map<int, FString> CNewTrigger::TriggerLabels;
+std::map<int, FString> CNewTrigger::AttachedTriggerLabels;
+std::map<int, FString> CNewTrigger::HouseLabels;
+std::map<int, FString> CNewTrigger::ActionTypeLabels;
+std::map<int, FString> CNewTrigger::EventTypeLabels;
+std::map<int, FString> CNewTrigger::ActionParamLabels[ACTION_PARAM_COUNT];
+std::map<int, FString> CNewTrigger::EventParamLabels[EVENT_PARAM_COUNT];
 std::pair<bool, int> CNewTrigger::EventParamsUsage[EVENT_PARAM_COUNT];
 std::pair<bool, int> CNewTrigger::ActionParamsUsage[ACTION_PARAM_COUNT];
 std::vector<ParamAffectedParams> CNewTrigger::ActionParamAffectedParams;
@@ -111,7 +111,7 @@ void CNewTrigger::Create(CFinalSunDlg* pWnd)
 
 void CNewTrigger::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("TriggerTypesTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -250,12 +250,12 @@ void CNewTrigger::Update(HWND& hWnd)
     {
         for (auto& pair : pSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() >= 9)
             {
                 if (atoms[7] == "1")
                 {
-                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(pair.first + " " + atoms[0]).m_pchData);
+                    SendMessage(hEventtype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " " + atoms[0]).c_str());
                 }
             }
         }
@@ -266,12 +266,12 @@ void CNewTrigger::Update(HWND& hWnd)
     {
         for (auto& pair : pSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() >= 14)
             {
                 if (atoms[12] == "1")
                 {
-                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(pair.first + " " + atoms[0]).m_pchData);
+                    SendMessage(hActiontype, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " " + atoms[0]).c_str());
                 }
             }
         }
@@ -285,15 +285,15 @@ void CNewTrigger::Update(HWND& hWnd)
         {
             if (pair.second == "GDI" || pair.second == "Nod")
                 continue;
-            SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(pair.second, true).m_pchData);
+            SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)STDHelpers::ParseHouseName(pair.second, true).c_str());
         }
     }
 
     idx = 0;
     while (SendMessage(hType, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
-    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(ppmfc::CString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("0 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeOr", "One Time OR")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("1 - ") + Translations::TranslateOrDefault("TriggerRepeatType.OneTimeAnd", "One Time AND")));
+    SendMessage(hType, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString("2 - ") + Translations::TranslateOrDefault("TriggerRepeatType.RepeatingOr", "Repeating OR")));
 
     Autodrop = false;
 
@@ -474,7 +474,7 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hName, buffer, 511);
-                ppmfc::CString name(buffer);
+                FString name(buffer);
                 name.Replace(",", "");
 
                 CurrentTrigger->Name = name;
@@ -486,19 +486,19 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 auto newName = ExtraWindow::FormatTriggerDisplayName(CurrentTrigger->ID, CurrentTrigger->Name);
 
                 SendMessage(hSelectedTrigger, CB_DELETESTRING, SelectedTriggerIndex, NULL);
-                SendMessage(hSelectedTrigger, CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.m_pchData);
+                SendMessage(hSelectedTrigger, CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
                 SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
 
                 int hAttachedtriggerCur = SendMessage(hAttachedtrigger, CB_GETCURSEL, NULL, NULL);
                 SendMessage(hAttachedtrigger, CB_DELETESTRING, SelectedTriggerIndex + 1, NULL);
-                SendMessage(hAttachedtrigger, CB_INSERTSTRING, SelectedTriggerIndex + 1, (LPARAM)(LPCSTR)newName.m_pchData);
+                SendMessage(hAttachedtrigger, CB_INSERTSTRING, SelectedTriggerIndex + 1, (LPARAM)(LPCSTR)newName.c_str());
                 SendMessage(hAttachedtrigger, CB_SETCURSEL, hAttachedtriggerCur, NULL);
 
                 if (CurrentTriggerActionParam > -1)
                 {
                     int hActionParameterCur = SendMessage(hActionParameter[CurrentTriggerActionParam], CB_GETCURSEL, NULL, NULL);
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_DELETESTRING, SelectedTriggerIndex, NULL);
-                    SendMessage(hActionParameter[CurrentTriggerActionParam], CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.m_pchData);
+                    SendMessage(hActionParameter[CurrentTriggerActionParam], CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_SETCURSEL, hActionParameterCur, NULL);
                 }
 
@@ -762,10 +762,10 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
     {
         if (EventParamsUsage[i].first)
         {
-            ppmfc::CString value = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[i].second];
+            FString value = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[i].second];
             int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[i], value + " ");
             if (paramIdx == CB_ERR)
-                paramIdx = SendMessage(hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)value.m_pchData);
+                paramIdx = SendMessage(hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)value.c_str());
 
             if (paramIdx != CB_ERR)
             {
@@ -774,7 +774,7 @@ void CNewTrigger::OnSelchangeEventListbox(bool changeCursel)
             else
             {
                 SendMessage(hEventParameter[i], CB_SETCURSEL, -1, NULL);
-                SendMessage(hEventParameter[i], WM_SETTEXT, 0, (LPARAM)value.m_pchData);
+                SendMessage(hEventParameter[i], WM_SETTEXT, 0, (LPARAM)value.c_str());
             }
         }
     }
@@ -813,8 +813,8 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
     {
         if (ActionParamsUsage[i].first)
         {
-            ppmfc::CString value = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[i].second];
-            ppmfc::CString valueOri = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[i].second];
+            FString value = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[i].second];
+            FString valueOri = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[i].second];
             if (ActionParamsUsage[i].second == 6 && CurrentTrigger->Actions[SelectedActionIndex].Param7isWP)
             {
                 value = STDHelpers::StringToWaypointStr(value);
@@ -832,7 +832,7 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
             int paramIdx = ExtraWindow::FindCBStringExactStart(hActionParameter[i], value + " ");
 
             if (paramIdx == CB_ERR)
-                paramIdx = SendMessage(hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)value.m_pchData);
+                paramIdx = SendMessage(hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)value.c_str());
 
             if (paramIdx != CB_ERR)
             {
@@ -842,20 +842,20 @@ void CNewTrigger::OnSelchangeActionListbox(bool changeCursel)
             {
                 if (CurrentCSFActionParam == i && ExtConfigs::TutorialTexts_Viewer)
                 {
-                    ppmfc::CString text = valueOri;
+                    FString text = valueOri;
                     auto it = CCsfEditor::CurrentCSFMap.find(value);
                     if (it != CCsfEditor::CurrentCSFMap.end())
                         text += " - " + CCsfEditor::CurrentCSFMap[value];
                     SendMessage(hActionParameter[i], CB_SETCURSEL, -1, NULL);
-                    SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)text.m_pchData);
+                    SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)text.c_str());
                 }
                 else
                 {
                     SendMessage(hActionParameter[i], CB_SETCURSEL, -1, NULL);
                     if (CurrentCSFActionParam == i)
-                        SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)valueOri.m_pchData);
+                        SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)valueOri.c_str());
                     else
-                        SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)value.m_pchData);
+                        SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)value.c_str());
                 }
             }
         }
@@ -868,7 +868,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
         return;
     int curSel = SendMessage(hAttachedtrigger, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
 
     if (edited && (SendMessage(hAttachedtrigger, CB_GETCOUNT, NULL, NULL) > 0 || !AttachedTriggerLabels.empty()))
@@ -886,7 +886,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
         GetWindowText(hAttachedtrigger, buffer, 511);
 
         text = buffer;
-        int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(buffer).m_pchData);
+        int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(buffer).c_str());
         if (idx != CB_ERR)
         {
             SendMessage(hAttachedtrigger, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -897,7 +897,7 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<none>";
 
@@ -905,13 +905,13 @@ void CNewTrigger::OnSelchangeAttachedTrigger(bool edited)
 
     if (text == CurrentTrigger->ID)
     {
-        ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerAttachedTriggerSelf",
+        FString pMessage = Translations::TranslateOrDefault("TriggerAttachedTriggerSelf",
             "A trigger's attached trigger CANNOT be itself. \nDo you want to continue?");
 
         int nResult = ::MessageBox(GetHandle(), pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_YESNO | MB_ICONWARNING);
         if (nResult == IDNO)
         {
-            int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).m_pchData);
+            int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
             if (idx != CB_ERR)
             {
                 SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
@@ -936,7 +936,7 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
         return;
     int curSel = SendMessage(hHouse, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -954,9 +954,9 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
     {
         GetWindowText(hHouse, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)text.m_pchData);
+        int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)text.c_str());
         //if (idx == CB_ERR)
-        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Miscs::ParseHouseName(text, true).m_pchData);
+        //    idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)FString::ParseHouseName(text, true).m_pchData);
         if (idx != CB_ERR)
         {
             SendMessage(hHouse, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -967,13 +967,13 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<none>";
 
     text.Replace(",", "");
 
-    CurrentTrigger->House = Miscs::ParseHouseName(text, false);
+    CurrentTrigger->House = STDHelpers::ParseHouseName(text, false);
     CurrentTrigger->Save();
 
 }
@@ -984,7 +984,7 @@ void CNewTrigger::OnSelchangeType(bool edited)
         return;
     int curSel = SendMessage(hType, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
 
     if (curSel >= 0 && curSel < SendMessage(hType, CB_GETCOUNT, NULL, NULL))
@@ -1001,7 +1001,7 @@ void CNewTrigger::OnSelchangeType(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -1017,7 +1017,7 @@ void CNewTrigger::OnSelchangeEventType(bool edited)
         return;
     int curSel = SendMessage(hEventtype, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -1040,7 +1040,7 @@ void CNewTrigger::OnSelchangeEventType(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -1057,7 +1057,7 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
         return;
     int curSel = SendMessage(hActiontype, CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -1080,7 +1080,7 @@ void CNewTrigger::OnSelchangeActionType(bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -1098,7 +1098,7 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
         return;
     int curSel = SendMessage(hEventParameter[index], CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -1122,7 +1122,7 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -1140,7 +1140,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
         return;
     int curSel = SendMessage(hActionParameter[index], CB_GETCURSEL, NULL, NULL);
 
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     char buffer2[512]{ 0 };
 
@@ -1164,7 +1164,7 @@ void CNewTrigger::OnSelchangeActionParam(int index, bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "0";
 
@@ -1197,7 +1197,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
             auto& text = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hActionParameter[target.AffectedParam], paramType[1]);
                 //SendMessage(hActionParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
                 if (paramType[1] == "10") // stringtables
@@ -1213,7 +1213,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 auto& targetText = CurrentTrigger->Actions[SelectedActionIndex].Params[ActionParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hActionParameter[target.AffectedParam], targetText + " ");
                 if (paramIdx == CB_ERR)
-                    paramIdx = SendMessage(hActionParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.m_pchData);
+                    paramIdx = SendMessage(hActionParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.c_str());
 
                 if (paramIdx != CB_ERR)
                 {
@@ -1222,7 +1222,7 @@ void CNewTrigger::UpdateParamAffectedParam_Action(int index)
                 else
                 {
                     SendMessage(hActionParameter[target.AffectedParam], CB_SETCURSEL, -1, NULL);
-                    SendMessage(hActionParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.m_pchData);
+                    SendMessage(hActionParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.c_str());
                 }
             } 
         }
@@ -1239,15 +1239,15 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             auto& text = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[index].second];
             if (target.ParamMap.find(text) != target.ParamMap.end())
             {
-                auto paramType = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
+                auto paramType = FString::SplitString(CINI::FAData->GetString("ParamTypes", target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(hEventParameter[target.AffectedParam], paramType[1]);
-                //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].m_pchData);
+                //SendMessage(hEventParameterDesc[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)paramType[0].c_str());
                 ExtraWindow::AdjustDropdownWidth(hEventParameter[target.AffectedParam]);
 
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
                 if (paramIdx == CB_ERR)
-                    paramIdx = SendMessage(hEventParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.m_pchData);
+                    paramIdx = SendMessage(hEventParameter[target.AffectedParam], CB_FINDSTRINGEXACT, 0, (LPARAM)targetText.c_str());
 
                 if (paramIdx != CB_ERR)
                 {
@@ -1256,7 +1256,7 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
                 else
                 {
                     SendMessage(hEventParameter[target.AffectedParam], CB_SETCURSEL, -1, NULL);
-                    SendMessage(hEventParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.m_pchData);
+                    SendMessage(hEventParameter[target.AffectedParam], WM_SETTEXT, 0, (LPARAM)targetText.c_str());
                 }
             }
         }
@@ -1305,10 +1305,10 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
         return;
     }
 
-    ppmfc::CString pID;
+    FString pID;
     SendMessage(hSelectedTrigger, CB_GETLBTEXT, SelectedTriggerIndex, (LPARAM)buffer);
     pID = buffer;
-    STDHelpers::TrimIndex(pID);
+    FString::TrimIndex(pID);
 
     CurrentTriggerID = pID;
 
@@ -1318,25 +1318,25 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
     CurrentTrigger = CMapDataExt::GetTrigger(CurrentTriggerID);
     if (!CurrentTrigger) return;
 
-    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.m_pchData);
+    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
     
-    int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Miscs::ParseHouseName(CurrentTrigger->House, true).m_pchData);
+    int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)STDHelpers::ParseHouseName(CurrentTrigger->House, true).c_str());
     if (houseidx != CB_ERR)
         SendMessage(hHouse, CB_SETCURSEL, houseidx, NULL);
     else
-        SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->House.m_pchData);
+        SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->House.c_str());
     
     int repeat = atoi(CurrentTrigger->RepeatType);
     if (repeat >= 0 && repeat <= 2)
         SendMessage(hType, CB_SETCURSEL, repeat, NULL);
     else
-        SendMessage(hType, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->RepeatType.m_pchData);
+        SendMessage(hType, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->RepeatType.c_str());
     
-    int attachedTriggerIdx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).m_pchData);
+    int attachedTriggerIdx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
     if (attachedTriggerIdx != CB_ERR)
         SendMessage(hAttachedtrigger, CB_SETCURSEL, attachedTriggerIdx, NULL);
     else
-        SendMessage(hAttachedtrigger, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->AttachedTrigger.m_pchData);
+        SendMessage(hAttachedtrigger, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->AttachedTrigger.c_str());
     
     SendMessage(hDisabled, BM_SETCHECK, CurrentTrigger->Disabled, 0);
     SendMessage(hEasy, BM_SETCHECK, CurrentTrigger->EasyEnabled, 0);
@@ -1387,33 +1387,33 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
     SortTriggers(CurrentTrigger->ID);
 
-    int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).m_pchData);
+    int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
     SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
 }
 
 void CNewTrigger::OnClickNewTrigger()
 {
-    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
-    ppmfc::CString value;
-    ppmfc::CString house;
+    FString id = CMapDataExt::GetAvailableIndex();
+    FString value;
+    FString house;
     char buffer[512]{ 0 };
     if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        house = Miscs::ParseHouseName(buffer, false);
+        house = STDHelpers::ParseHouseName(buffer, false);
     }
     else
         house = "Americans";
 
-    ppmfc::CString newName =
+    FString newName =
         TriggerSort::CreateFromTriggerSort ?
-        TriggerSort::Instance.GetCurrentPrefix() + "New Trigger" :
-        ppmfc::CString("New Trigger");
+        FString(TriggerSort::Instance.GetCurrentPrefix()) + "New Trigger" :
+        FString("New Trigger");
 
     value.Format("%s,<none>,%s,0,1,1,1,0", house, newName);
 
     map.WriteString("Triggers", id, value);
-    ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
+    FString tagId = CMapDataExt::GetAvailableIndex();
     value.Format("0,%s 1,%s", newName, id);
     map.WriteString("Tags", tagId, value);
 
@@ -1431,11 +1431,11 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
     auto& oriID = CurrentTrigger->ID;
     auto& oriTagID = CurrentTrigger->Tag;
 
-    ppmfc::CString id = CMapDataExt::GetAvailableIndex();
-    ppmfc::CString value;
+    FString id = CMapDataExt::GetAvailableIndex();
+    FString value;
     auto& Name = CurrentTrigger->Name;
 
-    ppmfc::CString newName = ExtraWindow::GetCloneName(Name);
+    FString newName = ExtraWindow::GetCloneName(Name);
     
     value.Format("%s,%s,%s,%s,%s,%s,%s,%s", CurrentTrigger->House, CurrentTrigger->AttachedTrigger, newName,
         CurrentTrigger->Disabled ? "1" : "0", CurrentTrigger->EasyEnabled ? "1" : "0",
@@ -1444,7 +1444,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 
     if (oriTagID != "<none>")
     {
-        ppmfc::CString tagId = CMapDataExt::GetAvailableIndex();
+        FString tagId = CMapDataExt::GetAvailableIndex();
         value.Format("%s,%s 1,%s", CurrentTrigger->RepeatType, newName, id);
         map.WriteString("Tags", tagId, value);
     }
@@ -1462,7 +1462,7 @@ void CNewTrigger::OnClickCloTrigger(HWND& hWnd)
 void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
 {
     if (!CurrentTrigger) return;
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerDeleteMessage",
+    FString pMessage = Translations::TranslateOrDefault("TriggerDeleteMessage",
         "If you want to delete ALL attached tags, too, press Yes.\n"
         "If you don't want to delete these tags, press No.\n"
         "If you want to cancel to deletion of the trigger, press Cancel.\n"
@@ -1475,10 +1475,10 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
         {
             if (auto pTagsSection = map.GetSection("Tags"))
             {
-                std::set<ppmfc::CString> TagsToRemove;
+                std::set<FString> TagsToRemove;
                 for (auto& pair : pTagsSection->GetEntities())
                 {
-                    auto splits = STDHelpers::SplitString(pair.second, 2);
+                    auto splits = FString::SplitString(pair.second, 2);
                     if (strcmp(splits[2], CurrentTrigger->ID) == 0)
                         TagsToRemove.insert(pair.first);
                 }
@@ -1487,7 +1487,7 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
 
                 if (auto pCellTagsSection = map.GetSection("CellTags"))
                 {
-                    std::vector<ppmfc::CString> CellTagsToRemove;
+                    std::vector<FString> CellTagsToRemove;
                     for (auto& pair : pCellTagsSection->GetEntities())
                     {
                         if (TagsToRemove.find(pair.second) != TagsToRemove.end())
@@ -1534,7 +1534,7 @@ void CNewTrigger::OnClickPlaceOnMap(HWND& hWnd)
 
     CIsoView::CurrentCommand->Command = 4;
     CIsoView::CurrentCommand->Type = 4;
-    CIsoView::CurrentCommand->ObjectID = CurrentTrigger->Tag;
+    CIsoView::CurrentCommand->ObjectID = CurrentTrigger->Tag.c_str();
 }
 
 void CNewTrigger::OnClickNewEvent(HWND& hWnd)
@@ -1547,9 +1547,9 @@ void CNewTrigger::OnClickNewEvent(HWND& hWnd)
     newEvent.Params[1] = "0";
     newEvent.P3Enabled = false;
 
-    ppmfc::CString value;
+    FString value;
     value.Format("%s=%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID), newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
+    FString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
@@ -1581,15 +1581,15 @@ void CNewTrigger::OnClickCloEvent(HWND& hWnd)
 
     EventParams newEvent = CurrentTrigger->Events[SelectedEventIndex];
 
-    ppmfc::CString value;
+    FString value;
     value.Format("%s=%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Events", CurrentTrigger->ID), newEvent.EventNum, newEvent.Params[0], newEvent.Params[1]);
     if (newEvent.P3Enabled)
     {
-        ppmfc::CString tmp = value;
+        FString tmp = value;
         value.Format("%s,%s", tmp, newEvent.Params[2]);
     }
 
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
+    FString pMessage = Translations::TranslateOrDefault("TriggerEventLengthExceededMessage",
         "After creating the new event, the length of the event INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
@@ -1654,11 +1654,11 @@ void CNewTrigger::OnClickNewAction(HWND& hWnd)
     newAction.Params[6] = "A";
     newAction.Param7isWP = true;
 
-    ppmfc::CString value;
+    FString value;
     value.Format("%s=%s,%s,%s,%s,%s,%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID),
         newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
         newAction.Params[4], newAction.Params[5], newAction.Params[6]);
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
+    FString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
         "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
@@ -1690,11 +1690,11 @@ void CNewTrigger::OnClickCloAction(HWND& hWnd)
 
     ActionParams newAction = CurrentTrigger->Actions[SelectedActionIndex];
 
-    ppmfc::CString value;
+    FString value;
     value.Format("%s=%s,%s,%s,%s,%s,%s,%s,%s,%s", CurrentTrigger->ID, map.GetString("Actions", CurrentTrigger->ID), 
         newAction.ActionNum, newAction.Params[0], newAction.Params[1], newAction.Params[2], newAction.Params[3],
         newAction.Params[4], newAction.Params[5], newAction.Params[6]);
-    ppmfc::CString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
+    FString pMessage = Translations::TranslateOrDefault("TriggerActionLengthExceededMessage",
         "After creating the new action, the length of the action INI will exceed 511, and the excess will not work properly. \nDo you want to continue?");
 
     int nResult = IDYES;
@@ -1750,7 +1750,7 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
     if (SelectedEventIndex > CurrentTrigger->EventCount) SelectedEventIndex = CurrentTrigger->EventCount - 1;
     if (SelectedEventIndex < 0) SelectedEventIndex = 0;
 
-    ppmfc::CString buffer;
+    FString buffer;
     for (int i = 0; i < EVENT_PARAM_COUNT; ++i)
         EventParamsUsage[i] = std::make_pair(false, 0);
 
@@ -1764,27 +1764,27 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
         SendMessage(hEventList, LB_SETCURSEL, SelectedEventIndex, NULL);
     }
         
-    auto eventInfos = STDHelpers::SplitString(fadata.GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+    auto eventInfos = FString::SplitString(fadata.GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
 
     SendMessage(hEventDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(eventInfos[5]).m_pchData);
 
     if (changeCursel)
     {
-        int idx = SendMessage(hEventtype, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetEventDisplayName(thisEvent.EventNum).m_pchData);
+        int idx = SendMessage(hEventtype, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetEventDisplayName(thisEvent.EventNum).c_str());
         if (idx == CB_ERR)
-            SendMessage(hEventtype, WM_SETTEXT, 0, (LPARAM)thisEvent.EventNum.m_pchData);
+            SendMessage(hEventtype, WM_SETTEXT, 0, (LPARAM)thisEvent.EventNum.c_str());
         else
             SendMessage(hEventtype, CB_SETCURSEL, idx, NULL);
 
     }
 
-    ppmfc::CString paramType[2];
+    FString paramType[2];
     paramType[0] =  eventInfos[1];
     paramType[1] =  eventInfos[2];
-    std::vector<ppmfc::CString> pParamTypes[2]; 
-    pParamTypes[0] = STDHelpers::SplitString(fadata.GetString("ParamTypes", paramType[0], "MISSING,0"));
-    pParamTypes[1] = STDHelpers::SplitString(fadata.GetString("ParamTypes", paramType[1], "MISSING,0"));
-    ppmfc::CString code = "0";
+    std::vector<FString> pParamTypes[2]; 
+    pParamTypes[0] = FString::SplitString(fadata.GetString("ParamTypes", paramType[0], "MISSING,0"));
+    pParamTypes[1] = FString::SplitString(fadata.GetString("ParamTypes", paramType[1], "MISSING,0"));
+    FString code = "0";
     if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
     int paramIdx[2];
     paramIdx[0] = atoi(paramType[0]);
@@ -1836,13 +1836,13 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
                 }
-                SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].m_pchData);
+                SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].c_str());
             }
             else
             {
                 EnableWindow(hEventParameter[i], FALSE);
                 SendMessage(hEventParameter[i], WM_SETTEXT, 0, (LPARAM)"");
-                ppmfc::CString trans;
+                FString trans;
                 trans.Format("TriggerParameter#%dvalue", i + 1);
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, 
                     (LPARAM)Translations::TranslateOrDefault(trans, ""));
@@ -1859,13 +1859,13 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
                 }
-                SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].m_pchData);
+                SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].c_str());
             }
             else
             {
                 EnableWindow(hEventParameter[i], FALSE);
                 SendMessage(hEventParameter[i], WM_SETTEXT, 0, (LPARAM)"");
-                ppmfc::CString trans;
+                FString trans;
                 trans.Format("TriggerParameter#%dvalue", i + 1);
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0,
                     (LPARAM)Translations::TranslateOrDefault(trans, ""));
@@ -1888,7 +1888,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     ActionParamUsesFloat = false;
     ActionParamsCount = 0;
 
-    ppmfc::CString buffer;
+    FString buffer;
     for (int i = 0; i < ACTION_PARAM_COUNT; ++i)
         ActionParamsUsage[i] = std::make_pair(false, 0);
 
@@ -1901,26 +1901,26 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         SendMessage(hActionList, LB_INSERTSTRING, SelectedActionIndex, (LPARAM)(LPCSTR)ExtraWindow::GetActionDisplayName(thisAction.ActionNum, SelectedActionIndex));
         SendMessage(hActionList, LB_SETCURSEL, SelectedActionIndex, NULL);
     }
-    auto actionInfos = STDHelpers::SplitString(fadata.GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+    auto actionInfos = FString::SplitString(fadata.GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
 
-    SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)STDHelpers::ReplaceSpeicalString(actionInfos[10]).m_pchData);
+    SendMessage(hActionDescription, WM_SETTEXT, 0, (LPARAM)FString::ReplaceSpeicalString(actionInfos[10]).c_str());
 
     if (changeCursel)
     {
-        int idx = SendMessage(hActiontype, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetActionDisplayName(thisAction.ActionNum).m_pchData);
+        int idx = SendMessage(hActiontype, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetActionDisplayName(thisAction.ActionNum).c_str());
         if (idx == CB_ERR)
-            SendMessage(hActiontype, WM_SETTEXT, 0, (LPARAM)thisAction.ActionNum.m_pchData);
+            SendMessage(hActiontype, WM_SETTEXT, 0, (LPARAM)thisAction.ActionNum.c_str());
         else
             SendMessage(hActiontype, CB_SETCURSEL, idx, NULL);
     }
 
-    ppmfc::CString paramType[7];
+    FString paramType[7];
     for (int i = 0; i < 7; i++)
         paramType[i] = actionInfos[i + 1];
 
-    std::vector<ppmfc::CString> pParamTypes[7];
+    std::vector<FString> pParamTypes[7];
     for (int i = 0; i < 7; i++)
-        pParamTypes[i] = STDHelpers::SplitString(fadata.GetString("ParamTypes", paramType[i], "MISSING,0"));
+        pParamTypes[i] = FString::SplitString(fadata.GetString("ParamTypes", paramType[i], "MISSING,0"));
 
     int paramIdx[7];
     for (int i = 0; i < 7; i++)
@@ -1984,7 +1984,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
             {
                 ExtraWindow::LoadParams(hActionParameter[i], pParamTypes[ActionParamsUsage[i].second][1]);
 
-                SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[ActionParamsUsage[i].second][0].m_pchData);
+                SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[ActionParamsUsage[i].second][0].c_str());
                 if (pParamTypes[ActionParamsUsage[i].second][1] == "10") // stringtables
                 {
                     //thisAction.Params[ActionParamsUsage[i].second].MakeLower();
@@ -2017,7 +2017,7 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         {
             EnableWindow(hActionParameter[i], FALSE);
             SendMessage(hActionParameter[i], WM_SETTEXT, 0, (LPARAM)"");
-            ppmfc::CString trans;
+            FString trans;
             trans.Format("TriggerParameter#%dvalue", i + 1);
             SendMessage(hActionParameterDesc[i], WM_SETTEXT, 0,
                 (LPARAM)Translations::TranslateOrDefault(trans, ""));
@@ -2080,17 +2080,17 @@ void CNewTrigger::OnDropdownCComboBox(int index)
         char buffer[512]{ 0 };
         GetWindowText(hActionParameter[index], buffer, 511);
 
-        ppmfc::CString text(buffer);
+        FString text(buffer);
         text.Replace(",", "");
-        STDHelpers::TrimIndex(text);
+        FString::TrimIndex(text);
         text.MakeLower();
-        CCsfEditor::CurrentSelectedCSF = text;
+        CCsfEditor::CurrentSelectedCSF = text.c_str();
 
         ::SendMessage(CCsfEditor::GetHandle(), 114515, 0, 0);
     }
 }
 
-void CNewTrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
+void CNewTrigger::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
 {
     if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
     {
@@ -2134,10 +2134,10 @@ void CNewTrigger::OnClickSearchReference(HWND& hWnd)
     }
 }
 
-void CNewTrigger::SortTriggers(ppmfc::CString id)
+void CNewTrigger::SortTriggers(FString id)
 {
     while (SendMessage(hSelectedTrigger, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
     for (auto& triggerPair : CMapDataExt::Triggers) {
         auto& trigger = triggerPair.second;
         labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
@@ -2151,11 +2151,11 @@ void CNewTrigger::SortTriggers(ppmfc::CString id)
     ExtConfigs::SortByLabelName = tmp;
 
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hSelectedTrigger, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
     }
     ExtraWindow::SyncComboBoxContent(hSelectedTrigger, hAttachedtrigger, true);
     if (id != "") {
-        SelectedTriggerIndex = SendMessage(hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).m_pchData);
+        SelectedTriggerIndex = SendMessage(hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(id).c_str());
         SendMessage(hSelectedTrigger, CB_SETCURSEL, SelectedTriggerIndex, NULL);
     }  
 }

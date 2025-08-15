@@ -201,12 +201,6 @@
     <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\CNewTrigger.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\CNewTeamTypes\resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FA2sp\ExtraWindow\CNewTrigger\resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="FA2sp\ExtraWindow\CNewINIEditor\CNewINIEditor.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -265,6 +259,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FA2sp\Miscs\CopyPaste.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FA2sp\Helpers\FString.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

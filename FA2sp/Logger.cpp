@@ -10,6 +10,172 @@ char Logger::pBuffer[0x800];
 FILE* Logger::pFile;
 bool Logger::bInitialized;
 
+std::string Logger::FormatVImpl(const char* format, const std::vector<std::variant<int, double, const char*, const wchar_t*>>& args) {
+    constexpr int FORCE_ANSI = 0x10000;
+    constexpr int FORCE_UNICODE = 0x20000;
+
+    std::string format_str = format;
+
+    size_t argIndex = 0;
+    std::string result;
+    result.reserve(format_str.length() + 32);
+
+    for (const char* p = format_str.c_str(); *p; ++p) {
+        if (*p != '%') {
+            result += *p;
+            continue;
+        }
+
+        ++p;
+        if (*p == '%') {
+            result += '%';
+            continue;
+        }
+
+        std::string formatSpec = "%";
+        int nWidth = 0;
+        int nPrecision = 0;
+        int nModifier = 0;
+
+        while (*p == '#' || *p == '*' || *p == '-' || *p == '+' || *p == '0' || *p == ' ') {
+            formatSpec += *p;
+            if (*p == '*') {
+                if (argIndex >= args.size()) throw std::runtime_error("Too few arguments for width");
+                nWidth = std::get<int>(args[argIndex++]);
+            }
+            ++p;
+        }
+
+        if (isdigit(*p)) {
+            formatSpec += std::string(p, strspn(p, "0123456789"));
+            nWidth = atoi(p);
+            while (isdigit(*p)) ++p;
+        }
+
+        if (*p == '.') {
+            formatSpec += '.';
+            ++p;
+            if (*p == '*') {
+                formatSpec += '*';
+                if (argIndex >= args.size()) throw std::runtime_error("Too few arguments for precision");
+                nPrecision = std::get<int>(args[argIndex++]);
+                ++p;
+            }
+            else if (isdigit(*p)) {
+                formatSpec += std::string(p, strspn(p, "0123456789"));
+                nPrecision = atoi(p);
+                while (isdigit(*p)) ++p;
+            }
+        }
+
+        switch (*p) {
+        case 'h':
+            nModifier = FORCE_ANSI;
+            formatSpec += 'h';
+            ++p;
+            break;
+        case 'l':
+            nModifier = FORCE_UNICODE;
+            formatSpec += 'l';
+            ++p;
+            break;
+        case 'F':
+        case 'N':
+        case 'L':
+            formatSpec += *p;
+            ++p;
+            break;
+        }
+
+        if (argIndex >= args.size()) throw std::runtime_error("Too few arguments for format specifier");
+        formatSpec += *p;
+
+        switch (*p | nModifier) {
+        case 'c':
+        case 'C':
+        case 'c' | FORCE_ANSI:
+        case 'C' | FORCE_ANSI:
+        {
+            int value = std::get<int>(args[argIndex++]);
+            char buf[16];
+            snprintf(buf, sizeof(buf), formatSpec.c_str(), value);
+            result += buf;
+            break;
+        }
+        case 'c' | FORCE_UNICODE:
+        case 'C' | FORCE_UNICODE:
+        {
+            wchar_t value = static_cast<wchar_t>(std::get<int>(args[argIndex++]));
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%lc", value);
+            result += buf;
+            break;
+        }
+        case 's':
+        case 's' | FORCE_ANSI:
+        case 'S':
+        case 'S' | FORCE_ANSI:
+        {
+            const char* str = std::get<const char*>(args[argIndex++]);
+            char buf[1024];
+            snprintf(buf, sizeof(buf), formatSpec.c_str(), str ? str : "(null)");
+            result += buf;
+            break;
+        }
+        case 's' | FORCE_UNICODE:
+        case 'S' | FORCE_UNICODE:
+        {
+            const wchar_t* str = std::get<const wchar_t*>(args[argIndex++]);
+            char buf[1024];
+            if (str) {
+                std::wstring ws(str);
+                std::string s(ws.begin(), ws.end());
+                snprintf(buf, sizeof(buf), formatSpec.c_str(), s.c_str());
+            }
+            else {
+                snprintf(buf, sizeof(buf), formatSpec.c_str(), "(null)");
+            }
+            result += buf;
+            break;
+        }
+        case 'd':
+        case 'i':
+        case 'u':
+        case 'x':
+        case 'X':
+        case 'o':
+        case 'p':
+        case 'n':
+        {
+            int value = std::get<int>(args[argIndex++]);
+            char buf[64];
+            snprintf(buf, sizeof(buf), formatSpec.c_str(), value);
+            result += buf;
+            break;
+        }
+        case 'e':
+        case 'f':
+        case 'g':
+        case 'G':
+        {
+            double value = std::get<double>(args[argIndex++]);
+            char buf[128];
+            snprintf(buf, sizeof(buf), formatSpec.c_str(), value);
+            result += buf;
+            break;
+        }
+        default:
+            throw std::invalid_argument("Unsupported format specifier: " + std::string(formatSpec.c_str()));
+        }
+    }
+
+    if (argIndex < args.size()) {
+        throw std::runtime_error("Too many arguments provided");
+    }
+
+    return result;
+}
+
 void Logger::Initialize() {
 	pFile = _fsopen("FA2sp.log", "w", _SH_DENYWR);
 	bInitialized = pFile;
@@ -24,71 +190,6 @@ void Logger::Close() {
 		Raw("FA2sp Logger Closing at %s.\n", pTime);
 		fclose(pFile);
 	}
-}
-
-void Logger::Write(kLoggerType type, const char* format, va_list args) {
-	if (bInitialized) {
-		vsprintf_s(pBuffer, format, args);
-		char type_str[6];
-		switch (type)
-		{
-		default:
-		case Logger::kLoggerType::Raw:
-			break;
-		case Logger::kLoggerType::Debug:
-			strcpy_s(type_str, 6, "Debug");
-			break;
-		case Logger::kLoggerType::Info:
-			strcpy_s(type_str, 6, "Info");
-			break;
-		case Logger::kLoggerType::Warn:
-			strcpy_s(type_str, 6, "Warn");
-			break;
-		case Logger::kLoggerType::Error:
-			strcpy_s(type_str, 6, "Error");
-			break;
-		}
-		if (type == Logger::kLoggerType::Raw)
-			fprintf_s(pFile, "%s", pBuffer);
-		else
-			fprintf_s(pFile, "[%s] %s", type_str, pBuffer);
-		fflush(pFile);
-	}
-}
-
-void Logger::Debug(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	Write(kLoggerType::Debug, format, args);
-	va_end(format);
-}
-
-void Logger::Warn(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	Write(kLoggerType::Warn, format, args);
-	va_end(format);
-}
-
-void Logger::Error(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	Write(kLoggerType::Error, format, args);
-	va_end(format);
-}
-
-void Logger::Info(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	Write(kLoggerType::Info, format, args);
-	va_end(format);
-}
-
-void Logger::Raw(const char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	Write(kLoggerType::Raw, format, args);
-	va_end(format);
 }
 
 void Logger::Put(const char* pBuffer) {

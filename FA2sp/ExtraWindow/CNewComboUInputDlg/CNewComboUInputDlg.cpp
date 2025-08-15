@@ -17,9 +17,11 @@ CNewComboUInputDlg::CNewComboUInputDlg(CWnd* pParent /*=NULL*/)
 void CNewComboUInputDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
-	DDX_CBString(pDX, 1460, m_Combo);
+	ppmfc::CString combo = m_Combo.c_str();
+	DDX_CBString(pDX, 1460, combo);
+	m_Combo = combo;
 
-	ppmfc::CString buffer;
+	FString buffer;
 
 	if (Translations::GetTranslationItem("OK", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);
@@ -49,12 +51,12 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 					int idx = 0;
 					for (auto& pair : *indicies)
 					{
-						ppmfc::CString output;
+						FString output;
 						output.Format("%d - %s", idx, pair.second);
-						ppmfc::CString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
+						FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
 						if (uiname != pair.second && uiname != "" && uiname != "MISSING")
 						{
-							ppmfc::CString tmp = output;
+							FString tmp = output;
 							output.Format("%s - %s", tmp, uiname);
 						}
 
@@ -68,13 +70,13 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 				auto&& entries = mmh.ParseIndicies(m_Section, true);
 				for (size_t i = 0, sz = entries.size(); i < sz; i++)
 				{
-					ppmfc::CString output;
+					FString output;
 					output.Format("%d - %s", i, entries[i]);
 
-					ppmfc::CString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
+					FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
 					if (uiname != entries[i] && uiname != "" && uiname != "MISSING")
 					{
-						ppmfc::CString tmp = output;
+						FString tmp = output;
 						output.Format("%s - %s", tmp, uiname);
 					}
 
@@ -86,9 +88,9 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 		else {
 			for (auto& kvp : mmh.GetUnorderedUnionSection(m_Section))
 			{
-				ppmfc::CString text = ReadValue ? kvp.second : kvp.first;
-				ppmfc::CString output;
-				ppmfc::CString uiname = CViewObjectsExt::QueryUIName(text, true);
+				FString text = ReadValue ? kvp.second : kvp.first;
+				FString output;
+				FString uiname = CViewObjectsExt::QueryUIName(text, true);
 				if (!ReadValue && (m_Section == "Triggers" || m_Section == "Events" || m_Section == "Actions")) {
 					uiname = ExtraWindow::GetTriggerName(text);
 				}
@@ -103,7 +105,7 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 					output.Format("%s - %s", text, uiname);
 
 				if (LoadValueAsName && !ReadValue) {
-					ppmfc::CString uinameValue = CViewObjectsExt::QueryUIName(kvp.second, true);
+					FString uinameValue = CViewObjectsExt::QueryUIName(kvp.second, true);
 					if (uinameValue != "MISSING" && uinameValue != "" && uinameValue != kvp.second) {
 						output.Format("%s - %s - %s", text, kvp.second, uinameValue);
 					}
@@ -135,7 +137,7 @@ void CNewComboUInputDlg::OnOK()
 	UpdateData(TRUE);
 
 	m_ComboOri = m_Combo;
-	STDHelpers::TrimIndex(m_Combo);
+	FString::TrimIndex(m_Combo);
 
 	EndDialog(0);
 

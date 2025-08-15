@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../CNewScript/CNewScript.h"
+#include "../../Helpers/FString.h"
 
 enum ScriptParamPos : int
 {
@@ -71,7 +72,7 @@ private:
     static HWND hListbox;
     static HWND hRefresh;
     static HWND hObjectText;
-    static ppmfc::CString SearchID;
+    static FString SearchID;
     static int origWndWidth;
     static int origWndHeight;
     static int minWndWidth;
@@ -88,7 +89,7 @@ public:
     static std::map<int, int> LocalVariableActions;
 
     // first = id, second = param index, value
-    static std::map<int, std::map<int, ppmfc::CString>> LocalVariableParamAffectedEvents;
-    static std::map<int, std::map<int, ppmfc::CString>> LocalVariableParamAffectedActions;
+    static std::map<int, std::map<int, FString>> LocalVariableParamAffectedEvents;
+    static std::map<int, std::map<int, FString>> LocalVariableParamAffectedActions;
 };
 

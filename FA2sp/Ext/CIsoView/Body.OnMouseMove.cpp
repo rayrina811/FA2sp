@@ -7,6 +7,7 @@
 
 #include "../../Miscs/MultiSelection.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/FString.h"
 
 #include "../CLoading/Body.h"
 #include "../CMapData/Body.h"
@@ -1448,7 +1449,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
-                        , CMapData::GetUIName(id.ID), id.ID, id);
+                        , CMapData::GetUIName(id.ID), id.ID, id.BasenodeID);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.2",
                         "House: %s")
                         , targetHouse2);
@@ -1559,7 +1560,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                 line3.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.3",
                     "Terrain Type: %s (0x%x)")
-                    , ttypes, ttype);
+                    , ttypes, (int)ttype);
                 line4.Format(Translations::TranslateOrDefault("ObjectInfo.Tile.4",
                     "Filename: %s")
                     , filename);
@@ -1773,14 +1774,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         for (auto& thisEvent : trigger->Events)
                         {
 
-                            auto eventInfos = STDHelpers::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-                            ppmfc::CString paramType[2];
+                            auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+                            FString paramType[2];
                             paramType[0] = eventInfos[1];
                             paramType[1] = eventInfos[2];
-                            std::vector<ppmfc::CString> pParamTypes[2];
-                            pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-                            pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
-                            ppmfc::CString thisWp = "-1";
+                            std::vector<FString> pParamTypes[2];
+                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
+                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+                            FString thisWp = "-1";
                             if (thisEvent.Params[0] == "2")
                             {
                                 if (pParamTypes[0][1] == "1")// waypoint
@@ -1815,15 +1816,15 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         for (auto& thisAction : trigger->Actions)
                         {
-                            auto actionInfos = STDHelpers::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-                            ppmfc::CString thisWp = "-1";
-                            ppmfc::CString paramType[7];
+                            auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+                            FString thisWp = "-1";
+                            FString paramType[7];
                             for (int i = 0; i < 7; i++)
                                 paramType[i] = actionInfos[i + 1];
 
-                            std::vector<ppmfc::CString> pParamTypes[6];
+                            std::vector<FString> pParamTypes[6];
                             for (int i = 0; i < 6; i++)
-                                pParamTypes[i] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+                                pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
 
                             thisAction.Param7isWP = true;
                             for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())

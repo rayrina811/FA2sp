@@ -1,6 +1,7 @@
 #pragma once
 
-#include <FA2PP.h>
+#include "FA2PP.h"
+class FString;
 
 // FinalAlert.ini
 class FinalAlertConfig
@@ -9,13 +10,14 @@ public:
     static DWORD ReadString(const char* pSection, const char* pKey, const char* pDefault = "", char* pBuffer = nullptr);
     static void WriteString(const char* pSection, const char* pKey, const char* pContent);
     static char pLastRead[0x400];
-    static CString lpPath;
+    static ppmfc::CString lpPath;
 };
 
 class Translations
 {
 public:
     static bool GetTranslationItem(const char* pLabelName, ppmfc::CString& ret);
+    static bool GetTranslationItem(const char* pLabelName, FString& ret);
     static void TranslateItem(CWnd* pWnd, int nSubID, const char* lpKey);
     static void TranslateItem(CWnd* pWnd, const char* lpKey);
     static void TranslateItem(ppmfc::CWnd* pWnd, int nSubID, const char* lpKey) { TranslateItem((CWnd*)pWnd, nSubID, lpKey); }

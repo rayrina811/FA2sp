@@ -441,14 +441,14 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 		bool addAction = false;
 		for (auto& thisEvent : trigger->Events)
 		{
-			auto eventInfos = STDHelpers::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-			ppmfc::CString paramType[2];
+			auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+			FString paramType[2];
 			paramType[0] = eventInfos[1];
 			paramType[1] = eventInfos[2];
-			std::vector<ppmfc::CString> pParamTypes[2];
-			pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-			pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
-			ppmfc::CString thisTeam = "-1";
+			std::vector<FString> pParamTypes[2];
+			pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
+			pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+			FString thisTeam = "-1";
 			if (thisEvent.Params[0] == "2")
 			{
 				if (getLoadSectionName(pParamTypes[0][1]) == "TeamTypes")
@@ -473,23 +473,23 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 		}
 		if (addEvent)
 		{
-			ppmfc::CString tmp = Format1;
-			ppmfc::CString tmp2 = trigger->ID;
+			FString tmp = Format1;
+			FString tmp2 = trigger->ID;
 			tmp.ReplaceNumString(1, tmp2);
 			InsertStringAsError(tmp);
 		}
 
 		for (auto& thisAction : trigger->Actions)
 		{
-			auto actionInfos = STDHelpers::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-			ppmfc::CString thisTeam = "-1";
-			ppmfc::CString paramType[7];
+			auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+			FString thisTeam = "-1";
+			FString paramType[7];
 			for (int i = 0; i < 7; i++)
 				paramType[i] = actionInfos[i + 1];
 
-			std::vector<ppmfc::CString> pParamTypes[6];
+			std::vector<FString> pParamTypes[6];
 			for (int i = 0; i < 6; i++)
-				pParamTypes[i] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+				pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
 
 			for (int i = 0; i < 6; i++)
 			{
@@ -503,8 +503,8 @@ void CMapValidatorExt::ValidateEmptyTeamTrigger(BOOL& result)
 		}
 		if (addAction)
 		{
-			ppmfc::CString tmp = Format2;
-			ppmfc::CString tmp2 = trigger->ID;
+			FString tmp = Format2;
+			FString tmp2 = trigger->ID;
 			tmp.ReplaceNumString(1, tmp2);
 			InsertStringAsError(tmp);
 		}

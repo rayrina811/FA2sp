@@ -1,5 +1,6 @@
-#include <vector>
-#include "../../FA2sp.h"
+#pragma once
+
+#include <FA2PP.h>
 #include "../../Helpers/Translations.h"
 
 class CAnnotationDlg : public ppmfc::CDialog

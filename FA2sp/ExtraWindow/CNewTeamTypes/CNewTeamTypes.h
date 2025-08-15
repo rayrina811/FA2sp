@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../../Helpers/FString.h"
 
 // A static window class
 class CNewTeamTypes
@@ -139,16 +140,16 @@ public:
     static HWND hSearchReference;
 private:
     static int SelectedTeamIndex;
-    static ppmfc::CString CurrentTeamID;
-    static std::map<int, ppmfc::CString> TaskForceLabels;
-    static std::map<int, ppmfc::CString> TeamLabels;
-    static std::map<int, ppmfc::CString> ScriptLabels;
-    static std::map<int, ppmfc::CString> TagLabels;
-    static std::map<int, ppmfc::CString> HouseLabels;
+    static FString CurrentTeamID;
+    static std::map<int, FString> TaskForceLabels;
+    static std::map<int, FString> TeamLabels;
+    static std::map<int, FString> ScriptLabels;
+    static std::map<int, FString> TagLabels;
+    static std::map<int, FString> HouseLabels;
     static bool Autodrop;
     static bool WaypointAutodrop;
     static bool DropNeedUpdate;
-    static std::vector<ppmfc::CString> mindControlDecisions;
+    static std::vector<FString> mindControlDecisions;
 
 };
 

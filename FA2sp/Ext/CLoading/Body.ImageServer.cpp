@@ -156,10 +156,10 @@ void CLoadingExt::StartPingThread()
         }).detach();
 }
 
-bool CLoadingExt::WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, const ImageDataClassSafe* data)
+bool CLoadingExt::WriteImageData(HANDLE hPipe, const FString& imageID, const ImageDataClassSafe* data)
 {
     char charArray[256] = {};
-    std::strncpy(charArray, imageID.m_pchData, sizeof(charArray) - 1);
+    std::strncpy(charArray, imageID.c_str(), sizeof(charArray) - 1);
 
     size_t imageSize = data->FullWidth * data->FullHeight;
     size_t rangeSize = data->FullHeight * sizeof(ImageDataClassSafe::ValidRangeData);
@@ -199,7 +199,7 @@ bool CLoadingExt::WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, co
     return true;
 }
 
-bool CLoadingExt::SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData)
+bool CLoadingExt::SendImageToServer(const FString& imageID, const ImageDataClassSafe* imageData)
 {
     if (!imageData->pImageBuffer)
         return false;
@@ -258,11 +258,11 @@ bool CLoadingExt::ReadImageData(HANDLE hPipe, ImageDataClassSafe& data)
     return success;
 }
 
-bool CLoadingExt::RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData)
+bool CLoadingExt::RequestImageFromServer(const FString& imageID, ImageDataClassSafe& outImageData)
 {
     char requestID[256] = {};
     requestID[0] = '#';
-    strncpy(requestID + 1, imageID.m_pchData, 0xFF);
+    strncpy(requestID + 1, imageID.c_str(), 0xFF);
     requestID[sizeof(requestID) - 1] = '\0';
 
     DWORD bytesWritten = 0;

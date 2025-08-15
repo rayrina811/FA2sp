@@ -1,5 +1,6 @@
 #include "FA2sp.h"
 #include "FA2sp.Constants.h"
+#include "Logger.h"
 
 #include "Helpers/MutexHelper.h"
 #include "Helpers/InstructionSet.h"

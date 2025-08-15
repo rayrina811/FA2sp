@@ -8,7 +8,7 @@
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
-std::unordered_set<ppmfc::CString> CLoadingExt::SwimableInfantries;
+std::unordered_set<FString> CLoadingExt::SwimableInfantries;
 
 bool CLoadingExt::InitMixFilesFix()
 {
@@ -19,22 +19,22 @@ bool CLoadingExt::InitMixFilesFix()
 	ResourcePackManager::instance().clear();
 	if (auto pSection = CINI::FAData->GetSection("ExtraPackages"))
 	{
-		std::map<int, ppmfc::CString> collector;
+		std::map<int, FString> collector;
 
 		for (const auto& [key, index] : pSection->GetIndices())
 			collector[index] = key;
 
-		ppmfc::CString path;
+		FString path;
 
 		for (const auto& [_, key] : collector)
 		{
 			if (CINI::FAData->GetBool("ExtraPackages", key))
-				path = CFinalSunApp::Instance->ExePath;
+				path = CFinalSunApp::Instance->ExePath();
 			else
-				path = CFinalSunApp::Instance->FilePath;
+				path = CFinalSunApp::Instance->FilePath();
 			path += "\\" + key;
 
-			if (ResourcePackManager::instance().loadPack(path.m_pchData))
+			if (ResourcePackManager::instance().loadPack(path))
 			{
 				Logger::Raw("[MixLoader][Package] %s loaded.\n", path);
 			}
@@ -47,19 +47,19 @@ bool CLoadingExt::InitMixFilesFix()
 	// Load Extra Mixes
 	if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
 	{
-		std::map<int, ppmfc::CString> collector;
+		std::map<int, FString> collector;
 
 		for (const auto& [key, index] : pSection->GetIndices())
 			collector[index] = key;
 
-		ppmfc::CString path;
+		FString path;
 
 		for (const auto& [_, key] : collector)
 		{
 			if (CINI::FAData->GetBool("ExtraMixes", key))
-				path = CFinalSunApp::Instance->ExePath;
+				path = CFinalSunApp::Instance->ExePath();
 			else
-				path = CFinalSunApp::Instance->FilePath;
+				path = CFinalSunApp::Instance->FilePath();
 			path += "\\" + key;
 			if (auto id = CMixFile::Open(path, 0))
 			{
@@ -72,7 +72,7 @@ bool CLoadingExt::InitMixFilesFix()
 		}
 	}
 
-	ppmfc::CString Dir = CFinalSunApp::Instance->FilePath();
+	FString Dir = CFinalSunApp::Instance->FilePath();
 	Dir += "\\";
 	auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
 	{
@@ -93,7 +93,7 @@ bool CLoadingExt::InitMixFilesFix()
 		}
 		else
 		{
-			ppmfc::CString FullPath = Dir + Mix;
+			FString FullPath = Dir + Mix;
 			int result = CMixFile::Open(FullPath, 0);
 			if (result)
 			{
@@ -129,7 +129,7 @@ bool CLoadingExt::InitMixFilesFix()
 		return value;
 	};
 
-	ppmfc::CString fa2extra = CFinalSunApp::Instance->ExePath();
+	FString fa2extra = CFinalSunApp::Instance->ExePath();
 	fa2extra += "\\";
 	fa2extra += "fa2extra.mix";
 	if (auto id = CMixFile::Open(fa2extra, 0))
@@ -141,10 +141,10 @@ bool CLoadingExt::InitMixFilesFix()
 		Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
 	}
 
-	ppmfc::CString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
+	FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
 	for (int i = 99; i >= 0; --i)
 	{
-		ppmfc::CString filename; 
+		FString filename; 
 		filename.Format(format, i);
 		LoadMixFile(filename);
 	}
@@ -191,7 +191,7 @@ bool CLoadingExt::InitMixFilesFix()
 	if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
 
 	//MARBLE should be ahead of normal theater mixes
-	ppmfc::CString FullPath = CFinalSunApp::ExePath();
+	FString FullPath = CFinalSunApp::ExePath();
 	FullPath += "\\MARBLE.MIX";
 	int result = CMixFile::Open(FullPath, 0);
 	if (result)
@@ -206,7 +206,7 @@ bool CLoadingExt::InitMixFilesFix()
 		else
 		{
 			CFinalSunApp::Instance->MarbleLoaded = FALSE;
-			ppmfc::CString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+			FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
 				"Failed to load marble.mix! Framework mode won't be able to use!");
 			::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
 		}

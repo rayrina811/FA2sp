@@ -14,7 +14,7 @@ void VoxelDrawer::Finalize()
     CncImgRelease();
 }
 
-bool VoxelDrawer::LoadVPLFile(ppmfc::CString name)
+bool VoxelDrawer::LoadVPLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
@@ -26,7 +26,7 @@ bool VoxelDrawer::LoadVPLFile(ppmfc::CString name)
     return result;
 }
 
-bool VoxelDrawer::LoadVXLFile(ppmfc::CString name)
+bool VoxelDrawer::LoadVXLFile(FString name)
 {
     bool result = false;
     DWORD dwSize;
@@ -40,7 +40,7 @@ bool VoxelDrawer::LoadVXLFile(ppmfc::CString name)
     return result;
 }
 
-bool VoxelDrawer::LoadHVAFile(ppmfc::CString name)
+bool VoxelDrawer::LoadHVAFile(FString name)
 {
     bool result = false;
     DWORD dwSize;

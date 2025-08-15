@@ -794,7 +794,7 @@ void SaveMapExt::RemoveEarlySaves()
 void CALLBACK SaveMapExt::SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 {
     Logger::Debug("SaveMapCallback called, trying to auto save map. hwnd = %08X, message = %d, iTimerID = %d, dwTime = %d.\n",
-        hwnd, message, iTimerID, dwTime);
+        (int)hwnd, message, iTimerID, dwTime);
 
     if (!CMapData::Instance->MapWidthPlusHeight || !CMapData::Instance->FieldDataAllocated)
     {

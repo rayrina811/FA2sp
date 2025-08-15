@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/FString.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../Common.h"
 #include <CLoading.h>
@@ -26,34 +27,34 @@
 class TerrainGeneratorPreset 
 {
 public:
-    ppmfc::CString Name;
-    ppmfc::CString ID;
-    std::vector <ppmfc::CString> Theaters;
+    FString Name;
+    FString ID;
+    std::vector <FString> Theaters;
     std::vector<TerrainGeneratorGroup> TileSets;
     std::vector<TerrainGeneratorGroup> TerrainTypes;
     std::vector<TerrainGeneratorGroup> Overlays;
     std::vector<TerrainGeneratorGroup> Smudges;
-    std::vector<ppmfc::CString> TileSetAvailableIndexesText;
-    std::vector<ppmfc::CString> OverlayAvailableDataText;
+    std::vector<FString> TileSetAvailableIndexesText;
+    std::vector<FString> OverlayAvailableDataText;
     int Scale;
 
-    static TerrainGeneratorPreset* create(ppmfc::CString sectionName, INISection* pSection)
+    static TerrainGeneratorPreset* create(FString sectionName, INISection* pSection)
     {
         return new TerrainGeneratorPreset(sectionName, pSection);
     }
 
-    TerrainGeneratorPreset(ppmfc::CString sectionName, INISection* pSection)
+    TerrainGeneratorPreset(FString sectionName, INISection* pSection)
     {
         ID = sectionName;
         Name = pSection->GetString("Name");
-        for (auto& t : STDHelpers::SplitString(pSection->GetString("Theaters"))) {
+        for (auto& t : FString::SplitString(pSection->GetString("Theaters"))) {
             Theaters.push_back(t);
         }
         Scale = pSection->GetInteger("Scale", 25);
-        ppmfc::CString key;
+        FString key;
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {
             key.Format("%s%d", "TileSet", i);
-            auto atoms = STDHelpers::SplitString(pSection->GetString(key));
+            auto atoms = FString::SplitString(pSection->GetString(key));
             if (atoms.size() > 1) {
                 TerrainGeneratorGroup group;
                 group.Chance = std::atof(atoms[0]);
@@ -65,7 +66,7 @@ public:
 
                 key += "AvailableIndexes";
                 TileSetAvailableIndexesText.push_back(pSection->GetString(key));
-                auto atomsIdx = STDHelpers::SplitString(TileSetAvailableIndexesText.back());
+                auto atomsIdx = FString::SplitString(TileSetAvailableIndexesText.back());
                 if (atomsIdx.empty()) {
                     group.HasExtraIndex = false;
                     for (auto j = start; j < end; j++) {
@@ -85,7 +86,7 @@ public:
         }
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {
             key.Format("%s%d", "TerrainType", i);
-            auto atoms = STDHelpers::SplitString(pSection->GetString(key));
+            auto atoms = FString::SplitString(pSection->GetString(key));
             if (atoms.size() > 1) {
                 TerrainGeneratorGroup group;
                 group.Chance = std::atof(atoms[0]);
@@ -97,7 +98,7 @@ public:
         }
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {
             key.Format("%s%d", "Smudge", i);
-            auto atoms = STDHelpers::SplitString(pSection->GetString(key));
+            auto atoms = FString::SplitString(pSection->GetString(key));
             if (atoms.size() > 1) {
                 TerrainGeneratorGroup group;
                 group.Chance = std::atof(atoms[0]);
@@ -109,10 +110,10 @@ public:
         }
         for (auto i = 0; i < TERRAIN_GENERATOR_MAX; i++) {
             key.Format("%s%d", "Overlay", i);
-            auto atoms = STDHelpers::SplitString(pSection->GetString(key));
+            auto atoms = FString::SplitString(pSection->GetString(key));
             key += "AvailableData";
             OverlayAvailableDataText.push_back(pSection->GetString(key));
-            auto atomsData = STDHelpers::SplitString(OverlayAvailableDataText.back());
+            auto atomsData = FString::SplitString(OverlayAvailableDataText.back());
 
             if (atoms.size() > 1) {
                 TerrainGeneratorGroup group;
@@ -265,7 +266,7 @@ protected:
     static void OnEditchangeSmudge(int index);
     static void OnEditchangeOverlay(int index);
     static void OnSeldropdownPreset(HWND& hWnd);
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly);
+    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly);
 
     static void OnClickSetRange();
     static void EnableWindows();
@@ -276,16 +277,16 @@ protected:
     static void SortPresets(const char* id = "");
 
     static void SaveAndReloadPreset();
-    static ppmfc::CString DoubleToString(double value, int precision);
+    static FString DoubleToString(double value, int precision);
 
-    static std::shared_ptr<TerrainGeneratorPreset> GetPreset(ppmfc::CString id) {
+    static std::shared_ptr<TerrainGeneratorPreset> GetPreset(FString id) {
         auto it = TerrainGeneratorPresets.find(id);
         if (it != TerrainGeneratorPresets.end()) {
             return std::shared_ptr<TerrainGeneratorPreset>(it->second.get(), [](TerrainGeneratorPreset*) {});
         }
         return nullptr;
     }
-    static void RemovePreset(ppmfc::CString id) {
+    static void RemovePreset(FString id) {
         auto it = TerrainGeneratorPresets.find(id);
         if (it != TerrainGeneratorPresets.end()) {
             TerrainGeneratorPresets.erase(id);
@@ -321,9 +322,9 @@ private:
     static HWND hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
     static HWND hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
 
-    static std::map<int, ppmfc::CString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
-    static std::map<int, ppmfc::CString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
-    static std::map<int, ppmfc::CString> PresetLabels;
+    static std::map<int, FString> TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
+    static std::map<int, FString> OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
+    static std::map<int, FString> PresetLabels;
     static bool Autodrop;
     static bool DropNeedUpdate;
     static int CurrentPresetIndex;
@@ -334,7 +335,7 @@ private:
     static CINI& map;
     static MultimapHelper& rules;
     static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
-    static std::map<ppmfc::CString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
+    static std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> TerrainGeneratorPresets;
 
 public:
     static std::unique_ptr<CINI, GameUniqueDeleter<CINI>> ini;

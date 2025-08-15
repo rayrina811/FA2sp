@@ -8,27 +8,27 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/STDHelpers.h"
-
+#include "../../Helpers/FString.h"
 
 class AITrigger
 {
 public:
-    ppmfc::CString ID;
-    ppmfc::CString Name;
-    ppmfc::CString Team1;
-    ppmfc::CString House;
-    ppmfc::CString TechLevel;
-    ppmfc::CString ConditionType;
-    ppmfc::CString ComparisonObject;
+    FString ID;
+    FString Name;
+    FString Team1;
+    FString House;
+    FString TechLevel;
+    FString ConditionType;
+    FString ComparisonObject;
     int Comparator[8];
     double InitialWeight;
     double MinWeight;
     double MaxWeight;
     bool IsForSkirmish;
-    ppmfc::CString unused;
-    ppmfc::CString Side;
+    FString unused;
+    FString Side;
     bool IsBaseDefense;
-    ppmfc::CString Team2;
+    FString Team2;
     bool EnabledInE;
     bool EnabledInM;
     bool EnabledInH;
@@ -53,7 +53,7 @@ public:
     }
     AITrigger(const char* id)
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id), 17);
+        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("AITriggerTypes", id), 17);
         ID = id;
         Name = atoms[0];
         Team1 = atoms[1];
@@ -81,8 +81,8 @@ public:
 
     void Save() const
     {
-        ppmfc::CString value;
-        ppmfc::CString comparator = "";
+        FString value;
+        FString comparator = "";
         for (int i = 0; i < 8; i++) {
             comparator += SaveComparator(Comparator[i]);
         }
@@ -101,21 +101,21 @@ public:
         oss.str("");
 
         value.Format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",
-            Name,
-            Team1,
-            House,
-            TechLevel,
-            ConditionType,
-            ComparisonObject,
-            comparator,
+            Name.c_str(),
+            Team1.c_str(),
+            House.c_str(),
+            TechLevel.c_str(),
+            ConditionType.c_str(),
+            ComparisonObject.c_str(),
+            comparator.c_str(),
             initial.c_str(),
             min.c_str(),
             max.c_str(),
             IsForSkirmish ? "1" : "0",
-            unused,
-            Side,
+            unused.c_str(),
+            Side.c_str(),
             IsBaseDefense ? "1" : "0",
-            Team2,
+            Team2.c_str(),
             EnabledInE ? "1" : "0",
             EnabledInM ? "1" : "0",
             EnabledInH ? "1" : "0"
@@ -130,7 +130,7 @@ public:
     }
 
 private:
-    static int ReadComparator(ppmfc::CString text, int index)
+    static int ReadComparator(FString text, int index)
     {
         int num = 0;
         if (text.GetLength() != 64) return num;
@@ -149,13 +149,13 @@ private:
 
         return num;
     }
-    static ppmfc::CString SaveComparator(int comparator)
+    static FString SaveComparator(int comparator)
     {
-        ppmfc::CString ret = "";
+        FString ret = "";
 
         std::stringstream ss;
         ss << std::hex << comparator;
-        ppmfc::CString bigEndian = ss.str().c_str();
+        FString bigEndian = ss.str();
         while (bigEndian.GetLength() < 8) {
             bigEndian = "0" + bigEndian;
         }
@@ -224,8 +224,8 @@ protected:
     static void OnSelchangeCountry(bool edited = false);
     static void OnSelchangeSide(bool edited = false);
 
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
-    static void SortAITriggers(ppmfc::CString id);
+    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
+    static void SortAITriggers(FString id);
 
     static void Close(HWND& hWnd);
 
@@ -263,10 +263,10 @@ private:
 
     static int SelectedAITriggerIndex;
     static std::unique_ptr<AITrigger> CurrentAITrigger;
-    static std::map<int, ppmfc::CString> AITriggerLabels;
-    static std::map<int, ppmfc::CString> TeamLabels[2];
-    static std::map<int, ppmfc::CString> ComparisonObjectLabels;
-    static std::map<int, ppmfc::CString> CountryLabels;
+    static std::map<int, FString> AITriggerLabels;
+    static std::map<int, FString> TeamLabels[2];
+    static std::map<int, FString> ComparisonObjectLabels;
+    static std::map<int, FString> CountryLabels;
     static bool Autodrop;
     static bool DropNeedUpdate;
 };

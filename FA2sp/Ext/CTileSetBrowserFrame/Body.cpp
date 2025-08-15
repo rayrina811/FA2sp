@@ -95,7 +95,7 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 				ppmfc::CString name;
 				ppmfc::CString value;
 				ppmfc::CString key = CMapDataExt::GetAvailableIndex();
-				name = TagSort::Instance.GetCurrentPrefix() + "New Tag";
+				name = (TagSort::Instance.GetCurrentPrefix() + "New Tag");
 				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
 					CINI::CurrentDocument->GetKeyAt("Triggers", 0).m_pchData : "01000000");
 				CINI::CurrentDocument->WriteString("Tags", key, value);

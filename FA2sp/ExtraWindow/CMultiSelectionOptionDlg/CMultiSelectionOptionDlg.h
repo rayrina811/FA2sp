@@ -1,5 +1,6 @@
+#pragma once
 #include <vector>
-#include "../../FA2sp.h"
+#include "FA2PP.H"
 #include "../../Helpers/Translations.h"
 
 class CMultiSelectionOptionDlg : public ppmfc::CDialog

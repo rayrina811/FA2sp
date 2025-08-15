@@ -24,7 +24,7 @@ MultimapHelper& CSearhReference::rules = Variables::Rules;
 HWND CSearhReference::hListbox;
 HWND CSearhReference::hRefresh;
 HWND CSearhReference::hObjectText;
-ppmfc::CString CSearhReference::SearchID = "";
+FString CSearhReference::SearchID = "";
 int CSearhReference::origWndWidth;
 int CSearhReference::origWndHeight;
 int CSearhReference::minWndWidth;
@@ -36,8 +36,8 @@ bool CSearhReference::IsVariable = false;
 std::map<int, ScriptParamPos> CSearhReference::LocalVariableScripts;
 std::map<int, int> CSearhReference::LocalVariableEvents;
 std::map<int, int> CSearhReference::LocalVariableActions;
-std::map<int, std::map<int, ppmfc::CString>> CSearhReference::LocalVariableParamAffectedEvents;
-std::map<int, std::map<int, ppmfc::CString>> CSearhReference::LocalVariableParamAffectedActions;
+std::map<int, std::map<int, FString>> CSearhReference::LocalVariableParamAffectedEvents;
+std::map<int, std::map<int, FString>> CSearhReference::LocalVariableParamAffectedActions;
 
 void CSearhReference::Create(CFinalSunDlg* pWnd)
 {
@@ -61,7 +61,7 @@ void CSearhReference::Create(CFinalSunDlg* pWnd)
 
 void CSearhReference::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("SearchReferenceTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -206,8 +206,8 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
     char buffer[512]{ 0 };
     SendMessage(hListbox, LB_GETTEXT, idx, (LPARAM)buffer);
 
-    ppmfc::CString ID = buffer;
-    STDHelpers::TrimIndex(ID);
+    FString ID = buffer;
+    FString::TrimIndex(ID);
 
     if (IsTeamType || IsTrigger || IsVariable)
     {
@@ -218,7 +218,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewTrigger::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(ID).m_pchData);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -230,7 +230,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewAITrigger::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewAITrigger::GetHandle(), CNewAITrigger::Controls::SelectedAITrigger);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(ID).m_pchData);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -242,7 +242,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 CNewScript::Create(m_parent);
 
             auto dlg = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::SelectedScript);
-            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(ID).m_pchData);
+            auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(ID));
             if (idx == CB_ERR)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
@@ -274,13 +274,13 @@ void CSearhReference::Update()
 
     while (SendMessage(hListbox, LB_DELETESTRING, 0, NULL) != CB_ERR);
     int idx = 0;
-    ppmfc::CString tmp;
+    FString tmp;
     if (IsTeamType || IsTrigger)
     {
         if (IsTeamType)
-            SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(SearchID).m_pchData);
+            SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(SearchID));
         else if (IsTrigger)
-            SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(SearchID).m_pchData);
+            SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(SearchID));
         for (auto& triggerPair : CMapDataExt::Triggers)
         {
             auto& trigger = triggerPair.second;
@@ -291,13 +291,13 @@ void CSearhReference::Update()
                 {
                     if (ep == SearchID)
                     {
-                        ppmfc::CString text;
+                        FString text;
                         text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
                             Translations::TranslateOrDefault("Event", "Event"), index);
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                             100 + index
                         );
                     }
@@ -311,13 +311,13 @@ void CSearhReference::Update()
                 {
                     if (ap == SearchID)
                     {
-                        ppmfc::CString text;
+                        FString text;
                         text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(trigger->ID),
                             Translations::TranslateOrDefault("Action", "Action"), index);
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                             200 + index
                         );
                     }
@@ -326,13 +326,13 @@ void CSearhReference::Update()
             }
             if (trigger->AttachedTrigger == SearchID)
             {
-                ppmfc::CString text;
+                FString text;
                 text.Format("%s %s", ExtraWindow::GetTriggerDisplayName(trigger->ID),
                     Translations::TranslateOrDefault("SearchReference.AttachedTrigger", "Attached"));
                 SendMessage(
                     hListbox,
                     LB_SETITEMDATA,
-                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                     100 
                 );
             }      
@@ -344,14 +344,14 @@ void CSearhReference::Update()
                 for (auto& pair : pSection->GetEntities())
                 {
                     //01000139=GM2-ORCA-10,01000138,GoodMid2,1,0,GAWEAT,0100000003000000000000000000000000000000000000000000000000000000,70.000000,30.000000,70.000000,1,0,3,0,<none>,1,1,1
-                    auto atoms = STDHelpers::SplitString(map.GetString("AITriggerTypes", pair.first));
+                    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", pair.first));
                     if (atoms.size() < 18) continue;
                     if (atoms[1] == SearchID || atoms[14] == SearchID)
                     {
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(pair.first + " (" + atoms[0] + ")").m_pchData),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)(FString(pair.first) + " (" + atoms[0] + ")")),
                             2
                         );
                         // 2 means aitrigger
@@ -361,9 +361,9 @@ void CSearhReference::Update()
     }
     else if (IsVariable)
     {
-        ppmfc::CString text;
+        FString text;
         text.Format("%s - %s", SearchID, map.GetString("VariableNames", SearchID));
-        SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)text.m_pchData);
+        SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)text);
 
         if (LocalVariableScripts.empty())
         {
@@ -371,11 +371,11 @@ void CSearhReference::Update()
             {
                 for (const auto& [key, value] : pSection->GetEntities())
                 {
-                    auto atoms = STDHelpers::SplitString(value, 1);
-                    auto scriptParams = STDHelpers::SplitString(CINI::FAData->GetString("ScriptParams", atoms[1]));
+                    auto atoms = FString::SplitString(value, 1);
+                    auto scriptParams = FString::SplitString(CINI::FAData->GetString("ScriptParams", atoms[1]));
                     if (scriptParams.size() >= 2)
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", scriptParams[1]), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", scriptParams[1]), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
@@ -386,7 +386,7 @@ void CSearhReference::Update()
                     }
                     if (scriptParams.size() >= 4)
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", scriptParams[3]), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", scriptParams[3]), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
@@ -405,19 +405,19 @@ void CSearhReference::Update()
             {
                 for (const auto& [key, value] : pSection->GetEntities())
                 {
-                    auto eventInfos = STDHelpers::SplitString(value, 8);
-                    ppmfc::CString paramType[2];
+                    auto eventInfos = FString::SplitString(value, 8);
+                    FString paramType[2];
                     paramType[0] = eventInfos[1];
                     paramType[1] = eventInfos[2];
-                    std::vector<ppmfc::CString> pParamTypes[2];
-                    pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-                    pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
-                    ppmfc::CString code = "0";
+                    std::vector<FString> pParamTypes[2];
+                    pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
+                    pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+                    FString code = "0";
                     if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
 
                     if (CINI::FAData->KeyExists("NewParamTypes", pParamTypes[0][1]))
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[0][1]), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[0][1]), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
@@ -428,7 +428,7 @@ void CSearhReference::Update()
                     }
                     if (CINI::FAData->KeyExists("NewParamTypes", pParamTypes[1][1]))
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[1][1]), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[1][1]), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
@@ -445,25 +445,25 @@ void CSearhReference::Update()
             {
                 for (const auto& [value, paramType] : param.ParamMap)
                 {
-                    ppmfc::CString type = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType, "MISSING,0"))[1];
+                    FString type = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType, "MISSING,0"))[1];
                     if (CINI::FAData->KeyExists("NewParamTypes", type))
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
                         if (sectionName == "VariableNames" && (loadFrom == "3" || loadFrom == "map"))
                         {
-                            ppmfc::CString eventKey;
+                            FString eventKey;
                             eventKey.Format("%d", param.Index);
-                            auto eventInfos = STDHelpers::SplitString(CINI::FAData->GetString("EventsRA2", eventKey), 8);
-                            ppmfc::CString paramType[2];
+                            auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", eventKey), 8);
+                            FString paramType[2];
                             paramType[0] = eventInfos[1];
                             paramType[1] = eventInfos[2];
-                            std::vector<ppmfc::CString> pParamTypes[2];
-                            pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-                            pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
-                            ppmfc::CString code = "0";
+                            std::vector<FString> pParamTypes[2];
+                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
+                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+                            FString code = "0";
                             if (pParamTypes[0].size() == 3) code = pParamTypes[0][2];
 
                             LocalVariableEvents[param.Index] = param.AffectedParam + 10 + (code == "2" ? 1 : 0);
@@ -481,20 +481,20 @@ void CSearhReference::Update()
             {
                 for (const auto& [key, value] : pSection->GetEntities())
                 {
-                    auto actionInfos = STDHelpers::SplitString(value, 13);
-                    ppmfc::CString paramType[7];
+                    auto actionInfos = FString::SplitString(value, 13);
+                    FString paramType[7];
                     for (int i = 0; i < 7; i++)
                         paramType[i] = actionInfos[i + 1];
 
-                    std::vector<ppmfc::CString> pParamTypes[7];
+                    std::vector<FString> pParamTypes[7];
                     for (int i = 0; i < 7; i++)
-                        pParamTypes[i] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+                        pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
 
                     for (int i = 0; i < 7; i++)
                     {
                         if (CINI::FAData->KeyExists("NewParamTypes", pParamTypes[i][1]))
                         {
-                            auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[i][1]), 4);
+                            auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", pParamTypes[i][1]), 4);
                             auto& sectionName = newParamTypes[0];
                             auto& loadFrom = newParamTypes[1];
 
@@ -513,19 +513,19 @@ void CSearhReference::Update()
             {
                 for (const auto& [value, paramType] : param.ParamMap)
                 {
-                    ppmfc::CString type = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType, "MISSING,0"))[1];
+                    FString type = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType, "MISSING,0"))[1];
                     if (CINI::FAData->KeyExists("NewParamTypes", type))
                     {
-                        auto newParamTypes = STDHelpers::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);
+                        auto newParamTypes = FString::SplitString(CINI::FAData->GetString("NewParamTypes", type), 4);
                         auto& sectionName = newParamTypes[0];
                         auto& loadFrom = newParamTypes[1];
 
                         if (sectionName == "VariableNames" && (loadFrom == "3" || loadFrom == "map"))
                         {
-                            ppmfc::CString actionKey;
+                            FString actionKey;
                             actionKey.Format("%d", param.Index);
-                            auto actionInfos = STDHelpers::SplitString(CINI::FAData->GetString("ActionsRA2", actionKey), 13);
-                            ppmfc::CString paramType[7];
+                            auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", actionKey), 13);
+                            FString paramType[7];
                             for (int i = 0; i < 7; i++)
                                 paramType[i] = actionInfos[i + 1];
 
@@ -558,13 +558,13 @@ void CSearhReference::Update()
             {
                 if (auto pScript = map.GetSection(id))
                 {
-                    ppmfc::CString key;
+                    FString key;
                     for (int i = 0; i < 50; i++)
                     {
                         key.Format("%d", i);
                         if (map.KeyExists(id, key))
                         {
-                            auto atoms = STDHelpers::SplitString(map.GetString(id, key), 1);
+                            auto atoms = FString::SplitString(map.GetString(id, key), 1);
                             int action = atoi(atoms[0]);
                             int param = atoi(atoms[1]);
                             if (LocalVariableScripts.find(action) != LocalVariableScripts.end())
@@ -587,13 +587,13 @@ void CSearhReference::Update()
                                 }
                                 if (atoi(SearchID) == targetParam)
                                 {
-                                    ppmfc::CString text;
+                                    FString text;
                                     text.Format("%s %s[%d]", ExtraWindow::GetTeamDisplayName(id), Translations::TranslateOrDefault("SearchReferenceScriptLine", "Line"), i);
 
                                     SendMessage(
                                         hListbox,
                                         LB_SETITEMDATA,
-                                        SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                                        SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                                         500 + i
                                     );
                                     // 500+ means script and line
@@ -638,13 +638,13 @@ void CSearhReference::Update()
                     int value = atoi(eve.Params[pos]);
                     if (atoi(SearchID) == value)
                     {
-                        ppmfc::CString text;
+                        FString text;
                         text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Event", "Event"), i);
 
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                             100 + i
                         );
                     }
@@ -677,13 +677,13 @@ void CSearhReference::Update()
                     int value = atoi(act.Params[pos]);
                     if (atoi(SearchID) == value)
                     {
-                        ppmfc::CString text;
+                        FString text;
                         text.Format("%s %s[%d]", ExtraWindow::GetTriggerDisplayName(id), Translations::TranslateOrDefault("Action", "Action"), i);
 
                         SendMessage(
                             hListbox,
                             LB_SETITEMDATA,
-                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.m_pchData),
+                            SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text),
                             200 + i
                         );
                     }
@@ -694,16 +694,16 @@ void CSearhReference::Update()
     }   
     else
     {
-        SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(SearchID).m_pchData);
+        SendMessage(hObjectText, WM_SETTEXT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(SearchID));
         if (auto pSection = map.GetSection("TeamTypes"))
         {
             for (auto& pair : pSection->GetEntities())
             {
                 auto refTaskforce = map.GetString(pair.second, "TaskForce");
                 auto refScript = map.GetString(pair.second, "Script");
-                if (refTaskforce == SearchID || refScript == SearchID)
+                if (SearchID == refTaskforce|| SearchID == refScript)
                 {
-                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)ExtraWindow::GetTeamDisplayName(pair.second).m_pchData);
+                    SendMessage(hListbox, LB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)ExtraWindow::GetTeamDisplayName(pair.second));
                 }
             }
         }

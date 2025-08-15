@@ -1,4 +1,5 @@
 #include "RunTime.h"
+#include "Logger.h"
 
 void RunTime::SetJump(DWORD from, DWORD to)
 {

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../FA2Expand.h"
 #include <CFinalSunDlg.h>
+#include "../FA2Expand.h"
 
 #include <array>
 #include <set>

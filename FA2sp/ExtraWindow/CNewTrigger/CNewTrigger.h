@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/FString.h"
 
 #define EVENT_PARAM_COUNT 2
 #define ACTION_PARAM_COUNT 6
@@ -17,34 +18,34 @@ struct ParamAffectedParams
     int Index;
     int SourceParam;
     int AffectedParam;
-    std::map<ppmfc::CString, ppmfc::CString> ParamMap;
+    std::map<FString, FString> ParamMap;
 };
 
 struct EventParams
 {
-    ppmfc::CString EventNum;
+    FString EventNum;
     bool P3Enabled;
-    ppmfc::CString Params[3];
+    FString Params[3];
 };
 
 struct ActionParams
 {
-    ppmfc::CString ActionNum;
-    ppmfc::CString Params[7];
+    FString ActionNum;
+    FString Params[7];
     bool Param7isWP;
 };
 
 class Trigger
 {
 public:
-    ppmfc::CString ID;
-    ppmfc::CString Name;
-    ppmfc::CString House;
-    ppmfc::CString Tag;
-    ppmfc::CString TagName;
-    ppmfc::CString RepeatType;
-    ppmfc::CString AttachedTrigger;
-    ppmfc::CString Obsolete;
+    FString ID;
+    FString Name;
+    FString House;
+    FString Tag;
+    FString TagName;
+    FString RepeatType;
+    FString AttachedTrigger;
+    FString Obsolete;
     bool Disabled;
     bool EasyEnabled;
     bool MediumEnabled;
@@ -56,32 +57,32 @@ public:
 
     static Trigger* create(const char* id) 
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
+        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         if (atoms.size() < 8)
             return nullptr;
         return new Trigger(id);
     }
 
     void Save() {
-        ppmfc::CString trigger;
+        FString trigger;
         trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House, AttachedTrigger, Name,
             Disabled ? "1" : "0", EasyEnabled ? "1" : "0", MediumEnabled ? "1" : "0", HardEnabled ? "1" : "0", Obsolete);
         CINI::CurrentDocument().WriteString("Triggers", ID, trigger);
         auto tag = CINI::CurrentDocument().GetString("Tags", Tag, "");
         if (tag != "")
         {
-            auto atoms = STDHelpers::SplitString(tag, 2);
+            auto atoms = FString::SplitString(tag, 2);
             if (atoms[2] == ID)
             {
                 tag.Format("%s,%s,%s", RepeatType, TagName, atoms[2]);
                 CINI::CurrentDocument().WriteString("Tags", Tag, tag);
             }
         }
-        ppmfc::CString cEvent;
+        FString cEvent;
         cEvent.Format("%d", EventCount);
         for (auto& thisEvent : Events)
         {
-            ppmfc::CString tmp;
+            FString tmp;
             if (thisEvent.P3Enabled)
                 tmp.Format(",%s,%s,%s,%s", thisEvent.EventNum, thisEvent.Params[0], thisEvent.Params[1], thisEvent.Params[2]);
             else
@@ -90,11 +91,11 @@ public:
         }
         CINI::CurrentDocument().WriteString("Events", ID, cEvent);
 
-        ppmfc::CString cAction;
+        FString cAction;
         cAction.Format("%d", ActionCount);
         for (auto& thisAction : Actions)
         {
-            ppmfc::CString tmp;
+            FString tmp;
             tmp.Format(",%s,%s,%s,%s,%s,%s,%s,%s", thisAction.ActionNum,
                 thisAction.Params[0], thisAction.Params[1], thisAction.Params[2], thisAction.Params[3]
                 , thisAction.Params[4], thisAction.Params[5], thisAction.Params[6]);
@@ -106,7 +107,7 @@ public:
 private:
     Trigger(const char* id)
     {
-        auto atoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
+        auto atoms = FString::SplitString(CINI::CurrentDocument().GetString("Triggers", id));
         ID = id;
         House = atoms[0];
         AttachedTrigger = atoms[1];
@@ -121,13 +122,14 @@ private:
 
         // let's assume that tag is the next ID of trigger, for most of them are.
         int assumeIdx = atoi(ID) + 1;
-        ppmfc::CString assumeIdxTag;
+        FString assumeIdxTag;
         assumeIdxTag.Format("%08d", assumeIdx);
         auto assumeTagValue = CINI::CurrentDocument().GetString("Tags", assumeIdxTag);
         bool scanTag = true;
+
         if (assumeTagValue != "")
         {
-            auto assumeTagAtoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("Tags", assumeIdxTag), 2);
+            auto assumeTagAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Tags", assumeIdxTag), 2);
             if (assumeTagAtoms[2] == ID)
             {
                 Tag = assumeIdxTag;
@@ -142,7 +144,7 @@ private:
             {
                 for (auto& kvp : pSection->GetEntities())
                 {
-                    auto tagAtoms = STDHelpers::SplitString(kvp.second);
+                    auto tagAtoms = FString::SplitString(kvp.second);
                     if (tagAtoms.size() < 3) continue;
                     if (tagAtoms[2] == ID)
                     {
@@ -156,7 +158,7 @@ private:
         }
 
 
-        auto eventAtoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("Events", ID));
+        auto eventAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Events", ID));
         if (!eventAtoms.empty())
         {
             EventCount = atoi(eventAtoms[0]);
@@ -170,7 +172,7 @@ private:
                 EventParams thisEvent;
                 while (true)
                 {
-                    ppmfc::CString atom;
+                    FString atom;
                     if (eventAtoms.size() > readIdx)
                         atom = eventAtoms[readIdx];
                     else
@@ -228,13 +230,13 @@ private:
         else
             EventCount = 0;
 
-        auto actionAtoms = STDHelpers::SplitString(CINI::CurrentDocument().GetString("Actions", ID));
+        auto actionAtoms = FString::SplitString(CINI::CurrentDocument().GetString("Actions", ID));
         if (!actionAtoms.empty())
         {
             ActionCount = atoi(actionAtoms[0]);
             if (ActionCount != 0)
             {
-                actionAtoms = STDHelpers::SplitStringAction(CINI::CurrentDocument().GetString("Actions", ID), ActionCount * 8);
+                actionAtoms = FString::SplitStringAction(CINI::CurrentDocument().GetString("Actions", ID), ActionCount * 8);
                 for (int i = 0; i < ActionCount; i++)
                 {
                     ActionParams thisAction;
@@ -357,10 +359,10 @@ protected:
     static void UpdateParamAffectedParam_Action(int index);
     static void UpdateParamAffectedParam_Event(int index);
 
-    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
+    static void OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
     static void OnDropdownCComboBox(int index);
 
-    static void SortTriggers(ppmfc::CString id = "");
+    static void SortTriggers(FString id = "");
 
     static void Close(HWND& hWnd);
 
@@ -423,15 +425,15 @@ private:
     static int ActionParamsCount;
     static int LastActionParamsCount;
     static bool WindowShown;
-    static ppmfc::CString CurrentTriggerID;
+    static FString CurrentTriggerID;
     static std::shared_ptr<Trigger> CurrentTrigger;
-    static std::map<int, ppmfc::CString> HouseLabels;
-    static std::map<int, ppmfc::CString> TriggerLabels;
-    static std::map<int, ppmfc::CString> AttachedTriggerLabels;
-    static std::map<int, ppmfc::CString> ActionTypeLabels;
-    static std::map<int, ppmfc::CString> EventTypeLabels;
-    static std::map<int, ppmfc::CString> EventParamLabels[EVENT_PARAM_COUNT];
-    static std::map<int, ppmfc::CString> ActionParamLabels[ACTION_PARAM_COUNT];
+    static std::map<int, FString> HouseLabels;
+    static std::map<int, FString> TriggerLabels;
+    static std::map<int, FString> AttachedTriggerLabels;
+    static std::map<int, FString> ActionTypeLabels;
+    static std::map<int, FString> EventTypeLabels;
+    static std::map<int, FString> EventParamLabels[EVENT_PARAM_COUNT];
+    static std::map<int, FString> ActionParamLabels[ACTION_PARAM_COUNT];
     static std::pair<bool, int> EventParamsUsage[EVENT_PARAM_COUNT];
     static std::pair<bool, int> ActionParamsUsage[ACTION_PARAM_COUNT];
 

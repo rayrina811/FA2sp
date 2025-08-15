@@ -8,8 +8,10 @@
 
 #include <MFC/ppmfc_cstring.h>
 #include "../FA2sp.h"
+#include "FString.h"
 
 #include <CINI.h>
+#include <Miscs/Miscs.h>
 
 // A class uses STL containers for assistance use
 
@@ -44,6 +46,7 @@ public:
     static ppmfc::CString ReplaceSpeicalString(ppmfc::CString ori);
 
     static ppmfc::CString RandomSelect(std::vector<ppmfc::CString>& vec);
+    static FString RandomSelect(std::vector<FString>& vec);
     static int RandomSelectInt(std::vector<int>& vec, bool record = false, int thisCT = -1);
     static int RandomSelectInt(int start, int end);
 	static ppmfc::CString GetRandomFacing();
@@ -54,6 +57,18 @@ public:
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
 	static std::string UTF8ToANSI(const std::string& utf8Str);
+	static FString ParseHouseName(const FString& src, bool bRealToUIName)
+	{
+		ppmfc::CString buffer;
+		Miscs::ParseHouseName(&buffer, ppmfc::CString(src), bRealToUIName);
+		return FString(buffer);
+	}
+	static FString ParseHouseName(FString&& src, bool bRealToUIName)
+	{
+		ppmfc::CString buffer;
+		Miscs::ParseHouseName(&buffer, ppmfc::CString(src), bRealToUIName);
+		return FString(buffer);
+	}
 
 	static inline int letter2number(char let) {
 		int reply = let - 'A';
@@ -114,10 +129,61 @@ public:
 			}
 			return buffer + pos;
 		}
-	}	
+	}
+
 	static inline ppmfc::CString WaypointToString(ppmfc::CString numStr)
 	{
 		int nWaypoint = atoi(numStr);
 		return WaypointToString(nWaypoint);
+	}
+
+	static inline int StringToWaypoint(std::string str)
+	{
+		if (str == "None")
+			return -1;
+		int n = 0;
+		int len = strlen(str.c_str());
+		for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+		{
+			int c = toupper(str[i]);
+			if (c < 'A' || c > 'Z') return 0;
+			n += ((int)c - 64) * j;
+		}
+		if (n <= 0)
+			return -1;
+		return n - 1;
+	}
+	static inline FString StringToWaypointStr(std::string str)
+	{
+		FString ret;
+		ret.Format("%d", StringToWaypoint(str));
+		if (ret == "-1") ret = "None";
+		return ret;
+	}
+
+	static inline FString WaypointToString(std::string numStr)
+	{
+		int nWaypoint = atoi(numStr.c_str());
+		static char buffer[8]{ '\0' };
+
+		if (nWaypoint < 0)
+			return "0";
+		else if (nWaypoint == INT_MAX)
+			return "FXSHRXX";
+		else
+		{
+			++nWaypoint;
+			int pos = 7;
+			while (nWaypoint > 0)
+			{
+				--pos;
+				char m = nWaypoint % 26;
+				if (m == 0) m = 26;
+				buffer[pos] = m + '@'; // '@' = 'A' - 1
+				nWaypoint = (nWaypoint - m) / 26;
+			}
+			return buffer + pos;
+		}
+		return "0";
 	}
 };

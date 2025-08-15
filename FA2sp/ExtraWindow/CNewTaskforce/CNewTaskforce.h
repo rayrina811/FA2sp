@@ -7,6 +7,7 @@
 #include <regex>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
+#include "../../Helpers/FString.h"
 
 // A static window class
 class CNewTaskforce
@@ -82,9 +83,9 @@ public:
     static HWND hSearchReference;
 private:
     static int SelectedTaskForceIndex;
-    static ppmfc::CString CurrentTaskForceID;
-    static std::map<int, ppmfc::CString> TaskForceLabels;
-    static std::map<int, ppmfc::CString> UnitTypeLabels;
+    static FString CurrentTaskForceID;
+    static std::map<int, FString> TaskForceLabels;
+    static std::map<int, FString> UnitTypeLabels;
     static bool Autodrop;
     static bool DropNeedUpdate;
     static WNDPROC OriginalListBoxProc;

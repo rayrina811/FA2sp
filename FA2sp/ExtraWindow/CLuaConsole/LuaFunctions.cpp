@@ -193,7 +193,7 @@ namespace LuaFunctions
 			{
 				if (value == "")
 				{
-					if (key == dlg.m_ComboOri.m_pchData)
+					if (key == dlg.m_ComboOri)
 					{
 						selected_key = key;
 						selected_value = value;
@@ -202,7 +202,7 @@ namespace LuaFunctions
 				}
 				else
 				{
-					if (key + " - " + value == dlg.m_ComboOri.m_pchData)
+					if (key + " - " + value == (std::string)dlg.m_ComboOri)
 					{
 						selected_key = key;
 						selected_value = value;
@@ -1302,10 +1302,10 @@ namespace LuaFunctions
 		{
 			if (auto t = CMapDataExt::GetTrigger(ID.c_str()))
 			{
-				trigger ret{ t->ID.m_pchData };
-				ret.Name = t->Name.m_pchData;
-				ret.House = t->House.m_pchData;
-				ret.AttachedTrigger = t->AttachedTrigger.m_pchData;
+				trigger ret{ t->ID };
+				ret.Name = t->Name;
+				ret.House = t->House;
+				ret.AttachedTrigger = t->AttachedTrigger;
 				ret.Obsolete = "0";
 				ret.Disabled = t->Disabled;
 				ret.EasyEnabled = t->EasyEnabled;
@@ -1328,22 +1328,22 @@ namespace LuaFunctions
 				for (const auto& eve : t->Events)
 				{
 					auto& str = ret.Events.emplace_back();
-					str += eve.EventNum.m_pchData;
+					str += eve.EventNum;
 					int loopCount = eve.P3Enabled ? 3 : 2;
 					for (int i = 0; i < loopCount; ++i)
 					{
 						str += ",";
-						str += eve.Params[i].m_pchData;
+						str += eve.Params[i];
 					}
 				}
 				for (const auto& act : t->Actions)
 				{
 					auto& str = ret.Actions.emplace_back();
-					str += act.ActionNum.m_pchData;
+					str += act.ActionNum;
 					for (int i = 0; i < 7; ++i)
 					{
 						str += ",";
-						str += act.Params[i].m_pchData;
+						str += act.Params[i];
 					}
 				}
 				return sol::make_object(CLuaConsole::Lua, ret);

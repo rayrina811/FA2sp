@@ -6,6 +6,7 @@
 #include <vector>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../Miscs/Palettes.h"
+#include "../../Helpers/FString.h"
 
 struct TerrainGeneratorOverlay
 {
@@ -16,11 +17,11 @@ struct TerrainGeneratorOverlay
 struct TerrainGeneratorGroup
 {
     double Chance = 0.0;
-    std::vector<ppmfc::CString> Items;
+    std::vector<FString> Items;
     std::vector<int> AvailableTiles;
     bool HasExtraIndex = false;
     std::vector<TerrainGeneratorOverlay> Overlays;
-    std::vector<ppmfc::CString> OverlayItems;
+    std::vector<FString> OverlayItems;
 };
 
 struct BuildingPowers
@@ -272,14 +273,14 @@ public:
     //void InitializeBuildingTypesExt(const char* ID);
     static void InitializeAllHdmEdition(bool updateMinimap = true, bool reloadCellDataExt = true);
     static void UpdateTriggers();
-    static ppmfc::CString AddTrigger(std::shared_ptr<Trigger> trigger);
-    static ppmfc::CString AddTrigger(ppmfc::CString id);
-    static std::shared_ptr<Trigger> GetTrigger(ppmfc::CString id);
-    static void DeleteTrigger(ppmfc::CString id);
+    static FString AddTrigger(std::shared_ptr<Trigger> trigger);
+    static FString AddTrigger(FString id);
+    static std::shared_ptr<Trigger> GetTrigger(FString id);
+    static void DeleteTrigger(FString id);
     static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, std::vector<std::pair<std::vector<int>, float>> tiles, bool override, bool multiSelection, bool onlyClear = false);
     static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<ppmfc::CString>, float>> terrains, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<ppmfc::CString>, float>> smudges, bool override, bool multiSelection, bool onlyClear = false);
+    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> terrains, bool override, bool multiSelection, bool onlyClear = false);
+    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> smudges, bool override, bool multiSelection, bool onlyClear = false);
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
@@ -402,7 +403,7 @@ public:
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;
-    static std::unordered_map<ppmfc::CString, std::shared_ptr<Trigger>> Triggers;
+    static std::unordered_map<FString, std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
     static std::unordered_map<int, TileAnimation> TileAnimations;

@@ -2,6 +2,7 @@
 
 #include <CLoading.h>
 #include "../FA2Expand.h"
+#include "../../FA2sp/Helpers/FString.h"
 #include <CShpFile.h>
 #include <vector>
 #include <array>
@@ -65,8 +66,8 @@ struct AnimDisplayOrder
 	int ZAdjust = 0;
 	int YSort = 0;
 	bool MainBody = false;
-	ppmfc::CString AnimKey = "";
-	ppmfc::CString IgnoreKey = "";
+	FString AnimKey = "";
+	FString IgnoreKey = "";
 };
 
 class NOVTABLE CLoadingExt : public CLoading
@@ -86,15 +87,15 @@ public:
 	static bool HasFile_ReadyToReadFromFolder;
 
 	bool InitMixFilesFix();
-	static bool IsObjectLoaded(ppmfc::CString pRegName);
-	static bool IsOverlayLoaded(ppmfc::CString pRegName);
+	static bool IsObjectLoaded(FString pRegName);
+	static bool IsOverlayLoaded(FString pRegName);
 
-	void LoadObjects(ppmfc::CString pRegName);
-	void LoadOverlay(ppmfc::CString, int nIndex);
+	void LoadObjects(FString pRegName);
+	void LoadOverlay(FString, int nIndex);
 	
 	// except buildings
-	static ppmfc::CString GetImageName(ppmfc::CString ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
-	static ppmfc::CString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
+	static FString GetImageName(FString ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	// only buildings
 	enum
 	{
@@ -102,22 +103,22 @@ public:
 		GBIN_RUBBLE,		
 		GBIN_DAMAGED,
 	};
-	static ppmfc::CString GetBuildingImageName(ppmfc::CString ID, int nFacing, int state, bool bShadow = false);
+	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
 	
 	static void ClearItemTypes();
-	void GetFullPaletteName(ppmfc::CString& PaletteName);
-	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame, bool toServer = true);
-	static void LoadShp(ppmfc::CString ImageID, ppmfc::CString FileName, Palette* pPal, int nFrame, bool toServer = true);
-	static void LoadShpToSurface(ppmfc::CString ImageID, ppmfc::CString FileName, ppmfc::CString PalName, int nFrame);
-	static void LoadShpToSurface(ppmfc::CString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
+	void GetFullPaletteName(FString& PaletteName);
+	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame, bool toServer = true);
+	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame, bool toServer = true);
+	static void LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame);
+	static void LoadShpToSurface(FString ImageID, unsigned char* pBuffer, int Width, int Height, Palette* pPal);
 	static bool LoadShpToBitmap(ImageDataClassSafe* pData, CBitmap& outBitmap);
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
-	static void LoadBitMap(ppmfc::CString ImageID, const CBitmap& cBitmap);
-	void SetImageDataSafe(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer = true);
-	void SetImageData(unsigned char* pBuffer, ppmfc::CString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
+	static void LoadBitMap(FString ImageID, const CBitmap& cBitmap);
+	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer = true);
+	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
-	int HasFileMix(ppmfc::CString filename, int nMix = -114);
+	int HasFileMix(FString filename, int nMix = -114);
 
 	static int GetITheaterIndex()
 	{
@@ -138,24 +139,28 @@ public:
 			return 0;
 		}
 	}
+	// mode 0 = vanilla YR, mode 1 = Ares
+	void SetTheaterLetter(FString& string, int mode = 1);
+	void SetGenericTheaterLetter(FString& string);
+
 
 private:
-	static ppmfc::CString* __cdecl GetDictName(ppmfc::CString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
-	static ppmfc::CString GetDictName(ppmfc::CString ID, int nFacing)
+	static FString* __cdecl GetDictName(FString* ret, const char* ID, int nFacing) { JMP_STD(0x475450); }
+	static FString GetDictName(FString ID, int nFacing)
 	{
-		ppmfc::CString buffer;
+		FString buffer;
 		GetDictName(&buffer, ID, nFacing);
 		return buffer;
 	}
 
-	void LoadBuilding(ppmfc::CString ID);
-	void LoadBuilding_Normal(ppmfc::CString ID);
-	void LoadBuilding_Rubble(ppmfc::CString ID);
-	void LoadBuilding_Damaged(ppmfc::CString ID, bool loadAsRubble = false);
+	void LoadBuilding(FString ID);
+	void LoadBuilding_Normal(FString ID);
+	void LoadBuilding_Rubble(FString ID);
+	void LoadBuilding_Damaged(FString ID, bool loadAsRubble = false);
 
-	void LoadInfantry(ppmfc::CString ID);
-	void LoadTerrainOrSmudge(ppmfc::CString ID, bool terrain);
-	void LoadVehicleOrAircraft(ppmfc::CString ID);
+	void LoadInfantry(FString ID);
+	void LoadTerrainOrSmudge(FString ID, bool terrain);
+	void LoadVehicleOrAircraft(FString ID);
 
 	void SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* pData, int FullWidth, int FullHeight, Palette* pPal);
 	void SetImageData(unsigned char* pBuffer, ImageDataClass* pData, int FullWidth, int FullHeight, Palette* pPal);
@@ -182,26 +187,26 @@ public:
 		Smudge = 5
 	};
 
-	static ppmfc::CString GetArtID(ppmfc::CString ID);
-	ppmfc::CString GetVehicleOrAircraftFileID(ppmfc::CString ID);
-	ppmfc::CString GetTerrainOrSmudgeFileID(ppmfc::CString ID);
-	ppmfc::CString GetBuildingFileID(ppmfc::CString ID);
-	ppmfc::CString GetInfantryFileID(ppmfc::CString ID);
-	static std::unordered_set<ppmfc::CString> LoadedOverlays;
+	static FString GetArtID(FString ID);
+	FString GetVehicleOrAircraftFileID(FString ID);
+	FString GetTerrainOrSmudgeFileID(FString ID);
+	FString GetBuildingFileID(FString ID);
+	FString GetInfantryFileID(FString ID);
+	static std::unordered_set<FString> LoadedOverlays;
 	static Palette TempISOPalette;
 	static bool IsLoadingObjectView;
-	static std::unordered_set<ppmfc::CString> SwimableInfantries;
-	ObjectType GetItemType(ppmfc::CString ID);
-	static bool SaveCBitmapToFile(CBitmap* pBitmap, const ppmfc::CString& filePath, COLORREF bgColor);
-	static bool LoadBMPToCBitmap(const ppmfc::CString& filePath, CBitmap& outBitmap);
+	static std::unordered_set<FString> SwimableInfantries;
+	ObjectType GetItemType(FString ID);
+	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
+	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
 
-	static std::unordered_map<ppmfc::CString, int> AvailableFacings;
-	static std::unordered_set<ppmfc::CString> LoadedObjects;
+	static std::unordered_map<FString, int> AvailableFacings;
+	static std::unordered_set<FString> LoadedObjects;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
 private:
 
-	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, ppmfc::CString name);
+	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);
 	void SortDisplayOrderByZAdjust(std::vector<AnimDisplayOrder>& displayOrder) {
 		std::stable_sort(displayOrder.begin(), displayOrder.end(),
 			[](const AnimDisplayOrder& a, const AnimDisplayOrder& b) {
@@ -220,22 +225,22 @@ private:
 
 	static std::vector<SHPUnionData> UnionSHP_Data[2];
 	static std::vector<SHPUnionData> UnionSHPShadow_Data[2];
-	static std::unordered_map<ppmfc::CString, ObjectType> ObjectTypes;
+	static std::unordered_map<FString, ObjectType> ObjectTypes;
 	static unsigned char VXL_Data[0x10000];
 	static unsigned char VXL_Shadow_Data[0x10000];
 
 
 public:
-	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
-	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
-	static std::unordered_map<ppmfc::CString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
+	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CurrentFrameImageDataMap;
+	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> ImageDataMap;
+	static std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 
-	static bool IsImageLoaded(const ppmfc::CString& name);
-	static ImageDataClassSafe* GetImageDataFromMap(const ppmfc::CString& name);
-	static ImageDataClassSafe* GetImageDataFromServer(const ppmfc::CString& name);
-	static bool IsSurfaceImageLoaded(const ppmfc::CString& name);
-	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const ppmfc::CString& name);
-	static int GetAvailableFacing(const ppmfc::CString& ID);
+	static bool IsImageLoaded(const FString& name);
+	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);
+	static ImageDataClassSafe* GetImageDataFromServer(const FString& name);
+	static bool IsSurfaceImageLoaded(const FString& name);
+	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
+	static int GetAvailableFacing(const FString& ID);
 
 	static HANDLE hPipeData;
 	static std::atomic<bool> PingServerRunning;
@@ -247,10 +252,10 @@ public:
 	static bool ConnectToImageServer();
 	static void StartPingThread();
 
-	static bool WriteImageData(HANDLE hPipe, const ppmfc::CString& imageID, const ImageDataClassSafe* data);
+	static bool WriteImageData(HANDLE hPipe, const FString& imageID, const ImageDataClassSafe* data);
 	static bool ReadImageData(HANDLE hPipe, ImageDataClassSafe& data);
-	static bool SendImageToServer(const ppmfc::CString& imageID, const ImageDataClassSafe* imageData);
-	static bool RequestImageFromServer(const ppmfc::CString& imageID, ImageDataClassSafe& outImageData);
+	static bool SendImageToServer(const FString& imageID, const ImageDataClassSafe* imageData);
+	static bool RequestImageFromServer(const FString& imageID, ImageDataClassSafe& outImageData);
 	static void SendRequestText(const char* text);
 };
 

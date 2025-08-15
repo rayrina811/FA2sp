@@ -340,7 +340,7 @@ void CMapDataExt::CreateRandomOverlay(int TopX, int TopY, int BottomX, int Botto
     }
 }
 
-void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<ppmfc::CString>, float>> terrains, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> terrains, bool override, bool multiSelection, bool onlyClear)
 {
     std::vector<float> weights;
     for (auto& ter : terrains) {
@@ -393,7 +393,7 @@ void CMapDataExt::CreateRandomTerrain(int TopX, int TopY, int BottomX, int Botto
     }
 }
 
-void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<ppmfc::CString>, float>> smudges, bool override, bool multiSelection, bool onlyClear)
+void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> smudges, bool override, bool multiSelection, bool onlyClear)
 {
     std::vector<float> weights;
     for (auto& smu : smudges) {
@@ -443,7 +443,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
                 smudge.X = j;
                 smudge.Y = i;//opposite
                 smudge.Flag = 0;
-                smudge.TypeID = STDHelpers::RandomSelect(smudgeGroup);
+                smudge.TypeID = STDHelpers::RandomSelect(smudgeGroup).c_str();
 
                 //check unplaceable tiles
                 int width = rules.GetInteger(smudge.TypeID, "Width", 1);

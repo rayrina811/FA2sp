@@ -1,24 +1,27 @@
 #pragma once
-#include "../FA2sp.h"
+#include "FA2PP.h"
+#include "../Helpers/MultimapHelper.h"
+
+class FString;
 
 class ExtraWindow
 {
 public:
-    static ppmfc::CString GetTeamDisplayName(const char* id);
-    static ppmfc::CString GetAITriggerDisplayName(const char* id);
-    static ppmfc::CString FormatTriggerDisplayName(const char* id, const char* name);
-    static ppmfc::CString GetEventDisplayName(const char* id, int index = -1);
-    static ppmfc::CString GetActionDisplayName(const char* id, int index = -1);
+    static FString GetTeamDisplayName(const char* id);
+    static FString GetAITriggerDisplayName(const char* id);
+    static FString FormatTriggerDisplayName(const char* id, const char* name);
+    static FString GetEventDisplayName(const char* id, int index = -1);
+    static FString GetActionDisplayName(const char* id, int index = -1);
     static void SetEditControlFontSize(HWND hWnd, float nFontSizeMultiplier, bool richEdit = false, const char* newFont = "");
     static int FindCBStringExactStart(HWND hComboBox, const char* searchText);
     static void SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone = false);
     static void AdjustDropdownWidth(HWND hWnd);
-    static ppmfc::CString GetTriggerDisplayName(const char* id);
-    static ppmfc::CString GetTriggerName(const char* id);
-    static ppmfc::CString GetAITriggerName(const char* id);
-    static ppmfc::CString GetTagName(const char* id);
+    static FString GetTriggerDisplayName(const char* id);
+    static FString GetTriggerName(const char* id);
+    static FString GetAITriggerName(const char* id);
+    static FString GetTagName(const char* id);
 
-    static void LoadParams(HWND& hWnd, ppmfc::CString idx);
+    static void LoadParams(HWND& hWnd, FString idx);
     static void LoadParam_Waypoints(HWND& hWnd);
     static void LoadParam_ActionList(HWND& hWnd);
     static void LoadParam_CountryList(HWND& hWnd);
@@ -32,16 +35,16 @@ public:
     static bool bComboLBoxSelected;
     static bool bEnterSearch; 
     // true means click inside combobox
-    static bool OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly = false);
-    static void OnEditCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels);
+    static bool OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
+    static void OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels);
 
-    static bool SortLabels(ppmfc::CString a, ppmfc::CString b);
+    static bool SortLabels(FString a, FString b);
     static bool SortRawStrings(std::string sa, std::string sb);
-    static void SortTeams(HWND& hWnd, ppmfc::CString section, int& selectedIndex, ppmfc::CString id = "");
-    static void SortAITriggers(HWND& hWnd, int& selectedIndex, ppmfc::CString id = "");
+    static void SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id = "");
+    static void SortAITriggers(HWND& hWnd, int& selectedIndex, FString id = "");
     static bool IsLabelMatch(const char* target, const char* source, bool exactMatch = false);
-    static ppmfc::CString GetCloneName(ppmfc::CString oriName);
-    static void LoadFrom(MultimapHelper& mmh, ppmfc::CString loadfrom);
+    static FString GetCloneName(FString oriName);
+    static void LoadFrom(MultimapHelper& mmh, FString loadfrom);
 
 private:
     static CINI& map;

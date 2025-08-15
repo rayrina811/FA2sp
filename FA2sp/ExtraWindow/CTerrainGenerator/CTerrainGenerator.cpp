@@ -39,9 +39,9 @@ HWND CTerrainGenerator::hTerrainGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hTerrainChance[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeGroup[TERRAIN_GENERATOR_DISPLAY];
 HWND CTerrainGenerator::hSmudgeChance[TERRAIN_GENERATOR_DISPLAY];
-std::map<int, ppmfc::CString> CTerrainGenerator::TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
-std::map<int, ppmfc::CString> CTerrainGenerator::OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
-std::map<int, ppmfc::CString> CTerrainGenerator::PresetLabels;
+std::map<int, FString> CTerrainGenerator::TileSetLabels[TERRAIN_GENERATOR_DISPLAY];
+std::map<int, FString> CTerrainGenerator::OverlayLabels[TERRAIN_GENERATOR_DISPLAY];
+std::map<int, FString> CTerrainGenerator::PresetLabels;
 bool CTerrainGenerator::Autodrop;
 bool CTerrainGenerator::DropNeedUpdate;
 bool CTerrainGenerator::bOverride;
@@ -52,7 +52,7 @@ MapCoord CTerrainGenerator::RangeFirstCell;
 MapCoord CTerrainGenerator::RangeSecondCell;
 bool CTerrainGenerator::UseMultiSelection;
 
-std::map<ppmfc::CString, std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGeneratorPresets;
+std::map<FString, std::shared_ptr<TerrainGeneratorPreset>> CTerrainGenerator::TerrainGeneratorPresets;
 std::shared_ptr<TerrainGeneratorPreset> CTerrainGenerator::CurrentPreset;
 
 void CTerrainGenerator::Create(CTileSetBrowserFrame* pWnd)
@@ -88,23 +88,28 @@ void CTerrainGenerator::Initialize(HWND& hWnd)
     TCITEM tie;
     tie.mask = TCIF_TEXT;
     
-    ppmfc::CString tabText = _T(Translations::TranslateOrDefault("CTerrainGenerator.Tiles", "Tiles"));
-    tie.pszText = tabText.m_pchData;
+    FString tabText = _T(Translations::TranslateOrDefault("CTerrainGenerator.Tiles", "Tiles"));
+    tie.pszText = tabText.GetBuffer();
     TabCtrl_InsertItem(hTab, 0, &tie);
     
-    ppmfc::CString tabText2 = _T(Translations::TranslateOrDefault("CTerrainGenerator.TerrainTypes", "Terrain Types"));
-    tie.pszText = tabText2.m_pchData;
+    FString tabText2 = _T(Translations::TranslateOrDefault("CTerrainGenerator.TerrainTypes", "Terrain Types"));
+    tie.pszText = tabText2.GetBuffer();
     TabCtrl_InsertItem(hTab, 1, &tie);
     
-    ppmfc::CString tabText3 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Overlays", "Overlays"));
-    tie.pszText = tabText3.m_pchData;
+    FString tabText3 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Overlays", "Overlays"));
+    tie.pszText = tabText3.GetBuffer();
     TabCtrl_InsertItem(hTab, 2, &tie);
     
-    ppmfc::CString tabText4 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Smudges", "Smudges"));
-    tie.pszText = tabText4.m_pchData;
+    FString tabText4 = _T(Translations::TranslateOrDefault("CTerrainGenerator.Smudges", "Smudges"));
+    tie.pszText = tabText4.GetBuffer();
     TabCtrl_InsertItem(hTab, 3, &tie);
+
+    tabText.ReleaseBuffer();
+    tabText2.ReleaseBuffer();
+    tabText3.ReleaseBuffer();
+    tabText4.ReleaseBuffer();
     
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("CTerrainGenerator.Title", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -299,7 +304,7 @@ void CTerrainGenerator::Update(HWND& hWnd)
     if (!ini) {
         ini = MakeGameUnique<CINI>();
     }
-    ppmfc::CString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunApp::ExePath();
     path += "\\TerrainGenerator.ini";
     ini->ClearAndLoad(path);
     auto itr = ini->Dict.begin();
@@ -385,7 +390,7 @@ BOOL CALLBACK CTerrainGenerator::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPA
                 DropNeedUpdate = true;
                 SendMessage(hPreset, CB_DELETESTRING, CurrentPresetIndex, NULL);
                 SendMessage(hPreset, CB_INSERTSTRING, CurrentPresetIndex, 
-                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(CurrentPreset->ID, CurrentPreset->Name).m_pchData);
+                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(CurrentPreset->ID, CurrentPreset->Name));
                 SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
                 SaveAndReloadPreset();
             }
@@ -574,8 +579,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hTileIndexes[0], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->TileSetAvailableIndexesText[0] = buffer;
                     CurrentPreset->TileSets[0].HasExtraIndex = true;
@@ -592,8 +597,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hTileIndexes[1], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->TileSetAvailableIndexesText[1] = buffer;
                     CurrentPreset->TileSets[1].HasExtraIndex = true;
@@ -610,8 +615,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hTileIndexes[2], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->TileSetAvailableIndexesText[2] = buffer;
                     CurrentPreset->TileSets[2].HasExtraIndex = true;
@@ -628,8 +633,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hTileIndexes[3], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->TileSetAvailableIndexesText[3] = buffer;
                     CurrentPreset->TileSets[3].HasExtraIndex = true;
@@ -646,8 +651,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab1(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hTileIndexes[4], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->TileSetAvailableIndexesText[4] = buffer;
                     CurrentPreset->TileSets[4].HasExtraIndex = true;
@@ -880,8 +885,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hOverlayData[0], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->OverlayAvailableDataText[0] = buffer;
                     CurrentPreset->Overlays[0].HasExtraIndex = true;
@@ -898,8 +903,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hOverlayData[1], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->OverlayAvailableDataText[1] = buffer;
                     CurrentPreset->Overlays[1].HasExtraIndex = true;
@@ -916,8 +921,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hOverlayData[2], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->OverlayAvailableDataText[2] = buffer;
                     CurrentPreset->Overlays[2].HasExtraIndex = true;
@@ -934,8 +939,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hOverlayData[3], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->OverlayAvailableDataText[3] = buffer;
                     CurrentPreset->Overlays[3].HasExtraIndex = true;
@@ -952,8 +957,8 @@ BOOL CALLBACK CTerrainGenerator::DlgProcTab3(HWND hWnd, UINT Msg, WPARAM wParam,
             {
                 char buffer[512]{ 0 };
                 GetWindowText(hOverlayData[4], buffer, 511);
-                ppmfc::CString text = buffer;
-                auto atoms = STDHelpers::SplitString(text);
+                FString text = buffer;
+                auto atoms = FString::SplitString(text);
                 if (!atoms.empty()) {
                     CurrentPreset->OverlayAvailableDataText[4] = buffer;
                     CurrentPreset->Overlays[4].HasExtraIndex = true;
@@ -1105,7 +1110,7 @@ void CTerrainGenerator::OnSeldropdownPreset(HWND& hWnd)
 
     DropNeedUpdate = false;
 
-    ppmfc::CString id = "";
+    FString id = "";
     if (CurrentPreset) {
         id = CurrentPreset->ID;
     }
@@ -1159,8 +1164,8 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
     }
 
     SendMessage(hPreset, CB_GETLBTEXT, CurrentPresetIndex, (LPARAM)buffer);
-    ppmfc::CString id = buffer;
-    STDHelpers::TrimIndex(id);
+    FString id = buffer;
+    FString::TrimIndex(id);
     CurrentPreset = GetPreset(id);
     if (!CurrentPreset) {
         ProgrammaticallySettingText = false;
@@ -1168,7 +1173,7 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
     }
 
     SendMessage(hScale, WM_SETTEXT, 0, (LPARAM)STDHelpers::IntToString(CurrentPreset->Scale).m_pchData);
-    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentPreset->Name.m_pchData);
+    SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentPreset->Name);
 
     for (auto idx = 0; idx < TERRAIN_GENERATOR_DISPLAY; idx++) {
         SendMessage(hTileSet[idx], CB_SETCURSEL, CB_ERR, NULL);
@@ -1193,45 +1198,45 @@ void CTerrainGenerator::OnSelchangePreset(bool edited, bool reload)
         else
         {
             SendMessage(hTileSet[idx], CB_SETCURSEL, -1, NULL);
-            SendMessage(hTileSet[idx], WM_SETTEXT, 0, (LPARAM)group.Items.front().m_pchData);
+            SendMessage(hTileSet[idx], WM_SETTEXT, 0, (LPARAM)group.Items.front());
         }
         if (group.HasExtraIndex) {
-            SendMessage(hTileIndexes[idx], WM_SETTEXT, 0, (LPARAM)CurrentPreset->TileSetAvailableIndexesText[idx].m_pchData);
+            SendMessage(hTileIndexes[idx], WM_SETTEXT, 0, (LPARAM)CurrentPreset->TileSetAvailableIndexesText[idx]);
         }
-        SendMessage(hTileChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION).m_pchData);
+        SendMessage(hTileChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
     }
     for (auto idx = 0; idx < CurrentPreset->Overlays.size() && idx < TERRAIN_GENERATOR_DISPLAY; idx++) {
         auto& group = CurrentPreset->Overlays[idx];
 
-        ppmfc::CString text = "";
+        FString text = "";
         for (auto& ovr : group.Overlays) {
                 text += STDHelpers::IntToString(ovr.Overlay) + ",";
         }
-        SendMessage(hOverlay[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1).m_pchData);
+        SendMessage(hOverlay[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1));
         if (group.HasExtraIndex) {
-            SendMessage(hOverlayData[idx], WM_SETTEXT, 0, (LPARAM)CurrentPreset->OverlayAvailableDataText[idx].m_pchData);
+            SendMessage(hOverlayData[idx], WM_SETTEXT, 0, (LPARAM)CurrentPreset->OverlayAvailableDataText[idx]);
         }
-        SendMessage(hOverlayChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION).m_pchData);
+        SendMessage(hOverlayChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
     }
     for (auto idx = 0; idx < CurrentPreset->TerrainTypes.size() && idx < TERRAIN_GENERATOR_DISPLAY; idx++) {
         auto& group = CurrentPreset->TerrainTypes[idx];
 
-        ppmfc::CString text = "";
+        FString text = "";
         for (auto& obj : group.Items) {
                 text += obj + ",";
         }
-        SendMessage(hTerrainGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1).m_pchData);
-        SendMessage(hTerrainChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION).m_pchData);
+        SendMessage(hTerrainGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1));
+        SendMessage(hTerrainChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
     }
     for (auto idx = 0; idx < CurrentPreset->Smudges.size() && idx < TERRAIN_GENERATOR_DISPLAY; idx++) {
         auto& group = CurrentPreset->Smudges[idx];
 
-        ppmfc::CString text = "";
+        FString text = "";
         for (auto& obj : group.Items) {
                 text += obj + ",";
         }
-        SendMessage(hSmudgeGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1).m_pchData);
-        SendMessage(hSmudgeChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION).m_pchData);
+        SendMessage(hSmudgeGroup[idx], WM_SETTEXT, 0, (LPARAM)text.Mid(0, text.GetLength() - 1));
+        SendMessage(hSmudgeChance[idx], WM_SETTEXT, 0, (LPARAM)DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
     }
 
     EnableWindows();
@@ -1246,7 +1251,7 @@ void CTerrainGenerator::OnSelchangeTileSet(int index, bool edited)
     auto& label = TileSetLabels[index];
 
     int curSel = SendMessage(hwnd, CB_GETCURSEL, NULL, NULL);
-    ppmfc::CString text;
+    FString text;
     char buffer[512]{ 0 };
     if (edited && (SendMessage(hwnd, CB_GETCOUNT, NULL, NULL) > 0 || !label.empty()))
     {
@@ -1267,7 +1272,7 @@ void CTerrainGenerator::OnSelchangeTileSet(int index, bool edited)
     if (!text)
         return;
 
-    STDHelpers::TrimIndex(text);
+    FString::TrimIndex(text);
     if (text == "")
         text = "<none>";
 
@@ -1303,9 +1308,9 @@ void CTerrainGenerator::OnEditchangeTerrain(int index)
     auto& hwnd = hTerrainGroup[index];
     char buffer[512]{ 0 };
     GetWindowText(hwnd, buffer, 511);
-    ppmfc::CString text = buffer;
+    FString text = buffer;
     text.Trim();
-    auto atoms = STDHelpers::SplitString(text);
+    auto atoms = FString::SplitString(text);
     if (atoms.empty()) {
         if (!CurrentPreset->TerrainTypes.empty() && index < CurrentPreset->TerrainTypes.size()){
             CurrentPreset->TerrainTypes.erase(CurrentPreset->TerrainTypes.begin() + index);
@@ -1340,9 +1345,9 @@ void CTerrainGenerator::OnEditchangeOverlay(int index)
     auto& hwnd = hOverlay[index];
     char buffer[512]{ 0 };
     GetWindowText(hwnd, buffer, 511);
-    ppmfc::CString text = buffer;
+    FString text = buffer;
     text.Trim();
-    auto atoms = STDHelpers::SplitString(text);
+    auto atoms = FString::SplitString(text);
     if (atoms.empty()) {
         if (!CurrentPreset->Overlays.empty() && index < CurrentPreset->Overlays.size()) {
             CurrentPreset->Overlays.erase(CurrentPreset->Overlays.begin() + index);
@@ -1383,9 +1388,9 @@ void CTerrainGenerator::OnEditchangeSmudge(int index)
     auto& hwnd = hSmudgeGroup[index];
     char buffer[512]{ 0 };
     GetWindowText(hwnd, buffer, 511);
-    ppmfc::CString text = buffer;
+    FString text = buffer;
     text.Trim();
-    auto atoms = STDHelpers::SplitString(text);
+    auto atoms = FString::SplitString(text);
     if (atoms.empty()) {
         if (!CurrentPreset->Smudges.empty() && index < CurrentPreset->Smudges.size()) {
             CurrentPreset->Smudges.erase(CurrentPreset->Smudges.begin() + index);
@@ -1446,7 +1451,7 @@ void CTerrainGenerator::OnSetRangeDone()
 void CTerrainGenerator::OnClickAdd()
 {
     for (int i = 0; i < 9999; i++) {
-        ppmfc::CString ID;
+        FString ID;
         ID.Format("%03d", i);
         if (!ini->SectionExists(ID)) {
             ini->WriteString(ID, "Name", "New Preset");
@@ -1457,7 +1462,7 @@ void CTerrainGenerator::OnClickAdd()
 
             SendMessage(hPreset, CB_SETCURSEL, 
                 SendMessage(hPreset, CB_ADDSTRING, 0, 
-                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(ID, preset->Name).m_pchData)
+                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(ID, preset->Name))
                 , NULL);
             TerrainGeneratorPresets[ID] = std::move(preset);
             CurrentPreset = GetPreset(ID);
@@ -1474,7 +1479,7 @@ void CTerrainGenerator::OnClickCopy()
 {
     if (!CurrentPreset) return;
     for (int i = 0; i < 9999; i++) {
-        ppmfc::CString ID;
+        FString ID;
         ID.Format("%03d", i);
         if (!ini->SectionExists(ID)) {
             std::shared_ptr<TerrainGeneratorPreset> preset(TerrainGeneratorPreset::create(CurrentPreset->ID, ini->GetSection(CurrentPreset->ID)));
@@ -1483,7 +1488,7 @@ void CTerrainGenerator::OnClickCopy()
             
             SendMessage(hPreset, CB_SETCURSEL, 
                 SendMessage(hPreset, CB_ADDSTRING, 0, 
-                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(preset->ID, preset->Name).m_pchData)
+                    (LPARAM)(LPCSTR)ExtraWindow::FormatTriggerDisplayName(preset->ID, preset->Name))
                 , NULL);
             TerrainGeneratorPresets[ID] = std::move(preset);
             CurrentPreset = GetPreset(ID);
@@ -1506,7 +1511,7 @@ void CTerrainGenerator::OnClickDelete(HWND& hWnd)
     if (result == IDNO)
         return;
 
-    ppmfc::CString id = CurrentPreset->ID;
+    FString id = CurrentPreset->ID;
     ini->DeleteSection(id);
     CurrentPreset = nullptr;
     RemovePreset(id);
@@ -1516,7 +1521,7 @@ void CTerrainGenerator::OnClickDelete(HWND& hWnd)
     if (CurrentPresetIndex < 0)
         CurrentPresetIndex = 0;
     SendMessage(hPreset, CB_SETCURSEL, CurrentPresetIndex, NULL);
-    ppmfc::CString path = CFinalSunApp::ExePath();
+    FString path = CFinalSunApp::ExePath();
     path += "\\TerrainGenerator.ini";
     ini->WriteToFile(path);
     OnSelchangePreset();
@@ -1579,7 +1584,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, onlyClear);
     }
 
-    std::vector<std::pair<std::vector<ppmfc::CString>, float>> terrains;
+    std::vector<std::pair<std::vector<FString>, float>> terrains;
     for (const auto& group : CurrentPreset->TerrainTypes) {
         terrains.push_back(std::make_pair(group.Items, group.Chance));
     }
@@ -1587,7 +1592,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, onlyClear);
     }
 
-    std::vector<std::pair<std::vector<ppmfc::CString>, float>> smudges;
+    std::vector<std::pair<std::vector<FString>, float>> smudges;
     for (const auto& group : CurrentPreset->Smudges) {
         smudges.push_back(std::make_pair(group.Items, group.Chance));
     }
@@ -1600,7 +1605,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CTerrainGenerator::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CString>& labels, bool isComboboxSelectOnly)
+void CTerrainGenerator::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
 {
     if (!ExtraWindow::OnCloseupCComboBox(hWnd, labels, isComboboxSelectOnly))
     {
@@ -1613,22 +1618,22 @@ void CTerrainGenerator::OnCloseupCComboBox(HWND& hWnd, std::map<int, ppmfc::CStr
 void CTerrainGenerator::SaveAndReloadPreset()
 {
     if (!CurrentPreset) return;
-    ppmfc::CString id = CurrentPreset->ID;
-    ppmfc::CString path = CFinalSunApp::ExePath();
+    FString id = CurrentPreset->ID;
+    FString path = CFinalSunApp::ExePath();
     path += "\\TerrainGenerator.ini";
     ini->WriteString(id, "Name", CurrentPreset->Name);
     ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));
-    ppmfc::CString theaters = "";
+    FString theaters = "";
     for (const auto& t : CurrentPreset->Theaters) {
         theaters += t + ",";
     }
     ini->WriteString(id, "Theaters", theaters.Mid(0, theaters.GetLength() - 1));
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
         auto& group = CurrentPreset->TileSets[idx];
-        ppmfc::CString key;
+        FString key;
         key.Format("TileSet%d", idx);
         if (idx < CurrentPreset->TileSets.size()) {
-            ppmfc::CString value;
+            FString value;
             value.Format("%s,%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION), STDHelpers::IntToString(atoi(group.Items[0])));
             ini->WriteString(id, key, value);
             key += "AvailableIndexes";
@@ -1648,10 +1653,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
     } 
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
         auto& group = CurrentPreset->TerrainTypes[idx];
-        ppmfc::CString key;
+        FString key;
         key.Format("TerrainType%d", idx);
         if (idx < CurrentPreset->TerrainTypes.size()) {
-            ppmfc::CString value;
+            FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
                 value += ",";
@@ -1665,10 +1670,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
         auto& group = CurrentPreset->Smudges[idx];
-        ppmfc::CString key;
+        FString key;
         key.Format("Smudge%d", idx);
         if (idx < CurrentPreset->Smudges.size()) {
-            ppmfc::CString value;
+            FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
                 value += ",";
@@ -1682,10 +1687,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
         auto& group = CurrentPreset->Overlays[idx];
-        ppmfc::CString key;
+        FString key;
         key.Format("Overlay%d", idx);
         if (idx < CurrentPreset->Overlays.size()) {
-            ppmfc::CString value;
+            FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Overlays.size(); i++) {
                 value += ",";
@@ -1717,9 +1722,9 @@ void CTerrainGenerator::SaveAndReloadPreset()
     EnableWindows();
 }
 
-ppmfc::CString CTerrainGenerator::DoubleToString(double value, int precision)
+FString CTerrainGenerator::DoubleToString(double value, int precision)
 {
-    ppmfc::CString ret;
+    FString ret;
     std::ostringstream oss;
     oss.precision(precision);
     oss << std::fixed << value;
@@ -1854,7 +1859,7 @@ void CTerrainGenerator::AdjustTabPagePosition(HWND hTab, HWND hTabPage)
 void CTerrainGenerator::SortPresets(const char* id)
 {
     while (SendMessage(hPreset, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<ppmfc::CString> labels;
+    std::vector<FString> labels;
 
     for (const auto& [id, preset] : TerrainGeneratorPresets) {
         labels.push_back(ExtraWindow::FormatTriggerDisplayName(id, preset->Name));
@@ -1862,7 +1867,7 @@ void CTerrainGenerator::SortPresets(const char* id)
     std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
 
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hPreset, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].m_pchData);
+        SendMessage(hPreset, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i]);
     }
     if (strcmp(id, "") != 0) {
         CurrentPresetIndex = ExtraWindow::FindCBStringExactStart(hPreset, id);
