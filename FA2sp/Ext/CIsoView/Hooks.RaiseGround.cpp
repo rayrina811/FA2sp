@@ -37,7 +37,7 @@ static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = f
 		};
 	auto getIndex = [](int x, int y)
 		{
-			if (!CMapDataExt::IsCoordInFullMap(x, y))
+			if (!CMapData::Instance->IsCoordInMap(x, y))
 				return 0;
 			return x + y * CMapData::Instance->MapWidthPlusHeight;
 		};
@@ -282,7 +282,7 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 	bool loop = false;
 	auto getIndex = [](int x, int y)
 		{			
-			if (!CMapDataExt::IsCoordInFullMap(x, y))
+			if (!CMapData::Instance->IsCoordInMap(x, y))
 				return 0;
 			return x + y * CMapData::Instance->MapWidthPlusHeight;
 		};
@@ -433,7 +433,7 @@ static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = 
 				{
 					int newX = thisX + i;
 					int newY = thisY + e;
-					if (!CMapDataExt::IsCoordInFullMap(newX, newY)) continue;
+					if (!CMapData::Instance->IsCoordInMap(newX, newY)) continue;
 					auto cell = CMapDataExt::TryGetCellAt(newX, newY);
 					int ground = cell->TileIndex;
 					if (ground == 0xFFFF) ground = 0;
