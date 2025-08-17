@@ -8,16 +8,12 @@
 #include "../../../Helpers/Translations.h"
 
 ScriptSort ScriptSort::Instance;
-std::vector<ppmfc::CString> ScriptSort::TreeViewTexts;
-std::vector<std::vector<ppmfc::CString>> ScriptSort::TreeViewTextsVector;
 bool ScriptSort::CreateFromScriptSort = false;
 
 void ScriptSort::LoadAllTriggers()
 {
     ExtConfigs::InitializeMap = false;
     this->Clear();
-    TreeViewTexts.clear();
-    TreeViewTextsVector.clear();
     // TODO : 
     // Optimisze the efficiency
     if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
@@ -32,7 +28,7 @@ void ScriptSort::LoadAllTriggers()
 
 void ScriptSort::Clear()
 {
-    TreeView_DeleteAllItems(this->GetHwnd());
+    TreeViewHelper::ClearTreeView(this->GetHwnd());
 }
 
 BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -40,19 +36,19 @@ BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     switch (lpNmTreeView->hdr.code)
     {
     case TVN_SELCHANGED:
-        if (auto pID = reinterpret_cast<const char*>(lpNmTreeView->itemNew.lParam))
+        if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
-
+            auto& pID = data->param;
             if (strlen(pID) && ExtConfigs::InitializeMap )//&& valid)
             {
                 bool Success = false;
                 if (IsWindowVisible(CNewScript::GetHandle()))
                 {
                     auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
-                    ppmfc::CString space1 = " (";
-                    ppmfc::CString space2 = ")";
+                    FString space1 = " (";
+                    FString space2 = ")";
 
-                    int idx = SendMessage(CNewScript::hSelectedScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
+                    int idx = SendMessage(CNewScript::hSelectedScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2));
                     if (idx != CB_ERR)
                     {
                         SendMessage(CNewScript::hSelectedScript, CB_SETCURSEL, idx, NULL);
@@ -63,8 +59,8 @@ BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 //{
                 //    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
-                //    ppmfc::CString space1 = " (";
-                //    ppmfc::CString space2 = ")";
+                //    FString space1 = " (";
+                //    FString space2 = ")";
                 //
                 //    int idx = SendMessage(CNewTeamTypes::hScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
                 //    if (idx != CB_ERR)
@@ -156,7 +152,7 @@ bool ScriptSort::IsVisible() const
 void ScriptSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
-    std::string prefix = "";
+    FString prefix = "";
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -165,17 +161,20 @@ void ScriptSort::Menu_AddTrigger()
             TVITEM tvi;
             tvi.hItem = hItem;
             TreeView_GetItem(this->GetHwnd(), &tvi);
-            if (pID = reinterpret_cast<const char*>(tvi.lParam))
+            if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
+            {
+                pID = data->param.c_str();
                 break;
+            }
             hItem = TreeView_GetChild(this->GetHwnd(), hItem);
             if (hItem == NULL)
             {
-                this->m_strPrefix = prefix.c_str();
+                this->m_strPrefix = prefix;
                 return;
             }
         }
 
-        ppmfc::CString buffer;
+        FString buffer;
         prefix += "[";
         for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
@@ -188,10 +187,10 @@ void ScriptSort::Menu_AddTrigger()
         else
             prefix = "";
     }
-    this->m_strPrefix = prefix.c_str();
+    this->m_strPrefix = prefix;
 }
 
-const ppmfc::CString& ScriptSort::GetCurrentPrefix() const
+const FString& ScriptSort::GetCurrentPrefix() const
 {
     return this->m_strPrefix;
 }
@@ -232,21 +231,18 @@ HTREEITEM ScriptSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
     return NULL;
 }
 
-std::vector<ppmfc::CString> ScriptSort::GetGroup(ppmfc::CString triggerId, ppmfc::CString& name) const
+std::vector<FString> ScriptSort::GetGroup(FString triggerId, FString& name) const
 {
-    //dont change this
-    auto name2 = std::string(CINI::CurrentDocument->GetString(triggerId, "Name", ""));
-    ppmfc::CString pSrc = name2.c_str();
+    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
 
-    auto ret = std::vector<ppmfc::CString>{};
-    //pSrc = ret[2];
+    auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');
     int nEnd = pSrc.Find(']');
     if (nStart < nEnd && nStart == 0)
     {
         name = pSrc.Mid(nEnd + 1);
         pSrc = pSrc.Mid(nStart + 1, nEnd - nStart - 1);
-        ret = STDHelpers::SplitString(pSrc, ".");
+        ret = FString::SplitString(pSrc, ".");
         return ret;
     }
     else
@@ -256,11 +252,10 @@ std::vector<ppmfc::CString> ScriptSort::GetGroup(ppmfc::CString triggerId, ppmfc
     return ret;
 }
 
-void ScriptSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name, ppmfc::CString id) const
+void ScriptSort::AddTrigger(std::vector<FString> group, FString name, FString id) const
 {
-    TreeViewTextsVector.push_back(group);
     HTREEITEM hParent = TVI_ROOT;
-    for (auto& node : TreeViewTextsVector.back())
+    for (auto& node : group)
     {
         if (HTREEITEM hNode = this->FindLabel(hParent, node))
         {
@@ -269,13 +264,7 @@ void ScriptSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString na
         }
         else
         {
-            TVINSERTSTRUCT tvis;
-            tvis.hInsertAfter = TVI_SORT;
-            tvis.hParent = hParent;
-            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-            tvis.item.lParam = NULL;
-            tvis.item.pszText = node.m_pchData;
-            hParent = TreeView_InsertItem(this->GetHwnd(), &tvis);
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, "", hParent);
         }
     }
 
@@ -285,63 +274,24 @@ void ScriptSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString na
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
-            ppmfc::CString text = item.pszText;
+            FString text = item.pszText;
             text += " (" + id + ")";
-            TreeViewTexts.push_back(text);
-            item.pszText = TreeViewTexts.back().m_pchData;
-            TreeViewTexts.push_back(id);
-            item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-            TreeView_SetItem(this->GetHwnd(), &item);
+            TreeViewHelper::UpdateTreeItem(this->GetHwnd(), hNode, text, id);
         }
     }
     else
     {
-        TVINSERTSTRUCT tvis;
-        tvis.hInsertAfter = TVI_SORT;
-        tvis.hParent = hParent;
-        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-        ppmfc::CString text = name;
-        text += " (" + id + ")";
-        TreeViewTexts.push_back(text);
-        tvis.item.pszText = TreeViewTexts.back().m_pchData;
-        TreeViewTexts.push_back(id);
-        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-        TreeView_InsertItem(this->GetHwnd(), &tvis);
+        TreeViewHelper::InsertTreeItem(this->GetHwnd(), name + " (" + id + ")", id, hParent);
     }
 }
 
-void ScriptSort::AddTrigger(ppmfc::CString triggerId) const
+void ScriptSort::AddTrigger(FString triggerId) const
 {
     if (this->IsVisible())
     {
-        ppmfc::CString name;
+        FString name;
         auto group = this->GetGroup(triggerId, name);
 
         this->AddTrigger(group, name, triggerId);
     }
 }
-
-void ScriptSort::DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent) const
-{
-    if (this->IsVisible())
-    {
-        TVITEM tvi;
-
-        for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-            tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-        {
-            tvi.mask = TVIF_PARAM | TVIF_CHILDREN;
-            if (TreeView_GetItem(this->GetHwnd(), &tvi))
-            {
-                if (tvi.lParam && strcmp((const char*)tvi.lParam, triggerId) == 0)
-                {
-                    TreeView_DeleteItem(this->GetHwnd(), tvi.hItem);
-                    return;
-                }
-                if (tvi.cChildren)
-                    this->DeleteTrigger(triggerId, tvi.hItem);
-            }
-        }
-    }
-}
-

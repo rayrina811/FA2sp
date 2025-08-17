@@ -11,32 +11,29 @@
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
 
 TagSort TagSort::Instance;
-std::unordered_set<ppmfc::CString> TagSort::attachedTriggers;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::BuildingTags;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::AircraftTags;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::UnitTags;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::InfantryTags;
-std::unordered_map<ppmfc::CString, ppmfc::CString> TagSort::TagTriggers;
-std::unordered_map<ppmfc::CString, ppmfc::CString> TagSort::TriggerTags;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::TriggerTagsParent;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::CellTagTags;
-std::unordered_map<ppmfc::CString, std::vector<ppmfc::CString>> TagSort::TeamTags;
-std::vector<ppmfc::CString> TagSort::TreeViewTexts;
-std::vector<std::vector<ppmfc::CString>> TagSort::TreeViewTextsVector;
+std::unordered_set<FString> TagSort::attachedTriggers;
+std::unordered_map<FString, std::vector<FString>> TagSort::BuildingTags;
+std::unordered_map<FString, std::vector<FString>> TagSort::AircraftTags;
+std::unordered_map<FString, std::vector<FString>> TagSort::UnitTags;
+std::unordered_map<FString, std::vector<FString>> TagSort::InfantryTags;
+std::unordered_map<FString, FString> TagSort::TagTriggers;
+std::unordered_map<FString, FString> TagSort::TriggerTags;
+std::unordered_map<FString, std::vector<FString>> TagSort::TriggerTagsParent;
+std::unordered_map<FString, std::vector<FString>> TagSort::CellTagTags;
+std::unordered_map<FString, std::vector<FString>> TagSort::TeamTags;
+
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 void TagSort::LoadAllTriggers()
 {
     ExtConfigs::InitializeMap = false;
     this->Clear();
-    TreeViewTexts.clear();
-    TreeViewTextsVector.clear();
     BuildingTags.clear();
     if (auto pObjSection = CINI::CurrentDocument->GetSection("Structures"))
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 6)
             {
                 if (atoms[6] != "<none>")
@@ -49,7 +46,7 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 7)
             {
                 if (atoms[7] != "<none>")
@@ -62,7 +59,7 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 7)
             {
                 if (atoms[7] != "<none>")
@@ -75,7 +72,7 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 8)
             {
                 if (atoms[8] != "<none>")
@@ -108,14 +105,14 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 2)
             {
                 if (atoms[1] != "<none>")
                 {
                     for (auto& pair2 : pObjSection->GetEntities())
                     {
-                        if (pair2.first == atoms[1])
+                        if (atoms[1] == pair2.first)
                         {
                             TriggerTags[pair.first] = pair2.first;
                             break;
@@ -130,7 +127,7 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 2)
             {
                 if (atoms[1]!= "<none>")
@@ -143,14 +140,14 @@ void TagSort::LoadAllTriggers()
     {
         for (auto& pair : pObjSection->GetEntities())
         {
-            auto atoms = STDHelpers::SplitString(pair.second);
+            auto atoms = FString::SplitString(pair.second);
             if (atoms.size() > 2)
             {
                 if (auto pObjSection = CINI::CurrentDocument->GetSection("Triggers"))
                 {
                     for (auto& pair2 : pObjSection->GetEntities())
                     {
-                        if (pair2.first == atoms[2])
+                        if (atoms[2] == pair2.first)
                         {
                             TagTriggers[pair.first] = pair2.first;
                             break;
@@ -175,7 +172,7 @@ void TagSort::LoadAllTriggers()
 
 void TagSort::Clear()
 {
-    TreeView_DeleteAllItems(this->GetHwnd());
+    TreeViewHelper::ClearTreeView(this->GetHwnd());
 }
 
 BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -183,8 +180,9 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     switch (lpNmTreeView->hdr.code)
     {
     case TVN_SELCHANGED:
-        if (auto pID = reinterpret_cast<const char*>(lpNmTreeView->itemNew.lParam))
+        if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            auto& pID = data->param;
             bool finished = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
@@ -192,12 +190,12 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 if (IsWindowVisible(CFinalSunDlg::Instance->Tags.m_hWnd))
                 {
                     
-                    auto pStr = CINI::CurrentDocument->GetString("Tags", pID);
+                    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
 
-                    auto results = STDHelpers::SplitString(pStr);
+                    auto results = FString::SplitString(pStr);
                     if (results.size() >= 3)
                     {
-                        ppmfc::CString pIDs = pID;
+                        FString pIDs = pID;
                         pStr = pIDs + " (" + results[1] + ")";
                         auto idx = CFinalSunDlg::Instance->Tags.CCBTagList.FindStringExact(0, pStr);
                         if (idx != CB_ERR)
@@ -218,12 +216,12 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 //else if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 //{
-                //    auto pStr = CINI::CurrentDocument->GetString("Tags", pID);
-                //    auto results = STDHelpers::SplitString(pStr);
+                //    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
+                //    auto results = FString::SplitString(pStr);
                 //    if (results.size() >= 3)
                 //    {
-                //        ppmfc::CString space1 = " (";
-                //        ppmfc::CString space2 = ")";
+                //        FString space1 = " (";
+                //        FString space2 = ")";
                 //
                 //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).m_pchData);
                 //        if (idx != CB_ERR)
@@ -236,12 +234,12 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //}
                 //else if (IsWindowVisible(CNewTrigger::GetHandle()))
                 //{
-                //    auto pStr = CINI::CurrentDocument->GetString("Tags", pID);
+                //    FString pStr = CINI::CurrentDocument->GetString("Tags", pID);
                 //
-                //    auto results = STDHelpers::SplitString(pStr);
+                //    auto results = FString::SplitString(pStr);
                 //    if (results.size() >= 3)
                 //    {
-                //        ppmfc::CString pIDs = pID;
+                //        FString pIDs = pID;
                 //        pStr = pIDs + " - " + results[1];
                 //        for (int i = 0; i < EVENT_PARAM_COUNT; i++)
                 //        {
@@ -267,14 +265,14 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //}
                 if (IsWindowVisible(CNewTrigger::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString("Triggers", pID);
-                    auto results = STDHelpers::SplitString(pStr);
+                    FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
+                    auto results = FString::SplitString(pStr);
                     if (results.size() > 3)
                     {
                         pStr = results[2];
-                        ppmfc::CString tmp = pStr;
+                        FString tmp = pStr;
                         pStr.Format("%s (%s)", pID, tmp);
-                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
                         if (idx != CB_ERR)
                         {
                             SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
@@ -285,11 +283,11 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
-                    ppmfc::CString space1 = " (";
-                    ppmfc::CString space2 = ")";
+                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString space1 = " (";
+                    FString space2 = ")";
 
-                    int idx = SendMessage(CNewTeamTypes::hSelectedTeam, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
+                    int idx = SendMessage(CNewTeamTypes::hSelectedTeam, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2));
                     if (idx != CB_ERR)
                     {
                         SendMessage(CNewTeamTypes::hSelectedTeam, CB_SETCURSEL, idx, NULL);
@@ -299,8 +297,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
 
                 }
 
-
-                auto atoms = STDHelpers::SplitString(pID);
+                auto atoms = FString::SplitString(pID);
                 if (atoms.size() >= 12)
                 {
                     auto& name = atoms[1];
@@ -317,7 +314,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     auto veh = mmh.GetSection("VehicleTypes");
                     for (auto& pair : air)
                     {
-                        if (pair.second == name)
+                        if (name == pair.second)
                         {
                             SearchObjectType = FindType::Aircraft;
                             break;
@@ -326,7 +323,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     if (SearchObjectType == -1)
                         for (auto& pair : inf)
                         {
-                            if (pair.second == name)
+                            if (name == pair.second)
                             {
                                 SearchObjectType = FindType::Infantry;
                                 break;
@@ -335,7 +332,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     if (SearchObjectType == -1)
                         for (auto& pair : str)
                         {
-                            if (pair.second == name)
+                            if (name == pair.second)
                             {
                                 SearchObjectType = FindType::Structure;
                                 break;
@@ -344,7 +341,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                     if (SearchObjectType == -1)
                         for (auto& pair : veh)
                         {
-                            if (pair.second == name)
+                            if (name == pair.second)
                             {
                                 SearchObjectType = FindType::Unit;
                                 break;
@@ -478,7 +475,7 @@ bool TagSort::IsVisible() const
 void TagSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
-    std::string prefix = "";
+    FString prefix = "";
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -487,17 +484,20 @@ void TagSort::Menu_AddTrigger()
             TVITEM tvi;
             tvi.hItem = hItem;
             TreeView_GetItem(this->GetHwnd(), &tvi);
-            if (pID = reinterpret_cast<const char*>(tvi.lParam))
+            if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
+            {
+                pID = data->param.c_str();
                 break;
+            }
             hItem = TreeView_GetChild(this->GetHwnd(), hItem);
             if (hItem == NULL)
             {
-                this->m_strPrefix = prefix.c_str();
+                this->m_strPrefix = prefix;
                 return;
             }
         }
 
-        ppmfc::CString buffer;
+        FString buffer;
         prefix += "[";
         for (auto& group : this->GetGroup(pID, buffer))
             prefix += group + ".";
@@ -510,10 +510,10 @@ void TagSort::Menu_AddTrigger()
         else
             prefix = "";
     }
-    this->m_strPrefix = prefix.c_str();
+    this->m_strPrefix = prefix;
 }
 
-const ppmfc::CString& TagSort::GetCurrentPrefix() const
+const FString& TagSort::GetCurrentPrefix() const
 {
     return this->m_strPrefix;
 }
@@ -554,11 +554,11 @@ HTREEITEM TagSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
     return NULL;
 }
 
-std::vector<ppmfc::CString> TagSort::GetGroup(ppmfc::CString triggerId, ppmfc::CString& name) const
+std::vector<FString> TagSort::GetGroup(FString triggerId, FString& name) const
 {
-    auto pSrc = CINI::CurrentDocument->GetString("Tags", triggerId, "");
+    FString pSrc = CINI::CurrentDocument->GetString("Tags", triggerId, "");
 
-    auto ret = STDHelpers::SplitString(pSrc, 1);
+    auto ret = FString::SplitString(pSrc, 1);
     pSrc = ret[1];
     int nStart = pSrc.Find('[');
     int nEnd = pSrc.Find(']');
@@ -566,7 +566,7 @@ std::vector<ppmfc::CString> TagSort::GetGroup(ppmfc::CString triggerId, ppmfc::C
     {
         name = pSrc.Mid(nEnd + 1);
         pSrc = pSrc.Mid(nStart + 1, nEnd - nStart - 1);
-        ret = STDHelpers::SplitString(pSrc, ".");
+        ret = FString::SplitString(pSrc, ".");
         return ret;
     }
     else
@@ -575,24 +575,17 @@ std::vector<ppmfc::CString> TagSort::GetGroup(ppmfc::CString triggerId, ppmfc::C
     ret.clear();
     return ret;
 }
-void TagSort::AddAttachedTrigger(HTREEITEM hParent, ppmfc::CString triggerID, ppmfc::CString parentName) const
+
+void TagSort::AddAttachedTrigger(HTREEITEM hParent, FString triggerID, FString parentName) const
 {
 
     if (attachedTriggers.find(TriggerTags[triggerID]) != attachedTriggers.end())
     {
         if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
         {
-            ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+            FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
             hParent = hNode;
-            TVINSERTSTRUCT tvis;
-            tvis.hInsertAfter = TVI_SORT;
-            tvis.hParent = hParent;
-            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-            TreeViewTexts.push_back(pTrigger2);
-            tvis.item.pszText = TreeViewTexts.back().m_pchData;
-            tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-            TreeView_InsertItem(this->GetHwnd(), &tvis);
-
+            TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
             return;
         }  
     }
@@ -600,33 +593,21 @@ void TagSort::AddAttachedTrigger(HTREEITEM hParent, ppmfc::CString triggerID, pp
     if (TriggerTags[triggerID] != "")
         if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
         {
-            auto pTrigger2 = CINI::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
-            auto RET2 = STDHelpers::SplitString(pTrigger2, 2);
+            FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", TriggerTags[triggerID], "");
+            auto RET2 = FString::SplitString(pTrigger2, 2);
             pTrigger2 = RET2[2];
-
-            pTrigger2 = ppmfc::CString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2;
+            pTrigger2 = FString(Translations::TranslateOrDefault("Sort.AttachedTrigger", "Attached Trigger:")) + " " + pTrigger2;
             hParent = hNode;
-            TVINSERTSTRUCT tvis;
-            tvis.hInsertAfter = TVI_SORT;
-            tvis.hParent = hParent;
-            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
             pTrigger2 += " (" + TriggerTags[triggerID] + ")";
-            TreeViewTexts.push_back(pTrigger2);
-            tvis.item.pszText = TreeViewTexts.back().m_pchData;
-            tvis.item.lParam = (LPARAM)TriggerTags[triggerID].m_pchData;
-            TreeView_InsertItem(this->GetHwnd(), &tvis);
-
-
+            TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, TriggerTags[triggerID], hParent);
             attachedTriggers.insert(TriggerTags[triggerID]);
-
             AddAttachedTrigger(hParent, TriggerTags[triggerID], pTrigger2);
-
         }
 
 
 }
 
-void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString triggerID, ppmfc::CString parentName) const
+void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, FString triggerID, FString parentName) const
 {
     auto hParent2 = hParent;
     if (TriggerTagsParent[triggerID].size() > 0)
@@ -638,41 +619,22 @@ void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString trigge
                 {
                     if (HTREEITEM hNode = this->FindLabel(hParent, parentName))
                     {
-                        ppmfc::CString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
+                        FString pTrigger2 = Translations::TranslateOrDefault("Sort.DetectedLoopedTrigger", "Detected Looped Trigger!");
                         hParent = hNode;
-                        TVINSERTSTRUCT tvis;
-                        tvis.hInsertAfter = TVI_SORT;
-                        tvis.hParent = hParent;
-                        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-                        TreeViewTexts.push_back(pTrigger2);
-                        tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                        TreeView_InsertItem(this->GetHwnd(), &tvis);
-
+                        TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, pTrigger2, hParent);
                         return;
                     }
                 }
 
-                auto pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
-                auto RET2 = STDHelpers::SplitString(pTrigger2, 2);
+                FString pTrigger2 = CINI::CurrentDocument->GetString("Triggers", parentTrigger, "");
+                auto RET2 = FString::SplitString(pTrigger2, 2);
                 pTrigger2 = RET2[2];
 
-                pTrigger2 = ppmfc::CString(Translations::TranslateOrDefault("Sort.TriggerAttachedTo", "Trigger Attached To:")) + " " + pTrigger2;
+                pTrigger2 = FString(Translations::TranslateOrDefault("Sort.TriggerAttachedTo", "Trigger Attached To:")) + " " + pTrigger2;
                 hParent = hNode;
-                TVINSERTSTRUCT tvis;
-                tvis.hInsertAfter = TVI_SORT;
-                tvis.hParent = hParent;
-                tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-
                 pTrigger2 += " (" + parentTrigger + ")";
-                TreeViewTexts.push_back(pTrigger2);
-                tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                TreeViewTexts.push_back(parentTrigger);
-                tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                TreeView_InsertItem(this->GetHwnd(), &tvis);
-
+                TreeViewHelper::InsertTreeItem(this->GetHwnd(), pTrigger2, parentTrigger, hParent);
                 attachedTriggers.insert(parentTrigger);
-
                 AddAttachedTriggerReverse(hParent, parentTrigger, pTrigger2);
             }
         }
@@ -680,16 +642,17 @@ void TagSort::AddAttachedTriggerReverse(HTREEITEM hParent, ppmfc::CString trigge
 
 }
 
-void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name, ppmfc::CString id) const
+void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) const
 {
-    TreeViewTextsVector.push_back(group);
     HTREEITEM hParent = TVI_ROOT;
     bool first = true;
     bool attached = false;
-    if (AircraftTags[id].size() > 0 || UnitTags[id].size() > 0 || InfantryTags[id].size() > 0 || BuildingTags[id].size() > 0 || TeamTags[id].size() > 0 || CellTagTags[id].size() > 0)
+    if (AircraftTags[id].size() > 0 || UnitTags[id].size() > 0 
+        || InfantryTags[id].size() > 0 || BuildingTags[id].size() > 0 
+        || TeamTags[id].size() > 0 || CellTagTags[id].size() > 0)
         attached = true;
 
-    for (auto& node : TreeViewTextsVector.back())
+    for (auto& node : group)
     {
         if (HTREEITEM hNode = this->FindLabel(hParent, node))
         {
@@ -698,13 +661,7 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
         }
         else
         {
-            TVINSERTSTRUCT tvis;
-            tvis.hInsertAfter = TVI_SORT;
-            tvis.hParent = hParent;
-            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-            tvis.item.lParam = NULL;
-            tvis.item.pszText = node.m_pchData;
-            hParent = TreeView_InsertItem(this->GetHwnd(), &tvis);
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, "", hParent);
         }
     }
 
@@ -714,56 +671,43 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
-            ppmfc::CString text = item.pszText;
+            FString text = item.pszText;
             text += " (" + id + ")";
             if (attached)
             {
                 text += " ";
                 text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "¡ùHas Attached Object¡ù");
             }
-            TreeViewTexts.push_back(text);
-            item.pszText = TreeViewTexts.back().m_pchData;
-            TreeViewTexts.push_back(id);
-            item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-            TreeView_SetItem(this->GetHwnd(), &item);
+            TreeViewHelper::UpdateTreeItem(this->GetHwnd(), item.hItem, text, id);
         }
     }
     else
     {
-        TVINSERTSTRUCT tvis;
-        tvis.hInsertAfter = TVI_SORT;
-        tvis.hParent = hParent;
-        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-        ppmfc::CString text = name;
+        FString text = name;
         text += " (" + id + ")";
         if (attached)
         {
             text += " ";
             text += Translations::TranslateOrDefault("Sort.HasAttachedObject", "¡ùHas Attached Object¡ù");
         }
-        TreeViewTexts.push_back(text);
-        tvis.item.pszText = TreeViewTexts.back().m_pchData;
-        TreeViewTexts.push_back(id);
-        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-        TreeView_InsertItem(this->GetHwnd(), &tvis);
+        TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, id, hParent);
 
         auto tag = CINI::CurrentDocument->GetString("Tags", id);
-        auto atoms = STDHelpers::SplitString(tag);
-        if (ExtConfigs::TagList_AttachedObjects)
+        auto atoms = FString::SplitString(tag);
         if (atoms.size() >= 3)
         {
             auto& triggerID = atoms[2];
             if (!CINI::CurrentDocument->SectionExists("Triggers"))
                 return;
 
-            auto pSrc = CINI::CurrentDocument->GetString("Triggers", triggerID, "");
+            FString pSrc = CINI::CurrentDocument->GetString("Triggers", triggerID, "");
 
             if (pSrc == "")
                 return;
-            auto ret = STDHelpers::SplitString(pSrc, 2);
+            auto ret = FString::SplitString(pSrc, 2);
             pSrc = ret[2];
 
-            pSrc = ppmfc::CString(Translations::TranslateOrDefault("Sort.Trigger", "Trigger:")) + " " + pSrc;
+            pSrc = FString(Translations::TranslateOrDefault("Sort.Trigger", "Trigger:")) + " " + pSrc;
 
             if (HTREEITEM hNode = this->FindLabel(hParent, text))
             {
@@ -771,18 +715,9 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                 attachedTriggers.clear();
                 if (TagTriggers[id] != "")
                 {
-                    TVINSERTSTRUCT tvis2;
-                    tvis2.hInsertAfter = TVI_SORT;
-                    tvis2.hParent = hParent;
-                    tvis2.item.mask = TVIF_TEXT | TVIF_PARAM;
                     pSrc += " (" + TagTriggers[id] + ")";
-                    TreeViewTexts.push_back(pSrc);
-                    tvis2.item.pszText = TreeViewTexts.back().m_pchData;
-                    tvis2.item.lParam = (LPARAM)TagTriggers[id].m_pchData;
-                    TreeView_InsertItem(this->GetHwnd(), &tvis2);
-
+                    TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, TagTriggers[id], hParent);
                     attachedTriggers.insert(triggerID);
-
                     AddAttachedTrigger(hParent, triggerID, pSrc);
                 }
 
@@ -793,43 +728,27 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                 AddAttachedTriggerReverse(hParent, triggerID, pSrc);
 
                 first = true;
-                ppmfc::CString objList = Translations::TranslateOrDefault("Sort.Aircraft", "Aircraft");
+                FString objList = Translations::TranslateOrDefault("Sort.Aircraft", "Aircraft");
                 HTREEITEM hParentObj = hParent;
                 if (AircraftTags[id].size() > 0)
                 {
                     for (auto& pairObj : AircraftTags[id])
                     {
-                        auto atomsObj = STDHelpers::SplitString(pairObj);
+                        auto atomsObj = FString::SplitString(pairObj);
 
                         if (first)
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
-
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
                             first = false;
                         }
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            ppmfc::CString uiname = CMapData::GetUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
+                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(pairObj);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
                     }
                 }
@@ -840,38 +759,21 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                 {
                     for (auto& pairObj : BuildingTags[id])
                     {
-                        auto atomsObj = STDHelpers::SplitString(pairObj);
+                        auto atomsObj = FString::SplitString(pairObj);
 
                         if (first)
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
-
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
                             first = false;
                         }
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            ppmfc::CString uiname = CMapData::GetUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
-
+                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(pairObj);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
                     }
                 }
@@ -883,44 +785,25 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                 {
                     for (auto& pairObj : InfantryTags[id])
                     {
-                        auto atomsObj = STDHelpers::SplitString(pairObj);
+                        auto atomsObj = FString::SplitString(pairObj);
 
                         if (first)
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
-
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
                             first = false;
                         }
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            ppmfc::CString uiname = CMapData::GetUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
-
-                            ;
+                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(pairObj);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
                     }
                 }
                    
-
                 first = true;
                 objList = Translations::TranslateOrDefault("Sort.Vehicle", "Vehicle");
                 hParentObj = hParent;
@@ -928,39 +811,22 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                 {
                     for (auto& pairObj : UnitTags[id])
                     {
-                        auto atomsObj = STDHelpers::SplitString(pairObj);
+                        auto atomsObj = FString::SplitString(pairObj);
 
                         if (first)
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
 
                             first = false;
                         }
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            ppmfc::CString uiname = CMapData::GetUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
-
-                            ;
+                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(pairObj);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
                     }
                 }
@@ -977,32 +843,17 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                         {
                             hParentTeam = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
-
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
                             first = false;
                         }
 
                         if (HTREEITEM hNode = this->FindLabel(hParentTeam, objList))
                         {
-                            ppmfc::CString uiname = CINI::CurrentDocument->GetString(teamID, "Name") + " (" + teamID + ")";
+                            FString uiname = FString(CINI::CurrentDocument->GetString(teamID, "Name")) + " (" + teamID + ")";
 
                             hParent = hNode;
                             TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(teamID);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, teamID, hParent);
                         }
 
                     }
@@ -1019,15 +870,7 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
                         {
                             hParentObj = hNode;
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(objList);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
-
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), objList, objList, hParent);
                             first = false;
                         }
 
@@ -1037,62 +880,26 @@ void TagSort::AddTrigger(std::vector<ppmfc::CString> group, ppmfc::CString name,
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            ppmfc::CString uiname;
+                            FString uiname;
                             uiname.Format(Translations::TranslateOrDefault("Sort.CellTagCoord", "Coordinate: %d, %d"), X, Y);
-
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
-                            tvis3.hInsertAfter = TVI_SORT;
-                            tvis3.hParent = hParent;
-                            tvis3.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(uiname);
-                            tvis3.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(celltag);
-                            tvis3.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis3);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, celltag, hParent);
                         }
                     }
-
             }
-
         }
-
     }
 }
 
-void TagSort::AddTrigger(ppmfc::CString triggerId) const
+void TagSort::AddTrigger(FString triggerId) const
 {
     if (this->IsVisible())
     {
-        ppmfc::CString name;
+        FString name;
         auto group = this->GetGroup(triggerId, name);
         
         this->AddTrigger(group, name, triggerId);
 
-    }
-}
-
-void TagSort::DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent) const
-{
-    if (this->IsVisible())
-    {
-        TVITEM tvi;
-
-        for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-            tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-        {
-            tvi.mask = TVIF_PARAM | TVIF_CHILDREN;
-            if (TreeView_GetItem(this->GetHwnd(), &tvi))
-            {
-                if (tvi.lParam && strcmp((const char*)tvi.lParam, triggerId) == 0)
-                {
-                    TreeView_DeleteItem(this->GetHwnd(), tvi.hItem);
-                    return;
-                }
-                if (tvi.cChildren)
-                    this->DeleteTrigger(triggerId, tvi.hItem);
-            }
-        }
     }
 }
 

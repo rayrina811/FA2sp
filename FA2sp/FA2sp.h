@@ -150,8 +150,6 @@ public:
     static bool ExtendedValidationAres;
     static bool AIRepairDefaultYes;
     static bool AISellableDefaultYes;
-    static bool TriggerList_AttachedTriggers;
-    static bool TagList_AttachedObjects;
     static bool SaveMaps_BetterMapPreview;
     static bool ShowMapBoundInMiniMap;
     static bool CursorSelectionBound_AutoColor;

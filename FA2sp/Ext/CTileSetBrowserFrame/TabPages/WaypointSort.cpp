@@ -16,15 +16,11 @@
 #include "../../../ExtraWindow/CNewScript/CNewScript.h"
 
 WaypointSort WaypointSort::Instance;
-std::vector<ppmfc::CString> WaypointSort::TreeViewTexts;
-std::vector<std::vector<ppmfc::CString>> WaypointSort::TreeViewTextsVector;
 
 void WaypointSort::LoadAllTriggers()
 {
     ExtConfigs::InitializeMap = false;
     this->Clear();
-    TreeViewTexts.clear();
-    TreeViewTextsVector.clear();
     // TODO : 
     // Optimisze the efficiency
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
@@ -43,7 +39,7 @@ void WaypointSort::LoadAllTriggers()
 
 void WaypointSort::Clear()
 {
-    TreeView_DeleteAllItems(this->GetHwnd());
+    TreeViewHelper::ClearTreeView(this->GetHwnd());
 }
 
 BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -51,10 +47,10 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     switch (lpNmTreeView->hdr.code)
     {
     case TVN_SELCHANGED:
-        if (auto pID = reinterpret_cast<const char*>(lpNmTreeView->itemNew.lParam))
+        if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            auto& pID = data->param;
             bool Success = false;
-
             if (strlen(pID) && ExtConfigs::InitializeMap)
             {
                 auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
@@ -71,14 +67,14 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTrigger::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString("Triggers", pID);
-                    auto results = STDHelpers::SplitString(pStr);
+                    FString pStr = CINI::CurrentDocument->GetString("Triggers", pID);
+                    auto results = FString::SplitString(pStr);
                     if (results.size() > 3)
                     {
                         pStr = results[2];
-                        ppmfc::CString tmp = pStr;
+                        FString tmp = pStr;
                         pStr.Format("%s (%s)", pID, tmp);
-                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                        auto idx = SendMessage(CNewTrigger::hSelectedTrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)pStr);
                         if (idx != CB_ERR)
                         {
                             SendMessage(CNewTrigger::hSelectedTrigger, CB_SETCURSEL, idx, NULL);
@@ -89,11 +85,11 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewScript::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
-                    ppmfc::CString space1 = " (";
-                    ppmfc::CString space2 = ")";
+                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString space1 = " (";
+                    FString space2 = ")";
 
-                    int idx = SendMessage(CNewScript::hSelectedScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
+                    int idx = SendMessage(CNewScript::hSelectedScript, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2));
                     if (idx != CB_ERR)
                     {
                         SendMessage(CNewScript::hSelectedScript, CB_SETCURSEL, idx, NULL);
@@ -103,11 +99,11 @@ BOOL WaypointSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 }
                 if (IsWindowVisible(CNewTeamTypes::GetHandle()))
                 {
-                    auto pStr = CINI::CurrentDocument->GetString(pID, "Name");
-                    ppmfc::CString space1 = " (";
-                    ppmfc::CString space2 = ")";
+                    FString pStr = CINI::CurrentDocument->GetString(pID, "Name");
+                    FString space1 = " (";
+                    FString space2 = ")";
 
-                    int idx = SendMessage(CNewTeamTypes::hSelectedTeam, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2).m_pchData);
+                    int idx = SendMessage(CNewTeamTypes::hSelectedTeam, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + pStr + space2));
                     if (idx != CB_ERR)
                     {
                         SendMessage(CNewTeamTypes::hSelectedTeam, CB_SETCURSEL, idx, NULL);
@@ -193,7 +189,7 @@ bool WaypointSort::IsVisible() const
     return this->IsValid() && ::IsWindowVisible(this->m_hWnd);
 }
 
-const ppmfc::CString& WaypointSort::GetCurrentPrefix() const
+const FString& WaypointSort::GetCurrentPrefix() const
 {
     return this->m_strPrefix;
 }
@@ -234,21 +230,18 @@ HTREEITEM WaypointSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
     return NULL;
 }
 
-std::vector<ppmfc::CString> WaypointSort::GetGroup(ppmfc::CString triggerId, ppmfc::CString& name) const
+std::vector<FString> WaypointSort::GetGroup(FString triggerId, FString& name) const
 {
-    //dont change this
-    auto name2 = std::string(CINI::CurrentDocument->GetString(triggerId, "Name", ""));
-    ppmfc::CString pSrc = name2.c_str();
+    FString pSrc = CINI::CurrentDocument->GetString(triggerId, "Name", "");
 
-    auto ret = std::vector<ppmfc::CString>{};
-    //pSrc = ret[2];
+    auto ret = std::vector<FString>{};
     int nStart = pSrc.Find('[');
     int nEnd = pSrc.Find(']');
     if (nStart < nEnd && nStart == 0)
     {
         name = pSrc.Mid(nEnd + 1);
         pSrc = pSrc.Mid(nStart + 1, nEnd - nStart - 1);
-        ret = STDHelpers::SplitString(pSrc, ".");
+        ret = FString::SplitString(pSrc, ".");
         return ret;
     }
     else
@@ -258,32 +251,22 @@ std::vector<ppmfc::CString> WaypointSort::GetGroup(ppmfc::CString triggerId, ppm
     return ret;
 }
 
-
-void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
+void WaypointSort::AddTrigger(FString triggerId, int x, int y) const
 {
     if (this->IsVisible())
     {
         auto name2 = atoi(triggerId);
-        ppmfc::CString pSrc;
+        FString pSrc;
         pSrc.Format("%03d (%d, %d)", name2, x, y);
         
 
         auto hParent = TVI_ROOT;
-        TVINSERTSTRUCT tvis;
-        tvis.hInsertAfter = TVI_SORT;
-        tvis.hParent = hParent;
-        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-        TreeViewTexts.push_back(pSrc);
-        tvis.item.pszText = TreeViewTexts.back().m_pchData;
-
-        TreeViewTexts.push_back(triggerId);
-        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-        TreeView_InsertItem(this->GetHwnd(), &tvis);
+        TreeViewHelper::InsertTreeItem(this->GetHwnd(), pSrc, triggerId, hParent);
 
         if (HTREEITEM hNode = this->FindLabel(hParent, pSrc))
         {
             hParent = hNode;
-            ppmfc::CString pWP;
+            FString pWP;
             pWP.Format("%d", name2);
             auto process = [](const char* s)
                 {
@@ -307,14 +290,13 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                 bool addAction = false;
                 for (auto& thisEvent : trigger->Events)
                 {
-
-                    auto eventInfos = STDHelpers::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-                    ppmfc::CString paramType[2];
+                    auto eventInfos = FString::SplitString(CINI::FAData->GetString("EventsRA2", thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+                    FString paramType[2];
                     paramType[0] = eventInfos[1];
                     paramType[1] = eventInfos[2];
-                    std::vector<ppmfc::CString> pParamTypes[2];
-                    pParamTypes[0] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
-                    pParamTypes[1] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
+                    std::vector<FString> pParamTypes[2];
+                    pParamTypes[0] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[0], "MISSING,0"));
+                    pParamTypes[1] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[1], "MISSING,0"));
                     FString thisWp = "-1";
                     if (thisEvent.Params[0] == "2")
                     {
@@ -340,31 +322,24 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                 }
                 if (addEvent)
                 {
-                    tvis.hInsertAfter = TVI_SORT;
-                    tvis.hParent = hParent;
-                    tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-
-                    ppmfc::CString text;
+                    FString text;
                     text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
                         "Event: %s (%s)"), trigger->Name, trigger->ID);
-                    TreeViewTexts.push_back(text);
-                    tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                    TreeViewTexts.push_back(trigger->ID);
-                    tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                    TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+                    TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, trigger->ID, hParent);
                 }
 
                 for (auto& thisAction : trigger->Actions)
                 {
-                    auto actionInfos = STDHelpers::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+                    auto actionInfos = FString::SplitString(CINI::FAData->GetString("ActionsRA2", thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
                     FString thisWp = "-1";
-                    ppmfc::CString paramType[7];
+                    FString paramType[7];
                     for (int i = 0; i < 7; i++)
                         paramType[i] = actionInfos[i + 1];
 
-                    std::vector<ppmfc::CString> pParamTypes[6];
+                    std::vector<FString> pParamTypes[6];
                     for (int i = 0; i < 6; i++)
-                        pParamTypes[i] = STDHelpers::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
+                        pParamTypes[i] = FString::SplitString(CINI::FAData->GetString("ParamTypes", paramType[i], "MISSING,0"));
 
                     thisAction.Param7isWP = true;
                     for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())
@@ -390,24 +365,16 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                 }
                 if (addAction)
                 {
-                    tvis.hInsertAfter = TVI_SORT;
-                    tvis.hParent = hParent;
-                    tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-
-                    ppmfc::CString text;
+                    FString text;
                     text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
                         "Action: %s (%s)"), trigger->Name, trigger->ID);
-                    TreeViewTexts.push_back(text);
-                    tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                    TreeViewTexts.push_back(trigger->ID);
-                    tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                    TreeView_InsertItem(this->GetHwnd(), &tvis);
+
+                    TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, trigger->ID, hParent);
                 }
             }
 
             if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
             {
-
                 for (auto& pair : pSection->GetEntities())
                 {
                     bool add = false;
@@ -420,7 +387,7 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                         if (line == "")
                             continue;
 
-                        auto app = STDHelpers::SplitString(line);
+                        auto app = FString::SplitString(line);
                         if (app.size() != 2)
                             continue;
 
@@ -437,19 +404,10 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
                     }
                     if (add)
                     {
-                        ppmfc::CString text;
+                        FString text;
                         text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
                             "Script: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-
-                        tvis.hInsertAfter = TVI_SORT;
-                        tvis.hParent = hParent;
-                        tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-                        TreeViewTexts.push_back(text);
-                        tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                        TreeViewTexts.push_back(pair.second);
-                        tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                        TreeView_InsertItem(this->GetHwnd(), &tvis);
-
+                        TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
                     }
                 }
             }
@@ -475,11 +433,11 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
 
                     if (process(wp) == atoi(triggerId))
                     {
-                        std::vector<ppmfc::CString> skiplist;
+                        std::vector<FString> skiplist;
                         bool add = true;
                         if (ExtConfigs::Waypoint_SkipCheckList)
                         {
-                            skiplist = STDHelpers::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
+                            skiplist = FString::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
                         }
                         if (skiplist.size() > 0)
                         {
@@ -492,18 +450,10 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
 
                         if (add)
                         {
-                            ppmfc::CString text;
+                            FString text;
                             text.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                 "Team: %s (%s)"), CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-
-                            tvis.hInsertAfter = TVI_SORT;
-                            tvis.hParent = hParent;
-                            tvis.item.mask = TVIF_TEXT | TVIF_PARAM;
-                            TreeViewTexts.push_back(text);
-                            tvis.item.pszText = TreeViewTexts.back().m_pchData;
-                            TreeViewTexts.push_back(pair.second);
-                            tvis.item.lParam = (LPARAM)TreeViewTexts.back().m_pchData;
-                            TreeView_InsertItem(this->GetHwnd(), &tvis);
+                            TreeViewHelper::InsertTreeItem(this->GetHwnd(), text, pair.second, hParent);
                         }
                     }
                 }
@@ -512,27 +462,4 @@ void WaypointSort::AddTrigger(ppmfc::CString triggerId, int x, int y) const
     }
 }
 
-void WaypointSort::DeleteTrigger(ppmfc::CString triggerId, HTREEITEM hItemParent) const
-{
-    if (this->IsVisible())
-    {
-        TVITEM tvi;
-
-        for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-            tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-        {
-            tvi.mask = TVIF_PARAM | TVIF_CHILDREN;
-            if (TreeView_GetItem(this->GetHwnd(), &tvi))
-            {
-                if (tvi.lParam && strcmp((const char*)tvi.lParam, triggerId) == 0)
-                {
-                    TreeView_DeleteItem(this->GetHwnd(), tvi.hItem);
-                    return;
-                }
-                if (tvi.cChildren)
-                    this->DeleteTrigger(triggerId, tvi.hItem);
-            }
-        }
-    }
-}
 

@@ -137,8 +137,6 @@ bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
 bool ExtConfigs::ExtendedValidationAres;
 bool ExtConfigs::AIRepairDefaultYes;
 bool ExtConfigs::AISellableDefaultYes;
-bool ExtConfigs::TriggerList_AttachedTriggers;
-bool ExtConfigs::TagList_AttachedObjects;
 bool ExtConfigs::SaveMaps_BetterMapPreview;
 bool ExtConfigs::ShowMapBoundInMiniMap;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
@@ -417,9 +415,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
-
-	ExtConfigs::TriggerList_AttachedTriggers = CINI::FAData->GetBool("ExtConfigs", "TriggerList.AttachedTriggers" , true);
-	ExtConfigs::TagList_AttachedObjects = CINI::FAData->GetBool("ExtConfigs", "TagList.AttachedObjects", true);
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
 	ExtConfigs::ShowMapBoundInMiniMap = CINI::FAData->GetBool("ExtConfigs", "ShowMapBoundInMiniMap");
 
