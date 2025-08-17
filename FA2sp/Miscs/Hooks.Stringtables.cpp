@@ -251,7 +251,9 @@ std::vector<ppmfc::CString> StringtableLoader::GetLinesFromBuffer(char* buffer, 
     std::istringstream stream(fileContent);
     std::string line;
     while (std::getline(stream, line)) {
-        ret.push_back(ppmfc::CString(STDHelpers::UTF8ToANSI(line).c_str()));
+        auto lineUtf8 = FString(line); 
+        lineUtf8.toANSI();
+        ret.push_back(ppmfc::CString(lineUtf8));
     }
     return ret;
 }

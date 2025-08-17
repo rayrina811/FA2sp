@@ -56,7 +56,6 @@ public:
 
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
-	static std::string UTF8ToANSI(const std::string& utf8Str);
 	static FString ParseHouseName(const FString& src, bool bRealToUIName)
 	{
 		ppmfc::CString buffer;

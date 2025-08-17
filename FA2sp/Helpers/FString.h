@@ -168,8 +168,8 @@ public:
     FString& Trim() { return TrimLeft().TrimRight(); }
 
     template<typename... Args>
-    void Format(const FString& lpszFormat, Args&&... args) {
-        if (lpszFormat.empty()) {
+    void Format(const char* lpszFormat, Args&&... args) {
+        if (!lpszFormat || !strlen(lpszFormat)) {
             throw std::invalid_argument("Invalid format string");
         }
 
@@ -210,11 +210,17 @@ private:
         else if constexpr (std::is_same_v<U, word>) {
             vec.push_back(static_cast<int>(arg));
         }
+        else if constexpr (std::is_same_v<U, dword>) {
+            vec.push_back(static_cast<int>(arg));
+        }
         else if constexpr (std::is_same_v<U, char>) {
             vec.push_back(static_cast<int>(arg)); 
         }
         else if constexpr (std::is_same_v<U, byte>) {
             vec.push_back(static_cast<int>(arg)); 
+        }
+        else if constexpr (std::is_same_v<U, bool>) {
+            vec.push_back(static_cast<int>(arg));
         }
         else if constexpr (std::is_same_v<U, double>) {
             vec.push_back(arg);
@@ -233,15 +239,15 @@ private:
         }
     }
 
-    void FormatVImpl(const FString& format, const std::vector<std::variant<int, double, const char*, const wchar_t*>>& args) {
+    void FormatVImpl(const char* format, const std::vector<std::variant<int, double, const char*, const wchar_t*>>& args) {
         constexpr int FORCE_ANSI = 0x10000;
         constexpr int FORCE_UNICODE = 0x20000;
 
         size_t argIndex = 0;
         std::string result;
-        result.reserve(format.length() + 32);
+        result.reserve(strlen(format) + 32);
 
-        for (const char* p = format.c_str(); *p; ++p) {
+        for (const char* p = format; *p; ++p) {
             if (*p != '%') {
                 result += *p;
                 continue;
@@ -409,6 +415,48 @@ public:
         buffer[63] = '\0';
         if (Find(buffer) >= 0)
             Replace(buffer, to);
+    }
+
+    void toANSI() {
+        int wideSize = MultiByteToWideChar(CP_UTF8, 0, c_str(), -1, nullptr, 0);
+        if (wideSize == 0) {
+            clear();
+            return;
+        }
+
+        std::vector<wchar_t> wideStr(wideSize);
+        MultiByteToWideChar(CP_UTF8, 0, c_str(), -1, wideStr.data(), wideSize);
+
+        int ansiSize = WideCharToMultiByte(CP_ACP, 0, wideStr.data(), -1, nullptr, 0, nullptr, nullptr);
+        if (ansiSize == 0) {
+            clear();
+            return;
+        }
+
+        std::vector<char> ansiStr(ansiSize);
+        WideCharToMultiByte(CP_ACP, 0, wideStr.data(), -1, ansiStr.data(), ansiSize, nullptr, nullptr);
+
+        assign(ansiStr.data());
+    }
+
+    void toUTF8() {
+        int wideSize = MultiByteToWideChar(CP_ACP, 0, c_str(), -1, nullptr, 0);
+        if (wideSize == 0) {
+            return;
+        }
+
+        std::wstring wide(wideSize, 0);
+        MultiByteToWideChar(CP_ACP, 0, c_str(), -1, &wide[0], wideSize);
+
+        int utf8Size = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if (utf8Size == 0) {
+            return; 
+        }
+
+        std::vector<char> utf8(utf8Size);
+        WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, utf8.data(), utf8Size, nullptr, nullptr);
+
+        assign(utf8.data());
     }
 
     static std::vector<FString> SplitString(const FString& pSource, const char* pSplit = ",") {

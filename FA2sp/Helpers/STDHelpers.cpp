@@ -4,6 +4,7 @@
 #include <random>
 #include "../Logger.h"
 #include "../Ext/CFinalSunDlg/Body.h"
+#include "../FA2sp.h"
 
 ppmfc::CString STDHelpers::GetRandomFacing()
 {
@@ -432,28 +433,4 @@ std::wstring STDHelpers::StringToWString(const std::string& str)
     MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, &wstr[0], wideSize);
 
     return wstr;
-}
-
-std::string STDHelpers::UTF8ToANSI(const std::string& utf8Str) {
-    int wideSize = MultiByteToWideChar(CP_UTF8, 0, utf8Str.c_str(), -1, NULL, 0);
-    if (wideSize == 0) {
-        return "";
-    }
-
-    wchar_t* wideStr = new wchar_t[wideSize];
-    MultiByteToWideChar(CP_UTF8, 0, utf8Str.c_str(), -1, wideStr, wideSize);
-
-    int gbkSize = WideCharToMultiByte(CP_ACP, 0, wideStr, -1, NULL, 0, NULL, NULL);
-    if (gbkSize == 0) {
-        delete[] wideStr;
-        return "";
-    }
-
-    char* gbkStr = new char[gbkSize];
-    WideCharToMultiByte(CP_ACP, 0, wideStr, -1, gbkStr, gbkSize, NULL, NULL);
-
-    std::string result(gbkStr);
-    delete[] wideStr;
-    delete[] gbkStr;
-    return result;
 }
