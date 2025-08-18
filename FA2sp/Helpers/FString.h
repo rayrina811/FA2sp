@@ -17,8 +17,15 @@ class FString : public std::string {
 public:
 
     using std::string::string;
+    FString() = default;
+    FString(const FString&) = default;
+    FString(FString&&) = default;
+    FString& operator=(const FString&) = default;
+    FString& operator=(FString&&) = default;
+    FString(const char* str) : std::string(str ? str : "") {}
+    FString(const std::string& str) : std::string(str) {}
+    FString(size_t n, char c) : std::string(n, c) {}
     FString(const ppmfc::CString& cstr) : std::string(cstr.m_pchData) {}
-    FString(std::string cstr) : std::string(cstr) {}
     operator ppmfc::CString() const { return ppmfc::CString(c_str()); }
 
     operator LPCSTR() const { return c_str(); }
@@ -333,8 +340,9 @@ private:
             case 'C' | FORCE_UNICODE:
             {
                 wchar_t value = static_cast<wchar_t>(std::get<int>(args[argIndex++]));
+                wint_t wvalue = static_cast<wint_t>(value);
                 char buf[16];
-                snprintf(buf, sizeof(buf), "%lc", value);
+                snprintf(buf, sizeof(buf), "%lc", wvalue);
                 result += buf;
                 break;
             }
@@ -353,16 +361,23 @@ private:
             case 'S' | FORCE_UNICODE:
             {
                 const wchar_t* str = std::get<const wchar_t*>(args[argIndex++]);
-                char buf[1024];
                 if (str) {
-                    std::wstring ws(str);
-                    std::string s(ws.begin(), ws.end());
-                    snprintf(buf, sizeof(buf), formatSpec.c_str(), s.c_str());
+                    int ansiSize = WideCharToMultiByte(CP_ACP, 0, str, -1, nullptr, 0, nullptr, nullptr);
+                    if (ansiSize == 0) {
+                        result += "(null)";
+                        break;
+                    }
+                    std::vector<char> ansiStr(ansiSize);
+                    WideCharToMultiByte(CP_ACP, 0, str, -1, ansiStr.data(), ansiSize, nullptr, nullptr);
+                    char buf[1024];
+                    snprintf(buf, sizeof(buf), "%s", ansiStr.data());
+                    result += buf;
                 }
                 else {
-                    snprintf(buf, sizeof(buf), formatSpec.c_str(), "(null)");
+                    char buf[1024];
+                    snprintf(buf, sizeof(buf), "%s", "(null)");
+                    result += buf;
                 }
-                result += buf;
                 break;
             }
             case 'd':

@@ -29,7 +29,6 @@ public:
     static HANDLE hInstance;
     static std::string STDBuffer;
     static ppmfc::CString Buffer;
-    static std::map<ppmfc::CString, ppmfc::CString> TutorialTextsMap;
     static void* pExceptionHandler;
     static ULONG_PTR ulCookie;
     static ULONG_PTR ulCookieEx;

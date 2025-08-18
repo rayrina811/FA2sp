@@ -164,13 +164,13 @@ BOOL CALLBACK COptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lPara
                             {
                                 MessageBox(m_parent->m_hWnd,
                                     Translations::TranslateOrDefault("Options.ReloadMap", "Reload map to apply this change."),
-                                    "FA2sp", MB_OK);
+                                    "FA2sp", MB_OK | MB_ICONWARNING);
                             }
                             else if (opt.Type == ExtConfigs::SpecialOptionType::Restart)
                             {
                                 MessageBox(m_parent->m_hWnd,
                                     Translations::TranslateOrDefault("Options.Restart", "Restart FA2 to apply this change."),
-                                    "FA2sp", MB_OK);
+                                    "FA2sp", MB_OK | MB_ICONWARNING);
                             }
                             else if (opt.Type == ExtConfigs::SpecialOptionType::SaveMap_Timer)
                             {

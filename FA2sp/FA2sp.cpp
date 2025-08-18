@@ -23,7 +23,6 @@ ULONG_PTR FA2sp::ulCookie;
 ULONG_PTR FA2sp::ulCookieEx;
 std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
-std::map<ppmfc::CString, ppmfc::CString> FA2sp::TutorialTextsMap;
 void* FA2sp::pExceptionHandler = nullptr;
 __declspec(thread) bool g_VEH_Enabled = true;
 

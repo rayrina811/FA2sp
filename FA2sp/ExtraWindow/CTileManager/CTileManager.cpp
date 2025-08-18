@@ -9,7 +9,7 @@
 
 HWND CTileManager::m_hwnd;
 CTileSetBrowserFrame* CTileManager::m_parent;
-std::vector<std::pair<std::string, std::regex>> CTileManager::Nodes;
+std::vector<std::pair<FString, std::regex>> CTileManager::Nodes;
 std::vector<std::vector<int>> CTileManager::Datas;
 int CTileManager::origWndWidth;
 int CTileManager::origWndHeight;
@@ -38,7 +38,7 @@ void CTileManager::Create(CTileSetBrowserFrame* pWnd)
 
 void CTileManager::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("TileManagerTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -47,7 +47,7 @@ void CTileManager::Initialize(HWND& hWnd)
     InitNodes();
 
     for (auto& x : CTileManager::Nodes)
-        SendMessage(hTileTypes, LB_ADDSTRING, NULL, (LPARAM)x.first.c_str());
+        SendMessage(hTileTypes, LB_ADDSTRING, NULL, (LPARAM)x.first);
     
     UpdateTypes(hWnd);
 }
@@ -56,7 +56,7 @@ void CTileManager::InitNodes()
 {
     CTileManager::Nodes.clear();
 
-    ppmfc::CString lpKey = "TileManagerData";
+    FString lpKey = "TileManagerData";
     lpKey += CLoading::Instance->GetTheaterSuffix();
 
     MultimapHelper mmh;
@@ -66,14 +66,14 @@ void CTileManager::InitNodes()
     for (auto& key : pKeys)
     {
         CTileManager::Nodes.push_back(
-            std::make_pair<std::string, std::regex>(key.m_pchData, std::regex(mmh.GetString(lpKey, key), std::regex::icase))
+            std::make_pair<FString, std::regex>(key.m_pchData, std::regex(mmh.GetString(lpKey, key), std::regex::icase))
         );
     }
 
     if (!Translations::GetTranslationItem("TileManagerOthers", lpKey))
         lpKey = "Others";
     
-    CTileManager::Nodes.push_back(std::make_pair<std::string, std::regex>(lpKey.m_pchData, std::regex("")));
+    CTileManager::Nodes.push_back(std::make_pair(lpKey, std::regex("")));
 
     CTileManager::Datas.resize(CTileManager::Nodes.size());
 }
@@ -240,7 +240,7 @@ void CTileManager::UpdateTypes(HWND hWnd)
     if (nTileCount <= 0)
         return;
 
-    ppmfc::CString tile;
+    FString tile;
     for (int idx = 0; idx < nTileCount; ++idx)
     {
         int nTile = SendMessage(hTileComboBox, CB_GETITEMDATA, idx, NULL);
@@ -249,7 +249,7 @@ void CTileManager::UpdateTypes(HWND hWnd)
         bool other = true;
         for (size_t i = 0; i < CTileManager::Nodes.size() - 1; ++i)
         {
-            if (std::regex_search((std::string)tile.m_pchData, CTileManager::Nodes[i].second))
+            if (std::regex_search(tile, CTileManager::Nodes[i].second))
             {
                 CTileManager::Datas[i].push_back(idx); 
                 other = false;
@@ -272,7 +272,7 @@ void CTileManager::UpdateDetails(HWND hWnd, int kNode)
         return;
     else
     {
-        ppmfc::CString buffer;
+        FString buffer;
         for (auto& x : CTileManager::Datas[kNode])
         {
             int data = SendMessage(hTileComboBox, CB_GETITEMDATA, x, NULL);

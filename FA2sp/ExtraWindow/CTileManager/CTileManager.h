@@ -2,7 +2,7 @@
 
 #include <FA2PP.h>
 #include <CTileSetBrowserFrame.h>
-
+#include "../../Helpers/FString.h"
 #include <vector>
 #include <string>
 #include <regex>
@@ -34,7 +34,7 @@ protected:
 private:
     static HWND m_hwnd;
     static CTileSetBrowserFrame* m_parent;
-    static std::vector<std::pair<std::string, std::regex>> Nodes;
+    static std::vector<std::pair<FString, std::regex>> Nodes;
     static std::vector<std::vector<int>> Datas;
     static int origWndWidth;
     static int origWndHeight;

@@ -32,9 +32,9 @@ HWND CCsfEditor::hSave;
 HWND CCsfEditor::hSetLabel;
 HWND CCsfEditor::hReload;
 HWND CCsfEditor::hApply;
-std::map<ppmfc::CString, ppmfc::CString>& CCsfEditor::CurrentCSFMap = FA2sp::TutorialTextsMap;
-ppmfc::CString CCsfEditor::CurrentSelectedCSF;
-ppmfc::CString CCsfEditor::CurrentSelectedCSFApply;
+std::map<FString, FString>& CCsfEditor::CurrentCSFMap = StringtableLoader::CSFFiles_Stringtable;
+FString CCsfEditor::CurrentSelectedCSF;
+FString CCsfEditor::CurrentSelectedCSFApply;
 bool CCsfEditor::NeedUpdate = false;
 
 void CCsfEditor::Create(CFinalSunDlg* pWnd)
@@ -63,7 +63,7 @@ void CCsfEditor::Create(CFinalSunDlg* pWnd)
 
 void CCsfEditor::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("CsfEditorTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -157,7 +157,6 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
             {
                 CFinalSunDlg::LastSucceededOperation = 9;
                 StringtableLoader::CSFFiles_Stringtable.clear();
-                FA2sp::TutorialTextsMap.clear();
                 StringtableLoader::LoadCSFFiles();
                 Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
 
@@ -258,12 +257,12 @@ void CCsfEditor::OnViewerSelectedChange(NMHDR* pNMHDR)
             lvItem.iItem = selectedRow;
             SendMessage(hCSFViewer, LVM_GETITEMTEXT, selectedRow, (LPARAM)&lvItem);
 
-            ppmfc::CString value = "";
+            FString value = "";
             auto it = CurrentCSFMap.find(buffer);
             if (it != CurrentCSFMap.end())
                 value = CurrentCSFMap[buffer];
 
-            SendMessage(hCSFEditor, WM_SETTEXT, 0, (LPARAM)(LPCSTR)value.m_pchData);
+            SendMessage(hCSFEditor, WM_SETTEXT, 0, value);
             SendMessage(hSetLabel, WM_SETTEXT, 0, (LPARAM)(LPCSTR)buffer);
 
             CurrentSelectedCSFApply = buffer;
@@ -287,18 +286,18 @@ void CCsfEditor::OnClickApply()
     {
         if (CNewTrigger::CurrentCSFActionParam >= 0)
         {
-            ppmfc::CString text;
+            FString text;
             auto it = CurrentCSFMap.find(CurrentSelectedCSFApply);
             if (it != CurrentCSFMap.end())
                 text.Format("%s - %s", CurrentSelectedCSFApply, CurrentCSFMap[CurrentSelectedCSFApply]);
-            SendMessage(CNewTrigger::hActionParameter[CNewTrigger::CurrentCSFActionParam], WM_SETTEXT, 0, (LPARAM)(LPCSTR)text.m_pchData);
+            SendMessage(CNewTrigger::hActionParameter[CNewTrigger::CurrentCSFActionParam], WM_SETTEXT, 0, text);
             CNewTrigger::OnSelchangeActionParam(CNewTrigger::CurrentCSFActionParam, true);
         }
 
     } 
 }
 
-void CCsfEditor::InsertCSFContent(std::map<ppmfc::CString, ppmfc::CString> csfMap)
+void CCsfEditor::InsertCSFContent(std::map<FString, FString> csfMap)
 {
     SendMessage(hCSFViewer, LVM_DELETEALLITEMS, 0, 0);
     while (SendMessage(hCSFViewer, LVM_DELETECOLUMN, 0, 0)) {}
@@ -326,7 +325,7 @@ void CCsfEditor::InsertCSFContent(std::map<ppmfc::CString, ppmfc::CString> csfMa
         lvItem.iItem = i;
         lvItem.iSubItem = 0;
 
-        lvItem.pszText = (LPSTR)csf.first.m_pchData;
+        lvItem.pszText = const_cast<LPSTR>(csf.first.c_str());
 
         SendMessage(hCSFViewer, LVM_INSERTITEM, 0, (LPARAM)&lvItem);
 
@@ -335,7 +334,7 @@ void CCsfEditor::InsertCSFContent(std::map<ppmfc::CString, ppmfc::CString> csfMa
         subItem.iItem = i;
         subItem.iSubItem = 1;
 
-        subItem.pszText = (LPSTR)csf.second.m_pchData;
+        subItem.pszText = const_cast<LPSTR>(csf.second.c_str());
 
         SendMessage(hCSFViewer, LVM_SETITEM, 0, (LPARAM)&subItem);
 
@@ -345,9 +344,9 @@ void CCsfEditor::InsertCSFContent(std::map<ppmfc::CString, ppmfc::CString> csfMa
     SendMessage(hCSFViewer, LVM_SETCOLUMNWIDTH, 1, LVSCW_AUTOSIZE_USEHEADER);
 }
 
-void CCsfEditor::FilterRows(std::map<ppmfc::CString, ppmfc::CString> csfMap, const char* searchText)
+void CCsfEditor::FilterRows(std::map<FString, FString> csfMap, const char* searchText)
 {
-    std::map<ppmfc::CString, ppmfc::CString> newCsfMap;
+    std::map<FString, FString> newCsfMap;
 
     for (auto& csf : csfMap) 
     {

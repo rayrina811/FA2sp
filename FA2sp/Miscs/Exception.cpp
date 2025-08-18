@@ -31,9 +31,14 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 
 [[noreturn]] LONG CALLBACK Exception::ExceptionHandler(PEXCEPTION_POINTERS const pExs)
 {
+	static int handlingTimes = 0;
+	if (handlingTimes > 1) {
+		::ExitProcess(pExs->ExceptionRecord->ExceptionCode);
+	}
+	handlingTimes++;
 	Logger::Raw("Exception handler fired!\n");
 	Logger::Raw("Exception %X at %p\n", pExs->ExceptionRecord->ExceptionCode, pExs->ExceptionRecord->ExceptionAddress);
-	SetWindowText(CFinalSunDlg::Instance->m_hWnd, "Fatal Error - FinalAlert 2");
+	SetWindowText(CFinalSunDlg::Instance->m_hWnd, "Fatal Error - " __str(PROGRAM_TITLE));
 
 	Logger::Raw("Last succeeded operation: %d\n", CFinalSunDlg::LastSucceededOperation());
 	Logger::Raw("Last succeeded library operation: %d\n", CFinalSunDlg::LastSucceededLibraryOperation());
@@ -129,17 +134,23 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		break;
 	}
 
+	if (log_file_path == L"")
+		log_file_path = Exception::PrepareSnapshotDirectory();
+	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\FA2sp.log").c_str(), log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\syringe.log").c_str(), log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
+	std::filesystem::copy((FString(CFinalSunApp::ExePath()) + "\\finalalert2log.txt").c_str(), log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
+
 	if (CMapData::Instance->MapWidthPlusHeight)
 	{
 		Logger::Raw("Trying to save current map.\n");
-		ppmfc::CString fcrash_backup = CFinalSunApp::ExePath();
+		FString fcrash_backup = CFinalSunApp::ExePath();
 
-		ppmfc::CString directoryPath = CFinalSunApp::ExePath();
+		FString directoryPath = CFinalSunApp::ExePath();
 		directoryPath += "\\CrashBackups";
-		if (!std::filesystem::exists(directoryPath.m_pchData)) {
+		if (!std::filesystem::exists(directoryPath.c_str())) {
 			VEHGuard guard(false);
 			try {
-				if (std::filesystem::create_directory(directoryPath.m_pchData)) {
+				if (std::filesystem::create_directory(directoryPath.c_str())) {
 					fcrash_backup += "\\CrashBackups";
 				}
 				else {
@@ -156,7 +167,7 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		}
 
 
-		ppmfc::CString backup_name;
+		FString backup_name;
 		SYSTEMTIME time;
 		GetLocalTime(&time);
 		backup_name.Format("fcrash_backup-%04u%02u%02u-%02u%02u%02u.map", time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond);
@@ -173,12 +184,6 @@ LONG CALLBACK Exception::ExceptionFilter(PEXCEPTION_POINTERS const pExs)
 		MessageBox(CFinalSunDlg::Instance->m_hWnd, Translations::TranslateOrDefault("FinalAlert2FatalError.MapNotLoaded",
 			"Seems there's no map had been loaded."), "Fatal Error!", MB_OK | MB_ICONINFORMATION);
 
-	if (log_file_path == L"")
-		log_file_path = Exception::PrepareSnapshotDirectory();
-	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\FA2sp.log").m_pchData, log_file_path + L"\\FA2sp.log", std::filesystem::copy_options::overwrite_existing);
-	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\syringe.log").m_pchData, log_file_path + L"\\syringe.log", std::filesystem::copy_options::overwrite_existing);
-	std::filesystem::copy((ppmfc::CString(CFinalSunApp::ExePath()) + "\\finalalert2log.txt").m_pchData, log_file_path + L"\\finalalert2log.txt", std::filesystem::copy_options::overwrite_existing);
-	
 	if (ExtConfigs::LoadImageDataFromServer)
 	{
 		CLoadingExt::PingServerRunning = false;

@@ -12,17 +12,12 @@
 #include <fstream>
 #include "../Helpers/TheaterHelpers.h"
 
-
 bool StringtableLoader::bLoadRes = false;
 char* StringtableLoader::pEDIBuffer = nullptr;
-std::unordered_map<ppmfc::CString, ppmfc::CString> StringtableLoader::CSFFiles_Stringtable;
+wchar_t StringtableLoader::pStringBuffer[0x400] = {};
+std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
 
-DEFINE_HOOK(4B2633, QueryUIName_init, 5)
-{
-    return 0x4B33D1;
-}
-
-DEFINE_HOOK(4B33D1, QueryUIName, 9)
+DEFINE_HOOK(4B2633, QueryUIName, 5)
 {
     GET_STACK(char*, pRegName, 0x118);
 
@@ -32,9 +27,9 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
 
     auto uiname = mmh.GetString(pRegName, "UIName", "");
     uiname.MakeLower();
-    ppmfc::CString ccstring = "";
-    if (uiname != "")
-        ccstring = StringtableLoader::CSFFiles_Stringtable[uiname.m_pchData];
+    FString ccstring = "";
+    if (uiname != "" && StringtableLoader::CSFFiles_Stringtable.find(uiname) != StringtableLoader::CSFFiles_Stringtable.end())
+        ccstring = StringtableLoader::CSFFiles_Stringtable[uiname];
     if (ccstring == "")
         ccstring = mmh.GetString(pRegName, "Name", "");
     if (ccstring == "")
@@ -50,22 +45,18 @@ DEFINE_HOOK(4B33D1, QueryUIName, 9)
     theater = "RenameID" + theater;
     ccstring = CINI::FALanguage().GetString(theater, pRegName, ccstring);
 
-    wchar_t* m_wchar;
+    memset(StringtableLoader::pStringBuffer, '\0', sizeof(StringtableLoader::pStringBuffer));
     int len = MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), NULL, 0);
-    m_wchar = new wchar_t[len + 1];
-    MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), m_wchar, len);
-    m_wchar[len] = '\0';
+    MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), StringtableLoader::pStringBuffer, std::min(len, 0x400 - 1));
 
-
-    R->EDI(m_wchar);
-    return 0;
+    R->EDI(StringtableLoader::pStringBuffer);
+    return 0x4B33D1;
 }
 
 DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)
 {
     CFinalSunDlg::LastSucceededOperation = 9;
     StringtableLoader::CSFFiles_Stringtable.clear();
-    FA2sp::TutorialTextsMap.clear();
     StringtableLoader::LoadCSFFiles();
     Logger::Debug("Successfully loaded %d csf labels.\n", StringtableLoader::CSFFiles_Stringtable.size());
 
@@ -149,13 +140,13 @@ void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
     
 }
 
-bool StringtableLoader::ParseECSFile(std::vector<ppmfc::CString> ret)
+bool StringtableLoader::ParseECSFile(std::vector<FString>& ret)
 {
-    ppmfc::CString currentLabel = "";
-    ppmfc::CString currentContent = "";
+    FString currentLabel = "";
+    FString currentContent = "";
     bool isMultiline = false;
     bool isMultilineFirst = false;
-    for (ppmfc::CString line : ret) {
+    for (const auto& line : ret) {
         if (line.Find("#") == 0) continue;
 
         int start = line.Find("> ");
@@ -190,17 +181,16 @@ bool StringtableLoader::ParseECSFile(std::vector<ppmfc::CString> ret)
             }
         }
         StringtableLoader::CSFFiles_Stringtable[currentLabel] = currentContent;
-        FA2sp::TutorialTextsMap[currentLabel] = currentContent;
     }
     return true;
 }
 
-bool StringtableLoader::ParseLLFFile(std::vector<ppmfc::CString> ret)
+bool StringtableLoader::ParseLLFFile(std::vector<FString>& ret)
 {
-    ppmfc::CString currentLabel = "";
-    ppmfc::CString currentContent = "";
+    FString currentLabel = "";
+    FString currentContent = "";
     bool firstLineEmpty = false;
-    for (ppmfc::CString line : ret) {
+    for (auto& line : ret) {
         if (line.Find("#") == 0) continue;
         if (line.Find(" #") != -1) {
             line = line.Mid(0, line.Find(" #"));
@@ -238,22 +228,20 @@ bool StringtableLoader::ParseLLFFile(std::vector<ppmfc::CString> ret)
             }
         }
         StringtableLoader::CSFFiles_Stringtable[currentLabel] = currentContent;
-        FA2sp::TutorialTextsMap[currentLabel] = currentContent;
     }
     return true;
 }
 
-std::vector<ppmfc::CString> StringtableLoader::GetLinesFromBuffer(char* buffer, DWORD size)
+std::vector<FString> StringtableLoader::GetLinesFromBuffer(char* buffer, DWORD size)
 {
-    std::vector<ppmfc::CString> ret;
+    std::vector<FString> ret;
     std::string fileContent(reinterpret_cast<const char*>(buffer), size);
 
     std::istringstream stream(fileContent);
-    std::string line;
+    FString line;
     while (std::getline(stream, line)) {
-        auto lineUtf8 = FString(line); 
-        lineUtf8.toANSI();
-        ret.push_back(ppmfc::CString(lineUtf8));
+        line.toANSI();
+        ret.push_back(line);
     }
     return ret;
 }
@@ -324,9 +312,7 @@ bool StringtableLoader::ParseCSFFile(char* buffer, DWORD size)
                 pos += strLength;
             }
 
-            StringtableLoader::CSFFiles_Stringtable[labelstr] = CString(value);
-            //if (!ExtConfigs::TutorialTexts_Hide)
-            FA2sp::TutorialTextsMap[labelstr] = value;
+            StringtableLoader::CSFFiles_Stringtable[labelstr] = value;
 
             delete[] labelstr;
             delete[] value;

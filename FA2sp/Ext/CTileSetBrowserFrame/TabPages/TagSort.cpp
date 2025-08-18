@@ -852,10 +852,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                             FString uiname = FString(CINI::CurrentDocument->GetString(teamID, "Name")) + " (" + teamID + ")";
 
                             hParent = hNode;
-                            TVINSERTSTRUCT tvis3;
                             TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, teamID, hParent);
                         }
-
                     }
 
                 first = true;

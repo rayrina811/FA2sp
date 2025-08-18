@@ -10,6 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include <CFinalSunApp.h>
+#include "../Miscs/StringtableLoader.h"
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
@@ -575,8 +576,7 @@ void ExtraWindow::LoadParam_Tags(HWND& hWnd)
 
 void ExtraWindow::LoadParam_Stringtables(HWND& hWnd)
 {
-    int idx = 0;
-    for (auto& x : FA2sp::TutorialTextsMap)
+    for (auto& x : StringtableLoader::CSFFiles_Stringtable)
     {
         char buffer[MAX_COMBOBOX_STRING_LENGTH + 1];
         _tcsncpy(buffer, x.first + " - " + x.second, MAX_COMBOBOX_STRING_LENGTH);

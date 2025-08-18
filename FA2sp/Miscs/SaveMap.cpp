@@ -67,7 +67,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     std::vector<ppmfc::CString> sectionsToRemove;
     for (auto& section_pair : pINI->Dict)
     {
-        ppmfc::CString buffer;
         buffer = section_pair.first;
         buffer.Trim();
         if (buffer.GetLength() == 0 || section_pair.second.GetEntities().size() == 0)
