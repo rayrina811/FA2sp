@@ -17,8 +17,8 @@ bool INIIncludes::MapINIWarn = false;
 vector<CINI*> INIIncludes::LoadedINIs;
 vector<char*> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
-map<ppmfc::CString, unsigned int> INIIncludes::CurrentINIIdxHelper;
-std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> INIIncludes::MapIncludedKeys;
+map<FString, unsigned int> INIIncludes::CurrentINIIdxHelper;
+std::unordered_map<FString, std::unordered_map<FString, FString>> INIIncludes::MapIncludedKeys;
 std::unordered_map<CINI*, CINIExt> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 
@@ -155,15 +155,15 @@ DEFINE_HOOK(48028D, CLoading_LoadTSINI_PackageSupport, 5)
     if (!xINI)
         return 0;
 
-    ppmfc::CString filename = CINIManager::GetInstance().GetProperty(xINI).Name;
+    FString filename = CINIManager::GetInstance().GetProperty(xINI).Name;
 
     size_t size = 0;
-    auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
+    auto data = ResourcePackManager::instance().getFileData(filename, &size);
     if (data && size > 0)
     {
-        std::string out_path = CFinalSunApp::Instance->FilePath();
+        FString out_path = CFinalSunApp::Instance->FilePath();
         out_path += "\\FinalSun";
-        out_path += filename.m_pchData;
+        out_path += filename;
 
         std::ofstream fout(out_path, std::ios::binary);
         if (fout.is_open()) 
@@ -194,15 +194,15 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         INIIncludes::IsFirstINI = false;
     }
 
-    auto toLower = [&](const std::string& input) {
-        std::string result = input;
+    auto toLower = [&](const FString& input) {
+        FString result = input;
         std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
             return std::tolower(c);
             });
         return result;
         };
     auto toLowerC = [&](const char* input) {
-        std::string result = input;
+        FString result = input;
         std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
             return std::tolower(c);
             });
@@ -211,8 +211,8 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
     char buffer[0x80]{0};
 
-    ppmfc::CString fullPath = CINIManager::GetInstance().GetProperty(xINI).Name;
-    std::vector<ppmfc::CString> folders;
+    FString fullPath = CINIManager::GetInstance().GetProperty(xINI).Name;
+    std::vector<FString> folders;
     for (auto& f : STDHelpers::SplitString(fullPath, "\\")) {
         if (f != "") {
             folders.push_back(f);
@@ -220,17 +220,17 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     }
     if (folders.empty())
         return 0;
-    auto fileName = std::string(folders.back().m_pchData);
+    auto fileName = FString(folders.back());
     folders.pop_back();
 
     // to fit some mods that change these names
-    std::string extraName = toLower(fileName);
+    FString extraName = toLower(fileName);
     int theaterIniType = -1;
     bool isPartOfRulesIni = false;
 
     auto getOriTileSetName = [xINI](int type)
         {
-            ppmfc::CString sName = "";
+            FString sName = "";
             for (int index = 0; index < 10000; index++)
             {
                 sName.Format("TileSet%04d", index);
@@ -278,8 +278,8 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         Variables::OrderedRulesMapIndicies.clear();
     }
     for (size_t j = 0; j < INIIncludes::RulesIncludeFiles.size(); ++j) {
-        std::string name1 = toLower(INIIncludes::RulesIncludeFiles[j]);
-        std::string name2 = toLower(std::string(fullPath));
+        FString name1 = toLower(INIIncludes::RulesIncludeFiles[j]);
+        FString name2 = toLower(FString(fullPath));
 
         if (name1 == name2) {
             isPartOfRulesIni = true;
@@ -290,7 +290,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     if (theaterIniType > -1)
         getOriTileSetName(theaterIniType);
 
-    if (fileName.find("fa2extra_") == std::string::npos)
+    if (fileName.find("fa2extra_") == FString::npos)
         extraName = "fa2extra_" + extraName;
 
     if (ExtConfigs::AllowIncludes || isPartOfRulesIni)
@@ -299,8 +299,8 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
 
         int nMix = CLoading::Instance->SearchFile(fileName.c_str());
         CINI ini;
-        std::string path = CFinalSunApp::Instance->FilePath();
-        std::string externalPath = CFinalSunApp::Instance->FilePath();
+        FString path = CFinalSunApp::Instance->FilePath();
+        FString externalPath = CFinalSunApp::Instance->FilePath();
         for (auto& f : folders) {
             path += "\\" + f;
             externalPath += "\\" + f;
@@ -349,14 +349,14 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                 for (int i = 0; i < cur.size(); i++)
                 {
                     auto& key = cur[i];
-                    ppmfc::CString value = ini.GetString(section.first, key, "");
+                    FString value = ini.GetString(section.first, key, "");
                     // the include of Ares will delete the same key in registries
                     // and then add it to the bottom
                     // it will ignore empty values
                     if (value != "") {
                         Indicies.erase(
                             std::remove_if(Indicies.begin(), Indicies.end(),
-                                [&key](const std::pair<ppmfc::CString, ppmfc::CString>& item) {
+                                [&key](const std::pair<FString, FString>& item) {
                                     return item.first == key;
                                 }),
                             Indicies.end()
@@ -445,10 +445,10 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
     if (theaterIniType > -1)
     {
         int index;
-        std::map<int, ppmfc::CString> newMarbles;
+        std::map<int, FString> newMarbles;
         for (index = 0; index < 10000; index++)
         {
-            ppmfc::CString sectionName;
+            FString sectionName;
             sectionName.Format("TileSet%04d", index);
             if (!xINI->SectionExists(sectionName))
             {
@@ -468,8 +468,8 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
         {
             for (auto& [i, secName] : newMarbles) {
 
-                ppmfc::CString oldSectionName;
-                ppmfc::CString newSectionName;
+                FString oldSectionName;
+                FString newSectionName;
                 oldSectionName.Format("TileSet%04d", i);
                 newSectionName.Format("TileSet%04d", index);
                 xINI->WriteString(oldSectionName, "MarbleMadness", std::to_string(index).c_str());

@@ -25,7 +25,7 @@ public:
 
     static int CurrentLighting;
     static int SearchObjectType;
-    static std::pair<ppmfc::CString, int> SearchObjectIndex;
+    static std::pair<FString, int> SearchObjectIndex;
 
     static bool CheckProperty_Vehicle(CUnitData data);
     static bool CheckProperty_Aircraft(CAircraftData data);
@@ -117,8 +117,8 @@ public:
     int StartTile;
     bool Allowed;
     std::vector<ConnectedTiles> ConnectedTile;
-    ppmfc::CString Name;
-    ppmfc::CString SetName;
+    FString Name;
+    FString SetName;
     int Type;
     int SpecialType;
     bool WaterCliff;
@@ -132,9 +132,9 @@ struct ConnectedTileInfo
 };
 struct MoveBaseNode
 {
-    ppmfc::CString House;
-    ppmfc::CString Key;
-    ppmfc::CString ID;
+    FString House;
+    FString Key;
+    FString ID;
     int X = -1;
     int Y = -1;
 };
@@ -210,19 +210,19 @@ public:
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::unordered_set<ppmfc::CString> IgnoreSet;
-    static std::unordered_set<ppmfc::CString> ForceName;
-    static std::unordered_map<ppmfc::CString, ppmfc::CString> RenameString;
-    static std::unordered_set<ppmfc::CString> ExtSets[Set_Count];
-    static std::unordered_map<ppmfc::CString, int[10]> KnownItem;
-    static std::unordered_map<ppmfc::CString, int> Owners;
-    static std::unordered_set<ppmfc::CString> AddOnceSet;
+    static std::unordered_set<FString> IgnoreSet;
+    static std::unordered_set<FString> ForceName;
+    static std::unordered_map<FString, FString> RenameString;
+    static std::unordered_set<FString> ExtSets[Set_Count];
+    static std::unordered_map<FString, int[10]> KnownItem;
+    static std::unordered_map<FString, int> Owners;
+    static std::unordered_set<FString> AddOnceSet;
     static int AddedItemCount;
     static CImageList m_ImageList;
     static int InsertingTileIndex;
     static int InsertingOverlay;
     static bool InsertingSpecialBitmap;
-    static ppmfc::CString InsertingObjectID;
+    static FString InsertingObjectID;
     static CBitmap SpecialBitmap;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
@@ -341,12 +341,12 @@ public:
     static bool AircraftBrushBoolsF[9];
     static bool BuildingBrushBoolsBNF[14];
 
-    static std::vector<ppmfc::CString> ObjectFilterB;
-    static std::vector<ppmfc::CString> ObjectFilterI;
-    static std::vector<ppmfc::CString> ObjectFilterA;
-    static std::vector<ppmfc::CString> ObjectFilterV;
-    static std::vector<ppmfc::CString> ObjectFilterBN;
-    static std::vector<ppmfc::CString> ObjectFilterCT;
+    static std::vector<FString> ObjectFilterB;
+    static std::vector<FString> ObjectFilterI;
+    static std::vector<FString> ObjectFilterA;
+    static std::vector<FString> ObjectFilterV;
+    static std::vector<FString> ObjectFilterBN;
+    static std::vector<FString> ObjectFilterCT;
 
     static std::map<int, int> WallDamageStages;
 
@@ -405,7 +405,7 @@ public:
     
     static bool IsIgnored(const char* pItem);
 
-    static ppmfc::CString QueryUIName(const char* pRegName, bool bOnlyOneLine = true);
+    static FString QueryUIName(const char* pRegName, bool bOnlyOneLine = true);
 
 public:
     /// <summary>

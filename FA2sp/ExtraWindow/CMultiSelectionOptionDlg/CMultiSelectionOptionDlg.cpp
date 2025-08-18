@@ -22,7 +22,7 @@ void CMultiSelectionOptionDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	DDX_Check(pDX, 1004, SameHeight);
 	DDX_Check(pDX, 1005, SameBaiscHeight);
 
-	ppmfc::CString buffer;
+	FString buffer;
 
 	if (Translations::GetTranslationItem("OK", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);

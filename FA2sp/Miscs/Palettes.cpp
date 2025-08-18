@@ -14,7 +14,7 @@
 const LightingStruct LightingStruct::NoLighting = { -1,-1,-1,-1,-1,-1 };
 LightingStruct LightingStruct::CurrentLighting;
 
-std::map<ppmfc::CString, Palette*> PalettesManager::OriginPaletteFiles;
+std::map<FString, Palette*> PalettesManager::OriginPaletteFiles;
 std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> PalettesManager::CalculatedPaletteFiles;
 std::map<Palette*, std::map<LightingStruct, LightingPalette>> PalettesManager::CalculatedPaletteFilesNoRemap;
 std::vector<LightingPalette> PalettesManager::CalculatedObjectPaletteFiles;
@@ -43,7 +43,7 @@ Palette* PalettesManager::GetCurrentIso()
     return PalettesManager::CurrentIso;
 }
 
-Palette* PalettesManager::LoadPalette(ppmfc::CString palname)
+Palette* PalettesManager::LoadPalette(FString palname)
 {
     auto itr = PalettesManager::OriginPaletteFiles.find(palname);
     if (itr != PalettesManager::OriginPaletteFiles.end())

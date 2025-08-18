@@ -193,7 +193,7 @@ namespace LuaFunctions
 			{
 				if (value == "")
 				{
-					if (key == dlg.m_ComboOri)
+					if (dlg.m_ComboOri == key)
 					{
 						selected_key = key;
 						selected_value = value;
@@ -731,12 +731,12 @@ namespace LuaFunctions
 
 			ppmfc::CString id = CINI::GetAvailableKey("Structures");
 
-			ppmfc::CString value;
+			FString value;
 			value.Format("%s,%s,%s,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", 
-				this->House.c_str(), this->TypeID.c_str(), this->Health.c_str(), this->Y, this->X,
-				this->Facing.c_str(), this->Tag.c_str(), this->AISellable.c_str(), this->AIRebuildable.c_str(),
-				this->PoweredOn.c_str(), this->Upgrades.c_str(), this->SpotLight.c_str(), this->Upgrade1.c_str(),
-				this->Upgrade2.c_str(), this->Upgrade3.c_str(), this->AIRepairable.c_str(), this->Nominal.c_str());
+				this->House, this->TypeID, this->Health, this->Y, this->X,
+				this->Facing, this->Tag, this->AISellable, this->AIRebuildable,
+				this->PoweredOn, this->Upgrades, this->SpotLight, this->Upgrade1,
+				this->Upgrade2, this->Upgrade3, this->AIRepairable, this->Nominal);
 				
 			CINI::CurrentDocument->WriteString("Structures", id, value);
 			CLuaConsole::needRedraw = true;
@@ -753,14 +753,14 @@ namespace LuaFunctions
 			{
 				for (int i = 0; i < 1000; ++i)
 				{
-					ppmfc::CString key;
+					FString key;
 					key.Format("%03d", i);
 					if (!CINI::CurrentDocument->KeyExists(this->House.c_str(), key))
 					{
-						ppmfc::CString count;
-						ppmfc::CString value;
+						FString count;
+						FString value;
 						count.Format("%d", i + 1);
-						value.Format("%s,%d,%d", this->TypeID.c_str(), this->Y, this->X);
+						value.Format("%s,%d,%d", this->TypeID, this->Y, this->X);
 						CINI::CurrentDocument->WriteString(this->House.c_str(), "NodeCount", count);
 						CINI::CurrentDocument->WriteString(this->House.c_str(), key, value);
 						CLuaConsole::updateNode = true;
@@ -1033,7 +1033,7 @@ namespace LuaFunctions
 	public:
 		TimePoint savedTime;
 		std::string fileName;
-		std::map<ppmfc::CString, std::map<ppmfc::CString, ppmfc::CString>> INI;
+		std::map<FString, std::map<FString, FString>> INI;
 		unsigned short Overlay[0x40000];
 		unsigned char OverlayData[0x40000];
 		std::vector<CellData> CellDatas;
@@ -1206,19 +1206,19 @@ namespace LuaFunctions
 		}
 		void apply()
 		{
-			ppmfc::CString trigger;
+			FString trigger;
 			trigger.Format("%s,%s,%s,%s,%s,%s,%s,%s", House.c_str(), AttachedTrigger.c_str(), Name.c_str(),
 				Disabled ? "1" : "0", EasyEnabled ? "1" : "0", MediumEnabled ? "1" : "0", HardEnabled ? "1" : "0", Obsolete.c_str());
 			CINI::CurrentDocument->WriteString("Triggers", ID.c_str(), trigger);
 
 			for (const auto& tag : Tags)
 			{
-				ppmfc::CString tagStr;
+				FString tagStr;
 				tagStr.Format("%s,%s,%s", tag.RepeatType.c_str(), tag.Name.c_str(), ID.c_str());
 				CINI::CurrentDocument->WriteString("Tags", tag.ID.c_str(), tagStr);
 			}
 
-			ppmfc::CString events;
+			FString events;
 			events.Format("%d", Events.size());
 			for (const auto& e : Events)
 			{
@@ -1227,14 +1227,14 @@ namespace LuaFunctions
 			}
 			CINI::CurrentDocument->WriteString("Events", ID.c_str(), events);
 
-			ppmfc::CString actions;
+			FString actions;
 			actions.Format("%d", Actions.size());
 			for (const auto& a : Actions)
 			{
 				actions += ",";
 				actions += a.c_str();
 			}
-			ppmfc::CString validate;
+			FString validate;
 			validate.Format("%s=%s", ID.c_str(), actions);
 			if (validate.GetLength() >= 512)
 				write_lua_console(std::format("Warn: length of action {} exceeds 512.", ID));
@@ -1268,7 +1268,7 @@ namespace LuaFunctions
 			CINI::CurrentDocument->DeleteKey("Actions", ID.c_str());
 			if (!keepTag)
 			{
-				std::vector<ppmfc::CString> keys;
+				std::vector<FString> keys;
 				if (auto pSection = CINI::CurrentDocument->GetSection("Tags"))
 				{
 					for (const auto& [key, value] : pSection->GetEntities())
@@ -1677,7 +1677,7 @@ namespace LuaFunctions
 				ret.ID = id;
 				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New task force").m_pchData;
 				ret.Group = CINI::CurrentDocument->GetString(id.c_str(), "Group", "-1").m_pchData;
-				ppmfc::CString key;
+				FString key;
 				for (int i = 0; i < 6; ++i)
 				{
 					key.Format("%d", i);
@@ -1712,8 +1712,8 @@ namespace LuaFunctions
 			CINI::CurrentDocument->WriteString("TaskForces", CINI::GetAvailableKey("TaskForces"), ID.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Group", Group.c_str());
-			ppmfc::CString key;
-			ppmfc::CString value;
+			FString key;
+			FString value;
 			for (int i = 0; i < 6; ++i)
 			{
 				key.Format("%d", i);
@@ -1833,7 +1833,7 @@ namespace LuaFunctions
 				script ret;
 				ret.ID = id;
 				ret.Name = CINI::CurrentDocument->GetString(id.c_str(), "Name", "New script").m_pchData;
-				ppmfc::CString key;
+				FString key;
 				for (int i = 0; i < 50; ++i)
 				{
 					key.Format("%d", i);
@@ -1867,8 +1867,8 @@ namespace LuaFunctions
 			}
 			CINI::CurrentDocument->WriteString("ScriptTypes", CINI::GetAvailableKey("ScriptTypes"), ID.c_str());
 			CINI::CurrentDocument->WriteString(ID.c_str(), "Name", Name.c_str());
-			ppmfc::CString key;
-			ppmfc::CString value;
+			FString key;
+			FString value;
 			for (int i = 0; i < 50; ++i)
 			{
 				key.Format("%d", i);
@@ -2016,8 +2016,8 @@ namespace LuaFunctions
 				Comparators[1] = 5;
 			else
 				Comparators[1] = 0;
-			ppmfc::CString value;
-			ppmfc::CString comparator = "";
+			FString value;
+			FString comparator = "";
 			for (int i = 0; i < 8; i++) {
 				comparator += SaveComparator(Comparators[i]);
 			}
@@ -2090,7 +2090,7 @@ namespace LuaFunctions
 		}
 
 	private:
-		static int ReadComparator(ppmfc::CString text, int index)
+		static int ReadComparator(FString text, int index)
 		{
 			int num = 0;
 			if (text.GetLength() != 64) return num;
@@ -2109,13 +2109,13 @@ namespace LuaFunctions
 
 			return num;
 		}
-		static ppmfc::CString SaveComparator(int comparator)
+		static FString SaveComparator(int comparator)
 		{
-			ppmfc::CString ret = "";
+			FString ret = "";
 
 			std::stringstream ss;
 			ss << std::hex << comparator;
-			ppmfc::CString bigEndian = ss.str().c_str();
+			FString bigEndian = ss.str();
 			while (bigEndian.GetLength() < 8) {
 				bigEndian = "0" + bigEndian;
 			}
@@ -2319,8 +2319,8 @@ namespace LuaFunctions
 		{
 			index = atoi(CINI::CurrentDocument->GetAvailableKey("Waypoints"));
 		}
-		ppmfc::CString key;
-		ppmfc::CString value;
+		FString key;
+		FString value;
 		key.Format("%d", index);
 		value.Format("%d", x * 1000 + y);
 		CINI::CurrentDocument->WriteString("Waypoints", key, value);
@@ -2333,7 +2333,7 @@ namespace LuaFunctions
 		CLuaConsole::needRedraw = true;
 		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
 		{
-			ppmfc::CString key;
+			FString key;
 			key.Format("%d", index);
 			if (CINI::CurrentDocument->KeyExists("Waypoints", key))
 			{
@@ -2670,7 +2670,7 @@ namespace LuaFunctions
 			}
 			if (auto pSection = ini->GetSection(section.c_str()))
 			{
-				std::map<int, ppmfc::CString> collector;
+				std::map<int, FString> collector;
 
 				for (auto& pair : pSection->GetIndices())
 					collector[pair.second] = pair.first;
@@ -2685,12 +2685,12 @@ namespace LuaFunctions
 		}
 		else if (loadFrom == "rules" || loadFrom == "rules+map")
 		{
-			if (auto indicies = loadFrom == "rules" ? Variables::GetRulesSection(section.c_str()) : Variables::GetRulesMapSection(section.c_str()))
+			if (auto indicies = loadFrom == "rules" ? Variables::GetRulesSection(section) : Variables::GetRulesMapSection(section))
 			{
 				int idx = 0;
 				for (auto& pair : *indicies)
 				{
-					ret.push_back(std::make_pair(idx, pair.second.m_pchData));
+					ret.push_back(std::make_pair(idx, pair.second));
 					idx++;
 				}
 			}
@@ -3057,7 +3057,7 @@ namespace LuaFunctions
 
 	static void place_celltag(int y, int x, std::string id)
 	{
-		ppmfc::CString key;
+		FString key;
 		key.Format("%d", x * 1000 + y);
 		if (CINI::CurrentDocument->KeyExists("CellTags", key))
 		{
@@ -3072,7 +3072,7 @@ namespace LuaFunctions
 
 	static void remove_celltags(std::string id)
 	{
-		std::vector<ppmfc::CString> keys;
+		std::vector<FString> keys;
 		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
 		{
 			for (const auto& [key, value] : pSection->GetEntities())
@@ -3091,7 +3091,7 @@ namespace LuaFunctions
 
 	static void remove_celltag(int y, int x)
 	{
-		ppmfc::CString key;
+		FString key;
 		key.Format("%d", x * 1000 + y);
 		CINI::CurrentDocument->DeleteKey("CellTags", key);
 		CLuaConsole::needRedraw = true;
@@ -3107,17 +3107,17 @@ namespace LuaFunctions
 
 		if (auto pHouse = CINI::CurrentDocument->GetSection(house.c_str()))
 		{
-			ppmfc::CString value;
+			FString value;
 			value.Format("%s,%d,%d", type.c_str(), y, x);
 			if (index < 0)
 			{
 				for (int i = 0; i < 1000; ++i)
 				{
-					ppmfc::CString key;
+					FString key;
 					key.Format("%03d", i);
 					if (!CINI::CurrentDocument->KeyExists(house.c_str(), key))
 					{
-						ppmfc::CString count;
+						FString count;
 						count.Format("%d", i + 1);
 						CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
 						CINI::CurrentDocument->WriteString(house.c_str(), key, value);
@@ -3129,11 +3129,11 @@ namespace LuaFunctions
 			}
 			else
 			{
-				std::vector<ppmfc::CString> nodes;
+				std::vector<FString> nodes;
 				int nodeCount = CINI::CurrentDocument->GetInteger(house.c_str(), "NodeCount", 0);
 				for (int i = 0; i < nodeCount; ++i)
 				{
-					ppmfc::CString key;
+					FString key;
 					key.Format("%03d", i);
 					if (CINI::CurrentDocument->KeyExists(house.c_str(), key))
 					{
@@ -3145,12 +3145,12 @@ namespace LuaFunctions
 				int i = 0;
 				for (const auto& node : nodes)
 				{
-					ppmfc::CString key;
+					FString key;
 					key.Format("%03d", i);
 					CINI::CurrentDocument->WriteString(house.c_str(), key, node);
 					i++;
 				}
-				ppmfc::CString count;
+				FString count;
 				count.Format("%d", nodes.size());
 				CINI::CurrentDocument->WriteString(house.c_str(), "NodeCount", count);
 				CLuaConsole::updateNode = true;
@@ -3560,14 +3560,14 @@ namespace LuaFunctions
 
 		auto timeSpan = std::chrono::system_clock::now() - snapshot.savedTime.time;
 		std::string title = Translations::TranslateOrDefault("LuaConsole.SnapshotConfirmTitle", "Are you sure to restore the snapshot?");
-		ppmfc::CString text; 
+		FString text;
 		text.Format(Translations::TranslateOrDefault("LuaConsole.SnapshotConfirmMessage"
 				, "Snapshot timepoint: %s\nTime span: %s\nMap file name: %s")
 			, formatTime(snapshot.savedTime).c_str()
 			, formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan)).c_str()
 				, snapshot.fileName.c_str());
 	
-		if (message_box(text.m_pchData, title, 1) == IDCANCEL)
+		if (message_box(text, title, 1) == IDCANCEL)
 			return;
 
 		auto ini = &CMapData::Instance->INI;
@@ -3586,7 +3586,7 @@ namespace LuaFunctions
 			CMapDataExt::GetExtension()->ResizeMapExt(&rect);
 		}
 
-		std::vector<ppmfc::CString> sections;
+		std::vector<FString> sections;
 		auto itr = ini->Dict.begin();
 		for (size_t i = 0, sz = ini->Dict.size(); i < sz; ++i, ++itr)
 		{
@@ -3641,7 +3641,7 @@ namespace LuaFunctions
 	{
 		if (x == -1)
 		{
-			ppmfc::CString wp;
+			FString wp;
 			wp.Format("%d", y);
 			auto pWP = CINI::CurrentDocument->GetString("Waypoints", wp, "-1");
 			auto second = atoi(pWP);

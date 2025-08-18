@@ -18,6 +18,7 @@
 #include <numeric>
 #include "../CNewScript/CNewScript.h"
 #include "../CSearhReference/CSearhReference.h"
+#include <chrono>
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;

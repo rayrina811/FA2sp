@@ -9,6 +9,7 @@
 #include "../../CMapData/Body.h"
 #include "../../../Helpers/Translations.h"
 #include "../../../ExtraWindow/CNewTeamTypes/CNewTeamTypes.h"
+#include "../../../Miscs/StringtableLoader.h"
 
 TagSort TagSort::Instance;
 std::unordered_set<FString> TagSort::attachedTriggers;
@@ -746,7 +747,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
+                            FString uiname = StringtableLoader::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
                             TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
@@ -771,7 +772,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
+                            FString uiname = StringtableLoader::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
                             TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
@@ -797,7 +798,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
+                            FString uiname = StringtableLoader::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
                             TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }
@@ -824,7 +825,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
 
                         if (HTREEITEM hNode = this->FindLabel(hParentObj, objList))
                         {
-                            FString uiname = FString(CMapData::GetUIName(atomsObj[1])) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
+                            FString uiname = StringtableLoader::QueryUIName(atomsObj[1]) + " (" + atomsObj[1] + "), " + Translations::TranslateOrDefault("Sort.Coord", "Coordinate") + ": " + atomsObj[3] + ", " + atomsObj[4];
                             hParent = hNode;
                             TreeViewHelper::InsertTreeItem(this->GetHwnd(), uiname, pairObj, hParent);
                         }

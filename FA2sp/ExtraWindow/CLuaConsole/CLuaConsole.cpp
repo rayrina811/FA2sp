@@ -94,7 +94,7 @@ void CLuaConsole::Create(CFinalSunDlg* pWnd)
 
 void CLuaConsole::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("LuaScriptConsoleTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -178,7 +178,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
             int wp_count = 0;
             for (int i = 0; i < 8; i++)
             {
-                ppmfc::CString key;
+                FString key;
                 key.Format("%d", i);
                 if (CINI::CurrentDocument->TryGetString("Waypoints", key) != nullptr)
                     wp_count++;
@@ -424,7 +424,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return place_node(house, type, y, x, index.value());
         });
     Lua.set_function("remove_node", remove_node);
-    Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str()).m_pchData); });
+    Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str())); });
     Lua.set_function("translate_house", [](std::string id, bool back = false) {
         return std::string(Miscs::ParseHouseName(id.c_str(), !back).m_pchData);
         });

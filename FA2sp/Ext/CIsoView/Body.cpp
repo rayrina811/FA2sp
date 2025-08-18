@@ -188,17 +188,17 @@ void CIsoViewExt::ConfirmTube(bool addReverse)
     }
     if (AllDirections.size() > 99)
     {
-        ppmfc::CString pMessage = Translations::TranslateOrDefault("ErrorTooLongTube",
+        FString pMessage = Translations::TranslateOrDefault("ErrorTooLongTube",
             "Cannot generate a too long tube!");
         ::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK);
         return;
     }
     auto key = CINI::GetAvailableKey("Tubes");
-    ppmfc::CString value;
+    FString value;
     value.Format("%d,%d,%d,%d,%d", nodes.front().Y, nodes.front().X, AllDirections.front(), nodes.back().Y, nodes.back().X);
     for (int i = 0; i < AllDirections.size(); ++i)
     {
-        ppmfc::CString direc;
+        FString direc;
         direc.Format(",%d", AllDirections[i]);
         value += direc;
     }
@@ -211,7 +211,7 @@ void CIsoViewExt::ConfirmTube(bool addReverse)
         value.Format("%d,%d,%d,%d,%d", nodes.back().Y, nodes.back().X, GetOppositeFacing(AllDirections.back()), nodes.front().Y, nodes.front().X);
         for (int i = AllDirections.size() - 1; i >= 0; --i)
         {
-            ppmfc::CString direc;
+            FString direc;
             direc.Format(",%d", GetOppositeFacing(AllDirections[i]));
             value += direc;
         }
@@ -1599,7 +1599,7 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
         CIsoViewExt::MapCoord2ScreenCoord(cX, cY);
         int CellCenterX = cX + 36 / CIsoViewExt::ScaledFactor;
         int CellCenterY = cY - 12 / CIsoViewExt::ScaledFactor;
-        ppmfc::CString tmp;
+        FString tmp;
 
         auto getSubcellInf = [&](int subpos)
             {
@@ -1678,7 +1678,7 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
     return -1;
 }
 
-void CIsoViewExt::DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
+void CIsoViewExt::DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc)
 {
     this->BlitTransparentDesc(CLoadingExt::GetSurfaceImageDataFromMap(filename + ".bmp")->lpSurface, this->lpDDBackBufferSurface, lpDesc, X, Y, -1, -1);
 }
@@ -3467,7 +3467,7 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     SetTextAlign(hDC, TA_LEFT);
     if (CIsoViewExt::DrawMoneyOnMap)
     {
-        ppmfc::CString buffer;
+        FString buffer;
         buffer.Format(Translations::TranslateOrDefault("MoneyOnMap", "Credits On Map: %d"), CMapData::Instance->MoneyCount);
         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
 
@@ -3486,7 +3486,7 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
 
                 buffer.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelection",
                     "MultiSelection Enabled. Selected Credits: %d"), nCount);
-                ppmfc::CString buffer2;
+                FString buffer2;
                 buffer2.Format(Translations::TranslateOrDefault("MoneyOnMap.MultiSelectionCoords",
                     ", Selected Tiles: %d"), MultiSelection::SelectedCoords.size());
                 buffer += buffer2;
@@ -3496,7 +3496,7 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     }
     if (CFinalSunApp::Instance().FlatToGround)
     {
-        ppmfc::CString buffer;
+        FString buffer;
         buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
     }
@@ -3536,7 +3536,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
             MapCoord coord1 = { x1,y1 };
             MapCoord coord2 = { x2,y2 };
             double distance = sqrt((coord1.X - coord2.X) * (coord1.X - coord2.X) + (coord1.Y - coord2.Y) * (coord1.Y - coord2.Y));
-            ppmfc::CString buffer;
+            FString buffer;
             CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
             CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
             int drawX = x2 - CIsoViewExt::drawOffsetX + 30;

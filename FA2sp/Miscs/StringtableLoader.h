@@ -15,6 +15,7 @@ public:
     static bool ParseECSFile(std::vector<FString>& ret);
     static void WriteCSFFile();
     static bool LoadToBuffer();
+    static FString QueryUIName(const char* pRegName);
 
     static std::map<FString, FString> CSFFiles_Stringtable;
     static char* pEDIBuffer;

@@ -16,7 +16,7 @@ using std::vector;
 
 struct CINIExt
 {
-    ppmfc::CString Name;
+    FString Name;
 };
 
 class CINIManager 
@@ -54,11 +54,11 @@ public:
     static int LastReadIndex;
     static vector<CINI*> LoadedINIs;
     static vector<char*> LoadedINIFiles;
-    static map<ppmfc::CString, unsigned int> CurrentINIIdxHelper;
+    static map<FString, unsigned int> CurrentINIIdxHelper;
     static vector<char*> RulesIncludeFiles;
     static bool IsFirstINI;
     static bool IsMapINI;
     static bool MapINIWarn;
     static bool SkipBracketFix;
-    static std::unordered_map<ppmfc::CString, std::unordered_map<ppmfc::CString, ppmfc::CString>> MapIncludedKeys;
+    static std::unordered_map<FString, std::unordered_map<FString, FString>> MapIncludedKeys;
 };

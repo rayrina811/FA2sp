@@ -54,13 +54,13 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
 
         if (pCell->Terrain > -1)
         {
-            strcpy_s(item.TerrainData, Variables::GetRulesMapValueAt("TerrainTypes", pCell->TerrainType).m_pchData);
+            strcpy_s(item.TerrainData, Variables::GetRulesMapValueAt("TerrainTypes", pCell->TerrainType));
         }        
         if (pCell->Smudge > -1)
         {
             auto& smudge = CMapData::Instance->SmudgeDatas[pCell->Smudge];
             if (smudge.X == coords.Y && smudge.Y == coords.X)
-                strcpy_s(item.SmudgeData, Variables::GetRulesMapValueAt("SmudgeTypes", pCell->SmudgeType).m_pchData);
+                strcpy_s(item.SmudgeData, Variables::GetRulesMapValueAt("SmudgeTypes", pCell->SmudgeType));
         }
         if (pCell->Structure > -1)
         {
@@ -273,8 +273,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
         if (OnLButtonDownPasted && CIsoViewExt::PasteStructures && strlen(cell.BuildingData) > 0)
         {
-            ppmfc::CString value(cell.BuildingData);
-            auto atoms = STDHelpers::SplitString(value, 16);
+            FString value(cell.BuildingData);
+            auto atoms = FString::SplitString(value, 16);
             CBuildingData data;
             data.House = atoms[0];
             data.TypeID = atoms[1];
@@ -314,8 +314,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
         if (OnLButtonDownPasted && CIsoViewExt::PasteUnits && strlen(cell.UnitData) > 0)
         {
-            ppmfc::CString value(cell.UnitData);
-            auto atoms = STDHelpers::SplitString(value, 13);
+            FString value(cell.UnitData);
+            auto atoms = FString::SplitString(value, 13);
             CUnitData data;
             data.House = atoms[0];
             data.TypeID = atoms[1];
@@ -337,8 +337,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 
         if (OnLButtonDownPasted && CIsoViewExt::PasteAircrafts && strlen(cell.AircraftData) > 0)
         {
-            ppmfc::CString value(cell.AircraftData);
-            auto atoms = STDHelpers::SplitString(value, 11);
+            FString value(cell.AircraftData);
+            auto atoms = FString::SplitString(value, 11);
             CAircraftData data;
             data.House = atoms[0];
             data.TypeID = atoms[1];
@@ -366,8 +366,8 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 inf = cell.InfantryData_3;
             if (OnLButtonDownPasted && CIsoViewExt::PasteAircrafts && strlen(inf) > 0)
             {
-                ppmfc::CString value(inf);
-                auto atoms = STDHelpers::SplitString(value, 13);
+                FString value(inf);
+                auto atoms = FString::SplitString(value, 13);
                 CInfantryData data;
                 data.House = atoms[0];
                 data.TypeID = atoms[1];
@@ -396,7 +396,7 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
 void CopyPaste::LoadTileConvertRule(char sourceTheater)
 {
     TileConvertRules.clear();
-    ppmfc::CString iniSection;
+    FString iniSection;
     iniSection.Format("%s2%sTileRules", 
         TheaterHelpers::GetSuffix(sourceTheater), 
         TheaterHelpers::GetSuffix(CLoading::Instance->TheaterIdentifier));
@@ -411,12 +411,12 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater)
     {
         for (const auto& [key, value] : pSection->GetEntities())
         {
-            std::vector<ppmfc::CString> separates = STDHelpers::SplitString(value, "|");
+            std::vector<FString> separates = FString::SplitString(value, "|");
             if (separates.size() < 2) continue;
 
             TileRule rule;
 
-            std::vector<ppmfc::CString> srcParts = STDHelpers::SplitString(separates[0], "-");
+            std::vector<FString> srcParts = FString::SplitString(separates[0], "-");
             int srcStart = std::atoi(srcParts[0]);
             int srcEnd = (srcParts.size() > 1) ? std::atoi(srcParts[1]) : srcStart;
             for (int i = srcStart; i <= srcEnd; ++i)
@@ -425,11 +425,11 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater)
             bool isRandom = separates[1].Find("~") != -1;
             rule.isRandom = isRandom;
 
-            std::vector<ppmfc::CString> dstParts;
+            std::vector<FString> dstParts;
             if (isRandom)
-                dstParts = STDHelpers::SplitString(separates[1], "~");
+                dstParts = FString::SplitString(separates[1], "~");
             else
-                dstParts = STDHelpers::SplitString(separates[1], "-");
+                dstParts = FString::SplitString(separates[1], "-");
 
             int dstStart = std::atoi(dstParts[0]);
             int dstEnd = (dstParts.size() > 1) ? std::atoi(dstParts[1]) : dstStart;

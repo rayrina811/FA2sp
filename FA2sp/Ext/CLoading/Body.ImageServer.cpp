@@ -11,9 +11,9 @@
 
 HANDLE CLoadingExt::hPipeData = NULL;
 std::atomic<bool> CLoadingExt::PingServerRunning = true;
-std::string CLoadingExt::PipeNameData;
-std::string CLoadingExt::PipeNamePing;
-std::string CLoadingExt::PipeName;
+FString CLoadingExt::PipeNameData;
+FString CLoadingExt::PipeNamePing;
+FString CLoadingExt::PipeName;
 
 //static bool Is64BitProcess()
 //{
@@ -49,10 +49,10 @@ bool CLoadingExt::StartImageServerProcess()
     PipeNameData = PipeName + "_data";
     PipeNamePing = PipeName + "_ping";
 
-    std::string exePath = CFinalSunApp::ExePath();
+    FString exePath = CFinalSunApp::ExePath();
     exePath += "\\ImageServer.exe"; //Is64BitOS() ? "\\ImageServer64.exe" :
 
-    std::string command = exePath + " \"" + PipeName + "\"";
+    FString command = exePath + " \"" + PipeName + "\"";
 
     Logger::Raw("[ImageServer] About to create process %s\n", exePath.c_str());
 

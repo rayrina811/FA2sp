@@ -26,9 +26,9 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 		HWND hLBEnemies = GetDlgItem(hwnd, 6303);
 		HWND hETCurrent = GetDlgItem(hwnd, 6304);
 
-		std::set<ppmfc::CString> allies;
+		std::set<FString> allies;
 		cHouses.CETAllies.GetWindowText(FA2sp::Buffer);
-		for (auto& str : STDHelpers::SplitString(FA2sp::Buffer))
+		for (auto& str : FString::SplitString(FA2sp::Buffer))
 			if (!STDHelpers::IsNoneOrEmpty(str))
 			{
 				str.Trim();
@@ -52,7 +52,7 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 		// Translate
 		auto translateItem = [&](int nID, const char* lpKey)
 		{
-			ppmfc::CString buf;
+			FString buf;
 			if (Translations::GetTranslationItem(lpKey, buf))
 				SetWindowText(GetDlgItem(hwnd, nID), buf);
 		};
@@ -62,7 +62,7 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 		translateItem(IDOK, "AllieEditorOK");
 		translateItem(IDCANCEL, "AllieEditorCancel");
 
-		ppmfc::CString buf;
+		FString buf;
 		if (Translations::GetTranslationItem("AllieEditorTitle", buf))
 			SetWindowText(hwnd, buf);
 
@@ -76,7 +76,8 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 			switch (ID)
 			{
 			case IDOK: {
-				ppmfc::CString allies = "";
+				FString allies = "";
+				FString buffer = "";
 				HWND LBA = GetDlgItem(hwnd, 6302);//Allies ListBox
 				int cnt = SendMessage(LBA, LB_GETCOUNT, NULL, NULL);
 				for (int i = 0; i < cnt - 1; ++i)
@@ -85,17 +86,17 @@ BOOL CALLBACK CAllieEditor::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM l
 					if (TextLen == LB_ERR)	break;
 					TCHAR* str = new TCHAR[TextLen + 1];
 					SendMessage(LBA, LB_GETTEXT, i, (LPARAM)str);
-					FA2sp::Buffer.Format("%s,", str);
+					buffer.Format("%s,", str);
 					delete[] str;
-					allies += FA2sp::Buffer;
+					allies += buffer;
 				}
 				int TextLen = SendMessage(LBA, LB_GETTEXTLEN, cnt - 1, NULL);
 				if (TextLen == LB_ERR)	break;
 				TCHAR* str = new TCHAR[TextLen + 1];
 				SendMessage(LBA, LB_GETTEXT, cnt - 1, (LPARAM)str);
-				FA2sp::Buffer.Format("%s", str);
+				buffer.Format("%s", str);
 				delete[] str;
-				allies += FA2sp::Buffer;
+				allies += buffer;
 
 				cHouses.CETAllies.SetWindowText(allies);
 				EndDialog(hwnd, NULL);

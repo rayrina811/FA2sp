@@ -105,7 +105,7 @@ BOOL CLightingExt::PreTranslateMessageExt(MSG* pMsg)
 			LightingSourceTint::CalculateMapLamps();
 
 			CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-			CFinalSunDlg::Instance()->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			CFinalSunDlg::Instance()->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		}
 	}
 	return this->ppmfc::CDialog::PreTranslateMessage(pMsg);

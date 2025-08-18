@@ -21,7 +21,7 @@ void CAnnotationDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	DDX_Text(pDX, 1006, m_BgColor);
 	DDX_Check(pDX, 1007, m_Bold);
 
-	ppmfc::CString buffer;
+	FString buffer;
 
 	if (Translations::GetTranslationItem("OK", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);

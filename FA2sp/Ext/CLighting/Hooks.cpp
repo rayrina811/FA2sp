@@ -70,7 +70,7 @@ DEFINE_HOOK(hook_addr,hook_name,7) \
         }\
         LightingSourceTint::CalculateMapLamps();\
         CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);\
-        CFinalSunDlg::Instance()->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);\
+        CFinalSunDlg::Instance()->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);\
     }\
     return 0;\
 }

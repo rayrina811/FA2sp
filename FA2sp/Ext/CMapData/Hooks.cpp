@@ -160,15 +160,15 @@ DEFINE_HOOK(4C3C20, CMapData_GetStructureRenderData, 6)
     {
         const auto& data = CMapDataExt::BuildingRenderDatasFix[ID];
         *reinterpret_cast<unsigned int*>(&pRet->HouseColor) = data.HouseColor;
-        pRet->ID = data.ID;
+        pRet->ID = data.ID.c_str();
         pRet->Strength = static_cast<unsigned char>(data.Strength);
         pRet->X = data.X;
         pRet->Y = data.Y;
         pRet->Facing = data.Facing;
         pRet->PowerUpCount = data.PowerUpCount;
-        pRet->PowerUp1 = data.PowerUp1;
-        pRet->PowerUp2 = data.PowerUp2;
-        pRet->PowerUp3 = data.PowerUp3;
+        pRet->PowerUp1 = data.PowerUp1.c_str();
+        pRet->PowerUp2 = data.PowerUp2.c_str();
+        pRet->PowerUp3 = data.PowerUp3.c_str();
 
         CMapDataExt::CurrentRenderBuildingStrength = data.Strength;
     }
@@ -614,8 +614,8 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 	if (overlappingWarning)
 	{
-		ppmfc::CString pMessage2;
-		ppmfc::CString pMessage = Translations::TranslateOrDefault("PlaceStructureOverlapMessage", 
+		FString pMessage2;
+		FString pMessage = Translations::TranslateOrDefault("PlaceStructureOverlapMessage",
 			"The current operating structure %s overlaps with other structures.\nDelete or undo is strongly recommended!");
 		pMessage2.Format(pMessage, structure.TypeID);
 
@@ -633,7 +633,7 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	if (id == "")
 		id = CINI::GetAvailableKey("Structures");
 
-	ppmfc::CString value;
+	FString value;
 	value = structure.House + "," + structure.TypeID + "," + structure.Health + "," + structure.Y +
 		"," + structure.X + "," + structure.Facing + "," + structure.Tag + "," + structure.AISellable + "," +
 		structure.AIRebuildable + "," + structure.PoweredOn + "," + structure.Upgrades + "," + structure.SpotLight + ","
@@ -888,10 +888,10 @@ DEFINE_HOOK(4B8AD2, CMapData_CreateMap_FixLocalSize, 5)
 	GET_BASE(int, dwWidth, 0x8);
 	GET_BASE(int, dwHeight, 0xC);
 
-	ppmfc::CString localSize;
+	FString localSize;
 	localSize.Format("%d,%d,%d,%d", 3, 5, dwWidth - 6, dwHeight - 11);
 
-	memcpy(lpBuffer, localSize.m_pchData, std::min(localSize.GetLength(), 40));
+	memcpy(lpBuffer, localSize.c_str(), std::min(localSize.GetLength(), 40));
 	lpBuffer[std::min(localSize.GetLength(), 40)] = '\0';
 
 	return 0;

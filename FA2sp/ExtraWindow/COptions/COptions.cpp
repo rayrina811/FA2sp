@@ -35,7 +35,7 @@ void COptions::Create(CFinalSunDlg* pWnd)
 
 void COptions::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("Menu.Options.Preferences", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -64,10 +64,9 @@ void COptions::Update(const char* filter)
     SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
     CINI fa2;
-    std::string path;
-    path = CFinalSunApp::ExePath;
+    FString path = CFinalSunApp::ExePath();
     path += "\\FinalAlert.ini";
-    fa2.ClearAndLoad(path.c_str());
+    fa2.ClearAndLoad(path);
 
     for (const auto& opt : ExtConfigs::Options)
     {
@@ -103,7 +102,7 @@ void COptions::Update(const char* filter)
         LVITEM lvi = { 0 };
         lvi.mask = LVIF_TEXT;
         lvi.iItem = index;
-        lvi.pszText = const_cast<LPTSTR>(opt.DisplayName.m_pchData);
+        lvi.pszText = (char*)opt.DisplayName.c_str();
         ListView_InsertItem(hList, &lvi);
         ListView_SetCheckState(hList, index, *opt.Value ? TRUE : FALSE);
         index++;

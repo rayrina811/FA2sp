@@ -68,7 +68,7 @@ float CMapDataExt::ConditionRed = 0.25f;
 bool CMapDataExt::DeleteBuildingByIniID = false;
 std::unordered_set<int> CMapDataExt::ShoreTileSets;
 std::unordered_map<int, bool> CMapDataExt::SoftTileSets;
-ppmfc::CString CMapDataExt::BitmapImporterTheater;
+FString CMapDataExt::BitmapImporterTheater;
 Palette CMapDataExt::Palette_ISO;
 Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
@@ -80,9 +80,9 @@ std::unordered_map<FString, std::shared_ptr<Trigger>> CMapDataExt::Triggers;
 std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
-std::unordered_map<int, ppmfc::CString> CMapDataExt::TileSetOriginSetNames[6];
-std::unordered_set<ppmfc::CString> CMapDataExt::TerrainPaletteBuildings;
-std::unordered_set<ppmfc::CString> CMapDataExt::DamagedAsRubbleBuildings;
+std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
+std::unordered_set<FString> CMapDataExt::TerrainPaletteBuildings;
+std::unordered_set<FString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
@@ -1072,7 +1072,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				CMapDataExt::StructureIndexMap[i]++;
 		}
 		StructureIndexMap.push_back(iniIndex);
-		const auto splits = STDHelpers::SplitString(value, 16);
+		const auto splits = FString::SplitString(value, 16);
 
 		BuildingRenderData data;
 		data.HouseColor = Miscs::GetColorRef(splits[0]);
@@ -1254,7 +1254,7 @@ int CMapDataExt::GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord)
 
 bool CMapDataExt::IsValidTileSet(int tileset) 
 {
-	ppmfc::CString buffer;
+	FString buffer;
 	buffer.Format("TileSet%04d", tileset);
 
 	auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
@@ -1486,6 +1486,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
 
+	CIsoView::GetInstance()->CurrentCellObjectIndex = -1;
+	CIsoView::GetInstance()->CurrentCellObjectType = -1;
+	CIsoView::GetInstance()->Drag = FALSE;
+
 	if (reloadCellDataExt)
 	{
 		CMapDataExt::CellDataExts.clear();
@@ -1501,7 +1505,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		for (int i = 0; i < cur.size(); i++)
 		{
 			auto& key = cur[i];
-			ppmfc::CString value = CINI::CurrentDocument->GetString(section.first, key, "");
+			FString value = CINI::CurrentDocument->GetString(section.first, key, "");
 			value.Trim();
 			if (value != "") {
 				// map's include is different with ares'
@@ -1534,27 +1538,27 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			name.MakeLower();
 			item.RailRoad = Variables::Rules.GetString(ol.second, "Land", "") == "Railroad" 
 				|| name.Find("track") > -1 || name.Find("rail") > -1;
-			std::vector<ppmfc::CString> colors;
+			std::vector<FString> colors;
 
 			if (RIPARIUS_BEGIN <= ovrIdx && ovrIdx <= RIPARIUS_END && Variables::Rules.KeyExists("Riparius", "MinimapColor"))
 			{
-				colors = STDHelpers::SplitString(Variables::Rules.GetString("Riparius", "MinimapColor", "0,0,0"), 2);
+				colors = FString::SplitString(Variables::Rules.GetString("Riparius", "MinimapColor", "0,0,0"), 2);
 			}
 			else if (CRUENTUS_BEGIN <= ovrIdx && ovrIdx <= CRUENTUS_END && Variables::Rules.KeyExists("Cruentus", "MinimapColor"))
 			{
-				colors = STDHelpers::SplitString(Variables::Rules.GetString("Cruentus", "MinimapColor", "0,0,0"), 2);
+				colors = FString::SplitString(Variables::Rules.GetString("Cruentus", "MinimapColor", "0,0,0"), 2);
 			}
 			else if (VINIFERA_BEGIN <= ovrIdx && ovrIdx <= VINIFERA_END && Variables::Rules.KeyExists("Vinifera", "MinimapColor"))
 			{
-				colors = STDHelpers::SplitString(Variables::Rules.GetString("Vinifera", "MinimapColor", "0,0,0"), 2);
+				colors = FString::SplitString(Variables::Rules.GetString("Vinifera", "MinimapColor", "0,0,0"), 2);
 			}
 			else if (ABOREUS_BEGIN <= ovrIdx && ovrIdx <= ABOREUS_END && Variables::Rules.KeyExists("Aboreus", "MinimapColor"))
 			{
-				colors = STDHelpers::SplitString(Variables::Rules.GetString("Aboreus", "MinimapColor", "0,0,0"), 2);
+				colors = FString::SplitString(Variables::Rules.GetString("Aboreus", "MinimapColor", "0,0,0"), 2);
 			}
 			else
 			{
-				colors = STDHelpers::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
+				colors = FString::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
 			}
 			item.RadarColor.R = atoi(colors[0]);
 			item.RadarColor.G = atoi(colors[1]);
@@ -1640,11 +1644,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CFinalSunDlgExt::CurrentLighting = 31000;
 	CheckMenuRadioItem(*CFinalSunDlg::Instance->GetMenu(), 31000, 31003, 31000, MF_UNCHECKED);
 	PalettesManager::Release();
-	ppmfc::CString theaterIg = thisTheater;
+	FString theaterIg = thisTheater;
 	if (theaterIg == "NEWURBAN")
 		theaterIg = "UBN";
-	ppmfc::CString theaterSuffix = theaterIg.Mid(0, 3);
-	ppmfc::CString isoPal;
+	FString theaterSuffix = theaterIg.Mid(0, 3);
+	FString isoPal;
 	isoPal.Format("iso%s.pal", theaterSuffix);
 	isoPal.MakeUpper();
 	auto pal = PalettesManager::LoadPalette(isoPal);
@@ -1682,15 +1686,13 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::TileSet_starts.clear();
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
-	CMapDataExt::TerrainPaletteBuildings.clear();
-	CMapDataExt::DamagedAsRubbleBuildings.clear();
 	CMapDataExt::RedrawExtraTileSets.clear();
 	CMapDataExt::TileSetPalettes.clear();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
 		int totalIndex = 0;
-		ppmfc::CString sName = "";
+		FString sName = "";
 		CMapDataExt::TileSet_starts.push_back(0);
 		for (int index = 0; index < 10000; index++)
 		{
@@ -1721,7 +1723,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 			else break;
 		}
-		ppmfc::CString theaterSoft = "SoftTileSets";
+		FString theaterSoft = "SoftTileSets";
 		if (auto pSection = CINI::FAData->GetSection(theaterSoft))
 		{
 			for (const auto& [key, value] : pSection->GetEntities())
@@ -1754,7 +1756,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			}
 		}
 	}
-	ppmfc::CString redrawExtra = "RedrawExtraTileSets";
+	FString redrawExtra = "RedrawExtraTileSets";
 	redrawExtra += theaterSuffix;
 	if (auto pSection = CINI::FAData->GetSection(redrawExtra))
 	{
@@ -1804,7 +1806,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	CMapDataExt::Tile_to_lat.clear();
 
-	std::vector<std::vector<ppmfc::CString>> lats = {
+	std::vector<std::vector<FString>> lats = {
 	{"SandTile", "ClearToSandLat"},
 	{"GreenTile", "ClearToGreenLat"},
 	{"RoughTile", "ClearToRoughLat"},
@@ -1818,10 +1820,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	{
 		for (auto& pair : pLAT->GetEntities())
 		{
-			auto atoms = STDHelpers::SplitString(pair.second);
+			auto atoms = FString::SplitString(pair.second);
 			if (atoms.size() >= 3)
 			{
-				std::vector<ppmfc::CString> group;
+				std::vector<FString> group;
 				if (CINI::CurrentDocument().GetString("Map", "Theater") != atoms[0])
 					continue;
 				group.push_back(atoms[1]);
@@ -1917,11 +1919,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				int relativeIndex = i - TileSet_starts[index] + 1;
 				auto& anim = TileAnimations[i];
 				anim.TileIndex = i;
-				ppmfc::CString Anim;
-				ppmfc::CString XOffset;
-				ppmfc::CString YOffset;
-				ppmfc::CString AttachesTo;
-				ppmfc::CString ZAdjust;
+				FString Anim;
+				FString XOffset;
+				FString YOffset;
+				FString AttachesTo;
+				FString ZAdjust;
 				Anim.Format("Tile%02dAnim", relativeIndex);
 				XOffset.Format("Tile%02dXOffset", relativeIndex);
 				YOffset.Format("Tile%02dYOffset", relativeIndex);
@@ -1932,9 +1934,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
 				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
 				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
-				ppmfc::CString imageName;
+				FString imageName;
 				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
-				ppmfc::CString sectionName;
+				FString sectionName;
 				sectionName.Format("TileSet%04d", index);
 				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
 				if (customPal == "iso")
@@ -1954,10 +1956,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	for (auto& [_, ID] : Variables::Rules.GetSection("InfantryTypes"))
 	{
-		ppmfc::CString ArtID = CLoadingExt::GetArtID(ID);
-		ppmfc::CString ImageID = CLoadingExt::GetExtension()->GetInfantryFileID(ID);
+		auto ArtID = CLoadingExt::GetArtID(ID);
+		auto ImageID = CLoadingExt::GetExtension()->GetInfantryFileID(ID);
 
-		ppmfc::CString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
+		auto sequenceName = CINI::Art->GetString(ImageID, "Sequence");
 		bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
 		bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer"
 			&& CINI::Art->KeyExists(sequenceName, "Swim");
@@ -1973,7 +1975,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	{
 		for (const auto& [_, value] : pSection->GetEntities())
 		{
-			auto atoms = STDHelpers::SplitString(value, 5);
+			auto atoms = FString::SplitString(value, 5);
 			auto& list = atoms[0] == "Event" ? CNewTrigger::EventParamAffectedParams : CNewTrigger::ActionParamAffectedParams;
 			auto& target = list.emplace_back();
 			target.Index = atoi(atoms[1]);

@@ -17,10 +17,8 @@ char* StringtableLoader::pEDIBuffer = nullptr;
 wchar_t StringtableLoader::pStringBuffer[0x400] = {};
 std::map<FString, FString> StringtableLoader::CSFFiles_Stringtable;
 
-DEFINE_HOOK(4B2633, QueryUIName, 5)
+FString StringtableLoader::QueryUIName(const char* pRegName)
 {
-    GET_STACK(char*, pRegName, 0x118);
-
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules());
     mmh.AddINI(&CINI::CurrentDocument());
@@ -45,11 +43,19 @@ DEFINE_HOOK(4B2633, QueryUIName, 5)
     theater = "RenameID" + theater;
     ccstring = CINI::FALanguage().GetString(theater, pRegName, ccstring);
 
+    return ccstring;
+}
+
+DEFINE_HOOK(4B2633, QueryUIName, 5)
+{
+    GET_STACK(char*, pRegName, 0x118);
+
+    FString ccstring = StringtableLoader::QueryUIName(pRegName);
     memset(StringtableLoader::pStringBuffer, '\0', sizeof(StringtableLoader::pStringBuffer));
     int len = MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), NULL, 0);
     MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), StringtableLoader::pStringBuffer, std::min(len, 0x400 - 1));
-
     R->EDI(StringtableLoader::pStringBuffer);
+
     return 0x4B33D1;
 }
 

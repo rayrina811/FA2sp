@@ -89,7 +89,7 @@ public:
     static HWND hImporterText;
 private:
     static WNDPROC OriginalListBoxProc;
-    static std::map<int, ppmfc::CString> SectionLabels;
+    static std::map<int, FString> SectionLabels;
     static int origWndWidth;
     static int origWndHeight;
     static int minWndWidth;

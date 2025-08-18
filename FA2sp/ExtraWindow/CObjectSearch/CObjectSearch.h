@@ -63,12 +63,12 @@ private:
     static HWND m_hwnd;
     static CTileSetBrowserFrame* m_parent;
     static std::vector<std::pair<std::string, std::regex>> Nodes;
-    static std::map<int, ppmfc::CString> Datas;
+    static std::map<int, FString> Datas;
     static int ListBoxIndex;
     static std::vector<TVITEMA> ListBox_TreeView;
     static std::vector<int> ListBox_Tile;
     static std::vector<std::pair<int, int>> ListBox_MapCoord;
-    static std::vector<ppmfc::CString> ListBoxTexts;
+    static std::vector<FString> ListBoxTexts;
     static bool bExactMatch;
     static bool bTreeView;
     static bool bMap;

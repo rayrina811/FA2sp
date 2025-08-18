@@ -315,7 +315,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomTerrain = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomTreeObList"))
         {
@@ -341,7 +341,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomSmudge = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
         {
@@ -369,7 +369,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomInfantry = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
         {
@@ -399,7 +399,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomStructure = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomBuildingObList"))
         {
@@ -430,7 +430,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomAircraft = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomAircraftObList"))
         {
@@ -460,7 +460,7 @@ DEFINE_HOOK(4572E1, CIsoView_OnMouseMove_Cliff, 6)
             CViewObjectsExt::PlacingRandomVehicle = -1;
             return 0;
         }
-        std::vector<ppmfc::CString> randomList;
+        std::vector<FString> randomList;
 
         if (auto pSection = CINI::FAData().GetSection("PlaceRandomVehicleObList"))
         {
@@ -581,13 +581,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             int tileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)].TileSet;
             int nTileCount = SendMessage(hTileComboBox, CB_GETCOUNT, NULL, NULL);
             char buffer[512] = { 0 };
-            ppmfc::CString tileName;
+            FString tileName;
 
             for (int idx = 0; idx < nTileCount; ++idx)
             {
                 SendMessage(hTileComboBox, CB_GETLBTEXT, idx, (LPARAM)(LPCSTR)buffer);
                 tileName = buffer;
-                STDHelpers::TrimIndex(tileName);
+                FString::TrimIndex(tileName);
                 if (atoi(tileName) == tileSet)
                 {
                     SendMessage(hTileComboBox, CB_SETCURSEL, idx, NULL);
@@ -723,7 +723,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 }
                 else if (CViewObjectsExt::PlacingRandomSmudge >= 0)
                 {
-                    std::vector<ppmfc::CString> randomList;
+                    std::vector<FString> randomList;
                     if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
                     {
                         if (auto pSection2 = CINI::FAData().GetSection(*pSection->GetValueAt(CViewObjectsExt::PlacingRandomSmudge)))
@@ -779,7 +779,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 }
                 else if (CViewObjectsExt::PlacingRandomInfantry >= 0)
                 {
-                    std::vector<ppmfc::CString> randomList;
+                    std::vector<FString> randomList;
 
                     if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
                     {
@@ -826,8 +826,8 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                     || CViewObjectsExt::PlacingRandomAircraft >= 0
                     )
                 {
-                    std::vector<ppmfc::CString> randomList;
-                    ppmfc::CString list;
+                    std::vector<FString> randomList;
+                    FString list;
                     int index = 0;
                     if (CViewObjectsExt::PlacingRandomTerrain >= 0)
                     {

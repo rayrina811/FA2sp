@@ -38,7 +38,7 @@ HWND CNewINIEditor::hImportTextButton;
 HWND CNewINIEditor::hImporterDesc;
 HWND CNewINIEditor::hImporterOK;
 HWND CNewINIEditor::hImporterText;
-std::map<int, ppmfc::CString> CNewINIEditor::SectionLabels;
+std::map<int, FString> CNewINIEditor::SectionLabels;
 int CNewINIEditor::origWndWidth;
 int CNewINIEditor::origWndHeight;
 int CNewINIEditor::minWndWidth;
@@ -74,7 +74,7 @@ void CNewINIEditor::Create(CFinalSunDlg* pWnd)
 
 void CNewINIEditor::Initialize(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("INIEditorTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -116,7 +116,7 @@ void CNewINIEditor::Initialize(HWND& hWnd)
 }
 void CNewINIEditor::InitializeImporter(HWND& hWnd)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     if (Translations::GetTranslationItem("INIEditorImporterTitle", buffer))
         SetWindowText(hWnd, buffer);
 
@@ -403,15 +403,15 @@ void CNewINIEditor::OnClickImportText(HWND& hWnd)
 void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
 {
     GetWindowText(hImporterText, INIBuffer, INI_BUFFER_SIZE - 1);
-    ppmfc::CString text(INIBuffer);
-    auto lines = STDHelpers::SplitStringMultiSplit(text, "\n|\r");
-    ppmfc::CString section;
-    std::vector<ppmfc::CString> sections;
+    FString text(INIBuffer);
+    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
+    FString section;
+    std::vector<FString> sections;
     
     
     for (auto& line : lines)
     {
-        STDHelpers::TrimSemicolon(line);
+        FString::TrimSemicolon(line);
         line.Trim();
 
         int nStart = line.Find('[');
@@ -425,7 +425,7 @@ void CNewINIEditor::OnClickImporterOK(HWND& hWnd)
         if (section == "")
             continue;
 
-        auto pair = STDHelpers::SplitKeyValue(line);
+        auto pair = FString::SplitKeyValue(line);
         if (line != "" && pair.first != "" && pair.second != "")
         {
             map.WriteString(section, pair.first, pair.second);
@@ -478,7 +478,7 @@ void CNewINIEditor::OnClickDelSection(HWND& hWnd)
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
 
-    ppmfc::CString warn = "Are you sure you want to delete %section%? You should be really careful, you may not be able to use the map afterwards.";
+    FString warn = "Are you sure you want to delete %section%? You should be really careful, you may not be able to use the map afterwards.";
     warn = Translations::TranslateOrDefault("INIEditorDelWarn", warn);
     warn.Replace("%section%", section);
 
@@ -518,16 +518,16 @@ void CNewINIEditor::OnSelchangeListbox(int index)
 
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
-    ppmfc::CString text;
+    FString text;
     if (auto pSection = map.GetSection(section))
     {
         for (auto& pair : pSection->GetEntities())
         {
-            ppmfc::CString line;
+            FString line;
             line.Format("%s=%s\r\n", pair.first, pair.second);
             text += line;
         }
-        SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)text.m_pchData);
+        SendMessage(hINIEdit, WM_SETTEXT, 0, text);
     }
     else
         SendMessage(hINIEdit, WM_SETTEXT, 0, (LPARAM)(LPCSTR)"");
@@ -545,8 +545,8 @@ void CNewINIEditor::OnEditchangeINIEdit()
     char section[512]{ 0 };
     SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)section);
     GetWindowText(hINIEdit, INIBuffer, INI_BUFFER_SIZE - 1);
-    ppmfc::CString text(INIBuffer);
-    auto lines = STDHelpers::SplitStringMultiSplit(text, "\n|\r");
+    FString text(INIBuffer);
+    auto lines = FString::SplitStringMultiSplit(text, "\n|\r");
 
     map.DeleteSection(section);
     for (auto& line : lines)
@@ -556,10 +556,10 @@ void CNewINIEditor::OnEditchangeINIEdit()
         const char* eq = strchr(line, '=');
 
         if (!lb || !rb || rb < lb || (eq && eq < lb)) {
-            STDHelpers::TrimSemicolon(line);
+            FString::TrimSemicolon(line);
             line.Trim();
 
-            auto pair = STDHelpers::SplitKeyValue(line);
+            auto pair = FString::SplitKeyValue(line);
             if (line != "" && pair.first != "")// && pair.second != "") // allow empty value
                 map.WriteString(section, pair.first, pair.second);
         }
@@ -583,7 +583,7 @@ void CNewINIEditor::OnEditchangeSearch()
         while (SendMessage(hSectionList, LB_DELETESTRING, 0, NULL) != LB_ERR);
         for (auto& pair : SectionLabels)
         {
-            SendMessage(hSectionList, LB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.m_pchData);
+            SendMessage(hSectionList, LB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second);
         }
         SectionLabels.clear();
     }
@@ -595,7 +595,7 @@ void CNewINIEditor::OnEditchangeSearch()
     {
         SendMessage(hSectionList, LB_GETTEXT, idx, (LPARAM)buffer2);
         bool del = false;
-        ppmfc::CString tmp(buffer2);
+        FString tmp(buffer2);
         if (!(ExtraWindow::IsLabelMatch(buffer2, buffer) || strcmp(buffer, "") == 0))
         {
             deletedLabels.push_back(idx);
@@ -675,7 +675,7 @@ void CNewINIEditor::UpdateAllGameObject()
 
 bool CNewINIEditor::IsGameObject(const char* lpSectionName)
 {
-    ppmfc::CString str(lpSectionName);
+    FString str(lpSectionName);
 
     if (str == "Terrain" || str == "Waypoints" || str == "Smudge" ||
         str == "Structures" || str == "Units" || str == "CellTags" ||
@@ -687,7 +687,7 @@ bool CNewINIEditor::IsGameObject(const char* lpSectionName)
 
 bool CNewINIEditor::IsMapPack(const char* lpSectionName)
 {
-    ppmfc::CString str(lpSectionName);
+    FString str(lpSectionName);
 
     if (str == "IsoMapPack5" || str == "OverlayPack" || str == "OverlayDataPack" ||
         str == "Preview" || str == "PreviewPack" || str == "Map")
@@ -698,7 +698,7 @@ bool CNewINIEditor::IsMapPack(const char* lpSectionName)
 
 bool CNewINIEditor::IsHouse(const char* lpSectionName)
 {
-    ppmfc::CString str(lpSectionName);
+    FString str(lpSectionName);
 
     if (auto pSection = map.GetSection("Houses")) {
         for (auto& pair : pSection->GetEntities()) {
@@ -711,7 +711,7 @@ bool CNewINIEditor::IsHouse(const char* lpSectionName)
 
 bool CNewINIEditor::IsTeam(const char* lpSectionName)
 {
-    ppmfc::CString str(lpSectionName);
+    FString str(lpSectionName);
 
     if (auto pSection = map.GetSection("TeamTypes")) {
         for (auto& pair : pSection->GetEntities()) {

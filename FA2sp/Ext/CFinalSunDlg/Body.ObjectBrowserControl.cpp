@@ -18,17 +18,18 @@
 #include "../CLoading/Body.h"
 #include <Miscs/Miscs.h>
 #include <filesystem>
+#include "../../Miscs/StringtableLoader.h"
 
 namespace fs = std::filesystem;
 
 std::array<HTREEITEM, CViewObjectsExt::Root_Count> CViewObjectsExt::ExtNodes;
-std::unordered_set<ppmfc::CString> CViewObjectsExt::IgnoreSet;
-std::unordered_set<ppmfc::CString> CViewObjectsExt::ForceName;
-std::unordered_map<ppmfc::CString, ppmfc::CString> CViewObjectsExt::RenameString;
-std::unordered_set<ppmfc::CString> CViewObjectsExt::ExtSets[Set_Count];
-std::unordered_map<ppmfc::CString, int[10]> CViewObjectsExt::KnownItem;
-std::unordered_map<ppmfc::CString, int> CViewObjectsExt::Owners;
-std::unordered_set<ppmfc::CString> CViewObjectsExt::AddOnceSet;
+std::unordered_set<FString> CViewObjectsExt::IgnoreSet;
+std::unordered_set<FString> CViewObjectsExt::ForceName;
+std::unordered_map<FString, FString> CViewObjectsExt::RenameString;
+std::unordered_set<FString> CViewObjectsExt::ExtSets[Set_Count];
+std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
+std::unordered_map<FString, int> CViewObjectsExt::Owners;
+std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
 bool CViewObjectsExt::IsOpeningAnnotationDlg = false;
@@ -36,7 +37,7 @@ int CViewObjectsExt::InsertingTileIndex = -1;
 int CViewObjectsExt::InsertingOverlay = -1;
 int CViewObjectsExt::InsertingOverlayData = 0;
 bool CViewObjectsExt::InsertingSpecialBitmap = false;
-ppmfc::CString CViewObjectsExt::InsertingObjectID;
+FString CViewObjectsExt::InsertingObjectID;
 CBitmap CViewObjectsExt::SpecialBitmap;
 CImageList CViewObjectsExt::m_ImageList;
 
@@ -62,12 +63,12 @@ bool CViewObjectsExt::VehicleBrushBoolsF[11];
 bool CViewObjectsExt::AircraftBrushBoolsF[9];
 bool CViewObjectsExt::BuildingBrushBoolsBNF[14];
 
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterB;
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterA;
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterI;
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterV;
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterBN;
-std::vector<ppmfc::CString> CViewObjectsExt::ObjectFilterCT;
+std::vector<FString> CViewObjectsExt::ObjectFilterB;
+std::vector<FString> CViewObjectsExt::ObjectFilterA;
+std::vector<FString> CViewObjectsExt::ObjectFilterI;
+std::vector<FString> CViewObjectsExt::ObjectFilterV;
+std::vector<FString> CViewObjectsExt::ObjectFilterBN;
+std::vector<FString> CViewObjectsExt::ObjectFilterCT;
 std::map<int, int> CViewObjectsExt::WallDamageStages;
 
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
@@ -136,7 +137,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 auto& tile = CMapDataExt::TileData[InsertingTileIndex];
                 auto& subTile = tile.TileBlockDatas[0];
 
-                ppmfc::CString fileName;
+                FString fileName;
                 fileName.Format("%s-tile-%d-%d.bmp", CINI::CurrentDocument->GetString("Map", "Theater"),
                     InsertingTileIndex, ExtConfigs::TreeViewCameo_Size);
 
@@ -147,7 +148,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                     fs::create_directories(path);
                 }
                 path += "\\";
-                path += fileName.m_pchData;
+                path += fileName;
                 if (fs::exists(path))
                 {
                     CBitmap cBitmap;
@@ -218,7 +219,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims
-                ppmfc::CString ArtID = CLoadingExt::GetArtID(InsertingObjectID);
+                FString ArtID = CLoadingExt::GetArtID(InsertingObjectID);
                 if (CINI::Art->KeyExists(ArtID, "Image") && CINI::Art->GetString(ArtID, "Image") != ArtID)
                 {
                     fileID += "-";
@@ -242,7 +243,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             {
                 fs::create_directories(path);
             }
-            ppmfc::CString fileName;
+            FString fileName;
             fileName.Format("%s-%d.bmp", fileID, ExtConfigs::TreeViewCameo_Size);
             if (InsertingOverlay > -1)
             {
@@ -250,7 +251,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                     InsertingOverlay, InsertingOverlayData, ExtConfigs::TreeViewCameo_Size);
             }
             path += "\\";
-            path += fileName.m_pchData;
+            path += fileName;
             if (fs::exists(path))
             {
                 CBitmap cBitmap;
@@ -340,29 +341,29 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
 HTREEITEM CViewObjectsExt::InsertTranslatedString(const char* pOriginString, DWORD dwItemData,
     HTREEITEM hParent, HTREEITEM hInsertAfter)
 {
-    ppmfc::CString buffer;
+    FString buffer;
     bool result = Translations::GetTranslationItem(pOriginString, buffer);
-    return InsertString(result ? buffer.m_pchData : pOriginString, dwItemData, hParent, hInsertAfter);
+    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter);
 }
 
-ppmfc::CString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
+FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
 {
     if (!bOnlyOneLine)
     {
         if (ForceName.find(pRegName) != ForceName.end())
             return Variables::Rules.GetString(pRegName, "Name", pRegName);
         else
-            return CMapData::GetUIName(pRegName);
+            return StringtableLoader::QueryUIName(pRegName);
     }
     
-    ppmfc::CString buffer;
+    FString buffer;
 
     if (ForceName.find(pRegName) != ForceName.end())
         buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
     else if (RenameString.find(pRegName) != RenameString.end())
         buffer = RenameString[pRegName];
     else
-        buffer = CMapData::GetUIName(pRegName);
+        buffer = StringtableLoader::QueryUIName(pRegName);
 
     if (buffer == "MISSING")
         buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
@@ -371,7 +372,7 @@ ppmfc::CString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneL
     return idx == -1 ? buffer : buffer.Mid(0, idx);
 }
 
-std::vector<int> SplitCommaIntArray(ppmfc::CString input)
+std::vector<int> SplitCommaIntArray(FString input)
 {
     CString field;
     std::vector<int> result;
@@ -444,14 +445,14 @@ void CViewObjectsExt::Redraw()
    
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
-        CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else
     {
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
-        CFinalSunDlg::Instance->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
     Redraw_Initialize();
@@ -581,8 +582,8 @@ void CViewObjectsExt::Redraw_Initialize()
 		if (theaterIg == "NEWURBAN")
 			theaterIg = "UBN";
 
-        ppmfc::CString suffix = theaterIg.Mid(0, 3);
-		if (auto theater_ignores = fadata.GetSection((ppmfc::CString)("IgnoreRA2" + suffix)))
+        FString suffix = theaterIg.Mid(0, 3);
+		if (auto theater_ignores = fadata.GetSection((FString)("IgnoreRA2" + suffix)))
 			for (auto& item : theater_ignores->GetEntities())
 				IgnoreSet.insert(item.second);
 	}
@@ -603,9 +604,9 @@ void CViewObjectsExt::Redraw_Initialize()
         if (theaterIg == "NEWURBAN")
             theaterIg = "UBN";
 
-        ppmfc::CString suffix = theaterIg.Mid(0, 3);
+        FString suffix = theaterIg.Mid(0, 3);
 
-        if (auto forcenames = fadata.GetSection((ppmfc::CString)("RenameString" + suffix)))
+        if (auto forcenames = fadata.GetSection((FString)("RenameString" + suffix)))
             for (auto& item : forcenames->GetEntities())
             {
                 RenameString[item.first] = item.second;
@@ -659,7 +660,7 @@ void CViewObjectsExt::Redraw_Ground()
     if (theater == "NEWURBAN")
         theater = "UBN";
 
-    ppmfc::CString suffix;
+    FString suffix;
     if (theater != "")
         suffix = theater.Mid(0, 3);
 
@@ -673,7 +674,7 @@ void CViewObjectsExt::Redraw_Ground()
                     InsertingTileIndex = CMapDataExt::TileSet_starts[tileSet];
             }
         };
-    auto setTileIndexByName = [setTileIndex](ppmfc::CString name)
+    auto setTileIndexByName = [setTileIndex](FString name)
         {           
             if (CMapData::Instance->MapWidthPlusHeight)
             {
@@ -721,15 +722,15 @@ void CViewObjectsExt::Redraw_Ground()
             {
                 FA2sp::Buffer.Format("TileSet%04d", nTileset);
                 FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
-                ppmfc::CString buffer;
+                FString buffer;
                 Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
                 setTileIndex(nTileset);
                 return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
             };
 
-            ppmfc::CString buffer;
+            FString buffer;
             buffer.Format("TileSet%04d", morphables.Morphable);
-            ppmfc::CString buffer2;
+            FString buffer2;
             buffer2.Format("TileSet%04d", morphables.Ramp);
             auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
             auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
@@ -753,15 +754,15 @@ void CViewObjectsExt::Redraw_Ground()
                 {
                     FA2sp::Buffer.Format("TileSet%04d", nTileset);
                     FA2sp::Buffer = CINI::CurrentTheater->GetString(FA2sp::Buffer, "SetName", FA2sp::Buffer);
-                    ppmfc::CString buffer;
+                    FString buffer;
                     Translations::GetTranslationItem(FA2sp::Buffer, FA2sp::Buffer);
                     setTileIndex(nTileset);
                     return this->InsertString(FA2sp::Buffer, i++, hGround, TVI_LAST);
                 };
 
-            ppmfc::CString buffer;
+            FString buffer;
             buffer.Format("TileSet%04d", morphables.Morphable);
-            ppmfc::CString buffer2;
+            FString buffer2;
             buffer2.Format("TileSet%04d", morphables.Ramp);
             auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
             auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
@@ -781,7 +782,7 @@ void CViewObjectsExt::Redraw_Owner()
     if (hOwner == NULL)    return;
 
     auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
-    ppmfc::CString translated;
+    FString translated;
 
     if (ExtConfigs::ObjectBrowser_SafeHouses)
     {
@@ -792,15 +793,15 @@ void CViewObjectsExt::Redraw_Owner()
             for (size_t i = 0, sz = section.size(); i < sz; ++i, ++itr)
                 if (strcmp(itr->second, "Neutral") == 0 || strcmp(itr->second, "Special") == 0)
                 {
-                    ppmfc::CString uiname = itr->second;
+                    FString uiname = itr->second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
                         for (auto& pair : countries)
                         {
                             if (ExtConfigs::BetterHouseNameTranslation)
-                                translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                                translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                             else
-                                translated = CMapData::GetUIName(pair.second);
+                                translated = StringtableLoader::QueryUIName(pair.second);
 
                             uiname.Replace(pair.second, translated);
                         }
@@ -858,15 +859,15 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
-                    ppmfc::CString uiname = itr.second;
+                    FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                         else
-                            translated = CMapData::GetUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second);
 
                         uiname.Replace(pair.second, translated);
                     }
@@ -904,15 +905,15 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
-                    ppmfc::CString uiname = itr.second;
+                    FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                         else
-                            translated = CMapData::GetUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second);
 
                         uiname.Replace(pair.second, translated);
                     }
@@ -971,15 +972,15 @@ void CViewObjectsExt::Redraw_Owner()
                 size_t i = 0;
                 for (auto& itr : section)
                 {
-                    ppmfc::CString uiname = itr.second;
+                    FString uiname = itr.second;
 
                     if (!ExtConfigs::NoHouseNameTranslation)
                     for (auto& pair : countries)
                     {
                         if (ExtConfigs::BetterHouseNameTranslation)
-                            translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                            translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                         else
-                            translated = CMapData::GetUIName(pair.second);
+                            translated = StringtableLoader::QueryUIName(pair.second);
 
                         uiname.Replace(pair.second, translated);
                     }
@@ -1054,7 +1055,7 @@ void CViewObjectsExt::Redraw_Infantry()
         auto sides = GetUnique(GuessSide(inf.second, Set_Infantry));
         if (!sides.empty())
         {
-            ppmfc::CString display = QueryUIName(inf.second);
+            FString display = QueryUIName(inf.second);
             if (display != inf.second)
                 display += " (" + inf.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
@@ -1156,7 +1157,7 @@ void CViewObjectsExt::Redraw_Vehicle()
         auto sides = GetUnique(GuessSide(veh.second, Set_Vehicle));
         if (!sides.empty())
         {
-            ppmfc::CString display = QueryUIName(veh.second);
+            FString display = QueryUIName(veh.second);
             if (display != veh.second)
                 display += " (" + veh.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
@@ -1260,7 +1261,7 @@ void CViewObjectsExt::Redraw_Aircraft()
         auto sides = GetUnique(GuessSide(air.second, Set_Aircraft));
         if (!sides.empty())
         {
-            ppmfc::CString display = QueryUIName(air.second);
+            FString display = QueryUIName(air.second);
             if (display != air.second)
                 display += " (" + air.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
@@ -1330,7 +1331,7 @@ void CViewObjectsExt::Redraw_Building()
     if (hBuilding == NULL)   return;
 
     std::map<int, HTREEITEM> subNodes;
-    std::map<int, std::vector<std::pair<int, ppmfc::CString>>> foundationBuildings;
+    std::map<int, std::vector<std::pair<int, FString>>> foundationBuildings;
 
     auto& rules = CINI::Rules();
     auto& fadata = CINI::FAData();
@@ -1365,7 +1366,7 @@ void CViewObjectsExt::Redraw_Building()
         auto sides = GetUnique(GuessSide(bud.second, Set_Building));
         if (!sides.empty())
         {
-            ppmfc::CString display = QueryUIName(bud.second);
+            FString display = QueryUIName(bud.second);
             if (display != bud.second)
                 display += " (" + bud.second + ")";
             if (sides.size() == 1 && sides[0] == -1)
@@ -1404,7 +1405,7 @@ void CViewObjectsExt::Redraw_Building()
     {
         if (buildingList.empty())
             continue;
-        ppmfc::CString name;
+        FString name;
         name.Format("%dx%d %s", foundation / 100, foundation % 100, Translations::TranslateOrDefault("FoundationBuildingObList", "Building"));
         HTREEITEM hGroup = this->InsertString(name, -1, hBuilding);
 
@@ -1470,11 +1471,11 @@ void CViewObjectsExt::Redraw_Terrain()
     HTREEITEM& hTerrain = ExtNodes[Root_Terrain];
     if (hTerrain == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, ppmfc::CString>> nodes;
+    std::vector<std::pair<HTREEITEM, FString>> nodes;
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.TerrainTypes"))
     {
-        std::map<int, ppmfc::CString> collector;
+        std::map<int, FString> collector;
 
         for (auto& pair : pSection->GetIndices())
             collector[pair.second] = pair.first;
@@ -1501,7 +1502,7 @@ void CViewObjectsExt::Redraw_Terrain()
             InsertingObjectID = terrains[i];
             for (const auto& node : nodes)
             {
-                if (terrains[i].Find(node.second) >= 0)
+                if (terrains[i].Find(node.second.c_str()) >= 0)
                 {
                     this->InsertString(FA2sp::Buffer, Const_Terrain + i, node.first);
                     bNotOther = true;
@@ -1548,11 +1549,11 @@ void CViewObjectsExt::Redraw_Smudge()
     HTREEITEM& hSmudge = ExtNodes[Root_Smudge];
     if (hSmudge == NULL)   return;
 
-    std::vector<std::pair<HTREEITEM, ppmfc::CString>> nodes;
+    std::vector<std::pair<HTREEITEM, FString>> nodes;
 
     if (auto pSection = CINI::FAData->GetSection("ObjectBrowser.SmudgeTypes"))
     {
-        std::map<int, ppmfc::CString> collector;
+        std::map<int, FString> collector;
 
         for (auto& pair : pSection->GetIndices())
             collector[pair.second] = pair.first;
@@ -1606,7 +1607,7 @@ void CViewObjectsExt::Redraw_Smudge()
             InsertingObjectID = smudges[i];
             for (const auto& node : nodes)
             {
-                if (smudges[i].Find(node.second) >= 0)
+                if (smudges[i].Find(node.second.c_str()) >= 0)
                 {
                     this->InsertString(FA2sp::Buffer, Const_Smudge + i, node.first);
                     bNotOther = true;
@@ -1687,11 +1688,11 @@ void CViewObjectsExt::Redraw_Overlay()
             (*overlays).size() : std::min((UINT)255, (*overlays).size()); i < sz; ++i)
         {
             const auto& value = (*overlays)[i].second;
-            ppmfc::CString buffer;
+            FString buffer;
             buffer = QueryUIName(value);
             if (buffer != value)
                 buffer += " (" + value + ")";
-            ppmfc::CString id;
+            FString id;
             id.Format("%03d %s", i, buffer);
             if (rules.GetBool(value, "Wall"))
             {
@@ -1707,7 +1708,7 @@ void CViewObjectsExt::Redraw_Overlay()
 
                 for (int s = 1; s < damageLevel + 1; s++)
                 {
-                    ppmfc::CString damage;
+                    FString damage;
                     damage.Format("WallDamageLevelDes%d", s);
                     this->InsertString(
                         QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
@@ -2132,7 +2133,7 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
 
 void CViewObjectsExt::AddAnnotation(int X, int Y)
 {
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", X * 1000 + Y);
     CAnnotationDlg dlg;
 
@@ -2167,7 +2168,7 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
     auto bgColor = STDHelpers::HexStringToColorRefRGB(dlg.m_BgColor);
     bool bold = dlg.m_Bold == TRUE;
 
-    ppmfc::CString value;
+    FString value;
     value.Format("%d,%s,%s,%s,%s,%s,END", size, bold ? "yes" : "no", folded ? "yes" : "no",
         STDHelpers::ColorRefRGBToHexString(textColor), STDHelpers::ColorRefRGBToHexString(bgColor),
         dlg.m_Text);
@@ -2181,7 +2182,7 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
 
 void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 {
-    ppmfc::CString key;
+    FString key;
     key.Format("%d", X * 1000 + Y);
 
     auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
@@ -2292,7 +2293,7 @@ void CViewObjectsExt::MoveBaseNode(int X, int Y)
     }
     else
     {
-        ppmfc::CString value;
+        FString value;
         value.Format("%s,%d,%d", MoveBaseNode_SelectedObj.ID, Y, X);
         ini.WriteString(MoveBaseNode_SelectedObj.House, MoveBaseNode_SelectedObj.Key, value);
         MoveBaseNode_SelectedObj.House = "";

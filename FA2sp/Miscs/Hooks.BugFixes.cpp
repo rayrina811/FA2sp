@@ -173,10 +173,10 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x19C));
 	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x194));
 
-	ppmfc::CString buffer;
+	FString buffer;
 
 	{
-		std::vector<std::tuple<ppmfc::CString, ppmfc::CString, int, int>> smudges;
+		std::vector<std::tuple<FString, FString, int, int>> smudges;
 		for (size_t i = 0; i < CMapData::Instance->SmudgeDatas.size();++i)
 		{
 			const auto& data = CMapData::Instance->SmudgeDatas[i];
@@ -205,12 +205,12 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 		{
 			const int nodeCount = CMapData::Instance->INI.GetInteger(pSection, "NodeCount");
 
-			std::vector<std::tuple<ppmfc::CString, ppmfc::CString, int, int>> nodes;
+			std::vector<std::tuple<FString, FString, int, int>> nodes;
 			for (int i = 0; i < nodeCount; ++i)
 			{
 				buffer.Format("%03d", i);
 				const auto value = CMapData::Instance->INI.GetString(pSection, buffer);
-				const auto splits = STDHelpers::SplitString(value);
+				const auto splits = FString::SplitString(value);
 				nodes.emplace_back(buffer, splits[0], atoi(splits[1]) + XOFF, atoi(splits[2]) + YOFF);
 			}
 
@@ -234,7 +234,7 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 	{
 		for (const auto& [key, value] : pSection->GetEntities())
 		{
-			auto atoms = STDHelpers::SplitString(value, 5);
+			auto atoms = FString::SplitString(value, 5);
 
 			MapCoord StartCoord = { atoi(atoms[1]),atoi(atoms[0]) };
 			MapCoord EndCoord = { atoi(atoms[4]),atoi(atoms[3]) };
@@ -244,7 +244,7 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 			atoms[0].Format("%d", StartCoord.Y);
 			atoms[4].Format("%d", EndCoord.X);
 			atoms[3].Format("%d", EndCoord.Y);
-			ppmfc::CString val;
+			FString val;
 			for (auto& atom : atoms)
 			{
 				val += atom;

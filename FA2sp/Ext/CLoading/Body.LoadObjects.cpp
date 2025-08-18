@@ -242,6 +242,8 @@ void CLoadingExt::ClearItemTypes()
 	SwimableInfantries.clear();
 	ImageDataMap.clear();
 	AvailableFacings.clear();
+	CMapDataExt::TerrainPaletteBuildings.clear();
+	CMapDataExt::DamagedAsRubbleBuildings.clear();
 	for (auto& data : SurfaceImageDataMap)
 	{
 		if (data.second->lpSurface)

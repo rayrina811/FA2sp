@@ -1,6 +1,7 @@
 #include "CListUInputDlg.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Helpers/FString.h"
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../Common.h"
 
@@ -16,7 +17,7 @@ void CListUInputDlg::DoDataExchange(ppmfc::CDataExchange* pDX)
 	ppmfc::CWnd* box = (ppmfc::CWnd*)GetDlgItem(1000);
 	ppmfc::DDX_Control(pDX, 1000, *box);
 
-	ppmfc::CString buffer;
+	FString buffer;
 	if (Translations::GetTranslationItem("OK", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);
 	

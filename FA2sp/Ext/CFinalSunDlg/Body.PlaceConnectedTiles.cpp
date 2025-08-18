@@ -116,7 +116,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
 
                     for (int i = 0; i < 100; i++)
                     {
-                        ppmfc::CString buffer;
+                        FString buffer;
                         buffer.Format("%s.%d", pair.second, i);
                         if (ini.SectionExists(buffer))
                         {
@@ -158,7 +158,7 @@ void CViewObjectsExt::ConnectedTile_Initialize()
 
             for (auto& cts : CViewObjectsExt::ConnectedTileSets)
             {
-                ppmfc::CString key;
+                FString key;
                 for (int i = 0; i < 10; ++i)
                 {
                     cts.ToSetPress[i] = -1;
@@ -243,7 +243,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
                     if (lastTileIndexTX < CMapDataExt::TileDataCount)
                     {
                         int lastTilesetTX = CMapDataExt::TileData[lastTileIndexTX].TileSet;
-                        ppmfc::CString buffer;
+                        FString buffer;
                         buffer.Format("TileSet%04d", lastTilesetTX);
 
                         auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
@@ -263,18 +263,7 @@ void CViewObjectsExt::Redraw_ConnectedTile(CViewObjectsExt* pThis)
 
                 int firstTileset = CMapDataExt::TileData[firstTileIndex].TileSet;
                 int lastTileset = CMapDataExt::TileData[lastTileIndex].TileSet;
-                ppmfc::CString buffer;
-                buffer.Format("TileSet%04d", firstTileset);
-
-                auto exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
-                auto exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-                if (!exist || strcmp(exist2, "") == 0)
-                    continue;
-
-                buffer.Format("TileSet%04d", lastTileset);
-                exist = CINI::CurrentTheater->GetBool(buffer, "AllowToPlace", true);
-                exist2 = CINI::CurrentTheater->GetString(buffer, "FileName", "");
-                if (!exist || strcmp(exist2, "") == 0)
+                if (!CMapDataExt::IsValidTileSet(firstTileset) || !CMapDataExt::IsValidTileSet(lastTileset))
                     continue;
             }
             

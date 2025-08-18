@@ -37,7 +37,7 @@ void FileWatcher::Callback(std::string path, Status status)
 
     if (status == Status::Modified)
     {
-        const ppmfc::CString message = Translations::TranslateOrDefault(
+        const FString message = Translations::TranslateOrDefault(
             "FileWatcherMessage", "Mapfile has been modified externally. Please reload the map file to continue."
         );
         IsMessageBoxShowing = true;

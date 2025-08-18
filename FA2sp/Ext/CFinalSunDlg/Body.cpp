@@ -29,7 +29,7 @@
 #include "../../Miscs/MultiSelection.h"
 
 int CFinalSunDlgExt::CurrentLighting = 31000;
-std::pair<ppmfc::CString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
+std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex ("", - 1);
 int CFinalSunDlgExt::SearchObjectType = -1;
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 
@@ -59,7 +59,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		}
 		if (wmID >= 30000 && wmID < 31000)
-		this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 	};
 	auto SetFilterStatus = [this, &hMenu, wmID](int id, bool& param)
 		{
@@ -98,7 +98,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				if (wmID == 30020)
 				{
 					CViewObjectsExt::ObjectFilterCT.clear();
-					CViewObjectsExt::ObjectFilterCT = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterCT = FString::SplitString(result);
 					if (STDHelpers::IsNullOrWhitespace(result))
 						CheckMenuItem(hMenu, id, MF_UNCHECKED);
 
@@ -106,7 +106,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				if (wmID == 30015)
 				{
 					CViewObjectsExt::ObjectFilterB.clear();
-					CViewObjectsExt::ObjectFilterB = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterB = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBF.get() == nullptr)
 						CViewObjectsExt::BuildingBrushDlgBF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
@@ -126,7 +126,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				else if (wmID == 30016)
 				{
 					CViewObjectsExt::ObjectFilterI.clear();
-					CViewObjectsExt::ObjectFilterI = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterI = FString::SplitString(result);
 
 					if (CViewObjectsExt::InfantryBrushDlgF.get() == nullptr)
 						CViewObjectsExt::InfantryBrushDlgF = std::make_unique<CPropertyInfantry>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
@@ -146,7 +146,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				else if (wmID == 30017)
 				{
 					CViewObjectsExt::ObjectFilterV.clear();
-					CViewObjectsExt::ObjectFilterV = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterV = FString::SplitString(result);
 
 					if (CViewObjectsExt::VehicleBrushDlgF.get() == nullptr)
 						CViewObjectsExt::VehicleBrushDlgF = std::make_unique<CPropertyUnit>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
@@ -166,7 +166,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				else if (wmID == 30018)
 				{
 					CViewObjectsExt::ObjectFilterA.clear();
-					CViewObjectsExt::ObjectFilterA = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterA = FString::SplitString(result);
 
 					if (CViewObjectsExt::AircraftBrushDlgF.get() == nullptr)
 						CViewObjectsExt::AircraftBrushDlgF = std::make_unique<CPropertyAircraft>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
@@ -186,7 +186,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				else if (wmID == 30019)
 				{
 					CViewObjectsExt::ObjectFilterBN.clear();
-					CViewObjectsExt::ObjectFilterBN = STDHelpers::SplitString(result);
+					CViewObjectsExt::ObjectFilterBN = FString::SplitString(result);
 
 					if (CViewObjectsExt::BuildingBrushDlgBNF.get() == nullptr)
 						CViewObjectsExt::BuildingBrushDlgBNF = std::make_unique<CPropertyBuilding>(CFinalSunDlg::Instance->MyViewFrame.pIsoView);
@@ -209,7 +209,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 
 			if (wmID >= 30000 && wmID < 31000)
-				this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		};
 	auto SetMenuStatusTrue = [this, &hMenu](int id, bool& param)
 	{
@@ -238,7 +238,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			LightingSourceTint::CalculateMapLamps();
 
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-			this->MyViewFrame.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 			auto tmp = CIsoView::CurrentCommand->Command;
 			if (this->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
 				HWND hParent = this->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();

@@ -2,7 +2,7 @@
 #include <openssl/aes.h>
 #include <cstring>
 
-bool ResourcePack::load(const std::string& filename)
+bool ResourcePack::load(const FString& filename)
 {
     file_path = filename;
     file_stream.open(filename, std::ios::binary);
@@ -28,7 +28,7 @@ bool ResourcePack::load(const std::string& filename)
 
     size_t offset = 0;
     while (offset + 256 + sizeof(FileEntry) <= decrypted_index.size()) {
-        std::string name(reinterpret_cast<char*>(&decrypted_index[offset]), 256);
+        FString name(reinterpret_cast<char*>(&decrypted_index[offset]), 256);
         name = name.c_str();
         offset += 256;
 
@@ -61,7 +61,7 @@ bool ResourcePack::aesDecryptBlockwise(const uint8_t* input, size_t len, std::ve
     return true;
 }
 
-std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const std::string& filename, size_t* out_size)
+std::unique_ptr<uint8_t[]> ResourcePack::getFileData(const FString& filename, size_t* out_size)
 {
     auto it = index_map.find(filename);
     if (it == index_map.end()) return nullptr;
@@ -100,7 +100,7 @@ ResourcePackManager& ResourcePackManager::instance()
     return mgr;
 }
 
-bool ResourcePackManager::loadPack(const std::string& packPath)
+bool ResourcePackManager::loadPack(const FString& packPath)
 {
     auto pack = std::make_unique<ResourcePack>();
     if (pack->load(packPath)) {
@@ -110,7 +110,7 @@ bool ResourcePackManager::loadPack(const std::string& packPath)
     return false;
 }
 
-std::unique_ptr<uint8_t[]> ResourcePackManager::getFileData(const std::string& filename, size_t* out_size) 
+std::unique_ptr<uint8_t[]> ResourcePackManager::getFileData(const FString& filename, size_t* out_size) 
 {
     for (auto& pack : packs) {
         auto data = pack->getFileData(filename, out_size);

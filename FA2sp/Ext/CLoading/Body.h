@@ -244,9 +244,9 @@ public:
 
 	static HANDLE hPipeData;
 	static std::atomic<bool> PingServerRunning;
-	static std::string PipeNameData;
-	static std::string PipeNamePing;
-	static std::string PipeName;
+	static FString PipeNameData;
+	static FString PipeNamePing;
+	static FString PipeName;
 
 	static bool StartImageServerProcess();
 	static bool ConnectToImageServer();
@@ -271,17 +271,17 @@ static_assert(sizeof(FileEntry) == 12, "FileEntry must be 12 bytes");
 
 struct CaseInsensitiveHash 
 {
-	size_t operator()(const std::string& key) const {
-		std::string lower;
+	size_t operator()(const FString& key) const {
+		FString lower;
 		lower.reserve(key.size());
 		for (char ch : key) lower.push_back(std::tolower(static_cast<unsigned char>(ch)));
-		return std::hash<std::string>()(lower);
+		return std::hash<FString>()(lower);
 	}
 };
 
 struct CaseInsensitiveEqual 
 {
-	bool operator()(const std::string& lhs, const std::string& rhs) const {
+	bool operator()(const FString& lhs, const FString& rhs) const {
 		if (lhs.size() != rhs.size()) return false;
 		for (size_t i = 0; i < lhs.size(); ++i) {
 			if (std::tolower(static_cast<unsigned char>(lhs[i])) != std::tolower(static_cast<unsigned char>(rhs[i])))
@@ -294,13 +294,13 @@ struct CaseInsensitiveEqual
 class ResourcePack 
 {
 public:
-	bool load(const std::string& filename);
-	std::unique_ptr<uint8_t[]> getFileData(const std::string& filename, size_t* out_size = nullptr);
+	bool load(const FString& filename);
+	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
 
 private:
-	std::unordered_map<std::string, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
+	std::unordered_map<FString, FileEntry, CaseInsensitiveHash, CaseInsensitiveEqual> index_map;
 	uint32_t index_size = 0; 
-	std::string file_path;
+	FString file_path;
 	std::ifstream file_stream; 
 
 	bool aesDecryptBlockwise(const uint8_t* input, size_t len, std::vector<uint8_t>& output);
@@ -312,8 +312,8 @@ class ResourcePackManager
 public:
 
 	static ResourcePackManager& instance();
-	bool loadPack(const std::string& packPath);
-	std::unique_ptr<uint8_t[]> getFileData(const std::string& filename, size_t* out_size = nullptr);
+	bool loadPack(const FString& packPath);
+	std::unique_ptr<uint8_t[]> getFileData(const FString& filename, size_t* out_size = nullptr);
 	void clear();
 
 private:

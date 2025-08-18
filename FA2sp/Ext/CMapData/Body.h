@@ -37,7 +37,7 @@ struct OverlayTypeData
     bool Wall;
     bool TerrainRock;
     bool RailRoad;
-    ppmfc::CString WallPaletteName;
+    FString WallPaletteName;
     RGBClass RadarColor;
 };
 
@@ -49,7 +49,7 @@ struct TubeData
     std::vector<int> Facings;
     std::vector<MapCoord> PathCoords;
     bool PositiveFacing;
-    ppmfc::CString key;
+    FString key;
 };
 
 struct ExtraImageInfo
@@ -97,15 +97,15 @@ struct BuildingDataExt
 struct BuildingRenderData
 {
     unsigned int HouseColor;
-    ppmfc::CString ID;
+    FString ID;
     short X;
     short Y;
     short Facing;
     short Strength;
     unsigned char PowerUpCount;
-    ppmfc::CString PowerUp1;
-    ppmfc::CString PowerUp2;
-    ppmfc::CString PowerUp3;
+    FString PowerUp1;
+    FString PowerUp2;
+    FString PowerUp3;
 };
 
 struct LightingSource
@@ -123,7 +123,7 @@ struct LightingSourcePosition
 {
     int X;
     int Y;
-    ppmfc::CString BuildingType;
+    FString BuildingType;
     bool operator==(const LightingSourcePosition& another) const
     {
         return
@@ -137,10 +137,10 @@ struct BaseNodeDataExt
 {
     int BuildingID;
     int BasenodeID;
-    ppmfc::CString House;
+    FString House;
     int X;
     int Y;
-    ppmfc::CString ID;
+    FString ID;
 
     bool operator==(const BaseNodeDataExt& another) const
     {
@@ -162,8 +162,8 @@ struct TileAnimation
     int XOffset;
     int YOffset;
     int ZAdjust;
-    ppmfc::CString AnimName;
-    ppmfc::CString ImageName;
+    FString AnimName;
+    FString ImageName;
 };
 
 struct CellDataExt
@@ -399,7 +399,7 @@ public:
     static int AutoShore_GreenTileSet;
     static std::unordered_set<int> ShoreTileSets;
     static std::unordered_map<int, bool> SoftTileSets; // soft = affected by shore logic
-    static ppmfc::CString BitmapImporterTheater;
+    static FString BitmapImporterTheater;
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;
@@ -408,9 +408,9 @@ public:
     static std::vector<TubeData> Tubes;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
-    static std::unordered_map<int, ppmfc::CString> TileSetOriginSetNames[6];
-    static std::unordered_set<ppmfc::CString> TerrainPaletteBuildings;
-    static std::unordered_set<ppmfc::CString> DamagedAsRubbleBuildings;
+    static std::unordered_map<int, FString> TileSetOriginSetNames[6];
+    static std::unordered_set<FString> TerrainPaletteBuildings;
+    static std::unordered_set<FString> DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;

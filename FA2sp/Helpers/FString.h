@@ -93,9 +93,11 @@ public:
     bool operator==(const FString& other) const { return Compare(other) == 0; }
     bool operator==(const ppmfc::CString& other) const { return Compare(other.m_pchData) == 0; }
     bool operator==(LPCSTR other) const { return Compare(other) == 0; }
+    bool operator==(const std::string& other) const { return Compare(other.c_str()) == 0; }
     bool operator!=(const FString& other) const { return !(*this == other); }
     bool operator!=(const ppmfc::CString& other) const { return !(*this == other); }
     bool operator!=(LPCSTR other) const { return !(*this == other); }
+    bool operator!=(const std::string& other) const { return !(*this == other); }
 
     FString& Delete(size_t nIndex, size_t nCount = 1) {
         if (nIndex >= length() || nCount == 0) return *this;
@@ -195,6 +197,12 @@ private:
         }
         else if constexpr (std::is_same_v<U, ppmfc::CString>) {
             vec.push_back(arg.m_pchData);
+        }
+        else if constexpr (std::is_same_v<U, std::string>) {
+            vec.push_back(arg.c_str());
+        }
+        else if constexpr (std::is_same_v<U, std::wstring>) {
+            vec.push_back(arg.c_str());
         }
         else if constexpr (std::is_same_v<U, const char*>) {
             vec.push_back(arg);
@@ -557,24 +565,21 @@ public:
 
     static std::vector<FString> SplitStringTrimmed(const FString& pSource, const char* pSplit = ",") {
         std::vector<FString> ret;
-        if (pSource.GetLength() == 0) {
+        if (pSplit == nullptr || pSource.GetLength() == 0) {
             return ret;
         }
 
         int nIdx = 0;
-        FString temp;
         while (true) {
-            int nPos = pSource.Find(pSplit, nIdx);
+            int nPos = pSource.Find(FString(pSplit), nIdx);
             if (nPos == -1) break;
 
-            temp = pSource.Mid(nIdx, nPos - nIdx);
-            temp.Trim();
-            ret.push_back(temp);
-            nIdx = nPos + 1;
+            if (nPos >= nIdx) {
+                ret.push_back(pSource.Mid(nIdx, nPos - nIdx).Trim());
+            }
+            nIdx = nPos + strlen(pSplit);
         }
-        temp = pSource.Mid(nIdx);
-        temp.Trim();
-        ret.push_back(temp);
+        ret.push_back(pSource.Mid(nIdx).Trim());
         return ret;
     }
 

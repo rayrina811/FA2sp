@@ -18,6 +18,7 @@
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
+#include "../../Miscs/StringtableLoader.h"
 
 void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
@@ -331,7 +332,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             {
                 if (i == 0)
                     pathCount--;
-                ppmfc::CString count;
+                FString count;
                 count.Format("%d", pathCount);
                 int x1, y1;
                 x1 = path[i].X;
@@ -388,7 +389,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         int drawY = Y - CIsoViewExt::drawOffsetY - 15;
 
 
-        ppmfc::CString buffer2;
+        FString buffer2;
         buffer2.Format(Translations::TranslateOrDefault("ObjectInfo.CurrentCoord",
             "Coordinates: %d, %d, Height: %d"), point.Y, point.X, cell->Height);
         ::TextOut(hDC, drawX, drawY + lineHeight * i++, buffer2, buffer2.GetLength());
@@ -398,7 +399,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             bDrawRange = true;
 
         auto drawRange = [&](float XCenter, float YCenter, float range, COLORREF color,
-            bool isBuilding, ppmfc::CString objectX, ppmfc::CString objectY, bool calculateElevation = false)
+            bool isBuilding, FString objectX, FString objectY, bool calculateElevation = false)
             {
                 if (range <= 0) return;
                 range = range > ExtConfigs::RangeBound_MaxRange ? ExtConfigs::RangeBound_MaxRange : range;
@@ -485,11 +486,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoordsInRange, color);
             };
 
-        auto drawWeaponRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool secondary = false, bool elite = false)
+        auto drawWeaponRange = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool secondary = false, bool elite = false)
             {
                 auto weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "ElitePrimary") != "" ? "ElitePrimary" : "Primary");
                 int color = 0xFFFFFF;
-                ppmfc::CString leftLine;
+                FString leftLine;
                 if (weapon == "") {
                     weapon = mmh.GetString(ID, elite && mmh.GetString(ID, "EliteWeapon1") != "" ? "EliteWeapon1" : "Weapon1");
                 }
@@ -576,11 +577,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
             };
 
-        auto drawOtherRange = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, int drawCase, bool isBuilding = false, bool elite = false)
+        auto drawOtherRange = [&](FString ID, FString objectX, FString objectY, int drawCase, bool isBuilding = false, bool elite = false)
             {
                 float range = 0.0f;
                 int color = 0xFFFFFF;
-                ppmfc::CString leftLine;
+                FString leftLine;
 
                 if (drawCase == CViewObjectsExt::ObjectTerrainType::GapRange) {
                     range = mmh.GetSingle(ID, "GapRadiusInCells");
@@ -654,7 +655,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
             };
 
-        auto displayRanges = [&](ppmfc::CString ID, ppmfc::CString objectX, ppmfc::CString objectY, bool isBuilding = false, bool elite = false)
+        auto displayRanges = [&](FString ID, FString objectX, FString objectY, bool isBuilding = false, bool elite = false)
             {
                 if ((CIsoView::CurrentCommand->Type >= CViewObjectsExt::ObjectTerrainType::WeaponRange && CIsoView::CurrentCommand->Type <= CViewObjectsExt::ObjectTerrainType::AllRange) || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
@@ -702,7 +703,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 for (auto& pair : pSection->GetEntities())
                 {
                     index++;
-                    auto atoms = STDHelpers::SplitString(pair.second, 4);
+                    auto atoms = FString::SplitString(pair.second, 4);
                     int thisY = atoi(atoms[3]);
                     int thisX = atoi(atoms[4]);
                     if (point.X == thisX && point.Y == thisY)
@@ -713,12 +714,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             }
             for (auto id : ids)
             {
-                ppmfc::CString line1;
-                ppmfc::CString line2;
-                ppmfc::CString line3;
-                ppmfc::CString line4;
-                ppmfc::CString line5;
-                ppmfc::CString line6;
+                FString line1;
+                FString line2;
+                FString line3;
+                FString line4;
+                FString line5;
+                FString line6;
 
                 if (id > -1)
                 {
@@ -730,13 +731,13 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
-                        ppmfc::CString leftLine1;
-                        ppmfc::CString leftLine2;
+                        FString leftLine1;
+                        FString leftLine2;
                         int objThisCount = 0;
 
                         for (auto& inf : mapIni.GetSection("Infantry")->GetEntities())
                         {
-                            auto atoms = STDHelpers::SplitString(inf.second);
+                            auto atoms = FString::SplitString(inf.second);
                             if (atoms.size() > 4)
                             {
                                 if (atoms[0] == object.House)
@@ -753,7 +754,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
 
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Infantry",
-                            "Infantry:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Infantry:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -765,7 +766,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             strength = 1;
 
                         ppmfc::CString house;
-                        ppmfc::CString veteran;
+                        FString veteran;
                         Miscs::ParseHouseName(&house, object.House, true);
                         if (atoi(object.VeterancyPercentage) < 100)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Rookie",
@@ -777,14 +778,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Elite",
                                 "Elite");
 
-                        auto tag = STDHelpers::SplitString(mapIni.GetString("Tags", object.Tag));
-                        ppmfc::CString tagName = "";
+                        auto tag = FString::SplitString(mapIni.GetString("Tags", object.Tag));
+                        FString tagName = "";
                         if (tag.size() > 1)
                             tagName = tag[1];
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.1",
                             "Infantry: %s (%s), ID: %d, Subcell: %s")
-                            , CMapData::GetUIName(object.TypeID), object.TypeID, id, object.SubCell);
+                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id, object.SubCell);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Infantry.2",
                             "House: %s")
                             , house);
@@ -824,7 +825,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 for (auto& pair : pSection->GetEntities())
                 {
                     index++;
-                    auto atoms = STDHelpers::SplitString(pair.second, 4);
+                    auto atoms = FString::SplitString(pair.second, 4);
                     int thisY = atoi(atoms[3]);
                     int thisX = atoi(atoms[4]);
                     if (point.X == thisX && point.Y == thisY)
@@ -835,12 +836,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             }
             for (auto id : ids)
             {
-                ppmfc::CString line1;
-                ppmfc::CString line2;
-                ppmfc::CString line3;
-                ppmfc::CString line4;
-                ppmfc::CString line5;
-                ppmfc::CString line6;
+                FString line1;
+                FString line2;
+                FString line3;
+                FString line4;
+                FString line5;
+                FString line6;
 
                 if (id > -1)
                 {
@@ -852,14 +853,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
-                        ppmfc::CString leftLine1;
-                        ppmfc::CString leftLine2;
+                        FString leftLine1;
+                        FString leftLine2;
                         //int objCount = 0;
                         int objThisCount = 0;
 
                         for (auto& inf : mapIni.GetSection("Units")->GetEntities())
                         {
-                            auto atoms = STDHelpers::SplitString(inf.second);
+                            auto atoms = FString::SplitString(inf.second);
                             if (atoms.size() > 4)
                             {
                                 if (atoms[0] == object.House)
@@ -877,7 +878,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle",
                             "Vehicle:  %s (%s), Count: %d, Cost: %d")
-                            , CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -889,7 +890,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             strength = 1;
 
                         ppmfc::CString house;
-                        ppmfc::CString veteran;
+                        FString veteran;
                         Miscs::ParseHouseName(&house, object.House, true);
 
                         if (atoi(object.VeterancyPercentage) < 100)
@@ -902,14 +903,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Elite",
                                 "Elite");
 
-                        auto tag = STDHelpers::SplitString(mapIni.GetString("Tags", object.Tag));
-                        ppmfc::CString tagName = "";
+                        auto tag = FString::SplitString(mapIni.GetString("Tags", object.Tag));
+                        FString tagName = "";
                         if (tag.size() > 1)
                             tagName = tag[1];
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.1",
                             "Vehicle: %s (%s), ID: %d")
-                            , CMapData::GetUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Vehicle.2",
                             "House: %s")
                             , house);
@@ -949,7 +950,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 for (auto& pair : pSection->GetEntities())
                 {
                     index++;
-                    auto atoms = STDHelpers::SplitString(pair.second, 4);
+                    auto atoms = FString::SplitString(pair.second, 4);
                     int thisY = atoi(atoms[3]);
                     int thisX = atoi(atoms[4]);
                     if (point.X == thisX && point.Y == thisY)
@@ -960,11 +961,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             }
             for (auto id : ids)
             {
-                ppmfc::CString line1;
-                ppmfc::CString line2;
-                ppmfc::CString line3;
-                ppmfc::CString line4;
-                ppmfc::CString line5;
+                FString line1;
+                FString line2;
+                FString line3;
+                FString line4;
+                FString line5;
                 //auto id = cell->Aircraft;
 
                 if (id > -1)
@@ -977,14 +978,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                     {
-                        ppmfc::CString leftLine1;
-                        ppmfc::CString leftLine2;
+                        FString leftLine1;
+                        FString leftLine2;
                         //int objCount = 0;
                         int objThisCount = 0;
 
                         for (auto& inf : mapIni.GetSection("Aircraft")->GetEntities())
                         {
-                            auto atoms = STDHelpers::SplitString(inf.second);
+                            auto atoms = FString::SplitString(inf.second);
                             if (atoms.size() > 4)
                             {
                                 if (atoms[0] == object.House)
@@ -1001,7 +1002,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft",
-                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                            "Aircraft:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
 
                         ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                         ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1013,7 +1014,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             strength = 1;
 
                         ppmfc::CString house;
-                        ppmfc::CString veteran;
+                        FString veteran;
                         Miscs::ParseHouseName(&house, object.House, true);
                         if (atoi(object.VeterancyPercentage) < 100)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Rookie",
@@ -1026,14 +1027,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                 "Elite");
 
 
-                        auto tag = STDHelpers::SplitString(mapIni.GetString("Tags", object.Tag));
-                        ppmfc::CString tagName = "";
+                        auto tag = FString::SplitString(mapIni.GetString("Tags", object.Tag));
+                        FString tagName = "";
                         if (tag.size() > 1)
                             tagName = tag[1];
 
                         line1.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.1",
                             "Aircraft: %s (%s), ID: %d")
-                            , CMapData::GetUIName(object.TypeID), object.TypeID, id);
+                            , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
                         line2.Format(Translations::TranslateOrDefault("ObjectInfo.Aircraft.2",
                             "House: %s")
                             , house);
@@ -1059,11 +1060,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Building || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || bDrawRange)
         {
-            ppmfc::CString line1;
-            ppmfc::CString line2;
-            ppmfc::CString line3;
-            ppmfc::CString line4;
-            ppmfc::CString line5;
+            FString line1;
+            FString line2;
+            FString line3;
+            FString line4;
+            FString line5;
 
             std::vector<int> ids;
             int index = -1;
@@ -1074,7 +1075,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 for (auto& pair : pSection->GetEntities())
                 {
                     index++;
-                    auto atoms = STDHelpers::SplitString(pair.second, 4);
+                    auto atoms = FString::SplitString(pair.second, 4);
                     const int Index = CMapData::Instance->GetBuildingTypeID(atoms[1]);
                     const int Y = atoi(atoms[3]);
                     const int X = atoi(atoms[4]);
@@ -1124,9 +1125,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
-                    ppmfc::CString leftLine1;
-                    ppmfc::CString leftLine2;
-                    ppmfc::CString leftLine3;
+                    FString leftLine1;
+                    FString leftLine2;
+                    FString leftLine3;
                     //int objCount = 0;
                     int objThisCount = 0;
                     int housePower = 0;
@@ -1143,7 +1144,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     for (auto& str : mapIni.GetSection("Structures")->GetEntities())
                     {
-                        auto atoms = STDHelpers::SplitString(str.second);
+                        auto atoms = FString::SplitString(str.second);
                         if (atoms.size() > 4)
                         {
                             if (atoms[0] == object.House)
@@ -1159,7 +1160,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Structure",
-                        "Structure:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
+                        "Structure:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(object.TypeID), object.TypeID, objThisCount, objThisCount * cost);
                     leftLine3.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Power",
                         "Total Power: %d, Output: %d, Drain: %d"), housePower - houseLoad, housePower, houseLoad);
 
@@ -1198,14 +1199,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     ppmfc::CString house;
                     Miscs::ParseHouseName(&house, object.House, true);
 
-                    auto tag = STDHelpers::SplitString(mapIni.GetString("Tags", object.Tag));
-                    ppmfc::CString tagName = "";
+                    auto tag = FString::SplitString(mapIni.GetString("Tags", object.Tag));
+                    FString tagName = "";
                     if (tag.size() > 1)
                         tagName = tag[1];
 
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.1",
                         "Structure: %s (%s), ID: %d")
-                        , CMapData::GetUIName(object.TypeID), object.TypeID, id);
+                        , StringtableLoader::QueryUIName(object.TypeID), object.TypeID, id);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Structure.2",
                         "House: %s")
                         , house);
@@ -1235,11 +1236,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House))
         {
-            ppmfc::CString line1;
-            ppmfc::CString line2;
+            FString line1;
+            FString line2;
 
-            ppmfc::CString targetHouse;
-            ppmfc::CString targetNode;
+            FString targetHouse;
+            FString targetNode;
             std::vector<BaseNodeDataExt> datas;
 
             auto& ini = CMapData::Instance->INI;
@@ -1257,7 +1258,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             auto value = ini.GetString(pair.second, key, "");
                             if (value == "")
                                 continue;
-                            auto atoms = STDHelpers::SplitString(value);
+                            auto atoms = FString::SplitString(value);
                             if (atoms.size() < 3)
                                 continue;
 
@@ -1316,11 +1317,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             {
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::House)
                 {
-                    ppmfc::CString leftLine1;
-                    ppmfc::CString leftLine2;
-                    ppmfc::CString leftLine3;
-                    ppmfc::CString leftLine4;
-                    ppmfc::CString leftLine5;
+                    FString leftLine1;
+                    FString leftLine2;
+                    FString leftLine3;
+                    FString leftLine4;
+                    FString leftLine5;
                     ppmfc::CString targetHouse2 = id.House;
 
                     int objThisCount = 0;
@@ -1344,7 +1345,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             auto value = ini.GetString(targetHouse2, key, "");
                             if (value == "")
                                 continue;
-                            auto atoms2 = STDHelpers::SplitString(value);
+                            auto atoms2 = FString::SplitString(value);
                             if (atoms2.size() < 3)
                                 continue;
                             if (atoms2[0] == id.ID)
@@ -1373,7 +1374,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
-                        "Basenode:  %s (%s), Count: %d, Cost: %d"), CMapData::GetUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
+                        "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
 
                     ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, leftLine1, leftLine1.GetLength());
                     ::TextOut(hDC, rect.left + 10 + tab, rect.top + 10 + lineHeight * leftIndex++, leftLine2, leftLine2.GetLength());
@@ -1427,7 +1428,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         bool firstp = true;
                         for (auto sindex : powerShortage)
                         {
-                            ppmfc::CString bufferp;
+                            FString bufferp;
                             bufferp.Format("%03d", sindex);
                             if (firstp)
                             {
@@ -1449,7 +1450,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
-                        , CMapData::GetUIName(id.ID), id.ID, id.BasenodeID);
+                        , StringtableLoader::QueryUIName(id.ID), id.ID, id.BasenodeID);
                     line2.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.2",
                         "House: %s")
                         , targetHouse2);
@@ -1463,10 +1464,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Tile || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
-            ppmfc::CString line1;
-            ppmfc::CString line2;
-            ppmfc::CString line3;
-            ppmfc::CString line4;
+            FString line1;
+            FString line2;
+            FString line3;
+            FString line4;
 
             auto thisTheater = CINI::CurrentDocument().GetString("Map", "Theater");
 
@@ -1491,10 +1492,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     , Translations::TranslateTileSet(tile.TileSet), tile.TileSet);
 
                 auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
-                ppmfc::CString setID;
+                FString setID;
                 setID.Format("TileSet%04d", tile.TileSet);
-                ppmfc::CString ttypes = "unknown";
-                ppmfc::CString filename;
+                FString ttypes = "unknown";
+                FString filename;
                 filename.Format("%s%02d", theater->GetString(setID, "FileName"), tileIndex - CMapDataExt::TileSet_starts[tile.TileSet] + 1);
 
                 if (cell->Flag.AltIndex == 1)
@@ -1587,12 +1588,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Terrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
-            ppmfc::CString line1;
+            FString line1;
 
 
             int id = cell->Terrain;
             int type = cell->TerrainType;
-            ppmfc::CString name;
+            FString name;
             if (auto pTerrain = CINI::Rules().GetSection("TerrainTypes"))
             {
                 int index = 0;
@@ -1621,7 +1622,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Smudge || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
-            ppmfc::CString line1;
+            FString line1;
 
             auto& rules = CINI::Rules();
             CSmudgeData target;
@@ -1660,8 +1661,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Overlay || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::AllTerrain || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
-            ppmfc::CString line1;
-            ppmfc::CString line2;
+            FString line1;
+            FString line2;
 
             int pos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
             auto& cellExt = CMapDataExt::CellDataExts[pos];
@@ -1669,8 +1670,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             auto overlay = cellExt.NewOverlay;
             auto overlayD = cell->OverlayData;
 
-            ppmfc::CString name = "MISSING";
-            ppmfc::CString ttype = "";
+            FString name = "MISSING";
+            FString ttype = "";
 
             auto value = Variables::GetRulesMapValueAt("OverlayTypes", overlay);
             if (value != "")
@@ -1707,9 +1708,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         if ((CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Celltag || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All))
         {
-            ppmfc::CString line1;
+            FString line1;
 
-            ppmfc::CString id = "";
+            FString id = "";
             if (CMapData::Instance().INI.SectionExists("CellTags"))
             {
                 char tmp[10];
@@ -1719,9 +1720,9 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             if (id != "")
             {
-                ppmfc::CString name = "MISSING";
+                FString name = "MISSING";
                 auto tag = CMapData::Instance().INI.GetString("Tags", id);
-                auto atoms = STDHelpers::SplitString(tag);
+                auto atoms = FString::SplitString(tag);
                 if (atoms.size() > 1)
                 {
                     name = atoms[1];
@@ -1750,7 +1751,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 {
                     const int offset = 18;
                     int i = 1;
-                    ppmfc::CString pSrc;
+                    FString pSrc;
                     auto process = [](const char* s)
                         {
                             int n = 0;
@@ -1874,7 +1875,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                 if (line == "")
                                     continue;
 
-                                auto app = STDHelpers::SplitString(line);
+                                auto app = FString::SplitString(line);
                                 if (app.size() != 2)
                                     continue;
 
@@ -1925,11 +1926,11 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                             if (process(wp) == atoi(pWP))
                             {
-                                std::vector<ppmfc::CString> skiplist;
+                                std::vector<FString> skiplist;
                                 bool add = true;
                                 if (ExtConfigs::Waypoint_SkipCheckList)
                                 {
-                                    skiplist = STDHelpers::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
+                                    skiplist = FString::SplitStringTrimmed(ExtConfigs::Waypoint_SkipCheckList);
                                 }
                                 if (skiplist.size() > 0)
                                 {

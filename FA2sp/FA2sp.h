@@ -206,8 +206,8 @@ public:
 
     struct DynamicOptions
     {
-        ppmfc::CString DisplayName;
-        ppmfc::CString IniKey;
+        FString DisplayName;
+        FString IniKey;
         bool* Value;
         SpecialOptionType Type = SpecialOptionType::None;
     };
@@ -235,12 +235,12 @@ public:
     static MultimapHelper Rules;
     static MultimapHelper FAData;
     static MultimapHelper Rules_FAData;
-    static std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesMapIndicies;
-    static std::unordered_map<ppmfc::CString, std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> OrderedRulesIndicies;
+    static std::unordered_map<FString, std::vector<std::pair<FString, FString>>> OrderedRulesMapIndicies;
+    static std::unordered_map<FString, std::vector<std::pair<FString, FString>>> OrderedRulesIndicies;
 
-    static std::optional<std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> GetRulesSection(ppmfc::CString section)
+    static std::optional<std::vector<std::pair<FString, FString>>> GetRulesSection(FString section)
     {
-        static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
+        static const std::vector<std::pair<FString, FString>> empty;
         auto it = OrderedRulesIndicies.find(section);
         if (it != OrderedRulesIndicies.end())
         {
@@ -248,9 +248,9 @@ public:
         }
         return empty;
     }
-    static std::optional<std::vector<std::pair<ppmfc::CString, ppmfc::CString>>> GetRulesMapSection(ppmfc::CString section)
+    static std::optional<std::vector<std::pair<FString, FString>>> GetRulesMapSection(FString section)
     {
-        static const std::vector<std::pair<ppmfc::CString, ppmfc::CString>> empty;
+        static const std::vector<std::pair<FString, FString>> empty;
         auto it = OrderedRulesMapIndicies.find(section);
         if (it != OrderedRulesMapIndicies.end())
         {
@@ -258,9 +258,9 @@ public:
         }
         return empty;
     }
-    static ppmfc::CString GetRulesValueAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    static FString GetRulesValueAt(FString section, int index, FString Default = "")
     {
-        ppmfc::CString ret = Default;
+        FString ret = Default;
         if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
         {
             const auto& pSection = OrderedRulesIndicies[section];
@@ -271,9 +271,9 @@ public:
         }
         return ret;
     }
-    static ppmfc::CString GetRulesKeyAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    static FString GetRulesKeyAt(FString section, int index, FString Default = "")
     {
-        ppmfc::CString ret = Default;
+        FString ret = Default;
         if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
         {
             const auto& pSection = OrderedRulesIndicies[section];
@@ -284,9 +284,9 @@ public:
         }
         return ret;
     }
-    static ppmfc::CString GetRulesMapValueAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    static FString GetRulesMapValueAt(FString section, int index, FString Default = "")
     {
-        ppmfc::CString ret = Default;
+        FString ret = Default;
         if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
         {
             const auto& pSection = OrderedRulesMapIndicies[section];
@@ -297,9 +297,9 @@ public:
         }
         return ret;
     }
-    static ppmfc::CString GetRulesMapKeyAt(ppmfc::CString section, int index, ppmfc::CString Default = "")
+    static FString GetRulesMapKeyAt(FString section, int index, FString Default = "")
     {
-        ppmfc::CString ret = Default;
+        FString ret = Default;
         if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
         {
             const auto& pSection = OrderedRulesMapIndicies[section];

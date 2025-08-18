@@ -16,7 +16,7 @@ void CSelectAutoShore::DoDataExchange(ppmfc::CDataExchange* pDX)
 	CDialog::DoDataExchange(pDX);
 	DDX_CBString(pDX, 1002, m_Combo);
 
-	ppmfc::CString buffer;
+	FString buffer;
 
 	if (Translations::GetTranslationItem("OK", buffer))
 		GetDlgItem(1)->SetWindowTextA(buffer);

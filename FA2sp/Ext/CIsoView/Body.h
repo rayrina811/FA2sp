@@ -62,7 +62,7 @@ public:
     void DrawLine(int x1, int y1, int x2, int y2, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool bDashed = false);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
-    void DrawBitmap(ppmfc::CString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
+    void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
 
     void ConfirmTube(bool addReverse = true);

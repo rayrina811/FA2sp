@@ -87,7 +87,7 @@ public:
 
 class PalettesManager
 {
-    static std::map<ppmfc::CString, Palette*> OriginPaletteFiles;
+    static std::map<FString, Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
     static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;
     static Palette* CurrentIso;
@@ -99,7 +99,7 @@ public:
     static std::vector<LightingPalette> CalculatedObjectPaletteFiles;
 
     static Palette* GetCurrentIso();
-    static Palette* LoadPalette(ppmfc::CString palname);
+    static Palette* LoadPalette(FString palname);
     static Palette* GetPalette(Palette* pPal, BGRStruct& color, bool remap = true, Cell3DLocation location = {0});
     static Palette* GetObjectPalette(Palette* pPal, BGRStruct& color, bool remap, Cell3DLocation location, bool isopal = false, int extraLightType = -1);
     static Palette* GetOverlayPalette(Palette* pPal, Cell3DLocation location, int overlay);

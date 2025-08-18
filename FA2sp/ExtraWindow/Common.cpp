@@ -271,7 +271,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         {
             if (auto pSectionNewParamTypes = fadata.GetSection("NewParamTypes"))
             {
-                auto atoms3 = FString::SplitString(fadata.GetString("NewParamTypes", idx.c_str()).m_pchData, 4);
+                auto atoms3 = FString::SplitString(fadata.GetString("NewParamTypes", idx), 4);
                 auto& sectionName = atoms3[0];
                 auto& loadFrom = atoms3[1];
                 auto& strictOrder = atoms3[2];
@@ -284,7 +284,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                 if (useValue == "1")
                 {
                     int i = 0;
-                    for (auto& kvp : mmh.GetSection(sectionName.c_str()))
+                    for (auto& kvp : mmh.GetSection(sectionName))
                     {
                         FString output;
                         output.Format("%s", kvp.second);
@@ -297,7 +297,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                                 output.Format("%s - %s", tmp, uiname);
                             }
                         }
-                        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
+                        SendMessage(hWnd, CB_INSERTSTRING, i, output);
                         i++;
                     }
                 }
@@ -307,7 +307,7 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                     {
                         // rules
                         if (loadFrom == "1" || loadFrom == "2") {
-                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName.c_str()) : Variables::GetRulesMapSection(sectionName.c_str()))
+                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName))
                             {
                                 int idx = 0;
                                 for (auto& pair : *indicies)
@@ -323,13 +323,13 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                                             output.Format("%s - %s", tmp, uiname);
                                         }
                                     }
-                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output.c_str());
+                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output);
                                     idx++;
                                 }
                             }
                         }
                         else {
-                            auto&& entries = mmh.ParseIndicies(sectionName.c_str(), true);
+                            auto&& entries = mmh.ParseIndicies(sectionName, true);
                             for (size_t i = 0, sz = entries.size(); i < sz; i++)
                             {
                                 FString output;
