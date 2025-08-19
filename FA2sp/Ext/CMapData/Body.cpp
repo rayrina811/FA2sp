@@ -89,6 +89,8 @@ int CMapDataExt::NewINIFormat = 4;
 WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
 std::vector<UndoRedoDataExt> CMapDataExt::UndoRedoDatas;
 int CMapDataExt::UndoRedoDataIndex;
+bool CMapDataExt::IsLoadingMapFile = false;
+std::vector<FString> CMapDataExt::MapIniSectionSorting;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {

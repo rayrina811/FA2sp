@@ -44,17 +44,16 @@ static void Trim(char* str) {
 
 DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix_inheritSupport, 7)
 {
-    if (INIIncludes::SkipBracketFix)
-        return 0;
-
     LEA_STACK(char*, lpLine, STACK_OFFS(0x22FC, 0x200C));
 
     const char* lb1 = strchr(lpLine, '[');
     const char* rb1 = strchr(lpLine, ']');
     const char* eq = strchr(lpLine, '=');
 
+    // illegal section name
     if (!lb1 || !rb1 || rb1 < lb1 || (eq && eq < lb1)) {
-        // illegal section name
+        if (INIIncludes::SkipBracketFix)
+            return 0;
         return 0x453012;
     }
 
@@ -93,6 +92,18 @@ DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix_inheritSupport, 7)
         }
     }
 
+    if (CMapDataExt::IsLoadingMapFile)
+    {
+        char section[128] = { 0 };
+        size_t lenA = rb1 - (lb1 + 1);
+        if (lenA < sizeof(section))
+        {
+            memcpy(section, lb1 + 1, lenA);
+            section[lenA] = '\0';
+            CMapDataExt::MapIniSectionSorting.push_back(section);
+        }
+    }
+
     // normal [Section]
     return 0x452F56;
 }
@@ -100,7 +111,8 @@ DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix_inheritSupport, 7)
 // some maps use '[' for encryption
 DEFINE_HOOK(49D64F, CMapData_LoadMap_SkipBracketFix, 6)
 {
-    INIIncludes::SkipBracketFix = false;
+    INIIncludes::SkipBracketFix = false;	
+    CMapDataExt::IsLoadingMapFile = false;
     return 0;
 }
 

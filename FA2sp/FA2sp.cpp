@@ -172,6 +172,7 @@ bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
+bool ExtConfigs::SaveMap_PreserveINISorting;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
@@ -361,6 +362,7 @@ void FA2sp::ExtConfigsInitialize()
 	}
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
+	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
 	ExtConfigs::SaveMap_DefaultPreviewOptionMP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionMP", 0);
@@ -737,6 +739,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "SaveMap.FileEncodingComment",
 		.Value = &ExtConfigs::SaveMap_FileEncodingComment,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.PreserveINISorting", "Preserve existing INI section sorting when saving"),
+		.IniKey = "SaveMap.PreserveINISorting",
+		.Value = &ExtConfigs::SaveMap_PreserveINISorting,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

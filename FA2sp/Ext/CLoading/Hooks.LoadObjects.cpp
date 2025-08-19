@@ -154,6 +154,11 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     }
 
     INIIncludes::SkipBracketFix = true;
+    if (ExtConfigs::SaveMap_PreserveINISorting)
+    {
+        CMapDataExt::IsLoadingMapFile = true;
+        CMapDataExt::MapIniSectionSorting.clear();
+    }
     return 0;
 }
 

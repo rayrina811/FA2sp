@@ -105,11 +105,11 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         // Generate new preview.
         Logger::Raw("SaveMap : Generating a new map preview.\n");
 
-        auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
-        auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
-
         if (ExtConfigs::SaveMaps_BetterMapPreview && CMapData::Instance->IsMultiOnly())
         {
+            auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
+            auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
+
             auto safeColorBtye = [](int x)
                 {
                     if (x > 255)
@@ -422,15 +422,6 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         Logger::Raw("SaveMap : Retaining current map preview.\n");
     }
 
-    //if (ExtConfigs::SaveMap_OnlySaveMAP)
-    //{
-    //    int nExtIndex = filepath.ReverseFind('.');
-    //    if (nExtIndex == -1)
-    //        filepath += ".map";
-    //    else
-    //        filepath = filepath.Mid(0, nExtIndex) + ".map";
-    //}
-
     Logger::Raw("SaveMap : Trying to save map to %s.\n", filepath);
     
     std::ofstream fout;
@@ -440,7 +431,7 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         pINI->DeleteSection("Digest");
 
         std::ostringstream oss;
-        ppmfc::CString comments;
+        FString comments;
 
         if (ExtConfigs::SaveMap_FileEncodingComment)
         {
@@ -466,100 +457,133 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
 
         oss << comments;
 
-
-        // Add "Header" for single-player map to prevent loading error
-        if (const auto pSection = pINI->GetSection("Header"))
-        {
-            oss << "[Header]\n";
-            for (const auto& pair : pSection->GetEntities())
-                oss << pair.first << "=" << pair.second << "\n";
-            oss << "\n";
-        }
-        else if (!CMapData::Instance->IsMultiOnly())
-        {
-            oss << "[Header]\n";
-            oss << "NumberStartingPoints" << "=" << "0" << "\n";
-            oss << "\n";
-        }
-
-        // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
-        // So we just put them at first.
-        if (const auto pSection = pINI->GetSection("Preview"))
-        {
-            oss << "[Preview]\n";
-            for (const auto& pair : pSection->GetEntities())
-                oss << pair.first << "=" << pair.second << "\n";
-            oss << "\n";
-        }
-        if (const auto pSection = pINI->GetSection("PreviewPack"))
-        {
-            oss << "[PreviewPack]\n";
-            for (const auto& pair : pSection->GetEntities())
-                oss << pair.first << "=" << pair.second << "\n";
-            oss << "\n";
-        }
-
-        for (auto& section : pINI->Dict)
-        {
-            if (!strcmp(section.first, "Preview") || !strcmp(section.first, "PreviewPack") || !strcmp(section.first, "Header"))
-                continue;
-
-            auto& exclude = INIIncludes::MapIncludedKeys;
-            if (!exclude.empty() && exclude.find(section.first) != exclude.end())
+        auto saveSection = [&oss](INISection* pSection, FString sectionName)
             {
-                std::vector<int> skipLines;
-                std::vector<int> useOriginLines;
-
-                auto& keys = exclude[section.first];
-                int index = 0;
-                for (auto& pair : section.second.GetEntities())
+                auto& exclude = INIIncludes::MapIncludedKeys;
+                if (!exclude.empty() && exclude.find(sectionName) != exclude.end())
                 {
-                    if (keys.find(pair.first) != keys.end())
-                    {
-                        if (keys[pair.first] == "")
-                        {
-                            skipLines.push_back(index);
-                        }
-                        else
-                        {
-                            useOriginLines.push_back(index);
-                        }
-                    }
-                    index++;
-                }
-                if (skipLines.size() < section.second.GetEntities().size())
-                {
-                    oss << "[" << section.first << "]\n";
-                    index = 0;
-                    for (auto& pair : section.second.GetEntities())
-                    {
-                        if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
-                        {
+                    std::vector<int> skipLines;
+                    std::vector<int> useOriginLines;
 
-                        }
-                        else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
+                    auto& keys = exclude[sectionName];
+                    int index = 0;
+                    for (auto& pair : pSection->GetEntities())
+                    {
+                        if (keys.find(pair.first) != keys.end())
                         {
-                            oss << pair.first << "=" << keys[pair.first] << "\n";
-                        }
-                        else
-                        {
-                            oss << pair.first << "=" << pair.second << "\n";
+                            if (keys[pair.first] == "")
+                            {
+                                skipLines.push_back(index);
+                            }
+                            else
+                            {
+                                useOriginLines.push_back(index);
+                            }
                         }
                         index++;
                     }
+                    if (skipLines.size() < pSection->GetEntities().size())
+                    {
+                        oss << "[" << sectionName << "]\n";
+                        index = 0;
+                        for (auto& pair : pSection->GetEntities())
+                        {
+                            if (std::find(skipLines.begin(), skipLines.end(), index) != skipLines.end())
+                            {
 
+                            }
+                            else if (std::find(useOriginLines.begin(), useOriginLines.end(), index) != useOriginLines.end())
+                            {
+                                oss << pair.first << "=" << keys[pair.first] << "\n";
+                            }
+                            else
+                            {
+                                oss << pair.first << "=" << pair.second << "\n";
+                            }
+                            index++;
+                        }
+                        oss << "\n";
+                    }
+                }
+                else
+                {
+                    oss << "[" << sectionName << "]\n";
+                    for (const auto& pair : pSection->GetEntities())
+                        oss << pair.first << "=" << pair.second << "\n";
                     oss << "\n";
                 }
-            }
-            else
-            {
-                oss << "[" << section.first << "]\n";
-                for (auto& pair : section.second.GetEntities())
-                {
-                    oss << pair.first << "=" << pair.second << "\n";
-                }
+            };
 
+        if (!SaveMapExt::IsAutoSaving && ExtConfigs::SaveMap_PreserveINISorting)
+        {
+            if (!pINI->SectionExists("Header"))
+            {
+                pINI->WriteString("Header", "NumberStartingPoints", "0");
+            }
+            for (const auto& sectionName : CMapDataExt::MapIniSectionSorting)
+            {
+                if (sectionName == "Digest")
+                    continue;
+                if (const auto pSection = pINI->GetSection(sectionName))
+                {
+                    saveSection(pSection, sectionName);
+                }
+            }
+            for (auto& section : pINI->Dict)
+            {
+                if (!strcmp(section.first, "Digest"))
+                    continue;
+
+                auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), section.first);
+                if (it == CMapDataExt::MapIniSectionSorting.end())
+                {
+                    saveSection(&section.second, section.first);
+                }
+            }
+        }
+        else
+        {
+            // Add "Header" for single-player map to prevent loading error
+            if (const auto pSection = pINI->GetSection("Header"))
+            {
+                oss << "[Header]\n";
+                for (const auto& pair : pSection->GetEntities())
+                    oss << pair.first << "=" << pair.second << "\n";
                 oss << "\n";
+            }
+            else if (!CMapData::Instance->IsMultiOnly())
+            {
+                oss << "[Header]\n";
+                oss << "NumberStartingPoints" << "=" << "0" << "\n";
+                oss << "\n";
+            }
+
+            // Dirty fix: vanilla YR needs "Preview" and "PreviewPack" before "Map"
+            // So we just put them at first.
+            if (const auto pSection = pINI->GetSection("Preview"))
+            {
+                oss << "[Preview]\n";
+                for (const auto& pair : pSection->GetEntities())
+                    oss << pair.first << "=" << pair.second << "\n";
+                oss << "\n";
+            }
+            if (const auto pSection = pINI->GetSection("PreviewPack"))
+            {
+                oss << "[PreviewPack]\n";
+                for (const auto& pair : pSection->GetEntities())
+                    oss << pair.first << "=" << pair.second << "\n";
+                oss << "\n";
+            }
+
+            for (auto& section : pINI->Dict)
+            {
+                if (!strcmp(section.first, "Preview") 
+                    || !strcmp(section.first, "PreviewPack") 
+                    || !strcmp(section.first, "Header") 
+                    || !strcmp(section.first, "Digest"))
+                    continue;
+
+                saveSection(&section.second, section.first);
             }
         }
 

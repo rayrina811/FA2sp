@@ -36,7 +36,7 @@ void COptions::Create(CFinalSunDlg* pWnd)
 void COptions::Initialize(HWND& hWnd)
 {
     FString buffer;
-    if (Translations::GetTranslationItem("Menu.Options.Preferences", buffer))
+    if (Translations::GetTranslationItem("Options.Title", buffer))
         SetWindowText(hWnd, buffer);
 
     auto Translate = [&hWnd, &buffer](const char* pLabelName, int nIDDlgItem)

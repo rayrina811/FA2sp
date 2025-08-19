@@ -417,4 +417,6 @@ public:
     static WORD NewOverlay[0x40000];
     static std::vector<UndoRedoDataExt> UndoRedoDatas;
     static int UndoRedoDataIndex;
+    static bool IsLoadingMapFile;
+    static std::vector<FString> MapIniSectionSorting;
 };

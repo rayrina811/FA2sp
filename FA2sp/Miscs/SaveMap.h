@@ -20,5 +20,4 @@ public:
     static void StopTimer();
     static void RemoveEarlySaves();
     static void CALLBACK SaveMapCallback(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime);
-
 };

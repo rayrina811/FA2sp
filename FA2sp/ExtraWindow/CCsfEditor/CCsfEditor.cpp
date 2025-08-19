@@ -168,6 +168,7 @@ BOOL CALLBACK CCsfEditor::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 ExtraWindow::bEnterSearch = true;
                 Update(hWnd);
                 ExtraWindow::bEnterSearch = false;
+                ((CViewObjectsExt*)(CFinalSunDlg::Instance->MyViewFrame.pViewObjects))->Redraw();
             }
             break;
         case Controls::Apply:

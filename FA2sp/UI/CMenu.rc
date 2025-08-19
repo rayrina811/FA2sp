@@ -104,7 +104,7 @@ POPUP "Options"
     // MENUITEM "Disable Slope Correction",  40120
 	MENUITEM "Select AutoShore Type",  40157
 	MENUITEM "Show Object View Cameo",  40159
-	MENUITEM "Preferences",  40162
+	MENUITEM "Preferences\tCtrl+Shift+P",  40162
 }
 
 POPUP "Layers"
