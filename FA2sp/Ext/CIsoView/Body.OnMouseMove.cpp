@@ -365,11 +365,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
         SetTextAlign(hDC, TA_LEFT);
 
-        auto roundToPrecision = [](double value, int precision)
-            {
-                double multiplier = std::pow(10.0, precision);
-                return std::round(value * multiplier) / multiplier;
-            };
         int i = 1;
         int tab = 10;
         auto Map = &CMapData::Instance();
