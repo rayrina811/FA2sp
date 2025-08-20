@@ -272,7 +272,26 @@ DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)
     {
         if (MultiSelection::GetCount())
         {
-            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+            RECT bounds
+            {
+                std::numeric_limits<LONG>::max(),
+                std::numeric_limits<LONG>::max(),
+                std::numeric_limits<LONG>::min(),
+                std::numeric_limits<LONG>::min()
+            };
+            for (const auto& cell : MultiSelection::SelectedCoords)
+            {
+                if (cell.X < bounds.left)
+                    bounds.left = cell.X;
+                if (cell.X > bounds.right)
+                    bounds.right = cell.X;
+                if (cell.Y < bounds.top)
+                    bounds.top = cell.Y;
+                if (cell.Y > bounds.bottom)
+                    bounds.bottom = cell.Y;
+            }
+            CMapData::Instance->SaveUndoRedoData(true, bounds.left, bounds.top, bounds.right + 1, bounds.bottom + 1);
+
             MultiSelection::ApplyForEach(
                 [](CellData& cell, CellDataExt& cellExt) {
                     if (cell.Height < 14)
@@ -280,8 +299,6 @@ DEFINE_HOOK(433DA0, CFinalSunDlg_Tools_RaiseSingleTile, 5)
                 }
             );
             pThis->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-            CMapData::Instance->DoUndo();
         }
         else
         {
@@ -313,7 +330,26 @@ DEFINE_HOOK(433D30, CFinalSunDlg_Tools_LowerSingleTile, 5)
     {
         if (MultiSelection::GetCount())
         {
-            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+            RECT bounds
+            {
+                std::numeric_limits<LONG>::max(),
+                std::numeric_limits<LONG>::max(),
+                std::numeric_limits<LONG>::min(),
+                std::numeric_limits<LONG>::min()
+            };
+            for (const auto& cell : MultiSelection::SelectedCoords)
+            {
+                if (cell.X < bounds.left)
+                    bounds.left = cell.X;
+                if (cell.X > bounds.right)
+                    bounds.right = cell.X;
+                if (cell.Y < bounds.top)
+                    bounds.top = cell.Y;
+                if (cell.Y > bounds.bottom)
+                    bounds.bottom = cell.Y;
+            }
+            CMapData::Instance->SaveUndoRedoData(true, bounds.left, bounds.top, bounds.right + 1, bounds.bottom + 1);
+
             MultiSelection::ApplyForEach(
                 [](CellData& cell, CellDataExt& cellExt) {
                     if (cell.Height > 0)
@@ -321,8 +357,6 @@ DEFINE_HOOK(433D30, CFinalSunDlg_Tools_LowerSingleTile, 5)
                 }
             );
             pThis->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
-            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-            CMapData::Instance->DoUndo();
         }
         else
         {

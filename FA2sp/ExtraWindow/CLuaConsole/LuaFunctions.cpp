@@ -3633,8 +3633,9 @@ namespace LuaFunctions
 
 	static void save_redo()
 	{
-		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-		CMapData::Instance->DoUndo();
+		// No longer needed since changed undo redo method
+		//CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
+		//CMapData::Instance->DoUndo();
 	}
 
 	static void move_to(int y, int x = -1)

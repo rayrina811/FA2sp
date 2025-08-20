@@ -809,8 +809,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					CMapDataExt::SmoothTileAt(x, y, true);
 
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-			CMapData::Instance->DoUndo();
 		}
 
 	}
@@ -831,8 +829,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CMapDataExt::SmoothWater();
 
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-			CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-			CMapData::Instance->DoUndo();
 		}
 
 	}

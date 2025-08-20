@@ -197,12 +197,6 @@ DEFINE_HOOK(46855D, CIsoView_OnLButtonUp_OverlayUndoRedo, 5)
 	if (!ExtConfigs::UndoRedo_HoldPlaceOverlay)
 		return 0;
 
-	if (CIsoView::CurrentCommand->Command == 0x1 && CIsoView::CurrentCommand->Type == 6)
-	{
-		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-		CMapData::Instance->DoUndo();
-	}
-
 	return 0;
 }
 

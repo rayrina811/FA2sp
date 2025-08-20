@@ -435,9 +435,6 @@ DEFINE_HOOK(435450, CFinalSunDlg_OnMaptoolsAutocreateshores, 5)
 
             Map.CreateShore(0, 0, Map.MapWidthPlusHeight, Map.MapWidthPlusHeight);
             ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-
-            Map.SaveUndoRedoData(true, 0, 0, 0, 0);
-            Map.DoUndo();
         }
     }
     else

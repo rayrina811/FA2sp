@@ -1600,8 +1600,6 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear);
     }
 
-    CMapData::Instance->SaveUndoRedoData(true, x1 - 1, y1 - 1, x2 + 2, y2 + 2);
-    CMapData::Instance->DoUndo();
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 

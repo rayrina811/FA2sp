@@ -87,7 +87,7 @@ std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
 WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
-std::vector<UndoRedoDataExt> CMapDataExt::UndoRedoDatas;
+HistoryList CMapDataExt::UndoRedoDatas;
 int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
@@ -1433,6 +1433,53 @@ void CMapDataExt::AssignCellData(CellData& dst, const CellData& src)
 	dst.StatusFlag = src.StatusFlag;
 
 	dst.Flag = src.Flag;
+}
+
+std::unique_ptr<TerrainRecord> CMapDataExt::MakeTerrainRecord(int left, int top, int right, int bottom)
+{
+	auto data = std::make_unique<TerrainRecord>();
+
+	int width, height;
+	width = right - left;
+	height = bottom - top;
+
+	int size = width * height;
+	data->left = left;
+	data->top = top;
+	data->right = right;
+	data->bottom = bottom;
+	data->bHeight = std::make_unique<BYTE[]>(size);
+	data->bMapData = std::make_unique<WORD[]>(size);
+	data->bSubTile = std::make_unique<BYTE[]>(size);
+	data->bMapData2 = std::make_unique<BYTE[]>(size);
+	data->wGround = std::make_unique<WORD[]>(size);
+	data->overlay = std::make_unique<WORD[]>(size);
+	data->overlaydata = std::make_unique<BYTE[]>(size);
+	data->bRedrawTerrain = std::make_unique<BOOL[]>(size);
+	data->bRNDData = std::make_unique<BYTE[]>(size);
+
+	int i, e;
+	for (i = 0; i < width; i++)
+	{
+		for (e = 0; e < height; e++)
+		{
+			int pos_w, pos_r;
+			pos_w = i + e * width;
+			pos_r = left + i + (top + e) * this->MapWidthPlusHeight;
+			auto cell = this->GetCellAt(pos_r);
+			auto& cellExt = this->CellDataExts[pos_r];
+			data->bHeight[pos_w] = cell->Height;
+			data->bMapData[pos_w] = cell->TileIndexHiPart;
+			data->bSubTile[pos_w] = cell->TileSubIndex;
+			data->bMapData2[pos_w] = cell->IceGrowth;
+			data->wGround[pos_w] = cell->TileIndex;
+			data->overlay[pos_w] = cellExt.NewOverlay;
+			data->overlaydata[pos_w] = cell->OverlayData;
+			data->bRedrawTerrain[pos_w] = cell->Flag.RedrawTerrain;
+			data->bRNDData[pos_w] = cell->Flag.AltIndex;
+		}
+	}
+	return std::move(data);
 }
 
 void CMapDataExt::UpdateIncludeIniInMap()

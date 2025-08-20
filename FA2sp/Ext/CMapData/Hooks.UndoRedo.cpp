@@ -11,40 +11,52 @@ DEFINE_HOOK(4BBEC0, CMapData_DoUndo, 5)
 	pThis->UndoRedoDataIndex = std::min(pThis->UndoRedoDataIndex, (int)pThis->UndoRedoDatas.size() - 2);
 
 	int left, top, width, height;
-	auto& data = pThis->UndoRedoDatas[pThis->UndoRedoDataIndex + 1];
-	left = data.left;
-	top = data.top;
-	width = data.right - left;
-	height = data.bottom - top;
+	auto* data = pThis->UndoRedoDatas.get(pThis->UndoRedoDataIndex + 1);
+	if (auto* tr = dynamic_cast<TerrainRecord*>(data)) {
+		// make current record for redo
+		pThis->UndoRedoDatas.insert(pThis->UndoRedoDataIndex + 2, 
+			std::move(pThis->MakeTerrainRecord(tr->left, tr->top, tr->right, tr->bottom)));
 
-	int i, e;
-	for (i = 0; i < width; i++)
-	{
-		for (e = 0; e < height; e++)
+		left = tr->left;
+		top = tr->top;
+		width = tr->right - left;
+		height = tr->bottom - top;
+
+		int i, e;
+		for (i = 0; i < width; i++)
 		{
-			int pos_w, pos_r;
-			pos_r = i + e * width;
-			pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
-			auto cell = pThis->GetCellAt(pos_w);
-			auto& cellExt = pThis->CellDataExts[pos_w];
+			for (e = 0; e < height; e++)
+			{
+				int pos_w, pos_r;
+				pos_r = i + e * width;
+				pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
+				auto cell = pThis->GetCellAt(pos_w);
+				auto& cellExt = pThis->CellDataExts[pos_w];
 
-			cell->Height = data.bHeight[pos_r];
-			cell->TileIndexHiPart = data.bMapData[pos_r];
-			cell->TileSubIndex = data.bSubTile[pos_r];
-			cell->IceGrowth = data.bMapData2[pos_r];
-			cell->TileIndex = data.wGround[pos_r];
+				cell->Height = tr->bHeight[pos_r];
+				cell->TileIndexHiPart = tr->bMapData[pos_r];
+				cell->TileSubIndex = tr->bSubTile[pos_r];
+				cell->IceGrowth = tr->bMapData2[pos_r];
+				cell->TileIndex = tr->wGround[pos_r];
 
-			pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
-			cellExt.NewOverlay = data.overlay[pos_r];
-			cell->Overlay = std::min(data.overlay[pos_r], (word)0xFF);
-			cell->OverlayData = data.overlaydata[pos_r];
-			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+				pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+				cellExt.NewOverlay = tr->overlay[pos_r];
+				cell->Overlay = std::min(tr->overlay[pos_r], (word)0xFF);
+				cell->OverlayData = tr->overlaydata[pos_r];
+				pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
 
-			cell->Flag.RedrawTerrain = data.bRedrawTerrain[pos_r];
-			cell->Flag.AltIndex = data.bRNDData[pos_r];
+				cell->Flag.RedrawTerrain = tr->bRedrawTerrain[pos_r];
+				cell->Flag.AltIndex = tr->bRNDData[pos_r];
 
-			pThis->UpdateMapPreviewAt(left + i, top + e);
+				pThis->UpdateMapPreviewAt(left + i, top + e);
+			}
 		}
+	}
+	else if (auto* ur = dynamic_cast<ObjectRecord*>(data)) {
+
+	}
+	else if (auto* mr = dynamic_cast<MixedRecord*>(data)) {
+
 	}
 
 	return 0x4BC170;
@@ -63,42 +75,51 @@ DEFINE_HOOK(4BC1C0, CMapData_DoRedo, 5)
 		pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size() - 2;
 
 	int left, top, width, height;
-	auto& data = pThis->UndoRedoDatas[pThis->UndoRedoDataIndex + 1];
-	left = data.left;
-	top = data.top;
-	width = data.right - left;
-	height = data.bottom - top;
+	auto* data = pThis->UndoRedoDatas.get(pThis->UndoRedoDataIndex + 1);
+	if (auto* tr = dynamic_cast<TerrainRecord*>(data)) {
+		left = tr->left;
+		top = tr->top;
+		width = tr->right - left;
+		height = tr->bottom - top;
 
-	int i, e;
-	for (i = 0; i < width; i++)
-	{
-		for (e = 0; e < height; e++)
+		int i, e;
+		for (i = 0; i < width; i++)
 		{
-			int pos_w, pos_r;
-			pos_r = i + e * width;
-			pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
+			for (e = 0; e < height; e++)
+			{
+				int pos_w, pos_r;
+				pos_r = i + e * width;
+				pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
 
-			auto cell = pThis->GetCellAt(pos_w);
-			auto& cellExt = pThis->CellDataExts[pos_w];
+				auto cell = pThis->GetCellAt(pos_w);
+				auto& cellExt = pThis->CellDataExts[pos_w];
 
-			cell->Height = data.bHeight[pos_r];
-			cell->TileIndexHiPart = data.bMapData[pos_r];
-			cell->TileSubIndex = data.bSubTile[pos_r];
-			cell->IceGrowth = data.bMapData2[pos_r];
-			cell->TileIndex = data.wGround[pos_r];
+				cell->Height = tr->bHeight[pos_r];
+				cell->TileIndexHiPart = tr->bMapData[pos_r];
+				cell->TileSubIndex = tr->bSubTile[pos_r];
+				cell->IceGrowth = tr->bMapData2[pos_r];
+				cell->TileIndex = tr->wGround[pos_r];
 
-			pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
-			cellExt.NewOverlay = data.overlay[pos_r];
-			cell->Overlay = std::min(data.overlay[pos_r], (word)0xFF);
-			cell->OverlayData = data.overlaydata[pos_r];
-			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+				pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+				cellExt.NewOverlay = tr->overlay[pos_r];
+				cell->Overlay = std::min(tr->overlay[pos_r], (word)0xFF);
+				cell->OverlayData = tr->overlaydata[pos_r];
+				pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
 
-			cell->Flag.RedrawTerrain = data.bRedrawTerrain[pos_r];
-			cell->Flag.AltIndex = data.bRNDData[pos_r];
+				cell->Flag.RedrawTerrain = tr->bRedrawTerrain[pos_r];
+				cell->Flag.AltIndex = tr->bRNDData[pos_r];
 
-			pThis->UpdateMapPreviewAt(left + i, top + e);
+				pThis->UpdateMapPreviewAt(left + i, top + e);
+			}
 		}
 	}
+	else if (auto* ur = dynamic_cast<ObjectRecord*>(data)) {
+
+	}
+	else if (auto* mr = dynamic_cast<MixedRecord*>(data)) {
+
+	}
+	pThis->UndoRedoDatas.erase(pThis->UndoRedoDataIndex + 1);
 
 	return 0x4BC486;
 }
@@ -120,63 +141,18 @@ DEFINE_HOOK(4BB990, CMapData_SaveUndoRedoData, 7)
 	if (right == 0) right = pThis->MapWidthPlusHeight;
 	if (bottom == 0) bottom = pThis->MapWidthPlusHeight;
 
-	int e;
 	if (bEraseFollowing)
 	{
 		pThis->UndoRedoDatas.resize(pThis->UndoRedoDataIndex + 1);
 	}
 
-	//pThis->UndoRedoDataIndex++;
-
 	if (pThis->UndoRedoDatas.size() + 1 > ExtConfigs::UndoRedoLimit)
 	{
-		//pThis->UndoRedoDataIndex = ExtConfigs::UndoRedoLimit - 1;
-		pThis->UndoRedoDatas.erase(pThis->UndoRedoDatas.begin());
+		pThis->UndoRedoDatas.erase(0);
 	}
-
-	auto& data = pThis->UndoRedoDatas.emplace_back();
-	pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size() - 1;
-
-	int width, height;
-	width = right - left;
-	height = bottom - top;
-
-	int size = width * height;
-	data.left = left;
-	data.top = top;
-	data.right = right;
-	data.bottom = bottom;
-	data.bHeight = std::make_unique<BYTE[]>(size);
-	data.bMapData = std::make_unique<WORD[]>(size);
-	data.bSubTile = std::make_unique<BYTE[]>(size);
-	data.bMapData2 = std::make_unique<BYTE[]>(size);
-	data.wGround = std::make_unique<WORD[]>(size);
-	data.overlay = std::make_unique<WORD[]>(size);
-	data.overlaydata = std::make_unique<BYTE[]>(size);
-	data.bRedrawTerrain = std::make_unique<BOOL[]>(size);
-	data.bRNDData = std::make_unique<BYTE[]>(size);
-
-	int i;
-	for (i = 0; i < width; i++)
-	{
-		for (e = 0; e < height; e++)
-		{
-			int pos_w, pos_r;
-			pos_w = i + e * width;
-			pos_r = left + i + (top + e) * pThis->MapWidthPlusHeight;
-			auto cell = pThis->GetCellAt(pos_r);
-			auto& cellExt = pThis->CellDataExts[pos_r];
-			data.bHeight[pos_w] = cell->Height;
-			data.bMapData[pos_w] = cell->TileIndexHiPart;
-			data.bSubTile[pos_w] = cell->TileSubIndex;
-			data.bMapData2[pos_w] = cell->IceGrowth;
-			data.wGround[pos_w] = cell->TileIndex;
-			data.overlay[pos_w] = cellExt.NewOverlay;
-			data.overlaydata[pos_w] = cell->OverlayData;
-			data.bRedrawTerrain[pos_w] = cell->Flag.RedrawTerrain;
-			data.bRNDData[pos_w] = cell->Flag.AltIndex;
-		}
-	}
+	
+	pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size();
+	pThis->UndoRedoDatas.add(std::move(pThis->MakeTerrainRecord(left, top, right, bottom)));
 
 	return 0x4BBEBD;
 }

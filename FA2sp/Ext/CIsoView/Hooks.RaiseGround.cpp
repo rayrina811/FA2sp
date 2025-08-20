@@ -657,8 +657,6 @@ DEFINE_HOOK(46404B, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTEN, 7)
 	}
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 
-	CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-	CMapData::Instance->DoUndo();
 	return 0x46686A;
 	//return 0x464AE4;
 }
@@ -867,8 +865,6 @@ DEFINE_HOOK(464B01, CIsoView_OnLButtonDown_ACTIONMODE_LOWER, 7)
 	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-	CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-	CMapData::Instance->DoUndo();
 	return 0x46686A;
 	//return 0x46555F;
 }
@@ -937,8 +933,6 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-	CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-	CMapData::Instance->DoUndo();
 	return 0x46686A;
 	//return 0x465CAA;
 }
@@ -1036,8 +1030,6 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 		}
 	}
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
-	CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
-	CMapData::Instance->DoUndo();
 	return 0x46686A;
 	//return 0x4663D3;
 }

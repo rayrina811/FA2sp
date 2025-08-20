@@ -213,8 +213,13 @@ struct CellDataExt
     bool HasAnnotation = false;
 };
 
-struct UndoRedoDataExt
-{
+class HistoryRecord {
+public:
+    virtual ~HistoryRecord() = default;
+};
+
+class TerrainRecord : public HistoryRecord {
+public:
     int left;
     int top;
     int bottom;
@@ -229,6 +234,59 @@ struct UndoRedoDataExt
     std::unique_ptr<BYTE[]> bHeight;
     std::unique_ptr<BYTE[]> bMapData2;
     std::unique_ptr<BYTE[]> bRNDData;
+};
+
+class ObjectRecord : public HistoryRecord {
+public:
+    int unitId;
+    std::string action;
+};
+
+class MixedRecord : public HistoryRecord {
+public:
+    TerrainRecord terrain;
+    ObjectRecord object;
+
+    MixedRecord(TerrainRecord t, ObjectRecord o)
+        : terrain(std::move(t)), object(std::move(o)) {}
+};
+
+class HistoryList {
+public:
+    void add(std::unique_ptr<HistoryRecord> rec) {
+        records.emplace_back(std::move(rec));
+    }
+
+    void insert(size_t index, std::unique_ptr<HistoryRecord> rec) {
+        if (index > records.size()) {
+            index = records.size();
+        }
+        records.insert(records.begin() + index, std::move(rec));
+    }
+
+    void erase(size_t index) {
+        if (index < records.size()) {
+            records.erase(records.begin() + index);
+        }
+    }
+
+    void resize(size_t newSize) {
+        records.resize(newSize);
+    }
+
+    void clear() {
+        records.clear();
+    }
+
+    HistoryRecord* get(size_t index) {
+        if (index >= records.size()) return nullptr;
+        return records[index].get();
+    }
+
+    size_t size() const { return records.size(); }
+
+private:
+    std::vector<std::unique_ptr<HistoryRecord>> records;
 };
 
 class CMapDataExt : public CMapData
@@ -364,6 +422,7 @@ public:
     WORD GetOverlayAt(int pos);
     static OverlayTypeData GetOverlayTypeData(WORD index);
     static void AssignCellData(CellData& dst, const CellData& src);
+    std::unique_ptr<TerrainRecord> MakeTerrainRecord(int left, int top, int right, int bottom);
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;
@@ -415,7 +474,7 @@ public:
     static std::unordered_map<int, Palette*> TileSetPalettes;
     static int NewINIFormat;
     static WORD NewOverlay[0x40000];
-    static std::vector<UndoRedoDataExt> UndoRedoDatas;
+    static HistoryList UndoRedoDatas;
     static int UndoRedoDataIndex;
     static bool IsLoadingMapFile;
     static std::vector<FString> MapIniSectionSorting;
