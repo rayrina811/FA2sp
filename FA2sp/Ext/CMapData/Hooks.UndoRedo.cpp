@@ -156,3 +156,18 @@ DEFINE_HOOK(4BB990, CMapData_SaveUndoRedoData, 7)
 
 	return 0x4BBEBD;
 }
+
+DEFINE_HOOK(4616BA, SkipUndo_CIsoView_OnLButtonDown_1, 6)
+{
+	return 0x4616D8;
+}
+
+DEFINE_HOOK(464AC1, SkipUndo_CIsoView_OnLButtonDown_2, 6)
+{
+	return 0x46686A;
+}
+
+DEFINE_HOOK(466D45, SkipUndo_CIsoView_OnLButtonUp_1, 6)
+{
+	return 0x466D5F;
+}
