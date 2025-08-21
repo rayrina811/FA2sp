@@ -56,18 +56,6 @@ public:
 
     static std::string WStringToString(const std::wstring& wstr);
     static std::wstring StringToWString(const std::string& str);
-	static FString ParseHouseName(const FString& src, bool bRealToUIName)
-	{
-		ppmfc::CString buffer;
-		Miscs::ParseHouseName(&buffer, ppmfc::CString(src), bRealToUIName);
-		return FString(buffer);
-	}
-	static FString ParseHouseName(FString&& src, bool bRealToUIName)
-	{
-		ppmfc::CString buffer;
-		Miscs::ParseHouseName(&buffer, ppmfc::CString(src), bRealToUIName);
-		return FString(buffer);
-	}
 
 	static inline int letter2number(char let) {
 		int reply = let - 'A';

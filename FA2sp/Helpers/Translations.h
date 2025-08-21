@@ -26,6 +26,7 @@ public:
     static void TranslateStringVariables(int n, ppmfc::CString& text, const char* inserttext);
     static const char* TranslateOrDefault(const char* lpLabelName, const char* lpDefault);
     static ppmfc::CString TranslateTileSet(int index);
+    static FString ParseHouseName(FString src, bool IDToUIName);
     static char pLanguage[4][0x400];
     static ppmfc::CString CurrentTileSet;
 };

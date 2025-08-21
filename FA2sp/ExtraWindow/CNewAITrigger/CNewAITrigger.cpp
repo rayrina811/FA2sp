@@ -175,7 +175,7 @@ void CNewAITrigger::Update(HWND& hWnd)
         {
             if (pair.second == "GDI" || pair.second == "Nod")
                 continue;
-            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)STDHelpers::ParseHouseName(pair.second, true));
+            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(pair.second, true));
         }
     }
 
@@ -523,7 +523,7 @@ void CNewAITrigger::OnSelchangeAITrigger(bool edited, int specificIdx)
             }
         };
 
-    int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)STDHelpers::ParseHouseName(CurrentAITrigger->House, true));
+    int idx = SendMessage(hCountry, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(CurrentAITrigger->House, true));
     if (idx != CB_ERR) {
         SendMessage(hCountry, CB_SETCURSEL, idx, NULL);
     }
@@ -606,7 +606,7 @@ void CNewAITrigger::OnSelchangeCountry(bool edited)
 
     text.Replace(",", "");
 
-    CurrentAITrigger->House = STDHelpers::ParseHouseName(text, false);
+    CurrentAITrigger->House = Translations::ParseHouseName(text, false);
     CurrentAITrigger->Save();
 }
 

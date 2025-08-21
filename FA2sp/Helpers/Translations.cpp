@@ -8,6 +8,7 @@
 #include "TheaterHelpers.h"
 #include "../FA2sp.Constants.h"
 #include "FString.h"
+#include "../Miscs/StringtableLoader.h"
 
 ppmfc::CString FinalAlertConfig::lpPath;
 char FinalAlertConfig::pLastRead[0x400];
@@ -188,6 +189,45 @@ ppmfc::CString Translations::TranslateTileSet(int index)
     return result;
 }
 
+
+FString Translations::ParseHouseName(FString src, bool IDToUIName)
+{
+    if (ExtConfigs::NoHouseNameTranslation)
+    {
+        return src;
+    }
+    else
+    {
+        auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
+        FString translated;
+
+        if (IDToUIName)
+        {
+            for (auto& pair : countries)
+            {
+                if (ExtConfigs::BetterHouseNameTranslation)
+                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                else
+                    translated = StringtableLoader::QueryUIName(pair.second);
+
+                src.Replace(pair.second, translated);
+            }
+        }
+        else
+        {
+            for (auto& pair : countries)
+            {
+                if (ExtConfigs::BetterHouseNameTranslation)
+                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
+                else
+                    translated = StringtableLoader::QueryUIName(pair.second);
+                src.Replace(translated, pair.second);
+            }
+        }
+    }
+    return src;
+}
+
 DEFINE_HOOK(43DA80, FALanguage_GetTranslationItem, 7)
 {
     GET_STACK(ppmfc::CString*, pRet, 0x4);
@@ -215,16 +255,16 @@ DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
     else
     {
         auto& countries = CINI::Rules->GetSection("Countries")->GetEntities();
-        ppmfc::CString translated;
+        FString translated;
 
         if (IDToUIName)
         {
             for (auto& pair : countries)
             {
                 if (ExtConfigs::BetterHouseNameTranslation)
-                    translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                 else
-                    translated = CMapData::GetUIName(pair.second);
+                    translated = StringtableLoader::QueryUIName(pair.second);
 
                 src.Replace(pair.second, translated);
             }
@@ -234,9 +274,9 @@ DEFINE_HOOK(43C3C0, Miscs_ParseHouseName, 7)
             for (auto& pair : countries)
             {
                 if (ExtConfigs::BetterHouseNameTranslation)
-                    translated = CMapData::GetUIName(pair.second) + "(" + pair.second + ")";
+                    translated = StringtableLoader::QueryUIName(pair.second) + "(" + pair.second + ")";
                 else
-                    translated = CMapData::GetUIName(pair.second);
+                    translated = StringtableLoader::QueryUIName(pair.second);
                 src.Replace(translated, pair.second);
             }
         }

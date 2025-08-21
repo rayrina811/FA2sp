@@ -743,8 +743,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             }
                         }
                         int cost = mmh.GetInteger(object.TypeID, "Cost");
-                        ppmfc::CString house;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
 
@@ -760,9 +759,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         if (strength == 0 && atoi(object.Health) > 0)
                             strength = 1;
 
-                        ppmfc::CString house;
                         FString veteran;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
                         if (atoi(object.VeterancyPercentage) < 100)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Rookie",
                                 "Rookie");
@@ -867,8 +865,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             }
                         }
                         int cost = mmh.GetInteger(object.TypeID, "Cost");
-                        ppmfc::CString house;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Vehicle",
@@ -884,9 +881,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         if (strength == 0 && atoi(object.Health) > 0)
                             strength = 1;
 
-                        ppmfc::CString house;
                         FString veteran;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
 
                         if (atoi(object.VeterancyPercentage) < 100)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Rookie",
@@ -992,8 +988,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             }
                         }
                         int cost = mmh.GetInteger(object.TypeID, "Cost");
-                        ppmfc::CString house;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
 
                         leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), house);
                         leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Aircraft",
@@ -1008,9 +1003,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         if (strength == 0 && atoi(object.Health) > 0)
                             strength = 1;
 
-                        ppmfc::CString house;
                         FString veteran;
-                        Miscs::ParseHouseName(&house, object.House, true);
+                        FString house = Translations::ParseHouseName(object.House, true);
                         if (atoi(object.VeterancyPercentage) < 100)
                             veteran = Translations::TranslateOrDefault("ObjectInfo.Veterancy.Rookie",
                                 "Rookie");
@@ -1133,8 +1127,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                         strength = 1;
 
                     int cost = mmh.GetInteger(object.TypeID, "Cost");
-                    ppmfc::CString house;
-                    Miscs::ParseHouseName(&house, object.House, true);
+                    FString house = Translations::ParseHouseName(object.House, true);
                     int power = CMapDataExt::GetStructurePower(object).TotalPower;
 
                     for (auto& str : mapIni.GetSection("Structures")->GetEntities())
@@ -1191,8 +1184,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                     int power = CMapDataExt::GetStructurePower(object).TotalPower;
 
-                    ppmfc::CString house;
-                    Miscs::ParseHouseName(&house, object.House, true);
+                    FString house = Translations::ParseHouseName(object.House, true);
 
                     auto tag = FString::SplitString(mapIni.GetString("Tags", object.Tag));
                     FString tagName = "";
@@ -1317,7 +1309,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     FString leftLine3;
                     FString leftLine4;
                     FString leftLine5;
-                    ppmfc::CString targetHouse2 = id.House;
 
                     int objThisCount = 0;
                     int cost = mmh.GetInteger(id.ID, "Cost");
@@ -1330,14 +1321,14 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                     std::vector<int> powerShortage;
 
 
-                    int nodeCount = ini.GetInteger(targetHouse2, "NodeCount", 0);
+                    int nodeCount = ini.GetInteger(id.House, "NodeCount", 0);
                     if (nodeCount > 0)
                     {
                         for (int i = 0; i < nodeCount; i++)
                         {
                             char key[10];
                             sprintf(key, "%03d", i);
-                            auto value = ini.GetString(targetHouse2, key, "");
+                            auto value = ini.GetString(id.House, key, "");
                             if (value == "")
                                 continue;
                             auto atoms2 = FString::SplitString(value);
@@ -1366,7 +1357,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
                         }
                     }
-                    Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
+                    FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     leftLine1.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.House", "House: %s:"), targetHouse2);
                     leftLine2.Format(Translations::TranslateOrDefault("ObjectInfo.HouseInfo.Basenode",
                         "Basenode:  %s (%s), Count: %d, Cost: %d"), StringtableLoader::QueryUIName(id.ID), id.ID, objThisCount, objThisCount * cost);
@@ -1441,8 +1432,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                 }
                 if (CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::BaseNode || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::Object || CIsoView::CurrentCommand->Type == CViewObjectsExt::ObjectTerrainType::All)
                 {
-                    ppmfc::CString targetHouse2 = id.House;
-                    Miscs::ParseHouseName(&targetHouse2, targetHouse2, true);
+                    FString targetHouse2 = Translations::ParseHouseName(id.House, true);
                     line1.Format(Translations::TranslateOrDefault("ObjectInfo.Basenode.1",
                         "Basenode: %s (%s), ID: %d")
                         , StringtableLoader::QueryUIName(id.ID), id.ID, id.BasenodeID);

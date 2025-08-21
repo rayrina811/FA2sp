@@ -239,7 +239,7 @@ void CNewTeamTypes::Update(HWND& hWnd)
         if (country == "GDI" || country == "Nod")
             continue;
         
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Miscs::ParseHouseName(country, true).m_pchData);
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(country, true));
     }
 
     int tmp = 0;
@@ -774,7 +774,7 @@ void CNewTeamTypes::OnSelchangeHouse(bool edited)
     {
         GetWindowText(hHouse, buffer, 511);
         text = buffer;
-        int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Miscs::ParseHouseName(text, true).m_pchData);
+        int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(text, true));
         if (idx != CB_ERR)
         {
             SendMessage(hHouse, CB_GETLBTEXT, idx, (LPARAM)buffer);
@@ -785,7 +785,7 @@ void CNewTeamTypes::OnSelchangeHouse(bool edited)
         return;
 
     text.Trim();
-    map.WriteString(CurrentTeamID, "House", Miscs::ParseHouseName(text, false));
+    map.WriteString(CurrentTeamID, "House", Translations::ParseHouseName(text, false));
 }
 
 void CNewTeamTypes::OnCloseupHouse()
@@ -1019,7 +1019,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
 
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
 
-        int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Miscs::ParseHouseName(house, true).m_pchData);
+        int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(house, true));
         if (houseidx != CB_ERR)
             SendMessage(hHouse, CB_SETCURSEL, houseidx, NULL);
         else
@@ -1148,7 +1148,7 @@ void CNewTeamTypes::OnClickNewTeam()
     if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        map.WriteString(value, "House", Miscs::ParseHouseName(buffer, false));
+        map.WriteString(value, "House", Translations::ParseHouseName(buffer, false));
     }
     else
         map.WriteString(value, "House", "<all>");

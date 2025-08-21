@@ -285,7 +285,7 @@ void CNewTrigger::Update(HWND& hWnd)
         {
             if (pair.second == "GDI" || pair.second == "Nod")
                 continue;
-            SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)STDHelpers::ParseHouseName(pair.second, true).c_str());
+            SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(pair.second, true).c_str());
         }
     }
 
@@ -973,7 +973,7 @@ void CNewTrigger::OnSelchangeHouse(bool edited)
 
     text.Replace(",", "");
 
-    CurrentTrigger->House = STDHelpers::ParseHouseName(text, false);
+    CurrentTrigger->House = Translations::ParseHouseName(text, false);
     CurrentTrigger->Save();
 
 }
@@ -1320,7 +1320,7 @@ void CNewTrigger::OnSelchangeTrigger(bool edited, int eventListCur, int actionLi
 
     SendMessage(hName, WM_SETTEXT, 0, (LPARAM)CurrentTrigger->Name.c_str());
     
-    int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)STDHelpers::ParseHouseName(CurrentTrigger->House, true).c_str());
+    int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(CurrentTrigger->House, true).c_str());
     if (houseidx != CB_ERR)
         SendMessage(hHouse, CB_SETCURSEL, houseidx, NULL);
     else
@@ -1400,7 +1400,7 @@ void CNewTrigger::OnClickNewTrigger()
     if (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0)
     {
         SendMessage(hHouse, CB_GETLBTEXT, 0, (LPARAM)buffer);
-        house = STDHelpers::ParseHouseName(buffer, false);
+        house = Translations::ParseHouseName(buffer, false);
     }
     else
         house = "Americans";

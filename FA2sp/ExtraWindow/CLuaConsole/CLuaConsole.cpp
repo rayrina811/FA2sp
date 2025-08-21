@@ -426,7 +426,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("remove_node", remove_node);
     Lua.set_function("get_uiname", [](std::string id) { return std::string(CViewObjectsExt::QueryUIName(id.c_str())); });
     Lua.set_function("translate_house", [](std::string id, bool back = false) {
-        return std::string(Miscs::ParseHouseName(id.c_str(), !back).m_pchData);
+        return std::string(Translations::ParseHouseName(id.c_str(), !back));
         });
 
     // tiles
