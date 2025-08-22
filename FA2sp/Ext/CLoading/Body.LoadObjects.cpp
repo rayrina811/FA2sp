@@ -1177,6 +1177,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 	FString ImageID = GetBuildingFileID(ID);
 	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
 	FString PaletteName = "iso\233NotAutoTinted";
+	PaletteName = CINI::Art->GetString(ArtID, "RubblePalette", PaletteName);
 	GetFullPaletteName(PaletteName);
 	auto pal = PalettesManager::LoadPalette(PaletteName);
 

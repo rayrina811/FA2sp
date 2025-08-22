@@ -223,6 +223,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
             CNewTrigger::OnSelchangeTrigger(false, data < 200 ? data - 100 : 0, data >= 200 ? data - 200 : 0);
+            SetWindowPos(CNewTrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data == 2)
         {
@@ -235,6 +236,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
                 return;
             SendMessage(dlg, CB_SETCURSEL, idx, NULL);
             CNewAITrigger::OnSelchangeAITrigger();
+            SetWindowPos(CNewAITrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
         else if (data >= 500 && data < 550)
         {
@@ -250,6 +252,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             auto dlg2 = GetDlgItem(CNewScript::GetHandle(), CNewScript::Controls::ActionsListBox);
             SendMessage(dlg2, LB_SETCURSEL, data - 500, NULL);
             CNewScript::OnSelchangeActionListbox();
+            SetWindowPos(CNewScript::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
         }
     }
     else
@@ -263,6 +266,7 @@ void CSearhReference::OnSelchangeListbox(HWND hWnd)
             return;
         SendMessage(dlg, CB_SETCURSEL, idx, NULL);
         CNewTeamTypes::OnSelchangeTeamtypes();
+        SetWindowPos(CNewTeamTypes::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
 
 }
