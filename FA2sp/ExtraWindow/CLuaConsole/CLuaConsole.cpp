@@ -1123,23 +1123,23 @@ void CLuaConsole::OnClickRun(bool fromFile)
     skipBuildingUpdate = false;
     if (updateBuilding)
     {
-        updateBuilding = false;
-        CMapDataExt::UpdateFieldStructureData_Optimized();
+        updateBuilding = false;	
+        CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
     }
     if (updateUnit)
     {
         updateUnit = false;
-        CMapData::Instance->UpdateFieldUnitData(FALSE);
+        CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
     }
     if (updateInfantry)
     {
         updateInfantry = false;
-        CMapData::Instance->UpdateFieldInfantryData(FALSE);
+        CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
     }
     if (updateAircraft)
     {
         updateAircraft = false;
-        CMapData::Instance->UpdateFieldAircraftData(FALSE);
+        CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
     }
     if (updateNode)
     {
@@ -1187,7 +1187,6 @@ void CLuaConsole::OnClickRun(bool fromFile)
     {
         updateMinimap = false;
         update_minimap();
-        CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     if (recalculateOre)
     {

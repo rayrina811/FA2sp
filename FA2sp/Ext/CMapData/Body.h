@@ -211,6 +211,8 @@ struct CellDataExt
 
     bool HasAnim = false;
     bool HasAnnotation = false;
+
+    int RecordMinimapUpdateIndex[3] = { -1 } ;
 };
 
 class HistoryRecord {
@@ -234,12 +236,42 @@ public:
     std::unique_ptr<BYTE[]> bHeight;
     std::unique_ptr<BYTE[]> bMapData2;
     std::unique_ptr<BYTE[]> bRNDData;
+
+    void record(int left, int top, int right, int bottom);
+    void recover();
 };
 
 class ObjectRecord : public HistoryRecord {
 public:
-    int unitId;
-    std::string action;
+    enum RecordType : int
+    {
+        Building = 0x00000001,
+        Unit = 0x00000002,
+        Aircraft = 0x00000004,
+        Infantry = 0x00000008,
+        Terrain = 0x00000010,
+        Smudge = 0x00000020,
+        Basenode = 0x00000040,
+        Tunnel = 0x00000080,
+        Waypoint = 0x00000100,
+        Celltag = 0x00000200,
+        Annotation = 0x00000400
+    };
+    int recordFlags = 0;
+    std::vector<FString> BuildingList;
+    std::vector<FString> UnitList;
+    std::vector<FString> AircraftList;
+    std::vector<FString> InfantryList;
+    std::map<FString, FString> TerrainList;
+    std::vector<FString> SmudgeList;
+    std::map<FString, std::vector<FString>> BasenodeList;
+    std::vector<FString> TunnelList;
+    std::map<FString, FString> WaypointList;
+    std::map<FString, FString> CelltagList;
+    std::map<FString, FString> AnnotationList;
+
+    void record(int recordType);
+    void recover();
 };
 
 class MixedRecord : public HistoryRecord {
@@ -247,8 +279,8 @@ public:
     TerrainRecord terrain;
     ObjectRecord object;
 
-    MixedRecord(TerrainRecord t, ObjectRecord o)
-        : terrain(std::move(t)), object(std::move(o)) {}
+    void record(int left, int top, int right, int bottom, int recordType);
+    void recover();
 };
 
 class HistoryList {
@@ -257,11 +289,41 @@ public:
         records.emplace_back(std::move(rec));
     }
 
+    void add(int recordType) {
+        auto data = std::make_unique<ObjectRecord>();
+        data->record(recordType);
+        records.emplace_back(std::move(data));
+    }
+
+    void add(int left, int top, int right, int bottom, int recordType) {
+        auto data = std::make_unique<MixedRecord>();
+        data->record(left, top, right, bottom, recordType);
+        records.emplace_back(std::move(data));
+    }
+
     void insert(size_t index, std::unique_ptr<HistoryRecord> rec) {
         if (index > records.size()) {
             index = records.size();
         }
         records.insert(records.begin() + index, std::move(rec));
+    }
+
+    void insert(size_t index, int recordType) {
+        auto data = std::make_unique<ObjectRecord>();
+        data->record(recordType);
+        if (index > records.size()) {
+            index = records.size();
+        }
+        records.insert(records.begin() + index, std::move(data));
+    }
+
+    void insert(size_t index, int left, int top, int right, int bottom, int recordType) {
+        auto data = std::make_unique<MixedRecord>();
+        data->record(left, top, right, bottom, recordType);
+        if (index > records.size()) {
+            index = records.size();
+        }
+        records.insert(records.begin() + index, std::move(data));
     }
 
     void erase(size_t index) {
@@ -423,6 +485,13 @@ public:
     static OverlayTypeData GetOverlayTypeData(WORD index);
     static void AssignCellData(CellData& dst, const CellData& src);
     std::unique_ptr<TerrainRecord> MakeTerrainRecord(int left, int top, int right, int bottom);
+    static void MakeObjectRecord(int recordType, bool recordOnce = false);
+    static void MakeMixedRecord(int left, int top, int right, int bottom, int recordType);
+
+    static void UpdateFieldStructureData_RedrawMinimap();
+    static void UpdateFieldUnitData_RedrawMinimap();
+    static void UpdateFieldInfantryData_RedrawMinimap();
+    static void UpdateFieldAircraftData_RedrawMinimap();
 
     static int OreValue[4];
     static bool SkipUpdateBuildingInfo;

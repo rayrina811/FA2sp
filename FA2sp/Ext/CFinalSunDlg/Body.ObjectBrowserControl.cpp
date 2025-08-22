@@ -2162,6 +2162,7 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
     if (STDHelpers::IsNullOrWhitespaceOrReturn(dlg.m_Text))
         return;
 
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
     int size = std::min(100, atoi(dlg.m_FontSize));
     size = std::max(10, size);
     auto textColor = STDHelpers::HexStringToColorRefRGB(dlg.m_TextColor);
@@ -2189,6 +2190,7 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
     cellExt.HasAnnotation = false;
     if (CINI::CurrentDocument->KeyExists("Annotations", key))
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
         CINI::CurrentDocument->DeleteKey("Annotations", key);
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
@@ -2198,6 +2200,7 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 
 void CViewObjectsExt::DeleteTube(int X, int Y)
 {
+    bool once = false;
     for (int i = 0; i < CMapDataExt::Tubes.size(); ++i)
     {
         auto& tube = CMapDataExt::Tubes[i];
@@ -2205,6 +2208,11 @@ void CViewObjectsExt::DeleteTube(int X, int Y)
         {
             if (coord.X == X && coord.Y == Y)
             {
+                if (!once)
+                {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Tunnel);
+                    once = true;
+                }
                 CINI::CurrentDocument->DeleteKey("Tubes", tube.key);
                 break;
             }
@@ -2528,6 +2536,7 @@ void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 
 void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
 {
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
     CBuildingData data;
     CMapData::Instance->GetBuildingData(nIndex, data);
     
@@ -2539,6 +2548,7 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
 
 void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
 {
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
     CInfantryData data;
     CMapData::Instance->GetInfantryData(nIndex, data);
 
@@ -2550,6 +2560,7 @@ void CViewObjectsExt::ApplyPropertyBrush_Infantry(int nIndex)
 
 void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
 {
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
     CAircraftData data;
     CMapData::Instance->GetAircraftData(nIndex, data);
 
@@ -2561,6 +2572,7 @@ void CViewObjectsExt::ApplyPropertyBrush_Aircraft(int nIndex)
 
 void CViewObjectsExt::ApplyPropertyBrush_Vehicle(int nIndex)
 {
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
     CUnitData data;
     CMapData::Instance->GetUnitData(nIndex, data);
 

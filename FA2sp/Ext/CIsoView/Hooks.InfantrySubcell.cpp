@@ -31,6 +31,7 @@ DEFINE_HOOK(466E07, CIsoView_OnLButtonUp_DragInfantrySubcell, 5)
 	GET_STACK(UINT, nFlags, 0x218);
 	GET_STACK(int, screenCoordX, 0x21C);
 	GET_STACK(int, screenCoordY, 0x220);
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	CInfantryData inf;
 	CMapData::Instance->GetInfantryData(pIsoView->CurrentCellObjectIndex, inf);
@@ -191,6 +192,7 @@ DEFINE_HOOK(46D1EC, CIsoView_PlaceCurrentObjectAt_ChangeSubcellInfantryOwner, 8)
 	int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
 	if (idx > -1)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 		CInfantryData infantry;
 		CMapData::Instance->GetInfantryData(idx, infantry);
 		CMapData::Instance->DeleteInfantryData(idx);

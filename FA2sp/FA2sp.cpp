@@ -84,6 +84,7 @@ bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtFacings_Drag;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
+bool ExtConfigs::UndoRedo_RecordObjects;
 bool ExtConfigs::UndoRedo_HoldPlaceOverlay;
 bool ExtConfigs::UseRGBHouseColor;
 bool ExtConfigs::SaveMap_AutoSave;
@@ -332,9 +333,10 @@ void FA2sp::ExtConfigsInitialize()
 	if (ExtConfigs::SearchCombobox_MaxCount < 0)
 		ExtConfigs::SearchCombobox_MaxCount = INT_MAX;
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
-	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 16);
-	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile");
-	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay");
+	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 64);
+	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile", true);
+	ExtConfigs::UndoRedo_HoldPlaceOverlay = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.HoldPlaceOverlay", true);
+	ExtConfigs::UndoRedo_RecordObjects = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.RecordObjects", true);
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
@@ -822,6 +824,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.UndoRedo.HoldPlaceOverlay", "Only record one history when shift placing overlays"),
 		.IniKey = "UndoRedo.HoldPlaceOverlay",
 		.Value = &ExtConfigs::UndoRedo_HoldPlaceOverlay,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UndoRedo.RecordObjects", "Record editing history of objects"),
+		.IniKey = "UndoRedo.RecordObjects",
+		.Value = &ExtConfigs::UndoRedo_RecordObjects,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

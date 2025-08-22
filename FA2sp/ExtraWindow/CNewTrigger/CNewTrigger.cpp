@@ -1503,7 +1503,6 @@ void CNewTrigger::OnClickDelTrigger(HWND& hWnd)
                     CMapData::Instance->UpdateFieldCelltagData(FALSE);
                     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
                 }
-
             }
         }
         map.DeleteKey("Triggers", CurrentTrigger->ID);

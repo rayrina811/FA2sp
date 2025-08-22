@@ -184,6 +184,7 @@ public:
     static bool EnableDistanceRuler;
 
     static bool CliffBackAlt;
+    static bool HistoryRecord_IsHoldingLButton;
 
     struct LastCommand
     {

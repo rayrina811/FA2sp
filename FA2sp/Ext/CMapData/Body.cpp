@@ -1438,25 +1438,40 @@ void CMapDataExt::AssignCellData(CellData& dst, const CellData& src)
 std::unique_ptr<TerrainRecord> CMapDataExt::MakeTerrainRecord(int left, int top, int right, int bottom)
 {
 	auto data = std::make_unique<TerrainRecord>();
+	data->record(left, top, right, bottom);
+	return std::move(data);
+}
+
+void TerrainRecord::record(int left, int top, int right, int bottom)
+{
+	auto pThis = CMapDataExt::GetExtension();
+
+	if (left < 0) left = 0;
+	if (top < 0) top = 0;
+	if (right > pThis->MapWidthPlusHeight) right = pThis->MapWidthPlusHeight;
+	if (bottom > pThis->MapWidthPlusHeight) bottom = pThis->MapWidthPlusHeight;
+
+	if (right == 0) right = pThis->MapWidthPlusHeight;
+	if (bottom == 0) bottom = pThis->MapWidthPlusHeight;
 
 	int width, height;
 	width = right - left;
 	height = bottom - top;
 
 	int size = width * height;
-	data->left = left;
-	data->top = top;
-	data->right = right;
-	data->bottom = bottom;
-	data->bHeight = std::make_unique<BYTE[]>(size);
-	data->bMapData = std::make_unique<WORD[]>(size);
-	data->bSubTile = std::make_unique<BYTE[]>(size);
-	data->bMapData2 = std::make_unique<BYTE[]>(size);
-	data->wGround = std::make_unique<WORD[]>(size);
-	data->overlay = std::make_unique<WORD[]>(size);
-	data->overlaydata = std::make_unique<BYTE[]>(size);
-	data->bRedrawTerrain = std::make_unique<BOOL[]>(size);
-	data->bRNDData = std::make_unique<BYTE[]>(size);
+	this->left = left;
+	this->top = top;
+	this->right = right;
+	this->bottom = bottom;
+	this->bHeight = std::make_unique<BYTE[]>(size);
+	this->bMapData = std::make_unique<WORD[]>(size);
+	this->bSubTile = std::make_unique<BYTE[]>(size);
+	this->bMapData2 = std::make_unique<BYTE[]>(size);
+	this->wGround = std::make_unique<WORD[]>(size);
+	this->overlay = std::make_unique<WORD[]>(size);
+	this->overlaydata = std::make_unique<BYTE[]>(size);
+	this->bRedrawTerrain = std::make_unique<BOOL[]>(size);
+	this->bRNDData = std::make_unique<BYTE[]>(size);
 
 	int i, e;
 	for (i = 0; i < width; i++)
@@ -1465,21 +1480,452 @@ std::unique_ptr<TerrainRecord> CMapDataExt::MakeTerrainRecord(int left, int top,
 		{
 			int pos_w, pos_r;
 			pos_w = i + e * width;
-			pos_r = left + i + (top + e) * this->MapWidthPlusHeight;
-			auto cell = this->GetCellAt(pos_r);
-			auto& cellExt = this->CellDataExts[pos_r];
-			data->bHeight[pos_w] = cell->Height;
-			data->bMapData[pos_w] = cell->TileIndexHiPart;
-			data->bSubTile[pos_w] = cell->TileSubIndex;
-			data->bMapData2[pos_w] = cell->IceGrowth;
-			data->wGround[pos_w] = cell->TileIndex;
-			data->overlay[pos_w] = cellExt.NewOverlay;
-			data->overlaydata[pos_w] = cell->OverlayData;
-			data->bRedrawTerrain[pos_w] = cell->Flag.RedrawTerrain;
-			data->bRNDData[pos_w] = cell->Flag.AltIndex;
+			pos_r = left + i + (top + e) * pThis->MapWidthPlusHeight;
+			auto cell = pThis->GetCellAt(pos_r);
+			auto& cellExt = pThis->CellDataExts[pos_r];
+			this->bHeight[pos_w] = cell->Height;
+			this->bMapData[pos_w] = cell->TileIndexHiPart;
+			this->bSubTile[pos_w] = cell->TileSubIndex;
+			this->bMapData2[pos_w] = cell->IceGrowth;
+			this->wGround[pos_w] = cell->TileIndex;
+			this->overlay[pos_w] = cellExt.NewOverlay;
+			this->overlaydata[pos_w] = cell->OverlayData;
+			this->bRedrawTerrain[pos_w] = cell->Flag.RedrawTerrain;
+			this->bRNDData[pos_w] = cell->Flag.AltIndex;
 		}
 	}
-	return std::move(data);
+}
+
+void TerrainRecord::recover()
+{
+	auto pThis = CMapDataExt::GetExtension();
+	int left, top, width, height;
+	left = this->left;
+	top = this->top;
+	width = this->right - left;
+	height = this->bottom - top;
+
+	int i, e;
+	for (i = 0; i < width; i++)
+	{
+		for (e = 0; e < height; e++)
+		{
+			int pos_w, pos_r;
+			pos_r = i + e * width;
+			pos_w = left + i + (top + e) * pThis->MapWidthPlusHeight;
+			auto cell = pThis->GetCellAt(pos_w);
+			auto& cellExt = pThis->CellDataExts[pos_w];
+
+			cell->Height = this->bHeight[pos_r];
+			cell->TileIndexHiPart = this->bMapData[pos_r];
+			cell->TileSubIndex = this->bSubTile[pos_r];
+			cell->IceGrowth = this->bMapData2[pos_r];
+			cell->TileIndex = this->wGround[pos_r];
+
+			pThis->DeleteTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+			cellExt.NewOverlay = this->overlay[pos_r];
+			cell->Overlay = std::min(this->overlay[pos_r], (word)0xFF);
+			cell->OverlayData = this->overlaydata[pos_r];
+			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
+
+			cell->Flag.RedrawTerrain = this->bRedrawTerrain[pos_r];
+			cell->Flag.AltIndex = this->bRNDData[pos_r];
+
+			pThis->UpdateMapPreviewAt(left + i, top + e);
+		}
+	}
+}
+
+void ObjectRecord::record(int recordType)
+{
+	if (!ExtConfigs::UndoRedo_RecordObjects)
+		return;
+	recordFlags = recordType;
+	auto& ini = CMapData::Instance->INI;
+	auto recordIniValue = [&ini](const char* lpName, std::vector<FString>& list)
+		{
+			if (auto pSection = ini.GetSection(lpName))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					list.push_back(value);
+				}
+			}
+		};
+	auto recordIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+		{
+			if (auto pSection = ini.GetSection(lpName))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					list[key] = value;
+				}
+			}
+		};
+	if (recordType & RecordType::Building)
+	{
+		recordIniValue("Structures", BuildingList);
+	}
+	if (recordType & RecordType::Unit)
+	{
+		recordIniValue("Units", UnitList);
+	}
+	if (recordType & RecordType::Aircraft)
+	{
+		recordIniValue("Aircraft", AircraftList);
+	}
+	if (recordType & RecordType::Infantry)
+	{
+		recordIniValue("Infantry", InfantryList);
+	}
+	if (recordType & RecordType::Terrain)
+	{
+		FString key;
+		for (const auto& terrain : CMapData::Instance->TerrainDatas)
+		{
+			if (!terrain.Flag)
+			{
+				key.Format("%04d", terrain.Y * 1000 + terrain.X);
+				TerrainList[key] = terrain.TypeID;
+			}	
+		}
+	}
+	if (recordType & RecordType::Smudge)
+	{
+		FString value;
+		for (const auto& smudge : CMapData::Instance->SmudgeDatas)
+		{
+			if (!smudge.Flag)
+			{
+				value.Format("%s,%d,%d,0", smudge.TypeID, smudge.X, smudge.Y);
+				SmudgeList.push_back(value);
+			}
+		}
+	}
+	if (recordType & RecordType::Tunnel)
+	{
+		recordIniValue("Tubes", TunnelList);
+	}
+	if (recordType & RecordType::Waypoint)
+	{
+		recordIniMap("Waypoints", WaypointList);
+	}
+	if (recordType & RecordType::Celltag)
+	{
+		recordIniMap("CellTags", CelltagList);
+	}
+	if (recordType & RecordType::Annotation)
+	{
+		recordIniMap("Annotations", AnnotationList);
+	}
+	if (recordType & RecordType::Basenode)
+	{
+		if (auto pSection = ini.GetSection("Houses"))
+		{
+			for (const auto& [_, house] : pSection->GetEntities())
+			{
+				int nodeCount = ini.GetInteger(house, "NodeCount", 0);
+				if (nodeCount > 0)
+				{
+					FString key;
+					for (int i = 0; i < nodeCount; i++)
+					{
+						key.Format("%03d", i);
+						BasenodeList[house].push_back(ini.GetString(house, key, ""));
+					}
+				}
+				else
+					BasenodeList[house];
+			}
+		}
+	}
+}
+
+void ObjectRecord::recover()
+{
+	if (!ExtConfigs::UndoRedo_RecordObjects)
+		return;
+
+	auto& map = CMapData::Instance;
+	auto& ini = map->INI;
+	auto recoverIniValue = [&ini](const char* lpName, std::vector<FString>& list)
+		{
+			ini.DeleteSection(lpName);
+			if (list.empty())
+				return;
+			auto pSection = ini.AddSection(lpName);
+			int index = 0;
+			FString key;
+			for (const auto& value : list)
+			{
+				key.Format("%d", index++);
+				ini.WriteString(pSection, key, value);
+			}
+		};
+	auto recoverIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+		{
+			ini.DeleteSection(lpName);
+			if (list.empty())
+				return;
+			auto pSection = ini.AddSection(lpName);
+			for (const auto& [key, value] : list)
+			{
+				ini.WriteString(pSection, key, value);
+			}
+		};
+	if (recordFlags & RecordType::Building)
+	{
+		recoverIniValue("Structures", BuildingList);
+		CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
+	}
+	if (recordFlags & RecordType::Unit)
+	{
+		recoverIniValue("Units", UnitList);
+		CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
+	}
+	if (recordFlags & RecordType::Aircraft)
+	{
+		recoverIniValue("Aircraft", AircraftList);
+		CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
+	}
+	if (recordFlags & RecordType::Infantry)
+	{
+		recoverIniValue("Infantry", InfantryList);
+		CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
+	}
+	if (recordFlags & RecordType::Terrain)
+	{
+		if (TerrainList.empty())
+		{		
+			for (int i = 0; i < map->TerrainDatas.size(); ++i)
+			{
+				map->DeleteTerrainData(i);
+			}
+		}
+		recoverIniMap("Terrain", TerrainList);
+		map->UpdateFieldTerrainData(false);
+	}
+	if (recordFlags & RecordType::Smudge)
+	{
+		if (SmudgeList.empty())
+		{
+			for (int i = 0; i < map->SmudgeDatas.size(); ++i)
+			{
+				map->DeleteSmudgeData(i);
+			}
+		}
+		recoverIniValue("Smudge", SmudgeList);
+		map->UpdateFieldSmudgeData(false);
+	}
+	if (recordFlags & RecordType::Tunnel)
+	{
+		recoverIniValue("Tubes", TunnelList);
+		map->UpdateFieldTubeData(false);
+	}
+	if (recordFlags & RecordType::Waypoint)
+	{
+		recoverIniMap("Waypoints", WaypointList);
+		map->UpdateFieldWaypointData(false);
+	}
+	if (recordFlags & RecordType::Celltag)
+	{
+		recoverIniMap("CellTags", CelltagList);
+		map->UpdateFieldCelltagData(false);
+	}
+	if (recordFlags & RecordType::Annotation)
+	{
+		recoverIniMap("Annotations", AnnotationList);
+		CMapDataExt::UpdateAnnotation();
+	}
+	if (recordFlags & RecordType::Basenode)
+	{
+		if (auto pSection = ini.GetSection("Houses"))
+		{
+			for (const auto& [_, house] : pSection->GetEntities())
+			{
+				auto houseMap = BasenodeList.find(house);
+				if (houseMap != BasenodeList.end())
+				{
+					if (auto pHouseSection = ini.GetSection(house))
+					{
+						auto& nodes = houseMap->second;
+						int nodeCount = std::max(ini.GetInteger(pHouseSection, "NodeCount", 0), (int)nodes.size());
+						ini.WriteString(pHouseSection, "NodeCount", STDHelpers::IntToString(nodes.size()));
+						if (nodeCount > 0)
+						{
+							FString key;
+							for (int i = 0; i < nodeCount; i++)
+							{
+								key.Format("%03d", i);
+								if (i < nodes.size())
+								{
+									ini.WriteString(pHouseSection, key, nodes[i]);
+								}
+								else
+								{
+									ini.DeleteKey(pHouseSection, key);
+								}
+							}
+						}
+					}		
+				}
+			}
+		}
+		map->UpdateFieldBasenodeData(false);
+	}
+
+	CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+
+void MixedRecord::record(int left, int top, int right, int bottom, int recordType)
+{
+	this->terrain.record(left, top, right, bottom);
+	this->object.record(recordType);
+}
+
+void MixedRecord::recover()
+{
+	this->terrain.recover();
+	this->object.recover();
+}
+
+void CMapDataExt::MakeObjectRecord(int recordType, bool recordOnce)
+{
+	if (!ExtConfigs::UndoRedo_RecordObjects)
+		return;
+	if (recordOnce && !CIsoViewExt::HistoryRecord_IsHoldingLButton)
+	{
+		CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
+	}	
+	else if (recordOnce && CIsoViewExt::HistoryRecord_IsHoldingLButton)
+	{
+		return;
+	}
+	if (recordType > 0)
+	{
+		auto pThis = GetExtension();
+		// always erase following
+		pThis->UndoRedoDatas.resize(pThis->UndoRedoDataIndex + 1);
+
+		if (pThis->UndoRedoDatas.size() + 1 > ExtConfigs::UndoRedoLimit)
+		{
+			pThis->UndoRedoDatas.erase(0);
+		}
+
+		pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size();
+		pThis->UndoRedoDatas.add(recordType);
+	}
+}
+
+void CMapDataExt::MakeMixedRecord(int left, int top, int right, int bottom, int recordType)
+{
+	auto pThis = GetExtension();
+	// always erase following
+	pThis->UndoRedoDatas.resize(pThis->UndoRedoDataIndex + 1);
+
+	if (pThis->UndoRedoDatas.size() + 1 > ExtConfigs::UndoRedoLimit)
+	{
+		pThis->UndoRedoDatas.erase(0);
+	}
+
+	pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size();
+	pThis->UndoRedoDatas.add(left, top, right, bottom, recordType);
+}
+
+void CMapDataExt::UpdateFieldStructureData_RedrawMinimap()
+{
+	int i = 0;
+	auto pThis = GetExtension();
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] = pThis->CellDatas[i].Structure;
+	}
+
+	pThis->UpdateFieldStructureData_Optimized();
+
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		if (pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] != -1 && pThis->CellDatas[i].Structure == -1)
+		{
+			int x = pThis->GetXFromCoordIndex(i);
+			int y = pThis->GetYFromCoordIndex(i);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
+}
+
+void CMapDataExt::UpdateFieldUnitData_RedrawMinimap()
+{
+	int i = 0;
+	auto pThis = GetExtension();
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] = pThis->CellDatas[i].Unit;
+	}
+
+	pThis->UpdateFieldUnitData(false);
+
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		if (pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] != -1 && pThis->CellDatas[i].Unit == -1)
+		{
+			int x = pThis->GetXFromCoordIndex(i);
+			int y = pThis->GetYFromCoordIndex(i);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
+}
+
+void CMapDataExt::UpdateFieldInfantryData_RedrawMinimap()
+{
+	int i = 0;
+	auto pThis = GetExtension();
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		for (int j = 0; j < 3; ++j)
+			pThis->CellDataExts[i].RecordMinimapUpdateIndex[j] = pThis->CellDatas[i].Infantry[j];
+	}
+
+	pThis->UpdateFieldInfantryData(false);
+
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		bool redraw = false;
+		for (int j = 0; j < 3; ++j)
+			if (pThis->CellDataExts[i].RecordMinimapUpdateIndex[j] != -1 && pThis->CellDatas[i].Infantry[j] == -1)
+			{
+				redraw = true;
+				break;
+			}
+		if (redraw)
+		{
+			int x = pThis->GetXFromCoordIndex(i);
+			int y = pThis->GetYFromCoordIndex(i);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
+}
+
+void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
+{
+	int i = 0;
+	auto pThis = GetExtension();
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] = pThis->CellDatas[i].Aircraft;
+	}
+
+	pThis->UpdateFieldAircraftData(false);
+
+	for (i = 0; i < pThis->CellDataCount; i++)
+	{
+		if (pThis->CellDataExts[i].RecordMinimapUpdateIndex[0] != -1 && pThis->CellDatas[i].Aircraft == -1)
+		{
+			int x = pThis->GetXFromCoordIndex(i);
+			int y = pThis->GetYFromCoordIndex(i);
+			pThis->UpdateMapPreviewAt(x, y);
+		}
+	}
 }
 
 void CMapDataExt::UpdateIncludeIniInMap()

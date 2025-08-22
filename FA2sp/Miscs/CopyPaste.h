@@ -5,6 +5,12 @@
 #include <set>
 #include <concepts>
 
+#pragma pack(push, 1)
+struct StringField {
+    uint32_t Offset;
+    uint16_t Length;
+};
+
 struct MyClipboardData
 {
     int X;
@@ -19,15 +25,17 @@ struct MyClipboardData
     unsigned short TileSet;
     unsigned short TileSetSubIndex;
     CellData::CellDataFlag Flag;
-    char TerrainData[32]{ "" };
-    char SmudgeData[32]{ "" };
-    char BuildingData[128]{ "" };
-    char AircraftData[128]{ "" };
-    char InfantryData_1[128]{ "" };
-    char InfantryData_2[128]{ "" };
-    char InfantryData_3[128]{ "" };
-    char UnitData[128]{ "" };
+
+    StringField TerrainData;
+    StringField SmudgeData;
+    StringField BuildingData;
+    StringField AircraftData;
+    StringField InfantryData_1;
+    StringField InfantryData_2;
+    StringField InfantryData_3;
+    StringField UnitData;
 };
+#pragma pack(pop)
 
 struct TileRule {
     std::vector<int> sourceTiles;
@@ -47,7 +55,9 @@ public:
     static bool OnLButtonDownPasted;
     static std::vector<TileRule> TileConvertRules;
     static void Copy(const std::set<MapCoord>& coords);
-    static void Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length);
+    static void Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size_t length, int recordType);
     static void LoadTileConvertRule(char sourceTheater);
     static void ConvertTile(CellData& cell);
+private:
+    static const char* GetString(const MyClipboardData& cell, const StringField& field, MyClipboardData* pBufferBase);
 };

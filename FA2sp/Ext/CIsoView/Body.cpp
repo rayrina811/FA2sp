@@ -59,6 +59,7 @@ bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
 bool CIsoViewExt::EnableDistanceRuler = false;
 bool CIsoViewExt::CliffBackAlt = false;
+bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
 std::vector<MapCoord> CIsoViewExt::DistanceRuler;
 ppmfc::CString CIsoViewExt::CurrentCellObjectHouse = "";
@@ -193,6 +194,8 @@ void CIsoViewExt::ConfirmTube(bool addReverse)
         ::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK);
         return;
     }
+    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Tunnel);
+
     auto key = CINI::GetAvailableKey("Tubes");
     FString value;
     value.Format("%d,%d,%d,%d,%d", nodes.front().Y, nodes.front().X, AllDirections.front(), nodes.back().Y, nodes.back().X);

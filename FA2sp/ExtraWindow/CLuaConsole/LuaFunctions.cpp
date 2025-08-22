@@ -3507,6 +3507,7 @@ namespace LuaFunctions
 		{
 			CMapData::Instance->UpdateMapPreviewAt(X, Y);
 		}
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap.m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 	}
 
 	static int create_snapshot()

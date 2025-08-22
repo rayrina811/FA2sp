@@ -46,17 +46,27 @@ FString StringtableLoader::QueryUIName(const char* pRegName)
     return ccstring;
 }
 
-DEFINE_HOOK(4B2633, QueryUIName, 5)
+DEFINE_HOOK(4B2610, QueryUIName, 7)
 {
-    GET_STACK(char*, pRegName, 0x118);
+    GET_STACK(char*, pRegName, 0x4);
 
     FString ccstring = StringtableLoader::QueryUIName(pRegName);
-    memset(StringtableLoader::pStringBuffer, '\0', sizeof(StringtableLoader::pStringBuffer));
-    int len = MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), NULL, 0);
-    MultiByteToWideChar(CP_ACP, 0, ccstring, strlen(ccstring), StringtableLoader::pStringBuffer, std::min(len, 0x400 - 1));
-    R->EDI(StringtableLoader::pStringBuffer);
 
-    return 0x4B33D1;
+    memset(StringtableLoader::pStringBuffer, 0, sizeof(StringtableLoader::pStringBuffer));
+
+    int len = MultiByteToWideChar(
+        CP_ACP, 0,
+        ccstring.c_str(), -1,
+        StringtableLoader::pStringBuffer,
+        0x400
+    );
+
+    if (len == 0) {
+        StringtableLoader::pStringBuffer[0] = L'\0';
+    }
+
+    R->EAX(StringtableLoader::pStringBuffer);
+    return 0x4B33EB;
 }
 
 DEFINE_HOOK(492C40, CSFFiles_Stringtables_Support, 7)

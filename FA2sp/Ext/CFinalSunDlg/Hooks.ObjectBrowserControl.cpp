@@ -28,6 +28,7 @@ DEFINE_HOOK(51CD20, CViewObjects_Redraw, 7)
     }
     return 0;
 }
+
 DEFINE_HOOK(51B54E, CViewObjects_SkipWaterBrushSize, 6)
 {
     return 0x51B5AF;
@@ -46,7 +47,7 @@ DEFINE_HOOK(51AF40, CViewObjects_OnSelectChanged, 7)
 int infantryLoop = 0;
 MapCoord lastCoord = { 0,0 };
 // skip to use our own method;
-DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
+DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_LButtonDown_PlaceObject, 9)
 {
     GET(const int, X, EDI);
     GET(const int, Y, EBX);
@@ -60,6 +61,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
     }
     if (CViewObjectsExt::PlacingRandomSmudge >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge, true);
         CSmudgeData smudge;
         smudge.X = Y;
         smudge.Y = X;//opposite
@@ -91,11 +93,11 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         }
 
         Map.SetSmudgeData(&smudge);
-        Map.UpdateFieldSmudgeData(false);
         return 0x45CD2B;
     }   
     if (CViewObjectsExt::PlacingRandomTerrain >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain, true);
         if (cell->Terrain > -1)
             Map.DeleteTerrainData(cell->Terrain);
         Map.SetTerrainData(CIsoView::CurrentCommand->ObjectID, Map.GetCoordIndex(X, Y));
@@ -103,6 +105,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
     }  
     if (CViewObjectsExt::PlacingRandomInfantry >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
         CInfantryData newTechno;
         if (ExtConfigs::InfantrySubCell_Edit_Place && ExtConfigs::InfantrySubCell_Edit)
         {
@@ -151,6 +154,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
     }
     if (CViewObjectsExt::PlacingRandomVehicle >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
         CUnitData newTechno;
 
         if (cell->Unit > -1)
@@ -177,6 +181,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
     }
     if (CViewObjectsExt::PlacingRandomStructure >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
         CBuildingData newTechno;
 
         if (cell->Structure > -1)
@@ -213,6 +218,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
     }
     if (CViewObjectsExt::PlacingRandomAircraft >= 0)
     {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
         CAircraftData newTechno;
 
         if (cell->Aircraft > -1)
@@ -251,6 +257,36 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_SkipPlaceObjectAt1, 9)
         return 0x45CD2B;
     }
 
+    if (CIsoView::CurrentCommand->Command == 1)
+    {
+        switch (CIsoView::CurrentCommand->Type)
+        {
+        case 1:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry, true);
+            break;
+        case 2:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building, true);
+            break;
+        case 3:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft, true);
+            break;
+        case 4:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit, true);
+            break;
+        case 5:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain, true);
+            break;
+        case 8:
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge, true);
+            break;
+        default:
+            break;
+        }      
+    }
+    else if (CIsoView::CurrentCommand->Command == 22)
+    {
+        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain, true);
+    }
     CIsoView::GetInstance()->DrawMouseAttachedStuff(X, Y);
     return 0x45CD2B;
 }
@@ -723,6 +759,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 }
                 else if (CViewObjectsExt::PlacingRandomSmudge >= 0)
                 {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
                     std::vector<FString> randomList;
                     if (auto pSection = CINI::FAData().GetSection("PlaceRandomSmudgeList"))
                     {
@@ -772,13 +809,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                             if (place)
                             {
                                 pMap->SetSmudgeData(&smudge);
-                                pMap->UpdateFieldSmudgeData(false);
                             }
                         }
                     }
                 }
                 else if (CViewObjectsExt::PlacingRandomInfantry >= 0)
                 {
+                    CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
                     std::vector<FString> randomList;
 
                     if (auto pSection = CINI::FAData().GetSection("PlaceRandomInfantryObList"))
@@ -831,21 +868,25 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                     int index = 0;
                     if (CViewObjectsExt::PlacingRandomTerrain >= 0)
                     {
+                        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain);
                         list = "PlaceRandomTreeObList";
                         index = CViewObjectsExt::PlacingRandomTerrain;
                     }
                     else if (CViewObjectsExt::PlacingRandomVehicle >= 0)
                     {
+                        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
                         list = "PlaceRandomVehicleObList";
                         index = CViewObjectsExt::PlacingRandomVehicle;
                     }
                     else if (CViewObjectsExt::PlacingRandomStructure >= 0)
                     {
+                        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
                         list = "PlaceRandomBuildingObList";
                         index = CViewObjectsExt::PlacingRandomStructure;
                     }
                     else if (CViewObjectsExt::PlacingRandomAircraft >= 0)
                     {
+                        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
                         list = "PlaceRandomAircraftObList";
                         index = CViewObjectsExt::PlacingRandomAircraft;
                     }
@@ -958,6 +999,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                 {
                     if (command.Type == 8) // smudge
                     {
+                        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
                         for (const auto& mc : mapCoords)
                         {
                             auto cell = pMap->GetCellAt(mc.X, mc.Y);
@@ -993,13 +1035,35 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
                                 if (place)
                                 {
                                     pMap->SetSmudgeData(&smudge);
-                                    pMap->UpdateFieldSmudgeData(false);
                                 }
                             }
                         }
                     }
                     else
                     {
+                        switch (CIsoView::CurrentCommand->Type)
+                        {
+                        case 1:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+                            break;
+                        case 2:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+                            break;
+                        case 3:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+                            break;
+                        case 4:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+                            break;
+                        case 5:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain);
+                            break;
+                        case 8:
+                            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
+                            break;
+                        default:
+                            break;
+                        }
                         CIsoViewExt::LastCommand::requestSubpos = true;
                         for (const auto& mc : mapCoords)
                         {
@@ -1011,6 +1075,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
             }
             else if (command.Command == 22) // random tree
             {
+                CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain);
                 for (const auto& mc : mapCoords)
                 {
                     CIsoView::GetInstance()->DrawMouseAttachedStuff(mc.X, mc.Y);
@@ -1042,11 +1107,13 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
     {
         if (CIsoView::CurrentCommand->Type == 0 || CIsoView::CurrentCommand->Type == 1)
         {
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
             CViewObjectsExt::MoveBaseNodeOrder(X, Y);
             return 0x466860;
         }
         else if (CIsoView::CurrentCommand->Type == 2)
         {
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
             CViewObjectsExt::MoveBaseNode(X, Y);
             return 0x466860;
         }
@@ -1173,6 +1240,7 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     {
         if (CIsoView::CurrentCommand->Type == 0 || CIsoView::CurrentCommand->Type == 1)
         {
+            CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
             CViewObjectsExt::MoveBaseNodeOrder(X, Y);
             return 0x45CD6D;
         }

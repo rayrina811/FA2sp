@@ -432,7 +432,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	return 0x46686A;
 }
 
-UINT nLButtonUpFlags = 0;
+static UINT nLButtonUpFlags = 0;
 DEFINE_HOOK(466970, CIsoView_OnLButtonUp_GetnFlags, 6)
 {
 	nLButtonUpFlags = R->Stack<UINT>(0x4);
@@ -448,6 +448,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	//annotation
 	if (m_type == 7)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
 		int X = R->EBX();
 		int	Y = R->EDI();
 
@@ -475,6 +476,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	//base nodes
 	if (m_type == 8)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode);
 		int X = R->EBX();
 		int	Y = R->EDI();
 		char key[10];
@@ -511,6 +513,7 @@ DEFINE_HOOK(466DDE, CIsoView_OnLButtonUp_DragOthers, 7)
 	//smudges
 	if (m_type == 9)
 	{
+		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Smudge);
 		int X = R->EBX();
 		int	Y = R->EDI();
 		auto smudge = CMapData::Instance->SmudgeDatas[m_id];
@@ -546,6 +549,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		//order: inf unit air str
 		if (m_type == 0)
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 			Map->GetInfantryData(m_id, infantry);
 			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
 			infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
@@ -554,6 +558,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 3)
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
 			Map->GetUnitData(m_id, unit);
 			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
 			unit.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, unit.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
@@ -562,6 +567,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 2)
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
 			Map->GetAircraftData(m_id, aircraft);
 			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
 			aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, aircraft.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
@@ -570,6 +576,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 1)
 		{
+			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 			Map->GetBuildingData(m_id, structure);
 			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
 			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
@@ -606,48 +613,6 @@ DEFINE_HOOK(461CDB, CIsoView_OnLButtonDown_NoRndForBridge, 6)
 	return 0x461CE1;
 }
 
-DEFINE_HOOK(45C0C8, CIsoView_OnMouseMove_PlayerLocation, 6)
-{
-	auto deleteWaypoint = [](ppmfc::CString key)
-		{
-			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
-			{
-				if (CINI::CurrentDocument->KeyExists("Waypoints", key))
-				{
-					auto&& value = pSection->GetString(key);
-					int x = atoi(value) / 1000;
-					int y = atoi(value) % 1000;
-					CINI::CurrentDocument->DeleteKey(pSection, key);
-					CMapData::Instance->UpdateFieldWaypointData(false);
-
-					if (CMapData::Instance->IsMultiOnly())
-					{
-						int k, l;
-						for (k = -1; k < 2; k++)
-							for (l = -1; l < 2; l++)
-								CMapData::Instance->UpdateMapPreviewAt(x + k, y + l);
-					}
-				}
-			}
-		};
-	
-
-	if (CMapData::Instance->IsMultiOnly())
-	{
-		GET_STACK(int, waypoint, STACK_OFFS(0x3D528, 0x3D518));
-		ppmfc::CString key;
-		key.Format("%d", waypoint);
-		deleteWaypoint(key);
-	}
-	else
-	{
-		deleteWaypoint("98");
-		deleteWaypoint("99");
-	}
-
-	return 0;
-}
-
 DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 {
 	if (CIsoViewExt::IsPressingTube)
@@ -664,11 +629,20 @@ DEFINE_HOOK(45EBE0, CIsoView_OnCommand_ConfirmTube, 7)
 	return 0;
 }
 
-
 DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 {
 	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+
+	CMapDataExt::MakeObjectRecord(
+		ObjectRecord::RecordType::Building
+		| ObjectRecord::RecordType::Infantry
+		| ObjectRecord::RecordType::Unit
+		| ObjectRecord::RecordType::Aircraft
+		| ObjectRecord::RecordType::Terrain
+		| ObjectRecord::RecordType::Smudge
+	, true);
+
 	for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
 	{
 		for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
@@ -1202,5 +1176,198 @@ DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
 			return 0x45CD82;
 		}
 	}
+	return 0;
+}
+
+DEFINE_HOOK(46CD2E, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Structure, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+	return 0;
+}
+
+DEFINE_HOOK(46CF16, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Unit, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+	return 0;
+}
+
+DEFINE_HOOK(46D0C2, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Aircraft, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+	return 0;
+}
+
+DEFINE_HOOK(46D28E, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Infantry, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+	return 0;
+}
+
+DEFINE_HOOK(45F261, CIsoView_HandleProperties_Infantry, 7)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+	return 0;
+}
+
+DEFINE_HOOK(45FA44, CIsoView_HandleProperties_Building, 7)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+	return 0;
+}
+
+DEFINE_HOOK(4600B1, CIsoView_HandleProperties_Aircraft, 7)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+	return 0;
+}
+
+DEFINE_HOOK(460742, CIsoView_HandleProperties_Unit, 7)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+	return 0;
+}
+
+DEFINE_HOOK(466E50, CIsoView_OnLButtonUp_Drag_Infantry, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
+	return 0;
+}
+
+// building in CMapData/Hooks.cpp
+//DEFINE_HOOK(467035, CIsoView_OnLButtonUp_Drag_Building, 5)
+//{
+//	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
+//	return 0;
+//}
+
+DEFINE_HOOK(467212, CIsoView_OnLButtonUp_Drag_Aircraft, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
+	return 0;
+}
+
+DEFINE_HOOK(4673A2, CIsoView_OnLButtonUp_Drag_Unit, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
+	return 0;
+}
+
+DEFINE_HOOK(467521, CIsoView_OnLButtonUp_Drag_Terrain, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Terrain);
+	return 0;
+}
+
+DEFINE_HOOK(46759C, CIsoView_OnLButtonUp_Drag_Celltag, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag);
+	return 0;
+}
+
+DEFINE_HOOK(467615, CIsoView_OnLButtonUp_Drag_Waypoint, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint);
+	return 0;
+}
+
+DEFINE_HOOK(45BFA6, CIsoView_OnMouseMove_Waypoint_Delete, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
+	return 0;
+}
+
+DEFINE_HOOK(45BFE3, CIsoView_OnMouseMove_Waypoint_Add, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
+	return 0;
+}
+
+DEFINE_HOOK(45C0CF, CIsoView_OnMouseMove_Waypoint_AddPlayerLocation, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Waypoint, true);
+	auto deleteWaypoint = [](ppmfc::CString key)
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			{
+				if (CINI::CurrentDocument->KeyExists("Waypoints", key))
+				{
+					auto&& value = pSection->GetString(key);
+					int x = atoi(value) / 1000;
+					int y = atoi(value) % 1000;
+					CINI::CurrentDocument->DeleteKey(pSection, key);
+					CMapData::Instance->UpdateFieldWaypointData(false);
+
+					if (CMapData::Instance->IsMultiOnly())
+					{
+						int k, l;
+						for (k = -1; k < 2; k++)
+							for (l = -1; l < 2; l++)
+								CMapData::Instance->UpdateMapPreviewAt(x + k, y + l);
+					}
+				}
+			}
+		};
+
+
+	if (CMapData::Instance->IsMultiOnly())
+	{
+		GET_STACK(int, waypoint, STACK_OFFS(0x3D528, 0x3D518));
+		ppmfc::CString key;
+		key.Format("%d", waypoint);
+		deleteWaypoint(key);
+	}
+	else
+	{
+		deleteWaypoint("98");
+		deleteWaypoint("99");
+	}
+	return 0;
+}
+
+DEFINE_HOOK(45C1C7, CIsoView_OnMouseMove_Celltag_Add, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);
+	return 0;
+}
+
+DEFINE_HOOK(45C19B, CIsoView_OnMouseMove_Celltag_Delete, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag, true);
+	return 0;
+}
+
+DEFINE_HOOK(46661C, CIsoView_OnLButtonDown_Celltag_Add, 5)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag);
+	return 0;
+}
+
+DEFINE_HOOK(4667E8, CIsoView_OnLButtonDown_Celltag_Modify, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Celltag);
+	return 0;
+}
+
+DEFINE_HOOK(466970, CIsoView_OnLButtonUp_ResetRecordStatus, 6)
+{
+	CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
+	return 0;
+}
+
+DEFINE_HOOK(45C37D, CIsoView_OnMouseMove_Basenode_Add_Del_Building, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode | ObjectRecord::RecordType::Building, true);
+	return 0;
+}
+
+DEFINE_HOOK(45C813, CIsoView_OnMouseMove_Basenode_Delete, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
+	return 0;
+}
+
+DEFINE_HOOK(45C6D2, CIsoView_OnMouseMove_Basenode_Add, 6)
+{
+	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Basenode, true);
 	return 0;
 }

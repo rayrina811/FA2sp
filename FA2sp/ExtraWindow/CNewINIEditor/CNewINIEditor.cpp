@@ -626,7 +626,7 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
 {
     if (!IsGameObject(lpSectionName) && !IsHouse(lpSectionName)) return;
     if (strcmp(lpSectionName, "Structures") == 0) {
-        CMapData::Instance->UpdateFieldStructureData(false);
+        CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "Terrain") == 0) {
         CMapData::Instance->UpdateFieldTerrainData(false);
@@ -638,16 +638,16 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
         CMapData::Instance->UpdateFieldSmudgeData(false);
     }
     else if (strcmp(lpSectionName, "Units") == 0) {
-         CMapData::Instance->UpdateFieldUnitData(false);
+        CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "CellTags") == 0) {
         CMapData::Instance->UpdateFieldCelltagData(false);
     }
     else if (strcmp(lpSectionName, "Aircraft") == 0) {
-        CMapData::Instance->UpdateFieldAircraftData(false);
+        CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "Infantry") == 0) {
-        CMapData::Instance->UpdateFieldInfantryData(false);
+        CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
     }
     else if (strcmp(lpSectionName, "Annotations") == 0) {
         CMapData::Instance->UpdateFieldInfantryData(false);
@@ -656,21 +656,23 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
         CMapData::Instance->UpdateFieldBasenodeData(false);
     }
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap.m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CNewINIEditor::UpdateAllGameObject()
 {
-    CMapData::Instance->UpdateFieldStructureData(false);
+    CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
+    CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
+    CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
+    CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
     CMapData::Instance->UpdateFieldTerrainData(false);
     CMapData::Instance->UpdateFieldWaypointData(false);
     CMapData::Instance->UpdateFieldSmudgeData(false);
-    CMapData::Instance->UpdateFieldUnitData(false);
     CMapData::Instance->UpdateFieldCelltagData(false);
-    CMapData::Instance->UpdateFieldAircraftData(false);
-    CMapData::Instance->UpdateFieldInfantryData(false);
     CMapData::Instance->UpdateFieldBasenodeData(false);
     CMapDataExt::UpdateAnnotation();
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap.m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 bool CNewINIEditor::IsGameObject(const char* lpSectionName)

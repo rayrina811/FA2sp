@@ -928,6 +928,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	};
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
+	if (Variables::Rules.GetBool(ID, "Wall"))
+		nBldStartFrame--;
 
 	FString AnimKeys[9] =
 	{
@@ -2699,12 +2701,20 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 			};
 
 		filename = ArtID + ".shp";
-		palName = "unit";
-		GetFullPaletteName(palName);
-		palette = PalettesManager::LoadPalette(palName);
-		if (strlen(ArtID) >= 2)
+		if (!typeData.Wall || typeData.Wall && !palette)
 		{
-			searchNewTheater(TheaterIdentifier);
+			palName = "unit";
+			GetFullPaletteName(palName);
+			palette = PalettesManager::LoadPalette(palName);
+		}
+		if (strlen(ArtID) >= 2)
+		{		
+			if (!findFile)
+			{
+				SetTheaterLetter(filename, ExtConfigs::NewTheaterType ? 1 : 0);
+				hMix = SearchFile(filename);
+				findFile = HasFile(filename);
+			}
 			searchNewTheater('G');
 			searchNewTheater(ArtID[1]);
 			if (!ExtConfigs::UseStrictNewTheater)
