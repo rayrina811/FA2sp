@@ -274,7 +274,10 @@ DEFINE_HOOK(4BC490, CMapData_CreateShore, 7)
 						{
 							if (breakCheck) break;
 							if (!pThis->IsCoordInMap(x + n, y + m))
+							{
+								shoreMatch[m * h + n] = 0;
 								continue;
+							}
 
 							int pos2 = pThis->GetCoordIndex(x + n, y + m);
 							auto cell2 = pThis->GetCellAt(pos2);
