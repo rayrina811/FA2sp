@@ -1082,6 +1082,9 @@ DEFINE_HOOK(4C536C, CMapData_ResizeMap_GetBuildingData, 7)
 
 DEFINE_HOOK(4C6456, CMapData_ResizeMap_ResizeCellDataExts, 8)
 {
+	CMapDataExt::UndoRedoDatas.clear();
+	CMapDataExt::UndoRedoDataIndex = -1;
+	CMapDataExt::CellDataExts.clear();
 	CMapDataExt::CellDataExts.resize(CMapData::Instance->CellDataCount);
 	return 0;
 }
