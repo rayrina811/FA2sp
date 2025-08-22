@@ -105,33 +105,6 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 	return 0x468EEB;
 }
 
-DEFINE_HOOK(4A3306, CMapData_Update_InfantrySubCell, 5)//UpdateInfantry
-{
-	GET(int, spp, ECX);
-	if (spp >= 4)
-	{
-		return 0x4A335D;
-	}
-	if (spp == 3)
-	{
-		R->ECX(0);
-	}
-	return 0x4A330B;
-}
-DEFINE_HOOK(4A7C74, CMapData_Update_InfantrySubCell2, 5)//DeleteInfantry
-{
-	GET(int, pos, EAX);
-	if (pos > 0)
-		pos--;
-	if (pos == 3)
-		pos = 0;
-	R->EAX(pos);
-
-	return 0x4A7C79;
-}
-
-
-
 // Fix the bug that up&down&left&right vk doesn't update the TileSetBrowserView
 DEFINE_HOOK(422EA4, CFinalSunApp_ProcessMessageFilter_UpdateTileSetBrowserView_UpAndDown, 8)
 {

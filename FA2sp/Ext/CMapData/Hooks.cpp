@@ -175,13 +175,146 @@ DEFINE_HOOK(4C3C20, CMapData_GetStructureRenderData, 6)
     return 0x4C3CCC;
 }
 
-DEFINE_HOOK(4A7CA7, CMapData_DeleteInfantry_UpdateIni, 6)//DeleteInfantry
+
+DEFINE_HOOK(4A2AB0, CMapData_UpdateInfantry, 7)
 {
-	CMapData::Instance->UpdateFieldInfantryData(TRUE);
+	GET_STACK(BOOL, bMapToINI, 0x4);
+	auto Map = &CMapData::Instance();
+	auto& m_infantry = Map->InfantryDatas;
+	auto& m_mapfile = Map->INI;
+	auto& fielddata_size = Map->CellDataCount;
+	auto& fielddata = Map->CellDatas;
+
+	if (bMapToINI == FALSE)
+	{
+		m_infantry.clear();
+		m_infantry.reserve(100);
+
+		int i;
+		for (i = 0; i < Map->CellDataCount; i++)
+		{
+			int e;
+			for (e = 0; e < 3; e++)
+				fielddata[i].Infantry[e] = -1;
+		}
+
+		if (auto pSection = m_mapfile.GetSection("Infantry"))
+		{
+			std::vector<FString> values;
+			for (const auto& [key, value] : pSection->GetEntities())
+			{
+				values.push_back(value);
+				auto atoms = FString::SplitString(value, 13);
+
+				int x = atoi(atoms[4]);
+				int y = atoi(atoms[3]);
+				int sp = atoi(atoms[5]);
+				int pos = x + y * Map->MapWidthPlusHeight;
+
+				CInfantryData id;
+				id.House = atoms[0];
+				id.TypeID = atoms[1];
+				id.Health = atoms[2];
+				id.Y = atoms[3];
+				id.X = atoms[4];
+				id.SubCell = atoms[5];
+				id.Status = atoms[6];
+				id.Facing = atoms[7];
+				id.Tag = atoms[8];
+				id.VeterancyPercentage = atoms[9];
+				id.Group = atoms[10];
+				id.IsAboveGround = atoms[11];
+				id.AutoNORecruitType = atoms[12];
+				id.AutoYESRecruitType = atoms[13];
+
+				m_infantry.push_back(id);
+
+				int spp = 10;
+				switch (sp)
+				{
+				case 0:
+				case 1:
+				case 4:
+					spp = 0;
+					break;
+				case 2:
+					spp = 1;
+					break;
+				case 3:
+					spp = 2;
+					break;
+				default:
+					break;
+				}
+
+				if (spp < 3 && pos < fielddata_size)
+					fielddata[pos].Infantry[spp] = (short)m_infantry.size() - 1;
+
+				CMapData::Instance->UpdateMapPreviewAt(x, y);
+			}
+			// resort section to match the order of InfantryDatas
+			m_mapfile.DeleteSection("Infantry");
+			auto pSectionInf = m_mapfile.AddSection("Infantry");
+			for (int i = 0; i < values.size(); ++i)
+			{
+				m_mapfile.WriteString(pSectionInf, STDHelpers::IntToString(i), values[i]);
+			}
+		}
+	}
+	else
+	{
+		m_mapfile.DeleteSection("Infantry");
+		auto pSectionInf = m_mapfile.AddSection("Infantry");
+		int count = 0;
+		for (int i = 0; i < m_infantry.size(); ++i)
+		{
+			auto& infantry = m_infantry[i];
+			if (!infantry.Flag)
+			{
+				FString value;
+				value.Format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+					, infantry.House
+					, infantry.TypeID
+					, infantry.Health
+					, infantry.Y
+					, infantry.X
+					, infantry.SubCell
+					, infantry.Status
+					, infantry.Facing
+					, infantry.Tag
+					, infantry.VeterancyPercentage
+					, infantry.Group
+					, infantry.IsAboveGround
+					, infantry.AutoNORecruitType
+					, infantry.AutoYESRecruitType);
+
+				m_mapfile.WriteString(pSectionInf, STDHelpers::IntToString(count++), value);
+			}
+		}
+	}
+	return 0x4A39B9;
+}
+
+DEFINE_HOOK(4A7C74, CMapData_DeleteInfantry_InfantrySubCell, 5)
+{
+	GET(int, pos, EAX);
+	if (pos > 0)
+		pos--;
+	if (pos == 3)
+		pos = 0;
+	R->EAX(pos);
+
+	return 0x4A7C79;
+}
+
+DEFINE_HOOK(4A7C3D, CMapData_DeleteInfantry_UpdateIni, 6)
+{
+	GET(int, index, EDI);
+	CMapData::Instance->INI.DeleteKey("Infantry", STDHelpers::IntToString(index / 60));
 	return 0;
 }
 
-DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
+DEFINE_HOOK(4AC210, CMapData_AddInfantry, 7)
 {
 	GET_STACK(CInfantryData*, lpInfantry, 0x4);
 	GET_STACK(LPCTSTR, lpType, 0x8);
@@ -189,13 +322,11 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 	GET_STACK(DWORD, dwPos, 0x10);
 	GET_STACK(int, suggestedIndex, 0x14);
 
-
 	auto Map = &CMapData::Instance();
 	auto& m_infantry = Map->InfantryDatas;
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
 	CInfantryData infantry;
-
 
 	if (lpInfantry != NULL)
 	{
@@ -208,14 +339,10 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 	}
 	else
 	{
-		char cx[10], cy[10];
-		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
-		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
-
 		infantry.House = lpHouse;
 		infantry.TypeID = lpType;
-		infantry.X = cx;
-		infantry.Y = cy;
+		infantry.X.Format("%d", dwPos % Map->MapWidthPlusHeight);
+		infantry.Y.Format("%d", dwPos / Map->MapWidthPlusHeight);
 		infantry.SubCell = "-1";
 		infantry.Status = ExtConfigs::DefaultInfantryProperty.Status;
 		infantry.Tag = ExtConfigs::DefaultInfantryProperty.Tag;
@@ -255,9 +382,6 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 			{
 				CInfantryData inf;
 				Map->GetInfantryData(oldInf, inf);
-
-
-
 				if (inf.SubCell == "0")
 					for (i = 1; i < 3; i++)
 					{
@@ -296,7 +420,6 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 
 	if (ExtConfigs::InfantrySubCell_OccupationBits)
 	{
-
 		auto cell = Map->TryGetCellAt(atoi(infantry.X), atoi(infantry.Y));
 		if (cell->Terrain > -1)
 		{
@@ -383,44 +506,63 @@ DEFINE_HOOK(4AC210, CMapData_Update_InfantrySubCell3, 7)//AddInfantry
 		}
 	}
 
-
 	int sp = atoi(infantry.SubCell);
 	if (sp > 0) sp--;
 	if (sp == 3)
 		sp = 0;
 
 	int i;
-	bool bFound = false;
+	int realIndex = -1;
 	if (suggestedIndex >= 0 && suggestedIndex < m_infantry.size())
 	{
 		if (m_infantry[suggestedIndex].Flag)
 		{
 			m_infantry[suggestedIndex] = infantry;
 			if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = suggestedIndex;
-			bFound = true;
-
+			realIndex = suggestedIndex;
 		}
 	}
 
-	if (!bFound)
+	if (realIndex < 0)
 		for (i = 0; i < m_infantry.size(); i++)
 		{
 			if (m_infantry[i].Flag) // yep, found one, replace it
 			{
 				m_infantry[i] = infantry;
 				if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = i;
-				bFound = true;
+				realIndex = i;
 				break;
 			}
 		}
 
-	if (!bFound)
+	if (realIndex < 0)
 	{
 		m_infantry.push_back(infantry);
-		if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = (short)m_infantry.size() - 1;
+		realIndex = m_infantry.size() - 1;
+		if (dwPos < fielddata_size) fielddata[dwPos].Infantry[sp] = (short)realIndex;
 	}
 
-	Map->UpdateFieldInfantryData(true);
+	FString key;
+	FString value;
+	key.Format("%d", realIndex);
+	value.Format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+		,infantry.House
+		,infantry.TypeID
+		,infantry.Health
+		,infantry.Y
+		,infantry.X
+		,infantry.SubCell
+		,infantry.Status
+		,infantry.Facing
+		,infantry.Tag
+		,infantry.VeterancyPercentage
+		,infantry.Group
+		,infantry.IsAboveGround
+		,infantry.AutoNORecruitType
+		,infantry.AutoYESRecruitType);
+	
+	Map->INI.WriteString("Infantry", key, value);
+
 	CMapData::Instance->UpdateMapPreviewAt(atoi(infantry.X), atoi(infantry.Y));
 
 	return 0x4ACA49;

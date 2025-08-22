@@ -61,8 +61,8 @@ DEFINE_HOOK(537129, ExeRun_FA2MiscFix, 9)
     //DoPush(0x47AC96, push_0x5CF344);
 
     // fix InfantryDatas crash due to unable to push_back beyond 100
-    DoPush(0x4A2B63, push_0x0927C0);
-    DoZero(0x4A2BCA, edx_InfantryListBuffer);
+    //DoPush(0x4A2B63, push_0x0927C0);
+    //DoZero(0x4A2BCA, edx_InfantryListBuffer);
 
     // change recruitA&B default to 0
     DoPush(0x4B024F, push_0x5CA700);
