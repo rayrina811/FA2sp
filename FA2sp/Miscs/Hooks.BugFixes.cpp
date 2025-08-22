@@ -143,8 +143,8 @@ DEFINE_HOOK(4564F0, CInputMessageBox_OnOK, 7)
 
 DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 {
-	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x19C));
-	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x194));
+	GET_STACK(int, YOFF, STACK_OFFS(0x1C4, 0x19C));
+	GET_STACK(int, XOFF, STACK_OFFS(0x1C4, 0x194));
 
 	FString buffer;
 
@@ -154,7 +154,7 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 		{
 			const auto& data = CMapData::Instance->SmudgeDatas[i];
 			buffer.Format("%d", i);
-			smudges.emplace_back(buffer, data.TypeID, data.X + XOFF, data.Y + YOFF);
+			smudges.emplace_back(buffer, data.TypeID, data.X + YOFF, data.Y + XOFF);
 		}
 		
 		CMapData::Instance->INI.DeleteSection("Smudge");
@@ -184,7 +184,7 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 				buffer.Format("%03d", i);
 				const auto value = CMapData::Instance->INI.GetString(pSection, buffer);
 				const auto splits = FString::SplitString(value);
-				nodes.emplace_back(buffer, splits[0], atoi(splits[1]) + XOFF, atoi(splits[2]) + YOFF);
+				nodes.emplace_back(buffer, splits[0], atoi(splits[1]) + YOFF, atoi(splits[2]) + XOFF);
 			}
 
 			for (auto& [key, id, x, y] : nodes)
