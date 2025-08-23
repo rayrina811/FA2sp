@@ -2463,7 +2463,36 @@ void CViewObjectsExt::ApplyInfantrySubCell(int X, int Y)
 
 void CViewObjectsExt::ApplyChangeOwner(int X, int Y)
 {
+    auto makeOrAppendRecord = [](int recordType)
+        {
+            if (!ObjectRecord::ObjectRecord_HoldingPtr)
+                ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
+            else
+                ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
+        };
+
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+    auto pMap = CMapDataExt::GetExtension();
+
+    // infantry subcell case
+    if (ExtConfigs::InfantrySubCell_Edit &&
+        pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
+    {
+        int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+        if (idx != -1)
+        {
+            makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+            CInfantryData infantry;
+            CMapData::Instance->GetInfantryData(idx, infantry);
+            CMapData::Instance->DeleteInfantryData(idx);
+            infantry.House = CIsoView::CurrentCommand->ObjectID;
+            CMapData::Instance->SetInfantryData(&infantry, nullptr, nullptr, 0, -1);
+            ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+            return;
+        }
+    }
+
+    bool changed = false;
     for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
     {
         for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
@@ -2471,10 +2500,59 @@ void CViewObjectsExt::ApplyChangeOwner(int X, int Y)
             if (!CMapDataExt::IsCoordInFullMap(gx, gy))
                 continue;
 
-            pIsoView->DrawMouseAttachedStuff(gx, gy);
+            int nIndex = CMapData::Instance->GetCoordIndex(gx, gy);
+            const auto& CellData = CMapData::Instance->CellDatas[nIndex];
+
+            if (CellData.Structure != -1)
+            {
+                makeOrAppendRecord(ObjectRecord::RecordType::Building);
+                CBuildingData structure;
+                pMap->GetBuildingData(CellData.Structure, structure);
+                pMap->DeleteBuildingData(CellData.Structure);
+                structure.House = CIsoView::CurrentCommand->ObjectID;
+                pMap->SetBuildingData(&structure, nullptr, nullptr, 0, "");
+                changed = true;
+            }
+
+            for (int z = 0; z < 3; ++z)
+            {
+                if (CellData.Infantry[z] != -1)
+                {
+                    makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+                    CInfantryData infantry;
+                    CMapData::Instance->GetInfantryData(CellData.Infantry[z], infantry);
+                    CMapData::Instance->DeleteInfantryData(CellData.Infantry[z]);
+                    infantry.House = CIsoView::CurrentCommand->ObjectID;
+                    CMapData::Instance->SetInfantryData(&infantry, nullptr, nullptr, 0, -1);
+                    changed = true;
+                }
+            }
+
+            if (CellData.Unit != -1)
+            {
+                makeOrAppendRecord(ObjectRecord::RecordType::Unit);
+                CUnitData unit;
+                pMap->GetUnitData(CellData.Unit, unit);
+                pMap->DeleteUnitData(CellData.Unit);
+                unit.House = CIsoView::CurrentCommand->ObjectID;
+                pMap->SetUnitData(&unit, nullptr, nullptr, 0, "");
+                changed = true;
+            }
+
+            if (CellData.Aircraft != -1)
+            {
+                makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
+                CAircraftData air;
+                pMap->GetAircraftData(CellData.Aircraft, air);
+                pMap->DeleteAircraftData(CellData.Aircraft);
+                air.House = CIsoView::CurrentCommand->ObjectID;
+                pMap->SetAircraftData(&air, nullptr, nullptr, 0, "");
+                changed = true;
+            }
         }
-    }  
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+    if (changed)
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)

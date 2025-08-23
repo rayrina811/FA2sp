@@ -91,6 +91,7 @@ HistoryList CMapDataExt::UndoRedoDatas;
 int CMapDataExt::UndoRedoDataIndex;
 bool CMapDataExt::IsLoadingMapFile = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
+ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
@@ -1526,6 +1527,7 @@ void TerrainRecord::recover()
 			cellExt.NewOverlay = this->overlay[pos_r];
 			cell->Overlay = std::min(this->overlay[pos_r], (word)0xFF);
 			cell->OverlayData = this->overlaydata[pos_r];
+			CMapDataExt::NewOverlay[e + i * 512] = this->overlay[pos_r];
 			pThis->AddTiberium(std::min(cellExt.NewOverlay, (word)0xFF), cell->OverlayData);
 
 			cell->Flag.RedrawTerrain = this->bRedrawTerrain[pos_r];
@@ -1565,21 +1567,26 @@ void ObjectRecord::record(int recordType)
 	if (recordType & RecordType::Building)
 	{
 		recordIniValue("Structures", BuildingList);
+		recordedFlages |= RecordType::Building;
 	}
 	if (recordType & RecordType::Unit)
 	{
 		recordIniValue("Units", UnitList);
+		recordedFlages |= RecordType::Unit;
 	}
 	if (recordType & RecordType::Aircraft)
 	{
 		recordIniValue("Aircraft", AircraftList);
+		recordedFlages |= RecordType::Aircraft;
 	}
 	if (recordType & RecordType::Infantry)
 	{
 		recordIniValue("Infantry", InfantryList);
+		recordedFlages |= RecordType::Infantry;
 	}
 	if (recordType & RecordType::Terrain)
 	{
+		recordedFlages |= RecordType::Terrain;
 		FString key;
 		for (const auto& terrain : CMapData::Instance->TerrainDatas)
 		{
@@ -1592,6 +1599,7 @@ void ObjectRecord::record(int recordType)
 	}
 	if (recordType & RecordType::Smudge)
 	{
+		recordedFlages |= RecordType::Smudge;
 		FString value;
 		for (const auto& smudge : CMapData::Instance->SmudgeDatas)
 		{
@@ -1604,22 +1612,143 @@ void ObjectRecord::record(int recordType)
 	}
 	if (recordType & RecordType::Tunnel)
 	{
+		recordedFlages |= RecordType::Tunnel;
 		recordIniValue("Tubes", TunnelList);
 	}
 	if (recordType & RecordType::Waypoint)
 	{
+		recordedFlages |= RecordType::Waypoint;
 		recordIniMap("Waypoints", WaypointList);
 	}
 	if (recordType & RecordType::Celltag)
 	{
+		recordedFlages |= RecordType::Celltag;
 		recordIniMap("CellTags", CelltagList);
 	}
 	if (recordType & RecordType::Annotation)
 	{
+		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
 	}
 	if (recordType & RecordType::Basenode)
 	{
+		recordedFlages |= RecordType::Basenode;
+		if (auto pSection = ini.GetSection("Houses"))
+		{
+			for (const auto& [_, house] : pSection->GetEntities())
+			{
+				int nodeCount = ini.GetInteger(house, "NodeCount", 0);
+				if (nodeCount > 0)
+				{
+					FString key;
+					for (int i = 0; i < nodeCount; i++)
+					{
+						key.Format("%03d", i);
+						BasenodeList[house].push_back(ini.GetString(house, key, ""));
+					}
+				}
+				else
+					BasenodeList[house];
+			}
+		}
+	}
+}
+
+void ObjectRecord::appendRecord(int recordType)
+{
+	if (!ExtConfigs::UndoRedo_RecordObjects)
+		return;
+	recordFlags |= recordType;
+	auto& ini = CMapData::Instance->INI;
+	auto recordIniValue = [&ini](const char* lpName, std::vector<FString>& list)
+		{
+			if (auto pSection = ini.GetSection(lpName))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					list.push_back(value);
+				}
+			}
+		};
+	auto recordIniMap = [&ini](const char* lpName, std::map<FString, FString>& list)
+		{
+			if (auto pSection = ini.GetSection(lpName))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					list[key] = value;
+				}
+			}
+		};
+	if (recordType & RecordType::Building && !(recordedFlages & RecordType::Building))
+	{
+		recordIniValue("Structures", BuildingList);
+		recordedFlages |= RecordType::Building;
+	}
+	if (recordType & RecordType::Unit && !(recordedFlages & RecordType::Unit))
+	{
+		recordIniValue("Units", UnitList);
+		recordedFlages |= RecordType::Unit;
+	}
+	if (recordType & RecordType::Aircraft && !(recordedFlages & RecordType::Aircraft))
+	{
+		recordIniValue("Aircraft", AircraftList);
+		recordedFlages |= RecordType::Aircraft;
+	}
+	if (recordType & RecordType::Infantry && !(recordedFlages & RecordType::Infantry))
+	{
+		recordIniValue("Infantry", InfantryList);
+		recordedFlages |= RecordType::Infantry;
+	}
+	if (recordType & RecordType::Terrain && !(recordedFlages & RecordType::Terrain))
+	{
+		recordedFlages |= RecordType::Terrain;
+		FString key;
+		for (const auto& terrain : CMapData::Instance->TerrainDatas)
+		{
+			if (!terrain.Flag)
+			{
+				key.Format("%04d", terrain.Y * 1000 + terrain.X);
+				TerrainList[key] = terrain.TypeID;
+			}
+		}
+	}
+	if (recordType & RecordType::Smudge && !(recordedFlages & RecordType::Smudge))
+	{
+		recordedFlages |= RecordType::Smudge;
+		FString value;
+		for (const auto& smudge : CMapData::Instance->SmudgeDatas)
+		{
+			if (!smudge.Flag)
+			{
+				value.Format("%s,%d,%d,0", smudge.TypeID, smudge.X, smudge.Y);
+				SmudgeList.push_back(value);
+			}
+		}
+	}
+	if (recordType & RecordType::Tunnel && !(recordedFlages & RecordType::Tunnel))
+	{
+		recordedFlages |= RecordType::Tunnel;
+		recordIniValue("Tubes", TunnelList);
+	}
+	if (recordType & RecordType::Waypoint && !(recordedFlages & RecordType::Waypoint))
+	{
+		recordedFlages |= RecordType::Waypoint;
+		recordIniMap("Waypoints", WaypointList);
+	}
+	if (recordType & RecordType::Celltag && !(recordedFlages & RecordType::Celltag))
+	{
+		recordedFlages |= RecordType::Celltag;
+		recordIniMap("CellTags", CelltagList);
+	}
+	if (recordType & RecordType::Annotation && !(recordedFlages & RecordType::Annotation))
+	{
+		recordedFlages |= RecordType::Annotation;
+		recordIniMap("Annotations", AnnotationList);
+	}
+	if (recordType & RecordType::Basenode && !(recordedFlages & RecordType::Basenode))
+	{
+		recordedFlages |= RecordType::Basenode;
 		if (auto pSection = ini.GetSection("Houses"))
 		{
 			for (const auto& [_, house] : pSection->GetEntities())
@@ -1789,17 +1918,17 @@ void MixedRecord::recover()
 	this->object.recover();
 }
 
-void CMapDataExt::MakeObjectRecord(int recordType, bool recordOnce)
+ObjectRecord* CMapDataExt::MakeObjectRecord(int recordType, bool recordOnce)
 {
 	if (!ExtConfigs::UndoRedo_RecordObjects)
-		return;
+		return nullptr;
 	if (recordOnce && !CIsoViewExt::HistoryRecord_IsHoldingLButton)
 	{
 		CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
 	}	
 	else if (recordOnce && CIsoViewExt::HistoryRecord_IsHoldingLButton)
 	{
-		return;
+		return nullptr;
 	}
 	if (recordType > 0)
 	{
@@ -1814,7 +1943,9 @@ void CMapDataExt::MakeObjectRecord(int recordType, bool recordOnce)
 
 		pThis->UndoRedoDataIndex = pThis->UndoRedoDatas.size();
 		pThis->UndoRedoDatas.add(recordType);
+		return dynamic_cast<ObjectRecord*>(pThis->UndoRedoDatas.get(pThis->UndoRedoDatas.size() - 1));
 	}
+	return nullptr;
 }
 
 void CMapDataExt::MakeMixedRecord(int left, int top, int right, int bottom, int recordType)

@@ -15,7 +15,8 @@ bool Logger::bInitialized;
 void Logger::Initialize() {
 	pFile = _fsopen("FA2sp.log", "w", _SH_DENYWR);
 	bInitialized = pFile;
-	fprintf(pFile, "\xEF\xBB\xBF");
+	if (bInitialized)
+		fprintf(pFile, "\xEF\xBB\xBF");
 	Time(pTime);
 	Raw("FA2sp Logger Initializing at %s.\n", pTime);
 }

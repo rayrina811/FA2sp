@@ -258,6 +258,7 @@ public:
         Annotation = 0x00000400
     };
     int recordFlags = 0;
+    int recordedFlages = 0;
     std::vector<FString> BuildingList;
     std::vector<FString> UnitList;
     std::vector<FString> AircraftList;
@@ -271,7 +272,10 @@ public:
     std::map<FString, FString> AnnotationList;
 
     void record(int recordType);
+    void appendRecord(int recordType);
     void recover();
+
+    static ObjectRecord* ObjectRecord_HoldingPtr;
 };
 
 class MixedRecord : public HistoryRecord {
@@ -485,7 +489,7 @@ public:
     static OverlayTypeData GetOverlayTypeData(WORD index);
     static void AssignCellData(CellData& dst, const CellData& src);
     std::unique_ptr<TerrainRecord> MakeTerrainRecord(int left, int top, int right, int bottom);
-    static void MakeObjectRecord(int recordType, bool recordOnce = false);
+    static ObjectRecord* MakeObjectRecord(int recordType, bool recordOnce = false);
     static void MakeMixedRecord(int left, int top, int right, int bottom, int recordType);
 
     static void UpdateFieldStructureData_RedrawMinimap();

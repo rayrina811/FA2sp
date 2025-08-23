@@ -172,6 +172,7 @@ private:
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
+	void TrimImageEdges(ImageDataClassSafe* pData);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	std::vector<int> GeneratePalLookupTable(Palette* first, Palette* second);

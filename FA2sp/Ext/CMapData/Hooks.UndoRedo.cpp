@@ -6,6 +6,7 @@ DEFINE_HOOK(4BBEC0, CMapData_DoUndo, 5)
 
 	if (pThis->UndoRedoDatas.size() == 0) return 0x4BC170;
 	if (pThis->UndoRedoDataIndex < 0) return 0x4BC170;
+	if (CIsoViewExt::HistoryRecord_IsHoldingLButton) return 0x4BC170;
 
 	pThis->UndoRedoDataIndex -= 1;
 	pThis->UndoRedoDataIndex = std::min(pThis->UndoRedoDataIndex, (int)pThis->UndoRedoDatas.size() - 2);
@@ -34,7 +35,7 @@ DEFINE_HOOK(4BC1C0, CMapData_DoRedo, 5)
 {
 	GET(CMapDataExt*, pThis, ECX);
 
-	if (pThis->UndoRedoDatas.size() <= pThis->UndoRedoDataIndex + 1 || !pThis->UndoRedoDatas.size()) 
+	if (pThis->UndoRedoDatas.size() <= pThis->UndoRedoDataIndex + 1 || !pThis->UndoRedoDatas.size() || CIsoViewExt::HistoryRecord_IsHoldingLButton)
 		return 0x4BC486;
 
 	pThis->UndoRedoDataIndex += 1;

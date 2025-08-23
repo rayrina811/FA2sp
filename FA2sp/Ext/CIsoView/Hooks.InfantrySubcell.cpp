@@ -181,25 +181,3 @@ DEFINE_HOOK(45B4D4, CIsoView_OnMouseMove_DrawSubcellDragLine_Target, 9)
 	R->EAX(R->EAX() + offsetY - 3); // make line in the center
 	return 0;
 }
-
-DEFINE_HOOK(46D1EC, CIsoView_PlaceCurrentObjectAt_ChangeSubcellInfantryOwner, 8)
-{
-	if (!ExtConfigs::InfantrySubCell_Edit || CIsoView::GetInstance()->BrushSizeX > 1 || CIsoView::GetInstance()->BrushSizeY > 1)
-		return 0;
-
-	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-	auto point = pIsoView->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
-	int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
-	if (idx > -1)
-	{
-		CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
-		CInfantryData infantry;
-		CMapData::Instance->GetInfantryData(idx, infantry);
-		CMapData::Instance->DeleteInfantryData(idx);
-		infantry.House = CIsoView::CurrentCommand->ObjectID;
-		CMapData::Instance->SetInfantryData(&infantry, nullptr, nullptr, 0, -1);
-	}
-
-	return 0x46D3C9;
-}
-

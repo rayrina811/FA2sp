@@ -63,9 +63,9 @@ void CMapDataExt::PackExt(bool UpdatePreview, bool Description)
 		bool needNewIniFormat = INI.GetInteger("Basic", "NewINIFormat", 4) > 4;
 		if (!needNewIniFormat)
 		{
-			for (const auto& ovr : NewOverlay)
+			for (const auto& cellExt : CellDataExts)
 			{
-				if (ovr != 0xffff && ovr > 0xff)
+				if (cellExt.NewOverlay != 0xffff && cellExt.NewOverlay >= 0xff)
 				{
 					needNewIniFormat = true;
 				}

@@ -634,14 +634,13 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 	auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 
-	CMapDataExt::MakeObjectRecord(
-		ObjectRecord::RecordType::Building
-		| ObjectRecord::RecordType::Infantry
-		| ObjectRecord::RecordType::Unit
-		| ObjectRecord::RecordType::Aircraft
-		| ObjectRecord::RecordType::Terrain
-		| ObjectRecord::RecordType::Smudge
-	, true);
+	auto makeOrAppendRecord = [](int recordType)
+		{
+			if (!ObjectRecord::ObjectRecord_HoldingPtr)
+				ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
+			else
+				ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
+		};
 
 	for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
 	{
@@ -654,7 +653,10 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 			const auto& CellData = CMapData::Instance->CellDatas[nIndex];
 
 			if (CellData.Structure != -1)
+			{
+				makeOrAppendRecord(ObjectRecord::RecordType::Building);
 				CMapData::Instance->DeleteBuildingData(CellData.Structure);
+			}
 
 			if (ExtConfigs::InfantrySubCell_Edit &&
 				pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1)
@@ -662,29 +664,51 @@ DEFINE_HOOK(45C850, CIsoView_OnMouseMove_Delete, 5)
 				int idx = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
 				if (idx != -1)
 				{
+					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
 					CMapData::Instance->DeleteInfantryData(idx);
 				}
 			}
 			else
 			{
 				if (CellData.Infantry[0] != -1)
+				{
+					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
 					CMapData::Instance->DeleteInfantryData(CellData.Infantry[0]);
+				}
 				if (CellData.Infantry[1] != -1)
+				{
+					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
 					CMapData::Instance->DeleteInfantryData(CellData.Infantry[1]);
+				}
 				if (CellData.Infantry[2] != -1)
+				{
+					makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
 					CMapData::Instance->DeleteInfantryData(CellData.Infantry[2]);
+				}
 			}
 			if (CellData.Unit != -1)
+			{
+				makeOrAppendRecord(ObjectRecord::RecordType::Unit);
 				CMapData::Instance->DeleteUnitData(CellData.Unit);
+			}
 
 			if (CellData.Aircraft != -1)
+			{
+				makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
 				CMapData::Instance->DeleteAircraftData(CellData.Aircraft);
+			}
 			
 			if (CellData.Terrain != -1)
+			{
+				makeOrAppendRecord(ObjectRecord::RecordType::Terrain);
 				CMapData::Instance->DeleteTerrainData(CellData.Terrain);
+			}
 			
 			if (CellData.Smudge != -1)
+			{
+				makeOrAppendRecord(ObjectRecord::RecordType::Smudge);
 				CMapData::Instance->DeleteSmudgeData(CellData.Smudge);
+			}
 		}
 	}
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
@@ -1179,30 +1203,6 @@ DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
 	return 0;
 }
 
-DEFINE_HOOK(46CD2E, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Structure, 5)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
-	return 0;
-}
-
-DEFINE_HOOK(46CF16, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Unit, 5)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
-	return 0;
-}
-
-DEFINE_HOOK(46D0C2, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Aircraft, 5)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
-	return 0;
-}
-
-DEFINE_HOOK(46D28E, CIsoView_PlaceCurrentObjectAt_ChangeOwner_Infantry, 5)
-{
-	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
-	return 0;
-}
-
 DEFINE_HOOK(45F261, CIsoView_HandleProperties_Infantry, 7)
 {
 	CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
@@ -1351,6 +1351,7 @@ DEFINE_HOOK(4667E8, CIsoView_OnLButtonDown_Celltag_Modify, 6)
 DEFINE_HOOK(466970, CIsoView_OnLButtonUp_ResetRecordStatus, 6)
 {
 	CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
+	ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 	return 0;
 }
 

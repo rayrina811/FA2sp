@@ -16,9 +16,9 @@ void CMapValidatorExt::ValidateOverlayLimit(BOOL& result)
 	bool needNewIniFormat = CINI::CurrentDocument->GetInteger("Basic", "NewINIFormat", 4) > 4;
 	if (!needNewIniFormat)
 	{
-		for (const auto& ovr : CMapDataExt::NewOverlay)
+		for (const auto& cellExt : CMapDataExt::CellDataExts)
 		{
-			if (ovr != 0xffff && ovr > 0xff)
+			if (cellExt.NewOverlay != 0xffff && cellExt.NewOverlay >= 0xff)
 			{
 				needNewIniFormat = true;
 			}

@@ -1768,12 +1768,14 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, i
 	{
 		ImageDataClassSafe tmp;
 		SetImageDataSafe(pBuffer, &tmp, FullWidth, FullHeight, pPal);
+		TrimImageEdges(&tmp);
 		CLoadingExt::SendImageToServer(NameInDict, &tmp);
 	}
 	else
 	{
 		auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
 		SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+		TrimImageEdges(pData);
 	}
 }
 
@@ -2060,6 +2062,72 @@ void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int H
 		pData->pPixelValidRanges[i].First = begin;
 		pData->pPixelValidRanges[i].Last = end;
 	}
+}
+
+void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
+{
+	if (!pData || !pData->pImageBuffer) return;
+
+	const int oldW = pData->FullWidth;
+	const int oldH = pData->FullHeight;
+	unsigned char* buffer = pData->pImageBuffer.get();
+
+	int minX = oldW - 1, minY = oldH - 1;
+	int maxX = 0, maxY = 0;
+
+	for (int y = 0; y < oldH; ++y)
+	{
+		for (int x = 0; x < oldW; ++x)
+		{
+			unsigned char px = buffer[y * oldW + x];
+			if (px != 0)
+			{
+				if (x < minX) minX = x;
+				if (y < minY) minY = y;
+				if (x > maxX) maxX = x;
+				if (y > maxY) maxY = y;
+			}
+		}
+	}
+
+	if (minX > maxX || minY > maxY)
+		return;
+
+	int validW = maxX - minX + 1;
+	int validH = maxY - minY + 1;
+
+	int leftSpace = minX;
+	int rightSpace = oldW - 1 - maxX;
+	int topSpace = minY;
+	int bottomSpace = oldH - 1 - maxY;
+
+	int cropLR = std::min(leftSpace, rightSpace);
+	int cropTB = std::min(topSpace, bottomSpace);
+
+	int newW = oldW - cropLR * 2;
+	int newH = oldH - cropTB * 2;
+
+	if (newW <= 0 || newH <= 0) return;
+
+	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
+	for (int y = 0; y < newH; ++y)
+	{
+		int srcY = y + cropTB;
+		std::memcpy(&newBuffer[y * newW],
+			&buffer[srcY * oldW + cropLR],
+			newW);
+	}
+
+	pData->pImageBuffer = std::move(newBuffer);
+	pData->FullWidth = newW;
+	pData->FullHeight = newH;
+	pData->ValidX = minX - cropLR;
+	pData->ValidY = minY - cropTB;
+	pData->ValidWidth = validW;
+	pData->ValidHeight = validH;
+	if (pData->pPixelValidRanges)
+		pData->pPixelValidRanges = nullptr;
+	SetValidBufferSafe(pData, newW, newH);
 }
 
 void CLoadingExt::SetTheaterLetter(FString& string, int mode)
