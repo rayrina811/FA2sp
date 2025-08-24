@@ -46,7 +46,7 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 
 	HMODULE hDLL = LoadLibraryA("mixinfo.dll");
-	if (!hDLL)
+	if (!hDLL || !ExtConfigs::ExtMixLoader)
 	{
 		// Load Extra Mixes
 		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
@@ -260,7 +260,7 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 	else
 	{
-		Logger::Raw("[MixLoader] Init via Mixinfo Method.\n");
+		Logger::Raw("[ExtMixLoader] Init via Mixinfo Method.\n");
 		auto& manager = MixLoader::Instance();
 		manager.Clear();
 		manager.SetDLL(hDLL);
@@ -285,11 +285,11 @@ bool CLoadingExt::InitMixFilesFix()
 				path += "\\" + key;
 				if (manager.LoadMixFile(path, "ra2"))
 				{
-					Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", index++, path);
+					Logger::Raw("[ExtMixLoader][EXTRA] %04d - %s loaded.\n", index++, path);
 				}
 				else
 				{
-					Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
+					Logger::Raw("[ExtMixLoader][EXTRA] %s failed!\n", path);
 				}
 			}
 		}
@@ -304,9 +304,9 @@ bool CLoadingExt::InitMixFilesFix()
 			if (result)
 			{
 				if (parent >= 0)
-					Logger::Raw("[MixLoader] %04d - %s loaded.\n", index, Mix);
+					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index, Mix);
 				else
-					Logger::Raw("[MixLoader] %04d - %s loaded.\n", index, FullPath);
+					Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index, FullPath);
 				if (addToRA2)
 				{
 					CLoadingExt::Ra2dotMixes.insert(index);
@@ -314,7 +314,7 @@ bool CLoadingExt::InitMixFilesFix()
 				index++;
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
-			Logger::Raw("[MixLoader] %s failed!\n", Mix);
+			Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
 			return ExtConfigs::DisableDirectoryCheck || result;
 		};
 
@@ -323,11 +323,11 @@ bool CLoadingExt::InitMixFilesFix()
 		fa2extra += "fa2extra.mix";
 		if (manager.LoadMixFile(fa2extra, "ra2"))
 		{
-			Logger::Raw("[MixLoader] %04d - %s loaded.\n", index++, fa2extra);
+			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, fa2extra);
 		}
 		else
 		{
-			Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
+			Logger::Raw("[ExtMixLoader] %s failed!\n", fa2extra);
 		}
 
 		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
@@ -385,7 +385,7 @@ bool CLoadingExt::InitMixFilesFix()
 		int result = manager.LoadMixFile(FullPath, "ra2");
 		if (result)
 		{
-			Logger::Raw("[MixLoader] %04d - %s loaded.\n", index++, FullPath);
+			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, FullPath);
 			CFinalSunApp::Instance->MarbleLoaded = TRUE;
 		}
 		else

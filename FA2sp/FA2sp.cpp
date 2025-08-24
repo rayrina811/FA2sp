@@ -174,6 +174,7 @@ bool ExtConfigs::EnableVisualStyle;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
+bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
@@ -378,6 +379,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TerrainGeneratorColor = CINI::FAData->GetColor("ExtConfigs", "TerrainGeneratorColor", 0x00FFFF);
 	ExtConfigs::DistanceRuler_Color = CINI::FAData->GetColor("ExtConfigs", "DistanceRuler.Color", 0x0000FF);
 	ExtConfigs::MultiSelectionShiftDeselect = CINI::FAData->GetBool("ExtConfigs", "MultiSelectionShiftDeselect");
+	ExtConfigs::ExtMixLoader = CINI::FAData->GetBool("ExtConfigs", "ExtMixLoader", true);
 
 	ExtConfigs::RandomTerrainObjects = CINI::FAData->GetBool("ExtConfigs", "RandomTerrainObjects");
 
@@ -931,6 +933,13 @@ void FA2sp::ExtConfigsInitialize()
 		.IniKey = "ExtFacings.Drag",
 		.Value = &ExtConfigs::ExtFacings_Drag,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtMixLoader", "Enable new mix loader"),
+		.IniKey = "ExtMixLoader",
+		.Value = &ExtConfigs::ExtMixLoader,
+		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

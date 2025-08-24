@@ -262,13 +262,16 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
         return 0x48E5CD;
     }
 
-    auto& manager = MixLoader::Instance();
-    size_t sizeM = 0;
-    auto result = manager.LoadFile(lpFilename, &sizeM);
-    if (result && sizeM > 0)
+    if (ExtConfigs::ExtMixLoader)
     {
-        R->EDI(0);
-        return 0x48E5CD;
+        auto& manager = MixLoader::Instance();
+        size_t sizeM = 0;
+        auto result = manager.LoadFile(lpFilename, &sizeM);
+        if (result && sizeM > 0)
+        {
+            R->EDI(0);
+            return 0x48E5CD;
+        }
     }
 
     if (oriResult)

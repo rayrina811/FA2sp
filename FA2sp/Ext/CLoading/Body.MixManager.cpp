@@ -23,15 +23,15 @@ uint32_t MixLoader::GetFileID(const char* lpFileName)
     return (uint32_t)Cmix_file::get_id(t_game::game_ra2, name);
 }
 
-std::vector<MixEntry> MixLoader::parseMixInfoRaw(const char* raw, int rawLen) {
-    std::vector<MixEntry> out;
+MixEntrySet MixLoader::parseMixInfoRaw(const char* raw, int rawLen) {
+    MixEntrySet out;
     size_t pos = 0;
     while (pos + sizeof(int64_t) * 3 <= (size_t)rawLen) {
         int64_t id = 0, off = 0, sz = 0;
         std::memcpy(&id, raw + pos, sizeof(id)); pos += sizeof(id);
         std::memcpy(&off, raw + pos, sizeof(off)); pos += sizeof(off);
         std::memcpy(&sz, raw + pos, sizeof(sz));  pos += sizeof(sz);
-        out.push_back(MixEntry{ (uint32_t)id, off, sz });
+        out.insert(MixEntry{ (uint32_t)id, off, sz });
     }
     return out;
 }
@@ -79,6 +79,11 @@ bool MixLoader::LoadTopMix(const std::string& path, const std::string& game) {
     mf.isNested = false;
     mf.baseOffset = 0;
 
+    for (const auto& e : mf.entries) {
+        if (fileMap.find(e.id) == fileMap.end())
+            fileMap[e.id] = { mixFiles.size(), &e};
+    }
+
     mixFiles.push_back(std::move(mf));
     return true;
 }
@@ -113,6 +118,11 @@ bool MixLoader::LoadNestedMix(MixFile& parent, const MixEntry& entry, const std:
     mf.isNested = true;
     mf.baseOffset = entry.offset;
 
+    for (const auto& e : mf.entries) {
+        if (fileMap.find(e.id) == fileMap.end())
+            fileMap[e.id] = { mixFiles.size(), &e };
+    }
+
     mixFiles.push_back(std::move(mf));
     return true;
 }
@@ -143,20 +153,16 @@ int MixLoader::QueryFileIndex(const std::string& fileName, int mixIdx) {
     int id = GetFileID(fileName.c_str());
     if (mixIdx >= 0 && mixIdx < (int)mixFiles.size()) {
         auto& mix = mixFiles[mixIdx];
-        for (size_t i = 0; i < mix.entries.size(); ++i) {
-            if (mix.entries[i].id == id)
-                return static_cast<int>(i);
+        for (const auto& e: mix.entries) {
+            if (e.id == id)
+                return mixIdx;
         }
         return -1;
     }
 
-    for (size_t i = 0; i < mixFiles.size(); ++i) {
-        auto& mix = mixFiles[i];
-        for (size_t j = 0; j < mix.entries.size(); ++j) {
-            if (mix.entries[j].id == id)
-                return static_cast<int>(i);
-        }
-    }
+    auto itr = fileMap.find(id);
+    if (itr != fileMap.end())
+        return static_cast<int>(itr->second.mixIndex);
 
     return -1;
 }
@@ -190,27 +196,27 @@ std::unique_ptr<uint8_t[]> MixLoader::LoadFile(const std::string& fileName, size
         return nullptr;
     }
 
-    for (auto& mf : mixFiles) {
-        for (auto& e : mf.entries) {
-            if (e.id == id) {
-                if (!mf.stream.is_open()) {
-                    mf.stream.open(mf.path, std::ios::binary);
-                    if (!mf.stream.is_open()) return nullptr;
-                }
-
-                mf.stream.seekg(e.offset, std::ios::beg);
-                if (!mf.stream.good()) return nullptr;
-
-                auto buf = std::make_unique<uint8_t[]>((size_t)e.size);
-                mf.stream.read(reinterpret_cast<char*>(buf.get()), e.size);
-                std::streamsize got = mf.stream.gcount();
-                if (got != (std::streamsize)e.size) {
-                    return nullptr;
-                }
-                if (outSize) *outSize = (size_t)e.size;
-                return buf;
-            }
+    auto itr = fileMap.find(id);
+    if (itr != fileMap.end())
+    {
+        auto& mf = mixFiles[itr->second.mixIndex];
+        const auto& e = itr->second.entry;
+        if (!mf.stream.is_open()) {
+            mf.stream.open(mf.path, std::ios::binary);
+            if (!mf.stream.is_open()) return nullptr;
         }
+
+        mf.stream.seekg(e->offset, std::ios::beg);
+        if (!mf.stream.good()) return nullptr;
+
+        auto buf = std::make_unique<uint8_t[]>((size_t)e->size);
+        mf.stream.read(reinterpret_cast<char*>(buf.get()), e->size);
+        std::streamsize got = mf.stream.gcount();
+        if (got != (std::streamsize)e->size) {
+            return nullptr;
+        }
+        if (outSize) *outSize = (size_t)e->size;
+        return buf;
     }
 
     return nullptr;
@@ -234,4 +240,5 @@ bool MixLoader::ExtractFile(const std::string& fileName, const std::string& outP
 
 void MixLoader::Clear() {
     mixFiles.clear();
+    fileMap.clear();
 }

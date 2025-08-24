@@ -327,12 +327,34 @@ struct MixEntry {
 	int64_t size;
 };
 
+struct MixEntryHash {
+	std::size_t operator()(const MixEntry& entry) const noexcept {
+		std::size_t h1 = std::hash<uint32_t>{}(entry.id);
+		std::size_t h2 = std::hash<int64_t>{}(entry.offset);
+		std::size_t h3 = std::hash<int64_t>{}(entry.size);
+		return h1 ^ (h2 << 1) ^ (h3 << 2);
+	}
+};
+
+struct MixEntryEqual {
+	bool operator()(const MixEntry& lhs, const MixEntry& rhs) const noexcept {
+		return lhs.id == rhs.id && lhs.offset == rhs.offset && lhs.size == rhs.size;
+	}
+};
+
+using MixEntrySet = std::unordered_set<MixEntry, MixEntryHash, MixEntryEqual>;
+
 struct MixFile {
 	std::string path;
 	std::ifstream stream;
-	std::vector<MixEntry> entries;
+	MixEntrySet entries;
 	bool isNested = false; 
 	int64_t baseOffset = 0;
+};
+
+struct FindFileHelper {
+	uint32_t mixIndex;
+	const MixEntry* entry;
 };
 
 class MixLoader {
@@ -367,6 +389,7 @@ private:
 	FreeMixMemFunc FreeMixMem = nullptr;
 
 	std::vector<MixFile> mixFiles;
+	std::unordered_map<uint32_t, FindFileHelper> fileMap;
 
-	static std::vector<MixEntry> parseMixInfoRaw(const char* raw, int rawLen);
+	static MixEntrySet parseMixInfoRaw(const char* raw, int rawLen);
 };

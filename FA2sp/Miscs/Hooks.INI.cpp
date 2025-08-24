@@ -187,24 +187,26 @@ DEFINE_HOOK(48028D, CLoading_LoadTSINI_PackageSupport, 5)
             return 0x480337;
         }
     }
-
-    auto& manager = MixLoader::Instance();
-    size_t sizeM = 0;
-    auto result = manager.LoadFile(filename, &sizeM);
-    if (result && sizeM > 0)
+    if (ExtConfigs::ExtMixLoader)
     {
-        FString out_path = CFinalSunApp::Instance->FilePath();
-        out_path += "\\FinalSun";
-        out_path += filename;
-
-        std::ofstream fout(out_path, std::ios::binary);
-        if (fout.is_open())
+        auto& manager = MixLoader::Instance();
+        size_t sizeM = 0;
+        auto result = manager.LoadFile(filename, &sizeM);
+        if (result && sizeM > 0)
         {
-            fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(sizeM));
-            fout.close();
+            FString out_path = CFinalSunApp::Instance->FilePath();
+            out_path += "\\FinalSun";
+            out_path += filename;
 
-            // load as a mix ini
-            return 0x480337;
+            std::ofstream fout(out_path, std::ios::binary);
+            if (fout.is_open())
+            {
+                fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(sizeM));
+                fout.close();
+
+                // load as a mix ini
+                return 0x480337;
+            }
         }
     }
 
@@ -365,7 +367,7 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                 }
             }
         }        
-        if (!copied)
+        if (!copied && ExtConfigs::ExtMixLoader)
         {
             auto& manager = MixLoader::Instance();
             size_t size = 0;

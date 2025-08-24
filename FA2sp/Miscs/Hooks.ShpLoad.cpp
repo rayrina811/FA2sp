@@ -103,15 +103,18 @@ DEFINE_HOOK(525C50, CMixFile_LoadSHP, 5)
 		return 0x525CFC;
 	}
 
-	auto& manager = MixLoader::Instance();
-	size_t sizeM = 0;
-	auto result = manager.LoadFile(filename, &sizeM);
-	if (result && sizeM > 0)
+	if (ExtConfigs::ExtMixLoader)
 	{
-		current_shape_file.m_data = GameCreateArray<unsigned char>(sizeM);
-		memcpy(current_shape_file.m_data, result.get(), sizeM);
-		R->EAX(true);
-		return 0x525CFC;
+		auto& manager = MixLoader::Instance();
+		size_t sizeM = 0;
+		auto result = manager.LoadFile(filename, &sizeM);
+		if (result && sizeM > 0)
+		{
+			current_shape_file.m_data = GameCreateArray<unsigned char>(sizeM);
+			memcpy(current_shape_file.m_data, result.get(), sizeM);
+			R->EAX(true);
+			return 0x525CFC;
+		}
 	}
 
 	if (CMixFile::HasFile(filename, nMix))

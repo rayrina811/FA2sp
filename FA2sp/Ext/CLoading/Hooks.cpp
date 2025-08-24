@@ -28,12 +28,15 @@ DEFINE_HOOK(48A650, CLoading_SearchFile, 6)
 	GET_STACK(const char*, Filename, 0x4);
 	GET_STACK(unsigned char*, pTheaterType, 0x8);
 
-	auto& manager = MixLoader::Instance();
-	auto result = manager.QueryFileIndex(Filename);
-	if (result >= 0)
+	if (ExtConfigs::ExtMixLoader)
 	{
-		R->EAX(result);
-		return 0x48AA63;
+		auto& manager = MixLoader::Instance();
+		auto result = manager.QueryFileIndex(Filename);
+		if (result >= 0)
+		{
+			R->EAX(result);
+			return 0x48AA63;
+		}
 	}
 
 	for (int i = 0; i < CMixFile::ArraySize; ++i)
