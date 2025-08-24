@@ -2186,6 +2186,12 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 	{
 		return -1;
 	}
+
+	auto& manager = MixLoader::Instance();
+	int result = manager.QueryFileIndex(filename, nMix);
+	if (result >= 0)
+		return result;
+
 	if (nMix == -114)
 	{
 		nMix = CLoading::Instance->SearchFile(filename);

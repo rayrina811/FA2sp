@@ -44,69 +44,45 @@ bool CLoadingExt::InitMixFilesFix()
 			}
 		}
 	}
-	// Load Extra Mixes
-	if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
+
+	HMODULE hDLL = LoadLibraryA("mixinfo.dll");
+	if (!hDLL)
 	{
-		std::map<int, FString> collector;
-
-		for (const auto& [key, index] : pSection->GetIndices())
-			collector[index] = key;
-
-		FString path;
-
-		for (const auto& [_, key] : collector)
+		// Load Extra Mixes
+		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
 		{
-			if (CINI::FAData->GetBool("ExtraMixes", key))
-				path = CFinalSunApp::Instance->ExePath();
-			else
-				path = CFinalSunApp::Instance->FilePath();
-			path += "\\" + key;
-			if (auto id = CMixFile::Open(path, 0))
-			{
-				Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", id, path);
-			}
-			else
-			{
-				Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
-			}
-		}
-	}
+			std::map<int, FString> collector;
 
-	FString Dir = CFinalSunApp::Instance->FilePath();
-	Dir += "\\";
-	auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
-	{
-		if (Parent)
-		{
-			int result = CMixFile::Open(Mix, Parent);
-			if (result)
+			for (const auto& [key, index] : pSection->GetIndices())
+				collector[index] = key;
+
+			FString path;
+
+			for (const auto& [_, key] : collector)
 			{
-				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
-				if (addToRA2)
+				if (CINI::FAData->GetBool("ExtraMixes", key))
+					path = CFinalSunApp::Instance->ExePath();
+				else
+					path = CFinalSunApp::Instance->FilePath();
+				path += "\\" + key;
+				if (auto id = CMixFile::Open(path, 0))
 				{
-					CLoadingExt::Ra2dotMixes.insert(result);
+					Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", id, path);
+				}
+				else
+				{
+					Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
 				}
 			}
-			else
-				Logger::Raw("[MixLoader] %s failed!\n", Mix);
-			return ExtConfigs::DisableDirectoryCheck || result;
 		}
-		else
+
+		FString Dir = CFinalSunApp::Instance->FilePath();
+		Dir += "\\";
+		auto LoadMixFile = [this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
 		{
-			FString FullPath = Dir + Mix;
-			int result = CMixFile::Open(FullPath, 0);
-			if (result)
+			if (Parent)
 			{
-				Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
-				if (addToRA2)
-				{
-					CLoadingExt::Ra2dotMixes.insert(result);
-				}
-				return ExtConfigs::DisableDirectoryCheck || result;
-			}
-			if (int nMix = SearchFile(Mix))
-			{
-				result = CMixFile::Open(Mix, nMix);
+				int result = CMixFile::Open(Mix, Parent);
 				if (result)
 				{
 					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
@@ -119,140 +95,355 @@ bool CLoadingExt::InitMixFilesFix()
 					Logger::Raw("[MixLoader] %s failed!\n", Mix);
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
-			Logger::Raw("[MixLoader] %s failed!\n", Mix);
-			return ExtConfigs::DisableDirectoryCheck || result;
+			else
+			{
+				FString FullPath = Dir + Mix;
+				int result = CMixFile::Open(FullPath, 0);
+				if (result)
+				{
+					Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
+					if (addToRA2)
+					{
+						CLoadingExt::Ra2dotMixes.insert(result);
+					}
+					return ExtConfigs::DisableDirectoryCheck || result;
+				}
+				if (int nMix = SearchFile(Mix))
+				{
+					result = CMixFile::Open(Mix, nMix);
+					if (result)
+					{
+						Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, Mix);
+						if (addToRA2)
+						{
+							CLoadingExt::Ra2dotMixes.insert(result);
+						}
+					}
+					else
+						Logger::Raw("[MixLoader] %s failed!\n", Mix);
+					return ExtConfigs::DisableDirectoryCheck || result;
+				}
+				Logger::Raw("[MixLoader] %s failed!\n", Mix);
+				return ExtConfigs::DisableDirectoryCheck || result;
+			}
+		};
+		auto SetMixFile = [LoadMixFile](const char* Mix, int& value)
+		{
+			value = LoadMixFile(Mix);
+			return value;
+		};
+
+		FString fa2extra = CFinalSunApp::Instance->ExePath();
+		fa2extra += "\\";
+		fa2extra += "fa2extra.mix";
+		if (auto id = CMixFile::Open(fa2extra, 0))
+		{
+			Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
 		}
-	};
-	auto SetMixFile = [LoadMixFile](const char* Mix, int& value)
-	{
-		value = LoadMixFile(Mix);
-		return value;
-	};
-
-	FString fa2extra = CFinalSunApp::Instance->ExePath();
-	fa2extra += "\\";
-	fa2extra += "fa2extra.mix";
-	if (auto id = CMixFile::Open(fa2extra, 0))
-	{
-		Logger::Raw("[MixLoader] %04d - %s loaded.\n", id, fa2extra);
-	}
-	else
-	{
-		Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
-	}
-
-	FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
-	for (int i = 99; i >= 0; --i)
-	{
-		FString filename; 
-		filename.Format(format, i);
-		LoadMixFile(filename);
-	}
-
-	if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
-	if (!LoadMixFile("RA2.MIX", 0, true))		return false;
-	if (!LoadMixFile("CACHEMD.MIX", 0, true))	return false;
-	if (!LoadMixFile("CACHE.MIX", 0, true))		return false;
-	if (!LoadMixFile("LOCALMD.MIX", 0, true))	return false;
-	if (!LoadMixFile("LOCAL.MIX", 0, true))		return false;
-
-	// Init_Expansion_Mixfiles
-	// ECACHE and ELOCAL
-	WIN32_FIND_DATA fd;
-	HANDLE hf = FindFirstFile(Dir + "ECACHE*.MIX", &fd);
-	if (hf != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
-				continue;
-			LoadMixFile(fd.cFileName);
-		} while (FindNextFile(hf, &fd));
-		FindClose(hf);
-	}
-	hf = FindFirstFile(Dir + "ELOCAL*.MIX", &fd);
-	if (hf != INVALID_HANDLE_VALUE)
-	{
-		do
-		{
-			if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
-				continue;
-			LoadMixFile(fd.cFileName);
-		} while (FindNextFile(hf, &fd));
-		FindClose(hf);
-	}
-
-	// Init_Secondary_Mixfiles
-	if (!LoadMixFile("CONQMD.MIX", 0, true))		return false;
-	if (!LoadMixFile("GENERMD.MIX", 0, true))	return false;
-	if (!LoadMixFile("GENERIC.MIX", 0, true))	return false;
-	if (!LoadMixFile("ISOGENMD.MIX", 0, true))	return false;
-	if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
-	if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
-
-	//MARBLE should be ahead of normal theater mixes
-	FString FullPath = CFinalSunApp::ExePath();
-	FullPath += "\\MARBLE.MIX";
-	int result = CMixFile::Open(FullPath, 0);
-	if (result)
-	{
-		Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
-		CFinalSunApp::Instance->MarbleLoaded = TRUE;
-	}
-	else
-	{
-		if (LoadMixFile("MARBLE.MIX"))
-			CFinalSunApp::Instance->MarbleLoaded = TRUE;
 		else
 		{
-			CFinalSunApp::Instance->MarbleLoaded = FALSE;
-			FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
-				"Failed to load marble.mix! Framework mode won't be able to use!");
-			::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+			Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
 		}
+
+		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
+		for (int i = 99; i >= 0; --i)
+		{
+			FString filename;
+			filename.Format(format, i);
+			LoadMixFile(filename);
+		}
+
+		if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
+		if (!LoadMixFile("RA2.MIX", 0, true))		return false;
+		if (!LoadMixFile("CACHEMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("CACHE.MIX", 0, true))		return false;
+		if (!LoadMixFile("LOCALMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("LOCAL.MIX", 0, true))		return false;
+
+		// Init_Expansion_Mixfiles
+		// ECACHE and ELOCAL
+		WIN32_FIND_DATA fd;
+		HANDLE hf = FindFirstFile(Dir + "ECACHE*.MIX", &fd);
+		if (hf != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
+					continue;
+				LoadMixFile(fd.cFileName);
+			} while (FindNextFile(hf, &fd));
+			FindClose(hf);
+		}
+		hf = FindFirstFile(Dir + "ELOCAL*.MIX", &fd);
+		if (hf != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
+					continue;
+				LoadMixFile(fd.cFileName);
+			} while (FindNextFile(hf, &fd));
+			FindClose(hf);
+		}
+
+		// Init_Secondary_Mixfiles
+		if (!LoadMixFile("CONQMD.MIX", 0, true))		return false;
+		if (!LoadMixFile("GENERMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("GENERIC.MIX", 0, true))	return false;
+		if (!LoadMixFile("ISOGENMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
+		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
+
+		//MARBLE should be ahead of normal theater mixes
+		FString FullPath = CFinalSunApp::ExePath();
+		FullPath += "\\MARBLE.MIX";
+		int result = CMixFile::Open(FullPath, 0);
+		if (result)
+		{
+			Logger::Raw("[MixLoader] %04d - %s loaded.\n", result, FullPath);
+			CFinalSunApp::Instance->MarbleLoaded = TRUE;
+		}
+		else
+		{
+			if (LoadMixFile("MARBLE.MIX"))
+				CFinalSunApp::Instance->MarbleLoaded = TRUE;
+			else
+			{
+				CFinalSunApp::Instance->MarbleLoaded = FALSE;
+				FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+					"Failed to load marble.mix! Framework mode won't be able to use!");
+				::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+			}
+		}
+
+
+		// Init_Theaters
+		LoadMixFile("TEMPERATMD.MIX", 0, true);
+		LoadMixFile("ISOTEMMD.MIX", 0, true);
+		LoadMixFile("TEMPERAT.MIX", 0, true);
+		LoadMixFile("ISOTEMP.MIX", 0, true);
+		LoadMixFile("TEM.MIX", 0, true);
+
+		LoadMixFile("SNOWMD.MIX", 0, true);
+		LoadMixFile("ISOSNOMD.MIX", 0, true);
+		LoadMixFile("SNOW.MIX", 0, true);
+		LoadMixFile("ISOSNOW.MIX", 0, true);
+		LoadMixFile("ISOSNO.MIX", 0, true);
+		LoadMixFile("SNO.MIX", 0, true);
+
+		LoadMixFile("URBANMD.MIX", 0, true);
+		LoadMixFile("ISOURBMD.MIX", 0, true);
+		LoadMixFile("URBAN.MIX", 0, true);
+		LoadMixFile("ISOURB.MIX", 0, true);
+		LoadMixFile("URB.MIX", 0, true);
+
+		LoadMixFile("DESERT.MIX", 0, true);
+		LoadMixFile("ISODES.MIX", 0, true);
+		LoadMixFile("ISODESMD.MIX", 0, true);
+		LoadMixFile("DES.MIX", 0, true);
+		LoadMixFile("DESERTMD.MIX", 0, true);
+
+		LoadMixFile("URBANNMD.MIX", 0, true);
+		LoadMixFile("ISOUBNMD.MIX", 0, true);
+		LoadMixFile("URBANN.MIX", 0, true);
+		LoadMixFile("ISOUBN.MIX", 0, true);
+		LoadMixFile("UBN.MIX", 0, true);
+
+		LoadMixFile("LUNARMD.MIX", 0, true);
+		LoadMixFile("ISOLUNMD.MIX", 0, true);
+		LoadMixFile("LUNAR.MIX", 0, true);
+		LoadMixFile("ISOLUN.MIX", 0, true);
+		LoadMixFile("LUN.MIX", 0, true);
+
+		LoadMixFile("LANGMD.MIX", 0, true);
+		LoadMixFile("LANGUAGE.MIX", 0, true);
+	}
+	else
+	{
+		Logger::Raw("[MixLoader] Init via Mixinfo Method.\n");
+		auto& manager = MixLoader::Instance();
+		manager.Clear();
+		manager.SetDLL(hDLL);
+
+		int index = 0;
+		// Load Extra Mixes
+		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
+		{
+			std::map<int, FString> collector;
+
+			for (const auto& [key, index] : pSection->GetIndices())
+				collector[index] = key;
+
+			FString path;
+
+			for (const auto& [_, key] : collector)
+			{
+				if (CINI::FAData->GetBool("ExtraMixes", key))
+					path = CFinalSunApp::Instance->ExePath();
+				else
+					path = CFinalSunApp::Instance->FilePath();
+				path += "\\" + key;
+				if (manager.LoadMixFile(path, "ra2"))
+				{
+					Logger::Raw("[MixLoader][EXTRA] %04d - %s loaded.\n", index++, path);
+				}
+				else
+				{
+					Logger::Raw("[MixLoader][EXTRA] %s failed!\n", path);
+				}
+			}
+		}
+
+		FString Dir = CFinalSunApp::Instance->FilePath();
+		Dir += "\\";
+		auto LoadMixFile = [&index, &manager, this, Dir](const char* Mix, int Parent = 0, bool addToRA2 = false)
+		{
+			FString FullPath = Dir + Mix;
+			int parent = -1;
+			bool result = manager.LoadMixFile(FullPath, "ra2", &parent);
+			if (result)
+			{
+				if (parent >= 0)
+					Logger::Raw("[MixLoader] %04d - %s loaded.\n", index, Mix);
+				else
+					Logger::Raw("[MixLoader] %04d - %s loaded.\n", index, FullPath);
+				if (addToRA2)
+				{
+					CLoadingExt::Ra2dotMixes.insert(index);
+				}
+				index++;
+				return ExtConfigs::DisableDirectoryCheck || result;
+			}
+			Logger::Raw("[MixLoader] %s failed!\n", Mix);
+			return ExtConfigs::DisableDirectoryCheck || result;
+		};
+
+		FString fa2extra = CFinalSunApp::Instance->ExePath();
+		fa2extra += "\\";
+		fa2extra += "fa2extra.mix";
+		if (manager.LoadMixFile(fa2extra, "ra2"))
+		{
+			Logger::Raw("[MixLoader] %04d - %s loaded.\n", index++, fa2extra);
+		}
+		else
+		{
+			Logger::Raw("[MixLoader] %s failed!\n", fa2extra);
+		}
+
+		FString format = "EXPAND" + CINI::FAData->GetString("Filenames", "MixExtension", "MD") + "%02d.MIX";
+		for (int i = 99; i >= 0; --i)
+		{
+			FString filename;
+			filename.Format(format, i);
+			LoadMixFile(filename);
+		}
+
+		if (!LoadMixFile("RA2MD.MIX", 0, true))		return false;
+		if (!LoadMixFile("RA2.MIX", 0, true))		return false;
+		if (!LoadMixFile("CACHEMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("CACHE.MIX", 0, true))		return false;
+		if (!LoadMixFile("LOCALMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("LOCAL.MIX", 0, true))		return false;
+
+		// Init_Expansion_Mixfiles
+		// ECACHE and ELOCAL
+		WIN32_FIND_DATA fd;
+		HANDLE hf = FindFirstFile(Dir + "ECACHE*.MIX", &fd);
+		if (hf != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
+					continue;
+				LoadMixFile(fd.cFileName);
+			} while (FindNextFile(hf, &fd));
+			FindClose(hf);
+		}
+		hf = FindFirstFile(Dir + "ELOCAL*.MIX", &fd);
+		if (hf != INVALID_HANDLE_VALUE)
+		{
+			do
+			{
+				if (fd.dwFileAttributes & (FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN))
+					continue;
+				LoadMixFile(fd.cFileName);
+			} while (FindNextFile(hf, &fd));
+			FindClose(hf);
+		}
+
+		// Init_Secondary_Mixfiles
+		if (!LoadMixFile("CONQMD.MIX", 0, true))		return false;
+		if (!LoadMixFile("GENERMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("GENERIC.MIX", 0, true))	return false;
+		if (!LoadMixFile("ISOGENMD.MIX", 0, true))	return false;
+		if (!LoadMixFile("ISOGEN.MIX", 0, true))		return false;
+		if (!LoadMixFile("CONQUER.MIX", 0, true))	return false;
+
+		//MARBLE should be ahead of normal theater mixes
+		FString FullPath = CFinalSunApp::ExePath();
+		FullPath += "\\MARBLE.MIX";
+		int result = manager.LoadMixFile(FullPath, "ra2");
+		if (result)
+		{
+			Logger::Raw("[MixLoader] %04d - %s loaded.\n", index++, FullPath);
+			CFinalSunApp::Instance->MarbleLoaded = TRUE;
+		}
+		else
+		{
+			if (LoadMixFile("MARBLE.MIX"))
+				CFinalSunApp::Instance->MarbleLoaded = TRUE;
+			else
+			{
+				CFinalSunApp::Instance->MarbleLoaded = FALSE;
+				FString pMessage = Translations::TranslateOrDefault("MarbleMadnessNotLoaded",
+					"Failed to load marble.mix! Framework mode won't be able to use!");
+				::MessageBox(NULL, pMessage, Translations::TranslateOrDefault("Error", "Error"), MB_OK | MB_ICONEXCLAMATION);
+			}
+		}
+
+
+		// Init_Theaters
+		LoadMixFile("TEMPERATMD.MIX", 0, true);
+		LoadMixFile("ISOTEMMD.MIX", 0, true);
+		LoadMixFile("TEMPERAT.MIX", 0, true);
+		LoadMixFile("ISOTEMP.MIX", 0, true);
+		LoadMixFile("TEM.MIX", 0, true);
+
+		LoadMixFile("SNOWMD.MIX", 0, true);
+		LoadMixFile("ISOSNOMD.MIX", 0, true);
+		LoadMixFile("SNOW.MIX", 0, true);
+		LoadMixFile("ISOSNOW.MIX", 0, true);
+		LoadMixFile("ISOSNO.MIX", 0, true);
+		LoadMixFile("SNO.MIX", 0, true);
+
+		LoadMixFile("URBANMD.MIX", 0, true);
+		LoadMixFile("ISOURBMD.MIX", 0, true);
+		LoadMixFile("URBAN.MIX", 0, true);
+		LoadMixFile("ISOURB.MIX", 0, true);
+		LoadMixFile("URB.MIX", 0, true);
+
+		LoadMixFile("DESERT.MIX", 0, true);
+		LoadMixFile("ISODES.MIX", 0, true);
+		LoadMixFile("ISODESMD.MIX", 0, true);
+		LoadMixFile("DES.MIX", 0, true);
+		LoadMixFile("DESERTMD.MIX", 0, true);
+
+		LoadMixFile("URBANNMD.MIX", 0, true);
+		LoadMixFile("ISOUBNMD.MIX", 0, true);
+		LoadMixFile("URBANN.MIX", 0, true);
+		LoadMixFile("ISOUBN.MIX", 0, true);
+		LoadMixFile("UBN.MIX", 0, true);
+
+		LoadMixFile("LUNARMD.MIX", 0, true);
+		LoadMixFile("ISOLUNMD.MIX", 0, true);
+		LoadMixFile("LUNAR.MIX", 0, true);
+		LoadMixFile("ISOLUN.MIX", 0, true);
+		LoadMixFile("LUN.MIX", 0, true);
+
+		LoadMixFile("LANGMD.MIX", 0, true);
+		LoadMixFile("LANGUAGE.MIX", 0, true);
 	}
 
 
-	// Init_Theaters
-	LoadMixFile("TEMPERATMD.MIX", 0, true);
-	LoadMixFile("ISOTEMMD.MIX", 0, true);
-	LoadMixFile("TEMPERAT.MIX", 0, true);
-	LoadMixFile("ISOTEMP.MIX", 0, true);
-	LoadMixFile("TEM.MIX", 0, true);
-	
-	LoadMixFile("SNOWMD.MIX", 0, true);
-	LoadMixFile("ISOSNOMD.MIX", 0, true);
-	LoadMixFile("SNOW.MIX", 0, true);
-	LoadMixFile("ISOSNOW.MIX", 0, true);
-	LoadMixFile("ISOSNO.MIX", 0, true);
-	LoadMixFile("SNO.MIX", 0, true);
-
-	LoadMixFile("URBANMD.MIX", 0, true);
-	LoadMixFile("ISOURBMD.MIX", 0, true);
-	LoadMixFile("URBAN.MIX", 0, true);
-	LoadMixFile("ISOURB.MIX", 0, true);
-	LoadMixFile("URB.MIX", 0, true);
-
-	LoadMixFile("DESERT.MIX", 0, true);
-	LoadMixFile("ISODES.MIX", 0, true);
-	LoadMixFile("ISODESMD.MIX", 0, true);
-	LoadMixFile("DES.MIX", 0, true);
-	LoadMixFile("DESERTMD.MIX", 0, true);
-
-	LoadMixFile("URBANNMD.MIX", 0, true);
-	LoadMixFile("ISOUBNMD.MIX", 0, true);
-	LoadMixFile("URBANN.MIX", 0, true);
-	LoadMixFile("ISOUBN.MIX", 0, true);
-	LoadMixFile("UBN.MIX", 0, true);
-
-	LoadMixFile("LUNARMD.MIX", 0, true);
-	LoadMixFile("ISOLUNMD.MIX", 0, true);
-	LoadMixFile("LUNAR.MIX", 0, true);
-	LoadMixFile("ISOLUN.MIX", 0, true);
-	LoadMixFile("LUN.MIX", 0, true);
-
-	LoadMixFile("LANGMD.MIX", 0, true);
-	LoadMixFile("LANGUAGE.MIX", 0, true);
-	
 	return true;
 }

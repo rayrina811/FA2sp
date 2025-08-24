@@ -188,6 +188,26 @@ DEFINE_HOOK(48028D, CLoading_LoadTSINI_PackageSupport, 5)
         }
     }
 
+    auto& manager = MixLoader::Instance();
+    size_t sizeM = 0;
+    auto result = manager.LoadFile(filename, &sizeM);
+    if (result && sizeM > 0)
+    {
+        FString out_path = CFinalSunApp::Instance->FilePath();
+        out_path += "\\FinalSun";
+        out_path += filename;
+
+        std::ofstream fout(out_path, std::ios::binary);
+        if (fout.is_open())
+        {
+            fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(sizeM));
+            fout.close();
+
+            // load as a mix ini
+            return 0x480337;
+        }
+    }
+
     return 0;
 }
 
@@ -340,6 +360,22 @@ DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
                 if (fout.is_open())
                 {
                     fout.write(reinterpret_cast<const char*>(data.get()), static_cast<std::streamsize>(size));
+                    fout.close();
+                    copied = true;
+                }
+            }
+        }        
+        if (!copied)
+        {
+            auto& manager = MixLoader::Instance();
+            size_t size = 0;
+            auto result = manager.LoadFile(fileName, &size);
+            if (result && size > 0)
+            {
+                std::ofstream fout(path, std::ios::binary);
+                if (fout.is_open())
+                {
+                    fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(size));
                     fout.close();
                     copied = true;
                 }

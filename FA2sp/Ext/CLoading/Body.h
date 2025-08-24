@@ -320,3 +320,53 @@ public:
 private:
 	std::vector<std::unique_ptr<ResourcePack>> packs;
 };
+
+struct MixEntry {
+	uint32_t id;
+	int64_t offset;
+	int64_t size;
+};
+
+struct MixFile {
+	std::string path;
+	std::ifstream stream;
+	std::vector<MixEntry> entries;
+	bool isNested = false; 
+	int64_t baseOffset = 0;
+};
+
+class MixLoader {
+public:
+	static MixLoader& Instance();
+
+	MixLoader(const MixLoader&) = delete;
+	MixLoader& operator=(const MixLoader&) = delete;
+
+	void SetDLL(HMODULE h);
+	bool LoadTopMix(const std::string& path, const std::string& game);
+	bool LoadNestedMix(MixFile& parent, const MixEntry& entry, const std::string& game);
+	bool LoadMixFile(const std::string& path, const std::string& game, int* parentIndex = nullptr);
+	int QueryFileIndex(const std::string& fileName, int mixIdx = -1);
+	std::unique_ptr<uint8_t[]> LoadFile(const std::string& fileName, size_t* outSize, int mixIdx = -1);
+	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);
+	void Clear();
+
+	static uint32_t GetFileID(const char* lpFileName);
+
+private:
+	MixLoader() = default;
+	~MixLoader() = default;
+
+	typedef char* (__cdecl* GetMixInfoFunc)(char*, char*, int*);
+	typedef char* (__cdecl* GetMixInfoFromRangeFunc)(char*, char*, long long, long long, int*);
+	typedef void(__cdecl* FreeMixMemFunc)(char*);
+
+	HMODULE hDLL = nullptr;
+	GetMixInfoFunc GetMixInfo = nullptr;
+	GetMixInfoFromRangeFunc GetMixInfoFromRange = nullptr;
+	FreeMixMemFunc FreeMixMem = nullptr;
+
+	std::vector<MixFile> mixFiles;
+
+	static std::vector<MixEntry> parseMixInfoRaw(const char* raw, int rawLen);
+};

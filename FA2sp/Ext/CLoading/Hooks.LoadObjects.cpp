@@ -223,6 +223,14 @@ DEFINE_HOOK(48DBB0, CLoading_InitTMPs_ReadFolder, E)
         return 0x48DC52;
     }
 
+    auto& manager = MixLoader::Instance();
+    size_t sizeM = 0;
+    auto result = manager.LoadFile(lpFilename, &sizeM);
+    if (result && sizeM > 0)
+    {
+        return 0x48DC52;
+    }
+
     if (CINI::CurrentTheater == &CINI::NewUrban)
         return 0x48DBC0;
 
@@ -249,6 +257,15 @@ DEFINE_HOOK(48E5C5, CLoading_LoadTile_ReadFolder, 8)
     size_t size = 0;
     auto data = ResourcePackManager::instance().getFileData(lpFilename, &size);
     if (data && size > 0)
+    {
+        R->EDI(0);
+        return 0x48E5CD;
+    }
+
+    auto& manager = MixLoader::Instance();
+    size_t sizeM = 0;
+    auto result = manager.LoadFile(lpFilename, &sizeM);
+    if (result && sizeM > 0)
     {
         R->EDI(0);
         return 0x48E5CD;
