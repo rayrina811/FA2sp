@@ -1566,7 +1566,22 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
                 y2 = coord.Y;
         }
     }
-    CMapData::Instance->SaveUndoRedoData(true, x1 - 1, y1 - 1, x2 + 2, y2 + 2);
+    std::vector<std::pair<std::vector<FString>, float>> smudges;
+    for (const auto& group : CurrentPreset->Smudges) {
+        smudges.push_back(std::make_pair(group.Items, group.Chance));
+    }
+    std::vector<std::pair<std::vector<FString>, float>> terrains;
+    for (const auto& group : CurrentPreset->TerrainTypes) {
+        terrains.push_back(std::make_pair(group.Items, group.Chance));
+    }
+
+    int recordType = 0;
+    if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1))
+        recordType |= ObjectRecord::RecordType::Terrain;
+    if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3))
+        recordType |= ObjectRecord::RecordType::Smudge;
+
+    CMapDataExt::MakeMixedRecord(x1 - 4, y1 - 4, x2 + 5, y2 + 5, recordType);
 
     std::vector<std::pair<std::vector<int>, float>> tiles;
     for (const auto& group : CurrentPreset->TileSets) {
@@ -1584,18 +1599,10 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, onlyClear);
     }
 
-    std::vector<std::pair<std::vector<FString>, float>> terrains;
-    for (const auto& group : CurrentPreset->TerrainTypes) {
-        terrains.push_back(std::make_pair(group.Items, group.Chance));
-    }
     if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1)) {
         CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, onlyClear);
     }
 
-    std::vector<std::pair<std::vector<FString>, float>> smudges;
-    for (const auto& group : CurrentPreset->Smudges) {
-        smudges.push_back(std::make_pair(group.Items, group.Chance));
-    }
     if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3)) {
         CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear);
     }

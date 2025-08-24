@@ -1762,20 +1762,20 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	}
 }
 
-void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer)
+void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer, bool clip)
 {
 	if (ExtConfigs::LoadImageDataFromServer && toServer)
 	{
 		ImageDataClassSafe tmp;
 		SetImageDataSafe(pBuffer, &tmp, FullWidth, FullHeight, pPal);
-		TrimImageEdges(&tmp);
+		if (clip) TrimImageEdges(&tmp);
 		CLoadingExt::SendImageToServer(NameInDict, &tmp);
 	}
 	else
 	{
 		auto pData = CLoadingExt::GetImageDataFromMap(NameInDict);
 		SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
-		TrimImageEdges(pData);
+		if (clip) TrimImageEdges(pData);
 	}
 }
 
@@ -2860,7 +2860,7 @@ void CLoadingExt::LoadOverlay(FString pRegName, int nIndex)
 
 				CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
 				FString DictName = GetOverlayName(nIndex, i);
-				SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, palette);
+				SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, palette, true, false);
 
 				if (ExtConfigs::InGameDisplay_Shadow && (i < header.FrameCount / 2))
 				{

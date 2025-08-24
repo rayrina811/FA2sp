@@ -115,7 +115,8 @@ public:
 	static bool LoadShpToBitmap(ImageDataClass* pData, CBitmap& outBitmap);
 	static void LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header);
 	static void LoadBitMap(FString ImageID, const CBitmap& cBitmap);
-	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool toServer = true);
+	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, 
+		int FullWidth, int FullHeight, Palette* pPal, bool toServer = true, bool clip = true);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
 	// returns the mix index, -1 for in folder / pack, -2 for not found
 	int HasFileMix(FString filename, int nMix = -114);

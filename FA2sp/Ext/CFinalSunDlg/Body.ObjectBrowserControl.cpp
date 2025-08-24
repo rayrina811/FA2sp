@@ -2119,6 +2119,11 @@ void CViewObjectsExt::ModifyOre(int X, int Y)
         };
     if (CMapDataExt::IsOre(ovr))
     {
+        if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
+        {
+            CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
+            pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
+        }
         if (CIsoView::CurrentCommand->Type == 0)
         {
             setOreDataAt(X, Y, ovrd + 1);
