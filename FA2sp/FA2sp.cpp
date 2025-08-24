@@ -168,6 +168,7 @@ bool ExtConfigs::FlatToGroundHideExtra;
 bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
+bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
 bool ExtConfigs::LoadImageDataFromServer;
 bool ExtConfigs::UseNewToolBarCameo;
 bool ExtConfigs::EnableVisualStyle;
@@ -178,6 +179,7 @@ bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
+bool ExtConfigs::AVX2_Support;
 ppmfc::CString ExtConfigs::CloneWithOrderedID_Digits;
 ppmfc::CString ExtConfigs::NewTriggerPlusID_Digits;
 ppmfc::CString ExtConfigs::Waypoint_SkipCheckList;
@@ -299,7 +301,8 @@ void FA2sp::ExtConfigsInitialize()
 
 
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
-	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear");
+	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
+	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
 	ExtConfigs::LoadImageDataFromServer = CINI::FAData->GetBool("ExtConfigs", "LoadImageDataFromServer");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
@@ -1085,18 +1088,25 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DDrawScalingBilinear.OnlyShrink", "Use bilinear scaling only in shrinking"),
+		.IniKey = "DDrawScalingBilinear.OnlyShrink",
+		.Value = &ExtConfigs::DDrawScalingBilinear_OnlyShrink,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.LoadImageDataFromServer", "Load images from independent server (not rec., unless memory shortage)"),
 		.IniKey = "LoadImageDataFromServer",
 		.Value = &ExtConfigs::LoadImageDataFromServer,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
-		.IniKey = "StringBufferStackAllocation",
-		.Value = &ExtConfigs::StringBufferStackAllocation,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
+	//	.IniKey = "StringBufferStackAllocation",
+	//	.Value = &ExtConfigs::StringBufferStackAllocation,
+	//	.Type = ExtConfigs::SpecialOptionType::None
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),
@@ -1143,6 +1153,8 @@ DEFINE_HOOK(537129, ExeRun, 9)
 
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());
+
+	ExtConfigs::AVX2_Support = InstructionSet::AVX2();
 
 	if (DetachFromDebugger())
 		Logger::Info("Syringe detached!\n");

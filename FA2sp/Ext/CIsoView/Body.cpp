@@ -16,6 +16,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
+#include <emmintrin.h>
 
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
@@ -129,6 +130,17 @@ static bool TilePixels[1800] =
         false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
         false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
 };
+
+static BYTE alphaBlendTable[256][256];
+
+void CIsoViewExt::InitAlphaTable() {
+    for (int i = 0; i < 256; i++) {
+        for (int j = 0; j < 256; j++) {
+            alphaBlendTable[i][j] = static_cast<BYTE>((i * j) >> 8);
+        }
+    }
+}
+
 
 void CIsoViewExt::ProgramStartupInit()
 {
@@ -2081,137 +2093,139 @@ IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitm
 
 void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha, LPDIRECTDRAWSURFACE7 surface)
 {
-    auto pThis = CIsoView::GetInstance();
-    if (pic == NULL) return;
+    // 0. 初始检查
+    if (!pic || alpha == 0) {
+        return;
+    }
 
-    RECT r;
-    if (surface == nullptr)
-    {
-        r = CIsoViewExt::GetScaledWindowRect();
+    // 1. 初始化常量和偏移
+    const int X_OFFSET = 1;
+    const int Y_OFFSET = -29;
+    const int BPP = 4; // 假设 32 位颜色深度
+
+    auto pThis = CIsoView::GetInstance();
+    RECT windowRect;
+    if (!surface) {
+        windowRect = CIsoViewExt::GetScaledWindowRect();
         surface = pThis->lpDDBackBufferSurface;
     }
-    else if (surface == pThis->lpDDBackBufferSurface)
-    {
-        r = CIsoViewExt::GetScaledWindowRect();
+    else if (surface == pThis->lpDDBackBufferSurface) {
+        windowRect = CIsoViewExt::GetScaledWindowRect();
     }
-    else
-    {
-        pThis->GetWindowRect(&r);
+    else {
+        pThis->GetWindowRect(&windowRect);
     }
 
-    x += 1;
-    y += 1;
-    y -= 30;
+    x += X_OFFSET;
+    y += Y_OFFSET;
 
-
-    if (width == -1 || height == -1)
-    {
-        DDSURFACEDESC2 ddsd;
-        memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
-        ddsd.dwSize = sizeof(DDSURFACEDESC2);
-        ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-        pic->GetSurfaceDesc(&ddsd);
+    // 2. 获取表面尺寸
+    if (width == -1 || height == -1) {
+        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
+        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
+            return;
+        }
         width = ddsd.dwWidth;
         height = ddsd.dwHeight;
     }
 
-    if (x + width < 0 || y + height < 0) return;
-    if (x > r.right || y > r.bottom) return;
-
-    RECT blrect;
-    RECT srcRect = { 0, 0, width, height };
-    blrect.left = x;
-    blrect.top = y;
-    blrect.right = x + width;
-    blrect.bottom = y + height;
-
-    if (blrect.left < 0)
-    {
-        srcRect.left = -blrect.left;
-        blrect.left = 0;
-    }
-    if (blrect.top < 0)
-    {
-        srcRect.top = -blrect.top;
-        blrect.top = 0;
-    }
-    if (blrect.right > r.right)
-    {
-        srcRect.right = width - (blrect.right - r.right);
-        blrect.right = r.right;
-    }
-    if (blrect.bottom > r.bottom)
-    {
-        srcRect.bottom = height - (blrect.bottom - r.bottom);
-        blrect.bottom = r.bottom;
-    }
-
-    DDSURFACEDESC2 destDesc, srcDesc;
-    memset(&destDesc, 0, sizeof(DDSURFACEDESC2));
-    destDesc.dwSize = sizeof(DDSURFACEDESC2);
-    memset(&srcDesc, 0, sizeof(DDSURFACEDESC2));
-    srcDesc.dwSize = sizeof(DDSURFACEDESC2);
-
-    if (surface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
+    // 3. 边界检查（与原始代码一致）
+    if (x + width < 0 || y + height < 0) {
         return;
+    }
+    if (x > windowRect.right || y > windowRect.bottom) {
+        return;
+    }
 
-    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
-    {
+    // 4. 计算源和目标矩形（与原始代码一致）
+    RECT srcRect = { 0, 0, width, height };
+    RECT destRect = { x, y, x + width, y + height };
+    if (destRect.left < 0) {
+        srcRect.left = -destRect.left;
+        destRect.left = 0;
+    }
+    if (destRect.top < 0) {
+        srcRect.top = -destRect.top;
+        destRect.top = 0;
+    }
+    if (destRect.right > windowRect.right) {
+        srcRect.right = width - (destRect.right - windowRect.right);
+        destRect.right = windowRect.right;
+    }
+    if (destRect.bottom > windowRect.bottom) {
+        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
+        destRect.bottom = windowRect.bottom;
+    }
+
+    // 5. 锁定表面
+    DDSURFACEDESC2 destDesc = { sizeof(DDSURFACEDESC2) };
+    DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
+    if (surface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
+        return;
+    }
+    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
         surface->Unlock(NULL);
         return;
     }
 
+    // 6. 获取颜色键
     DDCOLORKEY colorKey;
-    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK)
-    {
+    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK) {
         pic->Unlock(NULL);
         surface->Unlock(NULL);
         return;
     }
-
     DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
     DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
 
-    BYTE* destPixels = (BYTE*)destDesc.lpSurface;
-    BYTE* srcPixels = (BYTE*)srcDesc.lpSurface;
+    // 8. 计算基地址
+    BYTE* destPixels = static_cast<BYTE*>(destDesc.lpSurface);
+    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
     int destPitch = destDesc.lPitch;
     int srcPitch = srcDesc.lPitch;
-
-    int maxDestY = destDesc.dwHeight;
     int maxDestX = destDesc.dwWidth;
-    int maxSrcY = srcDesc.dwHeight;
-    int maxSrcX = srcDesc.dwWidth;
+    int maxDestY = destDesc.dwHeight;
 
-    for (int j = 0; j < srcRect.bottom - srcRect.top; ++j)
-    {
-        if (y + j < 0 || y + j >= maxDestY) continue; 
-        for (int i = 0; i < srcRect.right - srcRect.left; ++i)
-        {
-            if (x + i < 0 || x + i >= maxDestX) continue;
+    // 9. 像素绘制循环
+    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
+        LONG dy = destRect.top + row;
+        if (dy < 0 || dy >= maxDestY) {
+            continue;
+        }
 
-            int destIndex = (y + j) * destPitch + (x + i) * 4;
-            int srcIndex = j * srcPitch + i * 4;
-
-            if (srcIndex < 0 || srcIndex >= maxSrcY * srcPitch || destIndex < 0 || destIndex >= maxDestY * destPitch)
+        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
+        BYTE* srcLine = srcPixels + row * srcPitch;
+        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
+            LONG dx = destRect.left + col;
+            if (dx < 0 || dx >= maxDestX) {
                 continue;
+            }
 
-            DWORD srcColor = *(DWORD*)(srcPixels + srcIndex);
-            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh)
-                continue; 
+            int srcIndex = col * BPP;
+            int destIndex = col * BPP;
+            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
+            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
+                continue;
+            }
 
-            BYTE srcR = srcPixels[srcIndex + 2];
-            BYTE srcG = srcPixels[srcIndex + 1];
-            BYTE srcB = srcPixels[srcIndex];
+            BYTE* destPtr = destLine + destIndex;
+            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
+                BYTE srcR = srcLine[srcIndex + 2];
+                BYTE srcG = srcLine[srcIndex + 1];
+                BYTE srcB = srcLine[srcIndex];
+                BYTE destR = destPtr[2];
+                BYTE destG = destPtr[1];
+                BYTE destB = destPtr[0];
 
-            BYTE destR = destPixels[destIndex + 2];
-            BYTE destG = destPixels[destIndex + 1];
-            BYTE destB = destPixels[destIndex];
-
-            destPixels[destIndex + 2] = (srcR * alpha + destR * (255 - alpha)) / 255;
-            destPixels[destIndex + 1] = (srcG * alpha + destG * (255 - alpha)) / 255;
-            destPixels[destIndex] = (srcB * alpha + destB * (255 - alpha)) / 255;
+                // Alpha 混合使用预计算表
+                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+            }
         }
     }
+
+    // 10. 解锁表面
     pic->Unlock(NULL);
     surface->Unlock(NULL);
 }
@@ -2219,122 +2233,115 @@ void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int wi
 void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
     int x, int y, int width, int height, BYTE alpha)
 {
+    if (!pic || !pDestDesc || alpha == 0) {
+        return;
+    }
+
+    const int X_OFFSET = 1;
+    const int Y_OFFSET = -29;
+    const int BPP = 4; 
+
     auto pThis = CIsoView::GetInstance();
-    if (pic == NULL || pDestDesc == NULL) return;
-
-    RECT r;
-    if (surface == pThis->lpDDBackBufferSurface)
-    {
-        r = CIsoViewExt::GetScaledWindowRect();
+    RECT windowRect;
+    if (surface == pThis->lpDDBackBufferSurface) {
+        windowRect = CIsoViewExt::GetScaledWindowRect();
     }
-    else
-    {
-        pThis->GetWindowRect(&r);
+    else {
+        pThis->GetWindowRect(&windowRect);
     }
 
-    x += 1;
-    y += 1;
-    y -= 30;
+    x += X_OFFSET;
+    y += Y_OFFSET;
 
-    if (width == -1 || height == -1)
-    {
-        DDSURFACEDESC2 ddsd;
-        memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
-        ddsd.dwSize = sizeof(DDSURFACEDESC2);
-        ddsd.dwFlags = DDSD_WIDTH | DDSD_HEIGHT;
-        pic->GetSurfaceDesc(&ddsd);
+    if (width == -1 || height == -1) {
+        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
+        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
+            return;
+        }
         width = ddsd.dwWidth;
         height = ddsd.dwHeight;
     }
 
-    if (x + width < 0 || y + height < 0) return;
-    if (x > r.right || y > r.bottom) return;
+    if (x + width < 0 || y + height < 0) {
+        return;
+    }
+    if (x > windowRect.right || y > windowRect.bottom) {
+        return;
+    }
 
-    RECT blrect;
     RECT srcRect = { 0, 0, width, height };
-    blrect.left = x;
-    blrect.top = y;
-    blrect.right = x + width;
-    blrect.bottom = y + height;
-
-    if (blrect.left < 0)
-    {
-        srcRect.left = -blrect.left;
-        blrect.left = 0;
+    RECT destRect = { x, y, x + width, y + height };
+    if (destRect.left < 0) {
+        srcRect.left = -destRect.left;
+        destRect.left = 0;
     }
-    if (blrect.top < 0)
-    {
-        srcRect.top = -blrect.top;
-        blrect.top = 0;
+    if (destRect.top < 0) {
+        srcRect.top = -destRect.top;
+        destRect.top = 0;
     }
-    if (blrect.right > r.right)
-    {
-        srcRect.right = width - (blrect.right - r.right);
-        blrect.right = r.right;
+    if (destRect.right > windowRect.right) {
+        srcRect.right = width - (destRect.right - windowRect.right);
+        destRect.right = windowRect.right;
     }
-    if (blrect.bottom > r.bottom)
-    {
-        srcRect.bottom = height - (blrect.bottom - r.bottom);
-        blrect.bottom = r.bottom;
+    if (destRect.bottom > windowRect.bottom) {
+        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
+        destRect.bottom = windowRect.bottom;
     }
 
-    DDSURFACEDESC2 srcDesc;
-    memset(&srcDesc, 0, sizeof(DDSURFACEDESC2));
-    srcDesc.dwSize = sizeof(DDSURFACEDESC2);
-
-    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK)
-    {
+    DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
+    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
         return;
     }
 
     DDCOLORKEY colorKey;
-    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK)
-    {
+    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK) {
         pic->Unlock(NULL);
         return;
     }
-
     DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
     DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
 
-    BYTE* destPixels = (BYTE*)pDestDesc->lpSurface;
-    BYTE* srcPixels = (BYTE*)srcDesc.lpSurface;
+    BYTE* destPixels = static_cast<BYTE*>(pDestDesc->lpSurface);
+    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
     int destPitch = pDestDesc->lPitch;
     int srcPitch = srcDesc.lPitch;
-
-    int maxDestY = pDestDesc->dwHeight;
     int maxDestX = pDestDesc->dwWidth;
-    int maxSrcY = srcDesc.dwHeight;
-    int maxSrcX = srcDesc.dwWidth;
+    int maxDestY = pDestDesc->dwHeight;
 
-    for (int j = 0; j < srcRect.bottom - srcRect.top; ++j)
-    {
-        if (y + j < 0 || y + j >= maxDestY) continue;
-        for (int i = 0; i < srcRect.right - srcRect.left; ++i)
-        {
-            if (x + i < 0 || x + i >= maxDestX) continue;
+    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
+        LONG dy = destRect.top + row;
+        if (dy < 0 || dy >= maxDestY) {
+            continue;
+        }
 
-            int destIndex = (y + j) * destPitch + (x + i) * 4;
-            int srcIndex = j * srcPitch + i * 4;
-
-            if (srcIndex < 0 || srcIndex >= maxSrcY * srcPitch || destIndex < 0 || destIndex >= maxDestY * destPitch)
+        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
+        BYTE* srcLine = srcPixels + row * srcPitch;
+        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
+            LONG dx = destRect.left + col;
+            if (dx < 0 || dx >= maxDestX) {
                 continue;
+            }
 
-            DWORD srcColor = *(DWORD*)(srcPixels + srcIndex);
-            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh)
+            int srcIndex = col * BPP;
+            int destIndex = col * BPP;
+            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
+            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
                 continue;
+            }
 
-            BYTE srcR = srcPixels[srcIndex + 2];
-            BYTE srcG = srcPixels[srcIndex + 1];
-            BYTE srcB = srcPixels[srcIndex];
+            BYTE* destPtr = destLine + destIndex;
+            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
+                BYTE srcR = srcLine[srcIndex + 2];
+                BYTE srcG = srcLine[srcIndex + 1];
+                BYTE srcB = srcLine[srcIndex];
+                BYTE destR = destPtr[2];
+                BYTE destG = destPtr[1];
+                BYTE destB = destPtr[0];
 
-            BYTE destR = destPixels[destIndex + 2];
-            BYTE destG = destPixels[destIndex + 1];
-            BYTE destB = destPixels[destIndex];
-
-            destPixels[destIndex + 2] = (srcR * alpha + destR * (255 - alpha)) / 255;
-            destPixels[destIndex + 1] = (srcG * alpha + destG * (255 - alpha)) / 255;
-            destPixels[destIndex] = (srcB * alpha + destB * (255 - alpha)) / 255;
+                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
+                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
+                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
+            }
         }
     }
 
@@ -2344,23 +2351,20 @@ void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURF
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
 {
-    if (alpha == 0) return;
-    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-    x += 31;
-    y -= 29;
-    int bpp = 4;
-
-    if (newPal == NULL) {
-        newPal = pd->pPalette;
-    }
-
-    BYTE* src = (BYTE*)pd->pImageBuffer;
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (src == NULL || dst == NULL) {
+    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
         return;
     }
+
+    const int X_OFFSET = 31;
+    const int Y_OFFSET = -29;
+    const int BPP = 4;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer);
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
 
     if (x + swidth < window.left || y + sheight < window.top) {
         return;
@@ -2369,113 +2373,100 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
-    RECT blrect;
-    RECT srcRect;
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    blrect.left = x;
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT destRect = { x, y, x + swidth, y + sheight };
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    blrect.top = y;
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
-    blrect.right = (x + swidth);
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
-    blrect.bottom = (y + sheight);
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
     }
 
-    int i, e;
+    if (!newPal) {
+        newPal = pd->pPalette;
+    }
     bool isMultiSelected = false;
-    if (extraLightType == -10 || extraLightType >= 500)
-    {
+    if (extraLightType == -10 || extraLightType >= 500) {
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (extraLightType >= 500)
-        {
+        if (extraLightType >= 500) {
             int overlay = extraLightType - 500;
-            if (
-            overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
+            if (overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
                 overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
                 overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
                 (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
-                (overlay >= 0xCD && overlay <= 0xEC) // LOBRDGB 1-4
-                )
+                (overlay >= 0xCD && overlay <= 0xEC)) { // LOBRDGB 1-4
                 isMultiSelected = MultiSelection::IsSelected(
                     CIsoViewExt::CurrentDrawCellLocation.X + 1,
                     CIsoViewExt::CurrentDrawCellLocation.Y + 1);
+            }
         }
     }
 
     BGRStruct color;
-    auto pRGB = (ColorStruct*)&houseColor;
+    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
     color.R = pRGB->red;
     color.G = pRGB->green;
     color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
-    {
-        if (extraLightType >= 500)
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
+        if (extraLightType >= 500) {
             newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-        else
+        }
+        else {
             newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+        }
     }
-    else
+    else {
         newPal = PalettesManager::GetPalette(newPal, color, remap);
+    }
 
+    BYTE* srcBase = src;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
-    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
-
-    for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = pd->pPixelValidRanges[e].First;
-        int right = pd->pPixelValidRanges[e].Last;
-
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = pd->pPixelValidRanges[row].First;
+        LONG right = pd->pPixelValidRanges[row].Last;
         if (left < srcRect.left) {
             left = srcRect.left;
         }
         if (right >= srcRect.right) {
             right = srcRect.right - 1;
         }
+        if (left > right) {
+            continue;
+        }
 
-        for (i = left; i <= right; i++) {
-            if (blrect.left + i < 0) {
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+            if (destRect.left + col < 0) {
                 continue;
             }
 
-            const int spos = i + e * swidth;
-            BYTE val = src[spos];
-
-            if (val) {
-                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
-
-                if (dest >= dst) {
-                    BGRStruct c = newPal->Data[val];
-                    if (dest + bpp < surfaceEnd) {
-                        if (alpha < 255)
-                        {
-                            BGRStruct oriColor = *(BGRStruct*)dest;
-                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
-                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
-                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
-                        }
-                        if (isMultiSelected)
-                        {
-                            c.B = (c.B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-                            c.G = (c.G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-                            c.R = (c.R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-                        }
-                        memcpy(dest, &c, bpp);
-                    }
+            BYTE pixelValue = *srcPtr;
+            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
+                BGRStruct c = newPal->Data[pixelValue];
+                if (alpha < 255) {
+                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
+                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
+                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
+                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
+                if (isMultiSelected) {
+                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
+                    c.B = (c.B * 2 + selColor->B) / 3;
+                    c.G = (c.G * 2 + selColor->G) / 3;
+                    c.R = (c.R * 2 + selColor->R) / 3;
+                }
+                memcpy(destPtr, &c, BPP);
             }
         }
     }
@@ -2484,23 +2475,20 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
 {
-    if (alpha == 0) return;
-    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-    x += 31;
-    y -= 29;
-    int bpp = 4;
-
-    if (newPal == NULL) {
-        newPal = pd->pPalette;
-    }
-
-    BYTE* src = (BYTE*)pd->pImageBuffer.get();
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (src == NULL || dst == NULL) {
+    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
         return;
     }
+
+    const int X_OFFSET = 31;
+    const int Y_OFFSET = -29;
+    const int BPP = 4;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
 
     if (x + swidth < window.left || y + sheight < window.top) {
         return;
@@ -2509,101 +2497,100 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
-    RECT blrect;
-    RECT srcRect;
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    blrect.left = x;
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT destRect = { x, y, x + swidth, y + sheight };
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    blrect.top = y;
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
-    blrect.right = (x + swidth);
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
-    blrect.bottom = (y + sheight);
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
     }
 
-    int i, e;
+    if (!newPal) {
+        newPal = pd->pPalette;
+    }
     bool isMultiSelected = false;
-    if (extraLightType == -10 || extraLightType >= 500)
-    {
+    if (extraLightType == -10 || extraLightType >= 500) {
         isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+        if (extraLightType >= 500) {
+            int overlay = extraLightType - 500;
+            if (overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
+                overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
+                overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
+                (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
+                (overlay >= 0xCD && overlay <= 0xEC)) { // LOBRDGB 1-4
+                isMultiSelected = MultiSelection::IsSelected(
+                    CIsoViewExt::CurrentDrawCellLocation.X + 1,
+                    CIsoViewExt::CurrentDrawCellLocation.Y + 1);
+            }
+        }
     }
 
     BGRStruct color;
-    auto pRGB = (ColorStruct*)&houseColor;
+    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
     color.R = pRGB->red;
     color.G = pRGB->green;
     color.B = pRGB->blue;
-    if (extraLightType != -11)
-    {
-        if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
-        {
-            if (extraLightType >= 500)
-                newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-            else
-                newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
+        if (extraLightType >= 500) {
+            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
         }
-        else
-            newPal = PalettesManager::GetPalette(newPal, color, remap);
-    }   
+        else {
+            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+        }
+    }
+    else {
+        newPal = PalettesManager::GetPalette(newPal, color, remap);
+    }
 
-    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+    BYTE* srcBase = src;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
-    for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = pd->pPixelValidRanges[e].First;
-        int right = pd->pPixelValidRanges[e].Last;
-
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = pd->pPixelValidRanges[row].First;
+        LONG right = pd->pPixelValidRanges[row].Last;
         if (left < srcRect.left) {
             left = srcRect.left;
         }
         if (right >= srcRect.right) {
             right = srcRect.right - 1;
         }
+        if (left > right) {
+            continue;
+        }
 
-        for (i = left; i <= right; i++) {
-            if (blrect.left + i < 0) {
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+            if (destRect.left + col < 0) {
                 continue;
             }
 
-            const int spos = i + e * swidth;
-            BYTE val = src[spos];
-
-            if (val) {
-                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
-
-                if (dest >= dst) {
-                    BGRStruct c = newPal->Data[val];
-                    if (dest + bpp < surfaceEnd) {
-                        if (alpha < 255)
-                        {
-                            BGRStruct oriColor = *(BGRStruct*)dest;
-                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
-                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
-                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
-                        }
-                        if (isMultiSelected)
-                        {
-                            c.B = (c.B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-                            c.G = (c.G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-                            c.R = (c.R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-                        }
-                        memcpy(dest, &c, bpp);
-                    }
+            BYTE pixelValue = *srcPtr;
+            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
+                BGRStruct c = newPal->Data[pixelValue];
+                if (alpha < 255) {
+                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
+                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
+                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
+                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
+                if (isMultiSelected) {
+                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
+                    c.B = (c.B * 2 + selColor->B) / 3;
+                    c.G = (c.G * 2 + selColor->G) / 3;
+                    c.R = (c.R * 2 + selColor->R) / 3;
+                }
+                memcpy(destPtr, &c, BPP);
             }
         }
     }
@@ -2613,24 +2600,20 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
 {
-    if (alpha == 0) return;
-    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-
-    x += 31;
-    y -= 29;
-    int bpp = 4;
-
-    if (newPal == NULL) {
-        newPal = pd->pPalette;
-    }
-
-    BYTE* src = (BYTE*)pd->pImageBuffer.get();
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (src == NULL || dst == NULL) {
+    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
         return;
     }
+
+    const int X_OFFSET = 31;
+    const int Y_OFFSET = -29;
+    const int BPP = 4; 
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
 
     if (x + swidth < window.left || y + sheight < window.top) {
         return;
@@ -2639,87 +2622,73 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
         return;
     }
 
-    RECT blrect;
-    RECT srcRect;
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    blrect.left = x;
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT destRect = { x, y, x + swidth, y + sheight };
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    blrect.top = y;
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
-    blrect.right = (x + swidth);
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
-    blrect.bottom = (y + sheight);
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
     }
 
-    int i, e;
-
+    if (!newPal) {
+        newPal = pd->pPalette;
+    }
     BGRStruct color;
-    auto pRGB = (ColorStruct*)&houseColor;
+    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
     color.R = pRGB->red;
     color.G = pRGB->green;
     color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
-    {
+    if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
         newPal = PalettesManager::GetPalette(newPal, color, !isTerrain && !isRubble);
     }
-    else
-    {
+    else {
         newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
             CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
     }
 
-    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+    BYTE* srcBase = src;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
-    for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = pd->pPixelValidRanges[e].First;
-        int right = pd->pPixelValidRanges[e].Last;
-
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = pd->pPixelValidRanges[row].First;
+        LONG right = pd->pPixelValidRanges[row].Last;
         if (left < srcRect.left) {
             left = srcRect.left;
         }
         if (right >= srcRect.right) {
             right = srcRect.right - 1;
         }
+        if (left > right) {
+            continue;
+        }
 
-        for (i = left; i <= right; i++) {
-            if (blrect.left + i < 0) {
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+            if (destRect.left + col < 0) {
                 continue;
             }
 
-            const int spos = i + e * swidth;
-            BYTE val = src[spos];
-
-            if (val) {
-                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
-
-                if (dest >= dst) {
-                    BGRStruct c = newPal->Data[val];
-                    if (dest + bpp < surfaceEnd) {
-                        if (alpha < 255)
-                        {
-                            BGRStruct oriColor = *(BGRStruct*)dest;
-                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
-                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
-                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
-                        }
-                        memcpy(dest, &c, bpp);
-                    }
+            BYTE pixelValue = *srcPtr;
+            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
+                BGRStruct c = newPal->Data[pixelValue];
+                if (alpha < 255) {
+                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
+                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
+                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
+                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
+                memcpy(destPtr, &c, BPP);
             }
         }
     }
@@ -2728,19 +2697,20 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
 {
-    ASSERT(pd->Flag != ImageDataFlag::SurfaceData);
-
-    x += 31;
-    y -= 29;
-    int bpp = 4;
-
-    BYTE* src = (BYTE*)pd->pImageBuffer.get();
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (src == NULL || dst == NULL) {
+    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
         return;
     }
+
+    const int X_OFFSET = 31;
+    const int Y_OFFSET = -29;
+    const int BPP = 4; 
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
+    int swidth = pd->FullWidth;
+    int sheight = pd->FullHeight;
 
     if (x + swidth < window.left || y + sheight < window.top) {
         return;
@@ -2749,63 +2719,49 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
         return;
     }
 
-    RECT blrect;
-    RECT srcRect;
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    blrect.left = x;
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT destRect = { x, y, x + swidth, y + sheight };
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    blrect.top = y;
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
-    blrect.right = (x + swidth);
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
-    blrect.bottom = (y + sheight);
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
     }
 
-    int i, e;
+    BYTE* srcBase = src;
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = srcRect.left;
+        LONG right = srcRect.right - 1;
+        if (left > right) {
+            continue;
+        }
 
-    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
-
-    for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = srcRect.left;
-        int right = srcRect.right - 1;
-
-        for (i = left; i <= right; i++) {
-            if (blrect.left + i < 0) {
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+            if (destRect.left + col < 0) {
                 continue;
             }
 
-            const int spos = i + e * swidth;
-            BYTE val = src[spos];
-
-            if (val != 127) {
-                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
-
-                if (dest >= dst) {
-                    BGRStruct c;
-                    if (dest + bpp < surfaceEnd) {
-                        BGRStruct oriColor = *(BGRStruct*)dest;
-                        c.B = std::min(oriColor.B * val * 2 / 256, 255);
-                        c.G = std::min(oriColor.G * val * 2 / 256, 255);
-                        c.R = std::min(oriColor.R * val * 2 / 256, 255);
-                        memcpy(dest, &c, bpp);
-                    }
-                }
+            BYTE pixelValue = *srcPtr;
+            if (pixelValue != 127 && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
+                BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
+                BGRStruct c;
+                c.B = std::min(static_cast<int>(oriColor.B * pixelValue * 2 / 256), 255);
+                c.G = std::min(static_cast<int>(oriColor.G * pixelValue * 2 / 256), 255);
+                c.R = std::min(static_cast<int>(oriColor.R * pixelValue * 2 / 256), 255);
+                memcpy(destPtr, &c, BPP);
             }
         }
     }
@@ -2830,121 +2786,99 @@ void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, Imag
 void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha)
 {
-    if (alpha == 0) return;
+    if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
+        return;
+    }
 
-    int bpp = 4;
+    const int TILE_WIDTH = 60;
+    const int TILE_HEIGHT = 30;
+    const int X_OFFSET = 61;
+    const int Y_OFFSET = 1;
+    const int BPP = 4;
 
-    x += 61;
-    y += 1;
-    BYTE* src = (BYTE*)subTile->ImageData;
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
     int swidth = subTile->BlockWidth;
     int sheight = subTile->BlockHeight;
+    RECT srcRect = { 0, 0, swidth, sheight };
+    RECT destRect = { x, y, x + swidth, y + sheight };
 
-    if (src == NULL || dst == NULL) {
-        return;
-    }
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT blrect;
-    RECT srcRect;
     srcRect.left = 0;
     srcRect.top = 0;
     srcRect.right = swidth;
     srcRect.bottom = sheight;
-    blrect.left = x;
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
-        //blrect.left=1;
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    blrect.top = y;
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
-        //blrect.top=1;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
-    blrect.right = (x + swidth);
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
-    blrect.bottom = (y + sheight);
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
+    }
+
+    if (srcRect.right <= srcRect.left || srcRect.bottom <= srcRect.top) {
+        return;
     }
 
     Palette* newPal = pal;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
-    {
-        BGRStruct color;
-        newPal = PalettesManager::GetObjectPalette(newPal, color, false,
-            CIsoViewExt::CurrentDrawCellLocation);
+    BGRStruct color;
+    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
+        newPal = PalettesManager::GetObjectPalette(pal, color, false, CIsoViewExt::CurrentDrawCellLocation);
     }
-
     bool multiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
 
-    auto const surfaceEnd = (BYTE*)dst + boundary.dpitch * boundary.dwHeight;
+    BYTE* srcBase = static_cast<BYTE*>(subTile->ImageData);
+    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
+    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
 
-    // we haved banned the other condition
-    int i, e;
-    if (subTile->HasValidImage)
-    for (e = srcRect.top; e < srcRect.bottom; e++) {
-        int left = subTile->pPixelValidRanges[e].First;
-        int right = subTile->pPixelValidRanges[e].Last;
-
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = std::max((LONG)subTile->pPixelValidRanges[row].First, srcRect.left);
+        LONG right = std::min((LONG)subTile->pPixelValidRanges[row].Last, srcRect.right - 1);
+        if (left > right) {
+            continue;
         }
 
-        for (i = left; i <= right; i++) {
-            if (blrect.left + i < 0) {
-                continue;
-            }
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
 
-            if (ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround)
-            {
-                const int posInTile = i + subTile->XMinusExX + (e + subTile->YMinusExY) * 60;
-                if (i + subTile->XMinusExX < 0 ||
-                    i + subTile->XMinusExX >= 60 ||
-                    e + subTile->YMinusExY < 0 ||
-                    e + subTile->YMinusExY >= 30 ||
-                    !TilePixels[posInTile])
+        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
+            if (ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround) {
+                int posInTile = col + subTile->XMinusExX + (row + subTile->YMinusExY) * TILE_WIDTH;
+                if (col + subTile->XMinusExX < 0 ||
+                    col + subTile->XMinusExX >= TILE_WIDTH ||
+                    row + subTile->YMinusExY < 0 ||
+                    row + subTile->YMinusExY >= TILE_HEIGHT ||
+                    !TilePixels[posInTile]) {
                     continue;
+                }
             }
 
-            const int spos = i + e * swidth;
-            BYTE val = src[spos];
+            BYTE pixelValue = *srcPtr;
+            if (pixelValue && destPtr + BPP <= surfaceEnd) {
+                BGRStruct c = newPal->Data[pixelValue];
 
-            if (val) {
-                auto dest = ((BYTE*)dst + (blrect.left + i) * bpp + (blrect.top + e) * boundary.dpitch);
-
-                if (dest >= dst) {
-                    BGRStruct c = newPal->Data[val];
-                    if (dest + bpp < surfaceEnd) {
-                        if (alpha < 255)
-                        {
-                            BGRStruct oriColor = *(BGRStruct*)dest;
-                            c.B = (c.B * alpha + oriColor.B * (255 - alpha)) / 255;
-                            c.G = (c.G * alpha + oriColor.G * (255 - alpha)) / 255;
-                            c.R = (c.R * alpha + oriColor.R * (255 - alpha)) / 255;
-                        }
-                        if (multiSelected)
-                        {
-                            c.B = (c.B * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->B) / 3;
-                            c.G = (c.G * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->G) / 3;
-                            c.R = (c.R * 2 + reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor)->R) / 3;
-                        }
-                        memcpy(dest, &c, bpp);
-                    }
+                if (alpha < 255) {
+                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
+                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
+                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
+                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
                 }
+
+                if (multiSelected) {
+                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
+                    c.B = (c.B * 2 + selColor->B) / 3;
+                    c.G = (c.G * 2 + selColor->G) / 3;
+                    c.R = (c.R * 2 + selColor->R) / 3;
+                }
+
+                memcpy(destPtr, &c, BPP);
             }
         }
     }
@@ -3139,58 +3073,72 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
 
 void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<bool>& mask)
 {
-    x += 31;
-    y -= 29;
+    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
+        return;
+    }
 
-    BYTE* src = (BYTE*)pd->pImageBuffer.get();
+    const int X_OFFSET = 31;
+    const int Y_OFFSET = -29;
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
     int swidth = pd->FullWidth;
     int sheight = pd->FullHeight;
 
-    if (src == NULL) return;
-    if (x + swidth < window.left || y + sheight < window.top) return;
-    if (x >= window.right || y >= window.bottom) return;
+    if (x + swidth < window.left || y + sheight < window.top) {
+        return;
+    }
+    if (x >= window.right || y >= window.bottom) {
+        return;
+    }
 
     RECT srcRect = { 0, 0, swidth, sheight };
-    RECT blrect = { x, y, x + swidth, y + sheight };
-
-    if (blrect.left < 0) {
-        srcRect.left = 1 - blrect.left;
+    RECT destRect = { x, y, x + swidth, y + sheight };
+    if (destRect.left < 0) {
+        srcRect.left = 1 - destRect.left;
     }
-    if (blrect.top < 0) {
-        srcRect.top = 1 - blrect.top;
+    if (destRect.top < 0) {
+        srcRect.top = 1 - destRect.top;
     }
     if (x + swidth > window.right) {
         srcRect.right = swidth - ((x + swidth) - window.right);
-        blrect.right = window.right;
+        destRect.right = window.right;
     }
     if (y + sheight > window.bottom) {
         srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        blrect.bottom = window.bottom;
+        destRect.bottom = window.bottom;
     }
 
     const int maskWidth = window.right - window.left;
     const int maskHeight = window.bottom - window.top;
+    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
+        return;
+    }
 
-    for (int e = srcRect.top; e < srcRect.bottom; ++e) {
-        int left = std::max( (int)pd->pPixelValidRanges[e].First, (int)srcRect.left);
-        int right = std::min((int)pd->pPixelValidRanges[e].Last,  (int)srcRect.right - 1);
+    BYTE* srcBase = src;
+    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
+        LONG left = std::max(static_cast<LONG>(pd->pPixelValidRanges[row].First), srcRect.left);
+        LONG right = std::min(static_cast<LONG>(pd->pPixelValidRanges[row].Last), srcRect.right - 1);
+        if (left > right) {
+            continue;
+        }
 
-        for (int i = left; i <= right; ++i) {
-            int spos = i + e * swidth;
-            BYTE val = src[spos];
-            if (!val) continue;
+        BYTE* srcPtr = srcBase + row * swidth + left;
+        LONG destXBase = destRect.left + left;
 
-            int dx = blrect.left + i;
-            int dy = blrect.top + e;
+        for (LONG col = left; col <= right; ++col, ++srcPtr) {
+            BYTE pixelValue = *srcPtr;
+            if (!pixelValue) {
+                continue;
+            }
 
-            int localX = dx - window.left;
-            int localY = dy - window.top;
+            LONG localX = destXBase + (col - left) - window.left;
+            LONG localY = destRect.top + row - window.top;
 
             if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
-                int maskIndex = localY * maskWidth + localX;
-                if (maskIndex >= 0 && maskIndex < (int)mask.size()) {
-                    mask[maskIndex] = true;
-                }
+                size_t maskIndex = static_cast<size_t>(localY * maskWidth + localX);
+                mask[maskIndex] = true;
             }
         }
     }
@@ -3198,45 +3146,58 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
 
 void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask)
 {
-    if (dst == NULL) return;
+    if (!dst || mask.empty()) {
+        return;
+    }
 
-    const int bpp = 4;
-    const BGRStruct shadowColor = { 0, 0, 0 };
-    const byte alpha = 128;
-
+    const int BPP = 4;
+    const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
+    const BYTE ALPHA = 128;
     const int maskWidth = window.right - window.left;
     const int maskHeight = window.bottom - window.top;
     const int width = boundary.dwWidth;
     const int height = boundary.dwHeight;
 
+    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
+        return;
+    }
+
     BYTE* base = static_cast<BYTE*>(dst);
     BYTE* surfaceEnd = base + boundary.dpitch * height;
 
-    for (int y = 0; y < maskHeight; ++y) {
-        for (int x = 0; x < maskWidth; ++x) {
-            int count = mask[y * maskWidth + x];
-            if (count <= 0) continue;
+    for (LONG y = 0; y < maskHeight; ++y) {
+        LONG dy = window.top + y;
+        if (dy < 0 || dy >= height) {
+            continue;
+        }
 
-            int dx = window.left + x;
-            int dy = window.top + y;
+        BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
+        for (LONG x = 0; x < maskWidth; ++x) {
+            BYTE count = mask[y * maskWidth + x];
+            if (count == 0) {
+                continue;
+            }
 
-            if (dx < 0 || dx >= (int)width || dy < 0 || dy >= (int)height) continue;
+            LONG dx = window.left + x;
+            if (dx < 0 || dx >= width) {
+                continue;
+            }
 
-            BYTE* dest = base + dy * boundary.dpitch + dx * bpp;
-            if (dest + bpp > surfaceEnd) continue;
+            BYTE* dest = destLine + x * BPP;
+            if (dest + BPP > surfaceEnd) {
+                continue;
+            }
 
-            BGRStruct ori = *(BGRStruct*)dest;
-            BGRStruct blended = ori;
+            BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(dest);
+            BGRStruct blended = oriColor;
 
-            float a = alpha / 255.0f;
-            float keep = powf(1.0f - a, (float)count);
-            float blend = 1.0f - keep;
+            BYTE keep = alphaBlendTable[255][255 - ALPHA];
+            BYTE blend = 255 - keep;
+            blended.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[oriColor.R][keep];
+            blended.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[oriColor.G][keep];
+            blended.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[oriColor.B][keep];
 
-            blended.R = (BYTE)(shadowColor.R * blend + ori.R * keep);
-            blended.G = (BYTE)(shadowColor.G * blend + ori.G * keep);
-            blended.B = (BYTE)(shadowColor.B * blend + ori.B * keep);
-
-            memcpy(dest, &blended, bpp);
+            memcpy(dest, &blended, BPP);
         }
     }
 }
@@ -3370,8 +3331,7 @@ void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
 
 bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect)
 {
-    if (!ExtConfigs::DDrawScalingBilinear)
-    {
+    if (!ExtConfigs::DDrawScalingBilinear || ExtConfigs::DDrawScalingBilinear_OnlyShrink && ScaledFactor < 1) {
         dstSurface->Blt(&dstRect, srcSurface, &srcRect, DDBLT_WAIT, 0);
         return true;
     }
@@ -3381,7 +3341,6 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CR
 
     if (srcSurface->Lock(NULL, &srcDesc, DDLOCK_READONLY | DDLOCK_WAIT, NULL) != DD_OK)
         return false;
-
     if (dstSurface->Lock(NULL, &dstDesc, DDLOCK_WAIT, NULL) != DD_OK) {
         srcSurface->Unlock(NULL);
         return false;
@@ -3392,64 +3351,119 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CR
     int srcPitch = srcDesc.lPitch;
     int dstPitch = dstDesc.lPitch;
 
-    int srcW = srcRect.right - srcRect.left;
-    int srcH = srcRect.bottom - srcRect.top;
-    int dstW = dstRect.right - dstRect.left;
-    int dstH = dstRect.bottom - dstRect.top;
+    int srcW = srcRect.Width();
+    int srcH = srcRect.Height();
+    int dstW = dstRect.Width();
+    int dstH = dstRect.Height();
+
+    std::vector<int> srcX0(dstW), srcX1(dstW);
+    std::vector<uint8_t> fxTable(dstW);
+    for (int x = 0; x < dstW; ++x) {
+        float u = (x + 0.5f) * srcW / (float)dstW - 0.5f;
+        int ix = (int)floor(u);
+        float fx = u - ix;
+        ix = std::clamp(ix, 0, srcW - 1);
+        srcX0[x] = ix;
+        srcX1[x] = std::min(ix + 1, srcW - 1);
+        fxTable[x] = (uint8_t)(fx * 255.0f + 0.5f);
+    }
+
+    std::vector<int> srcY0(dstH), srcY1(dstH);
+    std::vector<uint8_t> fyTable(dstH);
+    for (int y = 0; y < dstH; ++y) {
+        float v = (y + 0.5f) * srcH / (float)dstH - 0.5f;
+        int iy = (int)floor(v);
+        float fy = v - iy;
+        iy = std::clamp(iy, 0, srcH - 1);
+        srcY0[y] = iy;
+        srcY1[y] = std::min(iy + 1, srcH - 1);
+        fyTable[y] = (uint8_t)(fy * 255.0f + 0.5f);
+    }
 
     for (int y = 0; y < dstH; ++y) {
-        float v = (y + 0.5f) * srcH / dstH - 0.5f;
-        int srcY0 = (int)floor(v);
-        int srcY1 = srcY0 + 1;
-        float fy = v - srcY0;
-
-        srcY0 = std::clamp(srcY0, 0, srcH - 1);
-        srcY1 = std::clamp(srcY1, 0, srcH - 1);
+        int sy0 = srcY0[y];
+        int sy1 = srcY1[y];
+        uint8_t fy = fyTable[y];
 
         uint8_t* dstRow = dstBits + (dstRect.top + y) * dstPitch + dstRect.left * 4;
+        uint8_t* row0 = srcBits + (srcRect.top + sy0) * srcPitch + srcRect.left * 4;
+        uint8_t* row1 = srcBits + (srcRect.top + sy1) * srcPitch + srcRect.left * 4;
 
-        for (int x = 0; x < dstW; ++x) {
-            float u = (x + 0.5f) * srcW / dstW - 0.5f;
-            int srcX0 = (int)floor(u);
-            int srcX1 = srcX0 + 1;
-            float fx = u - srcX0;
+        int x = 0;
+        for (; x + 3 < dstW; x += 4) {
+            uint32_t c00[4], c10[4], c01[4], c11[4];
+            for (int i = 0; i < 4; ++i) {
+                int sx0 = srcX0[x + i];
+                int sx1 = srcX1[x + i];
+                c00[i] = *(uint32_t*)(row0 + sx0 * 4);
+                c10[i] = *(uint32_t*)(row0 + sx1 * 4);
+                c01[i] = *(uint32_t*)(row1 + sx0 * 4);
+                c11[i] = *(uint32_t*)(row1 + sx1 * 4);
+            }
 
-            srcX0 = std::clamp(srcX0, 0, srcW - 1);
-            srcX1 = std::clamp(srcX1, 0, srcW - 1);
+            // magic!
+            __m128i v00 = _mm_loadu_si128((__m128i*)c00);
+            __m128i v10 = _mm_loadu_si128((__m128i*)c10);
+            __m128i v01 = _mm_loadu_si128((__m128i*)c01);
+            __m128i v11 = _mm_loadu_si128((__m128i*)c11);
 
-            uint32_t c00 = *(uint32_t*)(srcBits + (srcRect.top + srcY0) * srcPitch + (srcRect.left + srcX0) * 4);
-            uint32_t c10 = *(uint32_t*)(srcBits + (srcRect.top + srcY0) * srcPitch + (srcRect.left + srcX1) * 4);
-            uint32_t c01 = *(uint32_t*)(srcBits + (srcRect.top + srcY1) * srcPitch + (srcRect.left + srcX0) * 4);
-            uint32_t c11 = *(uint32_t*)(srcBits + (srcRect.top + srcY1) * srcPitch + (srcRect.left + srcX1) * 4);
+            uint32_t out[4];
+            for (int i = 0; i < 4; ++i) {
+                uint8_t fx = fxTable[x + i];
+                auto interp = [&](int c00, int c10, int c01, int c11) {
+                    int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
+                    int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
+                    int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
+                    int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
 
-            auto unpack = [](uint32_t color, uint8_t& r, uint8_t& g, uint8_t& b) {
-                r = (color >> 16) & 0xFF;
-                g = (color >> 8) & 0xFF;
-                b = color & 0xFF;
+                    int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
+                    int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
+                    int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
+
+                    int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
+                    int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
+                    int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
+
+                    int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
+                    int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
+                    int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
+                    return (r << 16) | (g << 8) | b;
                 };
+                out[i] = interp(c00[i], c10[i], c01[i], c11[i]);
+            }
 
-            uint8_t r00, g00, b00;
-            uint8_t r10, g10, b10;
-            uint8_t r01, g01, b01;
-            uint8_t r11, g11, b11;
+            _mm_storeu_si128((__m128i*)(dstRow + x * 4), _mm_loadu_si128((__m128i*)out));
+        }
 
-            unpack(c00, r00, g00, b00);
-            unpack(c10, r10, g10, b10);
-            unpack(c01, r01, g01, b01);
-            unpack(c11, r11, g11, b11);
+        for (; x < dstW; ++x) {
+            int sx0 = srcX0[x];
+            int sx1 = srcX1[x];
+            uint8_t fx = fxTable[x];
+            uint32_t c00 = *(uint32_t*)(row0 + sx0 * 4);
+            uint32_t c10 = *(uint32_t*)(row0 + sx1 * 4);
+            uint32_t c01 = *(uint32_t*)(row1 + sx0 * 4);
+            uint32_t c11 = *(uint32_t*)(row1 + sx1 * 4);
 
-            auto interp = [fx, fy](uint8_t c00, uint8_t c10, uint8_t c01, uint8_t c11) -> uint8_t {
-                float top = c00 * (1 - fx) + c10 * fx;
-                float bot = c01 * (1 - fx) + c11 * fx;
-                float value = top * (1 - fy) + bot * fy;
-                return static_cast<uint8_t>(value + 0.5f);
-                };
+            auto interp = [&](int c00, int c10, int c01, int c11) {
+                int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
+                int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
+                int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
+                int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
 
-            uint8_t r = interp(r00, r10, r01, r11);
-            uint8_t g = interp(g00, g10, g01, g11);
-            uint8_t b = interp(b00, b10, b01, b11);
+                int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
+                int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
+                int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
 
-            *(uint32_t*)(dstRow + x * 4) = (r << 16) | (g << 8) | b;
+                int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
+                int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
+                int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
+
+                int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
+                int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
+                int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
+                return (r << 16) | (g << 8) | b;
+            };
+            *(uint32_t*)(dstRow + x * 4) = interp(c00, c10, c01, c11);
         }
     }
 

@@ -181,6 +181,7 @@ public:
     static bool LightingPreview_MultUnitColor;
     static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
+    static bool DDrawScalingBilinear_OnlyShrink;
     static bool LoadImageDataFromServer;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
@@ -191,6 +192,7 @@ public:
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
     static bool ExtMixLoader;
+    static bool AVX2_Support;
     static ppmfc::CString CloneWithOrderedID_Digits;
     static ppmfc::CString NewTriggerPlusID_Digits;
     static ppmfc::CString Waypoint_SkipCheckList;

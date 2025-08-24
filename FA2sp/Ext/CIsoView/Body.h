@@ -117,6 +117,7 @@ public:
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
     static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
+    static void InitAlphaTable();
 
     static bool DrawStructures;
     static bool DrawInfantries;
