@@ -1163,6 +1163,14 @@ DEFINE_HOOK(45CD6D, CIsoView_OnMouseMove_StatusBar, 8)
 		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
 		return 0x45CD82;
 	}
+	else if (CIsoView::CurrentCommand->Command == 0x22) {
+		SendMessage(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0x401, 0,
+			(LPARAM)(Translations::TranslateOrDefault("DrawTunnelMessage",
+				"Click to draw the tunnel, double-click to set the endpoint and finish editing. The length of the tunnel cannot exceed 100.")));
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		::UpdateWindow(CFinalSunDlg::Instance->MyViewFrame.StatusBar.m_hWnd);
+		return 0x45CD82;
+	}
 	else if (CIsoView::CurrentCommand->Command == 0x1E) {
 		ppmfc::CString text = "";
 		ppmfc::CString buffer;
