@@ -96,9 +96,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
         Logger::Raw("SaveMap : Generating a hidden map preview.\n");
         pINI->DeleteSection("Preview");
         pINI->DeleteSection("PreviewPack");
-        pINI->WriteString("Preview", "Size", "0,0,106,61");
-        pINI->WriteString("PreviewPack", "1", "BIACcgAEwBtAMnRABAAaQCSANMAVQASAAnIABMAbQDJ0QAQAGkAkgDTAFUAEgAJyAATAG0");
-        pINI->WriteString("PreviewPack", "2", "yAsAIAXQ5PDQ5PDQ6JQATAEE6PDQ4PDI4JgBTAFEAkgAJyAATAG0AydEAEABpAJIA0wBVA");
+        pINI->WriteString("Preview", "Size", "0,0,1,1");
+        pINI->WriteString("PreviewPack", "1", "BwADABQAAAARAAA=");
     }
     else if (previewOption == 0)
     {
