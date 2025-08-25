@@ -16,7 +16,8 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
-#include <emmintrin.h>
+#include <immintrin.h>
+#include <mutex>
 
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
@@ -3329,9 +3330,12 @@ void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
     Y = (Y - pThis->ViewPosition.y - rect.top) / CIsoViewExt::ScaledFactor + pThis->ViewPosition.y + rect.top;
 }
 
-bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect)
+bool CIsoViewExt::StretchCopySurfaceBilinear(
+    LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect,
+    LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect)
 {
-    if (!ExtConfigs::DDrawScalingBilinear || ExtConfigs::DDrawScalingBilinear_OnlyShrink && ScaledFactor < 1) {
+    if (!ExtConfigs::DDrawScalingBilinear ||
+        (ExtConfigs::DDrawScalingBilinear_OnlyShrink && ScaledFactor < 1)) {
         dstSurface->Blt(&dstRect, srcSurface, &srcRect, DDBLT_WAIT, 0);
         return true;
     }
@@ -3356,29 +3360,55 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CR
     int dstW = dstRect.Width();
     int dstH = dstRect.Height();
 
-    std::vector<int> srcX0(dstW), srcX1(dstW);
-    std::vector<uint8_t> fxTable(dstW);
-    for (int x = 0; x < dstW; ++x) {
-        float u = (x + 0.5f) * srcW / (float)dstW - 0.5f;
-        int ix = (int)floor(u);
-        float fx = u - ix;
-        ix = std::clamp(ix, 0, srcW - 1);
-        srcX0[x] = ix;
-        srcX1[x] = std::min(ix + 1, srcW - 1);
-        fxTable[x] = (uint8_t)(fx * 255.0f + 0.5f);
+    struct LookupCache {
+        int w = 0, h = 0;
+        std::vector<int> srcX0, srcX1, srcY0, srcY1;
+        std::vector<uint8_t> fx, fy;
+        double factor = 0.0;
+    };
+    static LookupCache cache;
+    static std::mutex cacheMutex;
+
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        if (cache.factor != CIsoViewExt::ScaledFactor || cache.w != dstW || cache.h != dstH) {
+            cache.factor = CIsoViewExt::ScaledFactor;
+            cache.w = dstW;
+            cache.h = dstH;
+            cache.srcX0.resize(dstW);
+            cache.srcX1.resize(dstW);
+            cache.fx.resize(dstW);
+            cache.srcY0.resize(dstH);
+            cache.srcY1.resize(dstH);
+            cache.fy.resize(dstH);
+
+            for (int x = 0; x < dstW; ++x) {
+                float u = (x + 0.5f) * srcW / (float)dstW - 0.5f;
+                int ix = (int)floor(u);
+                float fx = u - ix;
+                ix = std::clamp(ix, 0, srcW - 1);
+                cache.srcX0[x] = ix;
+                cache.srcX1[x] = std::min(ix + 1, srcW - 1);
+                cache.fx[x] = (uint8_t)(fx * 255.0f + 0.5f);
+            }
+            for (int y = 0; y < dstH; ++y) {
+                float v = (y + 0.5f) * srcH / (float)dstH - 0.5f;
+                int iy = (int)floor(v);
+                float fy = v - iy;
+                iy = std::clamp(iy, 0, srcH - 1);
+                cache.srcY0[y] = iy;
+                cache.srcY1[y] = std::min(iy + 1, srcH - 1);
+                cache.fy[y] = (uint8_t)(fy * 255.0f + 0.5f);
+            }
+        }
     }
 
-    std::vector<int> srcY0(dstH), srcY1(dstH);
-    std::vector<uint8_t> fyTable(dstH);
-    for (int y = 0; y < dstH; ++y) {
-        float v = (y + 0.5f) * srcH / (float)dstH - 0.5f;
-        int iy = (int)floor(v);
-        float fy = v - iy;
-        iy = std::clamp(iy, 0, srcH - 1);
-        srcY0[y] = iy;
-        srcY1[y] = std::min(iy + 1, srcH - 1);
-        fyTable[y] = (uint8_t)(fy * 255.0f + 0.5f);
-    }
+    auto& srcX0 = cache.srcX0;
+    auto& srcX1 = cache.srcX1;
+    auto& fxTable = cache.fx;
+    auto& srcY0 = cache.srcY0;
+    auto& srcY1 = cache.srcY1;
+    auto& fyTable = cache.fy;
 
     for (int y = 0; y < dstH; ++y) {
         int sy0 = srcY0[y];
@@ -3390,51 +3420,88 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CR
         uint8_t* row1 = srcBits + (srcRect.top + sy1) * srcPitch + srcRect.left * 4;
 
         int x = 0;
-        for (; x + 3 < dstW; x += 4) {
-            uint32_t c00[4], c10[4], c01[4], c11[4];
-            for (int i = 0; i < 4; ++i) {
-                int sx0 = srcX0[x + i];
-                int sx1 = srcX1[x + i];
-                c00[i] = *(uint32_t*)(row0 + sx0 * 4);
-                c10[i] = *(uint32_t*)(row0 + sx1 * 4);
-                c01[i] = *(uint32_t*)(row1 + sx0 * 4);
-                c11[i] = *(uint32_t*)(row1 + sx1 * 4);
+
+        if (ExtConfigs::AVX2_Support)
+        {
+            for (; x + 7 < dstW; x += 8) {
+                __m256i outPix;
+                uint32_t out[8];
+                for (int i = 0; i < 8; i++) {
+                    int sx0 = srcX0[x + i];
+                    int sx1 = srcX1[x + i];
+                    uint8_t fx = fxTable[x + i];
+
+                    uint32_t c00 = *(uint32_t*)(row0 + sx0 * 4);
+                    uint32_t c10 = *(uint32_t*)(row0 + sx1 * 4);
+                    uint32_t c01 = *(uint32_t*)(row1 + sx0 * 4);
+                    uint32_t c11 = *(uint32_t*)(row1 + sx1 * 4);
+
+                    auto interp = [&](int c00, int c10, int c01, int c11) {
+                        int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
+                        int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
+                        int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
+                        int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
+
+                        int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
+                        int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
+                        int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
+
+                        int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
+                        int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
+                        int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
+
+                        int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
+                        int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
+                        int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
+                        return (r << 16) | (g << 8) | b;
+                    };
+                    out[i] = interp(c00, c10, c01, c11);
+                }
+                outPix = _mm256_loadu_si256((__m256i*)out);
+                _mm256_storeu_si256((__m256i*)(dstRow + x * 4), outPix);
             }
+        } 
+        else
+        {
+            for (; x + 3 < dstW; x += 4) {
+                __m128i outPix;
+                uint32_t out[4];
+                for (int i = 0; i < 4; i++) {
+                    int sx0 = srcX0[x + i];
+                    int sx1 = srcX1[x + i];
+                    uint8_t fx = fxTable[x + i];
 
-            // magic!
-            __m128i v00 = _mm_loadu_si128((__m128i*)c00);
-            __m128i v10 = _mm_loadu_si128((__m128i*)c10);
-            __m128i v01 = _mm_loadu_si128((__m128i*)c01);
-            __m128i v11 = _mm_loadu_si128((__m128i*)c11);
+                    uint32_t c00 = *(uint32_t*)(row0 + sx0 * 4);
+                    uint32_t c10 = *(uint32_t*)(row0 + sx1 * 4);
+                    uint32_t c01 = *(uint32_t*)(row1 + sx0 * 4);
+                    uint32_t c11 = *(uint32_t*)(row1 + sx1 * 4);
 
-            uint32_t out[4];
-            for (int i = 0; i < 4; ++i) {
-                uint8_t fx = fxTable[x + i];
-                auto interp = [&](int c00, int c10, int c01, int c11) {
-                    int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
-                    int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
-                    int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
-                    int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
+                    auto interp = [&](int c00, int c10, int c01, int c11) {
+                        int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
+                        int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
+                        int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
+                        int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
 
-                    int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
-                    int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
-                    int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
+                        int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
+                        int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
+                        int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
 
-                    int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
-                    int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
-                    int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
+                        int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
+                        int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
+                        int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
 
-                    int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
-                    int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
-                    int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
-                    return (r << 16) | (g << 8) | b;
-                };
-                out[i] = interp(c00[i], c10[i], c01[i], c11[i]);
+                        int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
+                        int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
+                        int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
+                        return (r << 16) | (g << 8) | b;
+                    };
+                    out[i] = interp(c00, c10, c01, c11);
+                }
+                outPix = _mm_loadu_si128((__m128i*)out);
+                _mm_storeu_si128((__m128i*)(dstRow + x * 4), outPix);
             }
-
-            _mm_storeu_si128((__m128i*)(dstRow + x * 4), _mm_loadu_si128((__m128i*)out));
         }
-
+        
         for (; x < dstW; ++x) {
             int sx0 = srcX0[x];
             int sx1 = srcX1[x];
@@ -3444,26 +3511,23 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CR
             uint32_t c01 = *(uint32_t*)(row1 + sx0 * 4);
             uint32_t c11 = *(uint32_t*)(row1 + sx1 * 4);
 
-            auto interp = [&](int c00, int c10, int c01, int c11) {
-                int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
-                int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
-                int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
-                int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
+            int r00 = (c00 >> 16) & 0xFF, g00 = (c00 >> 8) & 0xFF, b00 = c00 & 0xFF;
+            int r10 = (c10 >> 16) & 0xFF, g10 = (c10 >> 8) & 0xFF, b10 = c10 & 0xFF;
+            int r01 = (c01 >> 16) & 0xFF, g01 = (c01 >> 8) & 0xFF, b01 = c01 & 0xFF;
+            int r11 = (c11 >> 16) & 0xFF, g11 = (c11 >> 8) & 0xFF, b11 = c11 & 0xFF;
 
-                int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
-                int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
-                int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
+            int rTop = ((r00 * (255 - fx)) + (r10 * fx)) >> 8;
+            int gTop = ((g00 * (255 - fx)) + (g10 * fx)) >> 8;
+            int bTop = ((b00 * (255 - fx)) + (b10 * fx)) >> 8;
 
-                int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
-                int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
-                int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
+            int rBot = ((r01 * (255 - fx)) + (r11 * fx)) >> 8;
+            int gBot = ((g01 * (255 - fx)) + (g11 * fx)) >> 8;
+            int bBot = ((b01 * (255 - fx)) + (b11 * fx)) >> 8;
 
-                int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
-                int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
-                int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
-                return (r << 16) | (g << 8) | b;
-            };
-            *(uint32_t*)(dstRow + x * 4) = interp(c00, c10, c01, c11);
+            int r = ((rTop * (255 - fy)) + (rBot * fy)) >> 8;
+            int g = ((gTop * (255 - fy)) + (gBot * fy)) >> 8;
+            int b = ((bTop * (255 - fy)) + (bBot * fy)) >> 8;
+            *(uint32_t*)(dstRow + x * 4) = (r << 16) | (g << 8) | b;
         }
     }
 

@@ -26,8 +26,6 @@ std::unordered_set<short> CIsoViewExt::VisibleInfantries;
 std::unordered_set<short> CIsoViewExt::VisibleUnits;
 std::unordered_set<short> CIsoViewExt::VisibleAircrafts;
 
-#define EXTRA_BORDER 15
-
 struct CellInfo {
 	int X, Y;
 	int screenX, screenY;
@@ -36,6 +34,16 @@ struct CellInfo {
 	CellData* cell;
 	CellDataExt* cellExt;
 };
+
+static std::vector<std::pair<MapCoord, ppmfc::CString>> WaypointsToDraw;
+static std::vector<std::pair<MapCoord, ppmfc::CString>> OverlayTextsToDraw;
+static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
+static std::vector<DrawVeterancy> DrawVeterancies;
+static std::vector<CellInfo> visibleCells;
+static std::unordered_set<short> DrawnBuildings;
+static std::vector<BaseNodeDataExt> DrawnBaseNodes;
+
+#define EXTRA_BORDER 15
 
 inline static bool IsCoordInWindow(int X, int Y)
 {
@@ -98,6 +106,14 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 	CIsoViewExt::VisibleAircrafts.clear();
 	CLoadingExt::CurrentFrameImageDataMap.clear();
 	CIsoViewExt::InitAlphaTable();
+
+	WaypointsToDraw.clear();
+	OverlayTextsToDraw.clear();
+	BuildingsToDraw.clear();
+	DrawVeterancies.clear();
+	visibleCells.clear();
+	DrawnBuildings.clear();
+	DrawnBaseNodes.clear();
 
 	RECT rect;
 	::GetClientRect(pThis->GetSafeHwnd(), &rect);
@@ -211,15 +227,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 	HDC hDC;
 	pThis->lpDDBackBufferSurface->GetDC(&hDC);
-
-	std::vector<std::pair<MapCoord, ppmfc::CString>> WaypointsToDraw;
-	std::vector<std::pair<MapCoord, ppmfc::CString>> OverlayTextsToDraw;
-	std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
-	std::vector<DrawVeterancies> DrawVeterancies;
-	std::vector<CellInfo> visibleCells;
-
-	std::unordered_set<short> DrawnBuildings;
-	std::vector<BaseNodeDataExt> DrawnBaseNodes;
 
 	if (CIsoViewExt::DrawInfantries && CIsoViewExt::DrawInfantriesFilter && CViewObjectsExt::InfantryBrushDlgF)
 	{
@@ -1571,6 +1578,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	const char* InsigniaElite = "FA2spInsigniaElite";
 	auto veteran = CLoadingExt::GetImageDataFromMap(InsigniaVeteran);
 	auto elite = CLoadingExt::GetImageDataFromMap(InsigniaElite);
+
 	for (auto& dv : DrawVeterancies)
 	{
 		if (dv.VP >= 200)

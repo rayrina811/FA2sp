@@ -34,7 +34,7 @@ struct DrawBuildings
     short buildingIndex;
 };
 
-struct DrawVeterancies
+struct DrawVeterancy
 {
     int X;
     int Y;
