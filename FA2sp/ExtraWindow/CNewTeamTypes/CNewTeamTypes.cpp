@@ -41,6 +41,7 @@ HWND CNewTeamTypes::hTransportWaypoint;
 HWND CNewTeamTypes::hGroup;
 HWND CNewTeamTypes::hWaypoint;
 HWND CNewTeamTypes::hMindControlDecision;
+HWND CNewTeamTypes::hParadropAircraft;
 HWND CNewTeamTypes::hCheckBoxLoadable;
 HWND CNewTeamTypes::hCheckBoxFull;
 HWND CNewTeamTypes::hCheckBoxAnnoyance;
@@ -149,6 +150,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 	Translate(1138, "TeamTypesCheckBoxIsBaseDefense");
 	Translate(1139, "TeamTypesCheckBoxOnlyTargetHouseEnemy"); 
     Translate(1999, "SearchReferenceTitle");
+    Translate(2000, "TeamTypesLabelParadropAircraft");
 
     hSelectedTeam = GetDlgItem(hWnd, Controls::SelectedTeam);
     hNewTeam = GetDlgItem(hWnd, Controls::NewTeam);
@@ -166,6 +168,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hTransportWaypoint = GetDlgItem(hWnd, Controls::TransportWaypoint);
     hGroup = GetDlgItem(hWnd, Controls::Group);
     hWaypoint = GetDlgItem(hWnd, Controls::Waypoint);
+    hParadropAircraft = GetDlgItem(hWnd, Controls::ParadropAircraft);
     hMindControlDecision = GetDlgItem(hWnd, Controls::MindControlDecision);
     hCheckBoxLoadable = GetDlgItem(hWnd, Controls::CheckBoxLoadable);
     hCheckBoxFull = GetDlgItem(hWnd, Controls::CheckBoxFull);
@@ -295,6 +298,17 @@ void CNewTeamTypes::Update(HWND& hWnd)
             SendMessage(hWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
             idx++;
             SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
+        }
+    }
+
+    idx = 0;
+    while (SendMessage(hParadropAircraft, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    SendMessage(hParadropAircraft, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"None");
+    if (auto pSection = CINI::FAData->GetSection("ParadropAircrafts"))
+    {
+        for (auto& pair : pSection->GetEntities())
+        {
+            SendMessage(hParadropAircraft, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)pair.second.m_pchData);
         }
     }
 
@@ -450,6 +464,12 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
                 OnSelchangeMindControlDecision(hWnd, true);
             break;
+        case Controls::ParadropAircraft:
+            if (CODE == CBN_SELCHANGE)
+                OnSelchangeParadropAircrafts(hWnd);
+            else if (CODE == CBN_EDITCHANGE || CODE == CBN_CLOSEUP)
+                OnSelchangeParadropAircrafts(hWnd, true);
+            break;
         case Controls::Group:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeGroup(hWnd);
@@ -515,7 +535,17 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             break;
         case Controls::CheckBoxCargoPlane:
             if (CODE == BN_CLICKED && SelectedTeamIndex >= 0)
+            {
                 map.WriteBool(CurrentTeamID, "Droppod", SendMessage(hCheckBoxCargoPlane, BM_GETCHECK, 0, 0));
+                if (map.GetBool(CurrentTeamID, "Droppod"))
+                {
+                    EnableWindow(hParadropAircraft, TRUE);
+                }
+                else
+                {
+                    EnableWindow(hParadropAircraft, FALSE);
+                }
+            }
             break;
         case Controls::CheckBoxWhiner:
             if (CODE == BN_CLICKED && SelectedTeamIndex >= 0)
@@ -931,6 +961,41 @@ void CNewTeamTypes::OnSelchangeMindControlDecision(HWND& hWnd, bool edited)
     map.WriteString(CurrentTeamID, "MindControlDecision", text);
 }
 
+void CNewTeamTypes::OnSelchangeParadropAircrafts(HWND& hWnd, bool edited)
+{
+    if (SelectedTeamIndex < 0)
+        return;
+    int curSel = SendMessage(hParadropAircraft, CB_GETCURSEL, NULL, NULL);
+    int count = SendMessage(hParadropAircraft, CB_GETCOUNT, NULL, NULL);
+    char buffer[512]{ 0 };
+    ppmfc::CString text;
+    if (curSel >= 0 && curSel < count)
+    {
+        SendMessage(hParadropAircraft, CB_GETLBTEXT, curSel, (LPARAM)buffer);
+        text = buffer;
+    }
+    if (edited)
+    {
+        GetWindowText(hParadropAircraft, buffer, 511);
+        text = buffer;
+        int idx = SendMessage(hParadropAircraft, CB_FINDSTRING, 0, (LPARAM)text.m_pchData);
+        if (idx != CB_ERR)
+        {
+            SendMessage(hParadropAircraft, CB_GETLBTEXT, idx, (LPARAM)buffer);
+            text = buffer;
+        }
+    }
+
+    text.Trim();
+    if (text == "None")
+        text = "";
+
+    if (text == "")
+        map.DeleteKey(CurrentTeamID, "ParadropAircraft");
+    else
+        map.WriteString(CurrentTeamID, "ParadropAircraft", text);
+}
+
 void CNewTeamTypes::OnSeldropdownTeamtypes(HWND& hWnd)
 {
     if (Autodrop)
@@ -976,6 +1041,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)"");
+        SendMessage(hParadropAircraft, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hCheckBoxLoadable, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxAnnoyance, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -1013,6 +1079,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         auto taskforce = map.GetString(pID, "TaskForce");
         auto script = map.GetString(pID, "Script");
         auto tag = map.GetString(pID, "Tag");
+        auto paradropAircraft = map.GetString(pID, "ParadropAircraft");
         auto tWaypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "TransportWaypoint"));
         auto waypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "Waypoint"));
 
@@ -1082,6 +1149,25 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (!found)
             SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.m_pchData);
 
+        found = false;
+        for (int idx = 0; idx < SendMessage(hParadropAircraft, CB_GETCOUNT, NULL, NULL); idx++)
+        {
+            ppmfc::CString id;
+            SendMessage(hParadropAircraft, CB_GETLBTEXT, idx, (LPARAM)buffer);
+            id = buffer;
+            STDHelpers::TrimIndex(id);
+            if (id == paradropAircraft)
+            {
+                SendMessage(hParadropAircraft, CB_SETCURSEL, idx, NULL);
+                found = true;
+                break;
+            }
+        }
+        if (paradropAircraft == "")
+            paradropAircraft = "None";
+        if (!found)
+            SendMessage(hParadropAircraft, WM_SETTEXT, 0, (LPARAM)paradropAircraft.m_pchData);
+
         SendMessage(hVeteranLevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "VeteranLevel").m_pchData);
         SendMessage(hTechlevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "TechLevel").m_pchData);
         SendMessage(hTransportWaypoint, WM_SETTEXT, 0, (LPARAM)tWaypoint.m_pchData);
@@ -1116,6 +1202,14 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, map.GetBool(pID, "IsBaseDefense"), 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, map.GetBool(pID, "OnlyTargetHouseEnemy"), 0);
 
+        if (map.GetBool(pID, "Droppod"))
+        {
+            EnableWindow(hParadropAircraft, TRUE);
+        }
+        else
+        {
+            EnableWindow(hParadropAircraft, FALSE);
+        }
     }
     DropNeedUpdate = false;
 }
@@ -1297,6 +1391,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("TransportWaypoint");
         copyitem("UseTransportOrigin");
         copyitem("MindControlDecision");
+        copyitem("ParadropAircraft");
         copyitem("OnlyTargetHouseEnemy");
         copyitem("TransportsReturnOnUnload");
         copyitem("AreTeamMembersRecruitable");
