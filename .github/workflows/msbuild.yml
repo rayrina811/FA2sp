@@ -10,6 +10,12 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
+    inputs:
+      buildConfiguration:
+        description: 'Build configuration (Debug/Release)'
+        required: true
+        default: 'Release'
 
 env:
   # Path to the solution file relative to the root of the project.
