@@ -1101,12 +1101,12 @@ void FA2sp::ExtConfigsInitialize()
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
-	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
-	//	.IniKey = "StringBufferStackAllocation",
-	//	.Value = &ExtConfigs::StringBufferStackAllocation,
-	//	.Type = ExtConfigs::SpecialOptionType::None
-	//	});
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
+		.IniKey = "StringBufferStackAllocation",
+		.Value = &ExtConfigs::StringBufferStackAllocation,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),
