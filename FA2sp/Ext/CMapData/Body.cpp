@@ -2108,6 +2108,14 @@ void CMapDataExt::UpdateIncludeIniInMap()
 
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
 {
+	auto avoidNoResponding = []()
+	{
+		MSG msg;
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	};
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
 	CIsoView::CurrentCommand->Type = 0;
 	CIsoView::CurrentCommand->Command = 0;
@@ -2123,6 +2131,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		UndoRedoDatas.clear();
 		UndoRedoDataIndex = -1;
 	}
+
+	avoidNoResponding();
 
 	Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
 	for (auto& section : CINI::CurrentDocument->Dict) {
@@ -2192,6 +2202,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			ovrIdx++;
 		}
 	}
+
+	avoidNoResponding();
 
 	if (CNewTeamTypes::GetHandle())
 		::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
@@ -2314,6 +2326,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::SoftTileSets.clear();
 	CMapDataExt::RedrawExtraTileSets.clear();
 	CMapDataExt::TileSetPalettes.clear();
+
+	avoidNoResponding();
 
 	if (auto theater = CINI::CurrentTheater())
 	{
@@ -2487,6 +2501,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 
+	avoidNoResponding();
+
 	if (TagSort::Instance.IsVisible())
 	{
 		TagSort::Instance.LoadAllTriggers();
@@ -2536,6 +2552,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	TileAnimations.clear();
 
+	avoidNoResponding();
+
 	for (auto& [index, setName] : CMapDataExt::TileSetOriginSetNames[CLoadingExt::GetITheaterIndex()])
 	{
 		if (CINI::CurrentTheater->SectionExists(setName) && index + 1 < TileSet_starts.size())
@@ -2571,6 +2589,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
 				anim.ImageName = imageName;
 			}
+			avoidNoResponding();
 		}
 	}
 	const char* InsigniaVeteran = "FA2spInsigniaVeteran";

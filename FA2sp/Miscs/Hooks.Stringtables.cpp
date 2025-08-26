@@ -135,7 +135,7 @@ void StringtableLoader::LoadCSFFile(const char* pName, bool fa2path)
 {
     DWORD dwSize;
     if (auto pBuffer = CLoading::Instance->ReadWholeFile(pName, &dwSize, fa2path)) {
-        ppmfc::CString name = pName;
+        FString name = pName;
         name.MakeUpper();
         if (name.Mid(name.GetLength() - 3) == "LLF") {
             auto ret = GetLinesFromBuffer((char*)pBuffer, dwSize);
