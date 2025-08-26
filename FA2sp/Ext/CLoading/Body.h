@@ -324,8 +324,8 @@ private:
 
 struct MixEntry {
 	uint32_t id;
-	int64_t offset;
-	int64_t size;
+	uint32_t offset;
+	uint32_t size;
 };
 
 struct MixFile {
@@ -333,7 +333,7 @@ struct MixFile {
 	std::ifstream stream;
 	std::vector<MixEntry> entries;
 	bool isNested = false; 
-	int64_t baseOffset = 0;
+	uint32_t baseOffset = 0;
 };
 
 struct FindFileHelper {
