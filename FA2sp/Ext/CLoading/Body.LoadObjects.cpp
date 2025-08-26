@@ -2066,7 +2066,7 @@ void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int H
 
 void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData)
 {
-	if (!pData || !pData->pImageBuffer) return;
+	if (!pData || !pData->pImageBuffer || pData->FullWidth == 0 || pData->FullHeight == 0) return;
 
 	const int oldW = pData->FullWidth;
 	const int oldH = pData->FullHeight;
