@@ -163,7 +163,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             }
             for (auto& [index, key] : ParseIndiciesData(includeSection)) {
                 if (key.IsEmpty()) continue;
-                Logger::Raw("  %d  %s\n",index, key);
                 const ppmfc::CString& includeFile = pSection->GetString(key);
 
                 if (includeFile && strlen(includeFile) > 0) {
