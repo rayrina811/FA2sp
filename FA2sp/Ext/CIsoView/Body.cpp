@@ -3072,7 +3072,7 @@ void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, b
     return;
 }
 
-void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<bool>& mask)
+void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<char>& mask)
 {
     if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
         return;
@@ -3139,7 +3139,7 @@ void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataCl
 
             if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
                 size_t maskIndex = static_cast<size_t>(localY * maskWidth + localX);
-                mask[maskIndex] = true;
+                mask[maskIndex] = 1;
             }
         }
     }

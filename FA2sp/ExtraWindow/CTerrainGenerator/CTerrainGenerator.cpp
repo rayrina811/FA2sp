@@ -13,7 +13,7 @@ HWND CTerrainGenerator::m_hwnd;
 CTileSetBrowserFrame* CTerrainGenerator::m_parent;
 CINI& CTerrainGenerator::map = CINI::CurrentDocument;
 std::unique_ptr<CINI, GameUniqueDeleter<CINI>> CTerrainGenerator::ini = nullptr;
-MultimapHelper& CTerrainGenerator::rules = Variables::Rules;
+MultimapHelper& CTerrainGenerator::rules = Variables::RulesMap;
 HWND CTerrainGenerator::hTab;
 HWND CTerrainGenerator::hTab1Dlg;
 HWND CTerrainGenerator::hTab2Dlg;

@@ -229,15 +229,15 @@ void LightingPalette::AdjustLighting(LightingStruct& lighting, Cell3DLocation lo
     this->AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
     if (extraLightType == 0)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
+        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraUnitLight", 0.2f);
     }
     else if (extraLightType == 1)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
+        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraInfantryLight", 0.2f);
     }
     else if (extraLightType == 2)
     {
-        this->AmbientMult += Variables::Rules.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
+        this->AmbientMult += Variables::RulesMap.GetSingle("AudioVisual", "ExtraAircraftLight", 0.2f);
     }
 
     if (tint)
@@ -350,13 +350,13 @@ void LightingSourceTint::CalculateMapLamps()
             const auto atoms = STDHelpers::SplitString(value, 4);
             const auto& ID = atoms[1];
             LightingSource ls{};
-            ls.LightIntensity = Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f);
+            ls.LightIntensity = Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f);
             if (abs(ls.LightIntensity) > TOLERANCE)
             {
-                ls.LightVisibility = Variables::Rules.GetInteger(ID, "LightVisibility", 5000);
-                ls.LightRedTint = Variables::Rules.GetSingle(ID, "LightRedTint", 1.0f);
-                ls.LightGreenTint = Variables::Rules.GetSingle(ID, "LightGreenTint", 1.0f);
-                ls.LightBlueTint = Variables::Rules.GetSingle(ID, "LightBlueTint", 1.0f);
+                ls.LightVisibility = Variables::RulesMap.GetInteger(ID, "LightVisibility", 5000);
+                ls.LightRedTint = Variables::RulesMap.GetSingle(ID, "LightRedTint", 1.0f);
+                ls.LightGreenTint = Variables::RulesMap.GetSingle(ID, "LightGreenTint", 1.0f);
+                ls.LightBlueTint = Variables::RulesMap.GetSingle(ID, "LightBlueTint", 1.0f);
                 const int Index = CMapData::Instance->GetBuildingTypeID(ID);
                 const int Y = atoi(atoms[3]);
                 const int X = atoi(atoms[4]);
@@ -419,5 +419,5 @@ void LightingSourceTint::CalculateMapLamps()
 bool LightingSourceTint::IsLamp(ppmfc::CString ID)
 {
     const float TOLERANCE = 0.001f;
-    return abs(Variables::Rules.GetSingle(ID, "LightIntensity", 0.0f)) > TOLERANCE;
+    return abs(Variables::RulesMap.GetSingle(ID, "LightIntensity", 0.0f)) > TOLERANCE;
 }

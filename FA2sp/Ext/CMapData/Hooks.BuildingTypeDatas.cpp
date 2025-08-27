@@ -15,7 +15,7 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	{
 		int idx = pThis->GetBuildingTypeID(ID);
 		auto& DataExt = pThis->BuildingDataExts[idx];
-		ppmfc::CString ImageID = Variables::Rules.GetString(ID, "Image", ID);
+		ppmfc::CString ImageID = Variables::RulesMap.GetString(ID, "Image", ID);
 
 		auto foundation = CINI::Art->GetString(ImageID, "Foundation");
 		if (_strcmpi(foundation, "Custom"))
@@ -152,7 +152,7 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 	else
 	{
 		pThis->BuildingDataExts.clear();
-		const auto Types = Variables::Rules.GetSection("BuildingTypes");
+		const auto Types = Variables::RulesMap.GetSection("BuildingTypes");
 		for (auto& Type : Types)
 			ProcessType(Type.second);
 	}

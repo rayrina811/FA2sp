@@ -400,7 +400,7 @@ void CMapDataExt::CreateRandomSmudge(int TopX, int TopY, int BottomX, int Bottom
         weights.push_back(smu.second);
     }
     std::vector<int> roadSets = getIgnoreTileSets();
-    auto& rules = Variables::Rules;
+    auto& rules = Variables::RulesMap;
     for (int i = TopX; i <= BottomX; ++i) {
         for (int j = TopY; j <= BottomY; ++j) {
             if (!CMapData::Instance->IsCoordInMap(i, j)) continue;

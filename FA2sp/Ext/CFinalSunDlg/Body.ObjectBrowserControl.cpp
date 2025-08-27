@@ -268,7 +268,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 auto pData = CLoadingExt::GetImageDataFromServer(imageName);
                 if (!pData || !pData->pImageBuffer)
                 {
-                    auto obj = Variables::GetRulesMapValueAt("OverlayTypes", InsertingOverlay);
+                    auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", InsertingOverlay);
                     if (!CLoadingExt::IsOverlayLoaded(obj))
                     {
                         bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -351,7 +351,7 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     if (!bOnlyOneLine)
     {
         if (ForceName.find(pRegName) != ForceName.end())
-            return Variables::Rules.GetString(pRegName, "Name", pRegName);
+            return Variables::RulesMap.GetString(pRegName, "Name", pRegName);
         else
             return StringtableLoader::QueryUIName(pRegName);
     }
@@ -359,14 +359,14 @@ FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
     FString buffer;
 
     if (ForceName.find(pRegName) != ForceName.end())
-        buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
+        buffer = Variables::RulesMap.GetString(pRegName, "Name", pRegName);
     else if (RenameString.find(pRegName) != RenameString.end())
         buffer = RenameString[pRegName];
     else
         buffer = StringtableLoader::QueryUIName(pRegName);
 
     if (buffer == "MISSING")
-        buffer = Variables::Rules.GetString(pRegName, "Name", pRegName);
+        buffer = Variables::RulesMap.GetString(pRegName, "Name", pRegName);
 
     int idx = buffer.Find('\n');
     return idx == -1 ? buffer : buffer.Mid(0, idx);
@@ -520,7 +520,7 @@ void CViewObjectsExt::Redraw_Initialize()
     auto loadSet = [](const char* pTypeName, int nType)
     {
         ExtSets[nType].clear();
-        auto&& section = Variables::Rules.GetSection(pTypeName);
+        auto&& section = Variables::RulesMap.GetSection(pTypeName);
         for (auto& itr : section)
             ExtSets[nType].insert(itr.second);
     };
@@ -534,7 +534,7 @@ void CViewObjectsExt::Redraw_Initialize()
     {
         auto loadOwner = []()
         {
-            auto&& sides = Variables::Rules.ParseIndicies("Sides", true);
+            auto&& sides = Variables::RulesMap.ParseIndicies("Sides", true);
             for (size_t i = 0, sz = sides.size(); i < sz; ++i)
                 for (auto& owner : STDHelpers::SplitString(sides[i]))
                     Owners[owner] = i;
@@ -788,7 +788,7 @@ void CViewObjectsExt::Redraw_Owner()
     {
         if (CMapData::Instance->IsMultiOnly())
         {
-            auto&& section = Variables::Rules.GetSection("Countries");
+            auto&& section = Variables::RulesMap.GetSection("Countries");
             auto itr = section.begin();
             for (size_t i = 0, sz = section.size(); i < sz; ++i, ++itr)
                 if (strcmp(itr->second, "Neutral") == 0 || strcmp(itr->second, "Special") == 0)
@@ -1039,7 +1039,7 @@ void CViewObjectsExt::Redraw_Infantry()
     }
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hInfantry);
 
-    auto&& infantries = Variables::Rules.GetSection("InfantryTypes");
+    auto&& infantries = Variables::RulesMap.GetSection("InfantryTypes");
     for (auto& inf : infantries)
     {
         if (AddOnceSet.find(inf.second) != AddOnceSet.end())
@@ -1141,7 +1141,7 @@ void CViewObjectsExt::Redraw_Vehicle()
     }
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hVehicle);
 
-    auto&& vehicles = Variables::Rules.GetSection("VehicleTypes");
+    auto&& vehicles = Variables::RulesMap.GetSection("VehicleTypes");
     for (auto& veh : vehicles)
     {
         if (AddOnceSet.find(veh.second) != AddOnceSet.end())
@@ -1244,7 +1244,7 @@ void CViewObjectsExt::Redraw_Aircraft()
     }
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hAircraft);
 
-    auto&& aircrafts = Variables::Rules.GetSection("AircraftTypes");
+    auto&& aircrafts = Variables::RulesMap.GetSection("AircraftTypes");
     for (auto& air : aircrafts)
     {
         if (AddOnceSet.find(air.second) != AddOnceSet.end())
@@ -1350,7 +1350,7 @@ void CViewObjectsExt::Redraw_Building()
     }
     subNodes[-1] = this->InsertTranslatedString("OthObList", -1, hBuilding);
     
-    auto&& buildings = Variables::Rules.GetSection("BuildingTypes");
+    auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
     for (auto& bud : buildings)
     {
         if (AddOnceSet.find(bud.second) != AddOnceSet.end())
@@ -1490,7 +1490,7 @@ void CViewObjectsExt::Redraw_Terrain()
     }
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hTerrain);
 
-    auto&& terrains = Variables::Rules.ParseIndicies("TerrainTypes", true);
+    auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
     for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
     {
         if (IgnoreSet.find(terrains[i]) == IgnoreSet.end())
@@ -1595,7 +1595,7 @@ void CViewObjectsExt::Redraw_Smudge()
 
     HTREEITEM hOther = this->InsertTranslatedString("OthObList", -1, hSmudge);
 
-    auto&& smudges = Variables::Rules.ParseIndicies("SmudgeTypes", true);
+    auto&& smudges = Variables::RulesMap.ParseIndicies("SmudgeTypes", true);
     for (size_t i = 0, sz = smudges.size(); i < sz; ++i)
     {
         if (IgnoreSet.find(smudges[i]) == IgnoreSet.end())
@@ -1680,65 +1680,64 @@ void CViewObjectsExt::Redraw_Overlay()
     this->InsertTranslatedString("Tracks", Const_Overlay + 39, hOverlay);
     InsertingOverlay = -1;
 
-    if (const auto& overlays = Variables::GetRulesMapSection("OverlayTypes"))
+    const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+    int indexWall = Wall;
+    CViewObjectsExt::WallDamageStages.clear();
+    for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
+        overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
-        int indexWall = Wall;
-        CViewObjectsExt::WallDamageStages.clear();
-        for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
-            (*overlays).size() : std::min((UINT)255, (*overlays).size()); i < sz; ++i)
+        const auto& value = overlays[i];
+        FString buffer;
+        buffer = QueryUIName(value);
+        if (buffer != value)
+            buffer += " (" + value + ")";
+        FString id;
+        id.Format("%03d %s", i, buffer);
+        if (rules.GetBool(value, "Wall"))
         {
-            const auto& value = (*overlays)[i].second;
-            FString buffer;
-            buffer = QueryUIName(value);
-            if (buffer != value)
-                buffer += " (" + value + ")";
-            FString id;
-            id.Format("%03d %s", i, buffer);
-            if (rules.GetBool(value, "Wall"))
+            int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
+            CViewObjectsExt::WallDamageStages[i] = damageLevel;
+            InsertingOverlay = i;
+            InsertingOverlayData = 5;
+            auto thisWall = this->InsertString(
+                QueryUIName(value),
+                Const_Overlay + i * 5 + indexWall,
+                hWalls
+            );
+
+            for (int s = 1; s < damageLevel + 1; s++)
             {
-                int damageLevel = CINI::Art().GetInteger(value, "DamageLevels", 1);
-                CViewObjectsExt::WallDamageStages[i] = damageLevel;
-                InsertingOverlay = i;
-                InsertingOverlayData = 5;
-                auto thisWall = this->InsertString(
-                    QueryUIName(value),
-                    Const_Overlay + i * 5 + indexWall,
-                    hWalls
+                FString damage;
+                damage.Format("WallDamageLevelDes%d", s);
+                this->InsertString(
+                    QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
+                    Const_Overlay + i * 5 + s + indexWall,
+                    thisWall
                 );
-
-                for (int s = 1; s < damageLevel + 1; s++)
-                {
-                    FString damage;
-                    damage.Format("WallDamageLevelDes%d", s);
-                    this->InsertString(
-                        QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                        Const_Overlay + i * 5 + s + indexWall,
-                        thisWall
-                    );
-                    InsertingOverlayData += 16;
-                }
-                InsertingOverlay = -1;
-                if (damageLevel > 1)
-                {
-                    this->InsertString(
-                        QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                        Const_Overlay + i * 5 + 4 + indexWall,
-                        thisWall);
-                }
-            }
-
-            if (IgnoreSet.find(value) == IgnoreSet.end())
-            {
-                InsertingOverlay = i;
-                if (CMapDataExt::IsOre((byte)i))
-                    InsertingOverlayData = 11;
-                else
-                    InsertingOverlayData = 0;
-                this->InsertString(id, Const_Overlay + i, hTemp);
+                InsertingOverlayData += 16;
             }
             InsertingOverlay = -1;
+            if (damageLevel > 1)
+            {
+                this->InsertString(
+                    QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
+                    Const_Overlay + i * 5 + 4 + indexWall,
+                    thisWall);
+            }
         }
-    } 
+
+        if (IgnoreSet.find(value) == IgnoreSet.end())
+        {
+            InsertingOverlay = i;
+            if (CMapDataExt::IsOre((byte)i))
+                InsertingOverlayData = 11;
+            else
+                InsertingOverlayData = 0;
+            this->InsertString(id, Const_Overlay + i, hTemp);
+        }
+        InsertingOverlay = -1;
+    }
+
 
     HTREEITEM hTemp2 = this->InsertTranslatedString("PlaceRandomOverlayList", -1, hOverlay);
     if (auto pSection = CINI::FAData().GetSection("PlaceRandomOverlayList"))
@@ -2861,10 +2860,10 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
     default:
     case 0:
     {
-        for (auto& prep : STDHelpers::SplitString(Variables::Rules.GetString(pRegName, "Prerequisite")))
+        for (auto& prep : STDHelpers::SplitString(Variables::RulesMap.GetString(pRegName, "Prerequisite")))
         {
             int guess = -1;
-            for (auto& subprep : STDHelpers::SplitString(Variables::Rules.GetString("GenericPrerequisites", prep)))
+            for (auto& subprep : STDHelpers::SplitString(Variables::RulesMap.GetString("GenericPrerequisites", prep)))
             {
                 if (subprep == pRegName) // Avoid build myself crash
                     return -1;
@@ -2882,7 +2881,7 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
     }
     case 1:
     {
-        auto&& owners = STDHelpers::SplitString(Variables::Rules.GetString(pRegName, "Owner"));
+        auto&& owners = STDHelpers::SplitString(Variables::RulesMap.GetString(pRegName, "Owner"));
         if (owners.size() <= 0)
             return -1;
         auto&& itr = Owners.find(owners[0]);

@@ -125,7 +125,7 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 	{
 		if (bShadow)
 		{
-			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
+			if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
 				ret.Format("%s0\233RUBBLESHADOW", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
 				ret.Format("%s%d\233DAMAGEDSHADOW", ID, nFacing);
@@ -134,7 +134,7 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		}
 		else
 		{
-			if (Variables::Rules.GetBool(ID, "LeaveRubble"))
+			if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
 				ret.Format("%s0\233RUBBLE", ID);
 			else if (!ExtConfigs::HideNoRubbleBuilding)// use damaged art, save memory
 				ret.Format("%s%d\233DAMAGED", ID, nFacing);
@@ -161,7 +161,7 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 	{
 		auto load = [](FString type, ObjectType e)
 		{
-			auto section = Variables::Rules.GetSection(type);
+			auto section = Variables::RulesMap.GetSection(type);
 			for (auto& pair : section)
 				ObjectTypes[pair.second] = e;
 		};
@@ -206,7 +206,7 @@ void CLoadingExt::LoadObjects(FString ID)
 		LoadVehicleOrAircraft(ID);
 		if (ExtConfigs::InGameDisplay_Deploy)
 		{
-			auto unloadingClass = Variables::Rules.GetString(ID, "UnloadingClass", ID);
+			auto unloadingClass = Variables::RulesMap.GetString(ID, "UnloadingClass", ID);
 			if (unloadingClass != ID)
 			{
 				LoadVehicleOrAircraft(unloadingClass);
@@ -214,7 +214,7 @@ void CLoadingExt::LoadObjects(FString ID)
 		}
 		if (ExtConfigs::InGameDisplay_Water)
 		{
-			auto waterImage = Variables::Rules.GetString(ID, "WaterImage", ID);
+			auto waterImage = Variables::RulesMap.GetString(ID, "WaterImage", ID);
 			if (waterImage != ID)
 			{
 				LoadVehicleOrAircraft(waterImage);
@@ -310,9 +310,9 @@ FString CLoadingExt::GetInfantryFileID(FString ID)
 	if (ExtConfigs::ArtImageSwap)
 		ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
-	if (Variables::Rules.GetBool(ID, "AlternateTheaterArt"))
+	if (Variables::RulesMap.GetBool(ID, "AlternateTheaterArt"))
 		ImageID += this->TheaterIdentifier;
-	else if (Variables::Rules.GetBool(ID, "AlternateArcticArt"))
+	else if (Variables::RulesMap.GetBool(ID, "AlternateArcticArt"))
 		if (this->TheaterIdentifier == 'A')
 			ImageID += 'A';
 	if (!CINI::Art->SectionExists(ImageID))
@@ -323,7 +323,7 @@ FString CLoadingExt::GetInfantryFileID(FString ID)
 
 FString CLoadingExt::GetArtID(FString ID)
 {
-	return Variables::Rules.GetString(ID, "Image", ID);
+	return Variables::RulesMap.GetString(ID, "Image", ID);
 }
 
 FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
@@ -340,7 +340,7 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 
 void CLoadingExt::LoadBuilding(FString ID)
 {
-	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
+	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
 		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
 			LoadBuilding(*ppPowerUpBld);
@@ -354,7 +354,7 @@ void CLoadingExt::LoadBuilding(FString ID)
 
 	if (ExtConfigs::InGameDisplay_AlphaImage)
 	{
-		if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+		if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
 		{
 			auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
 			if (!CLoadingExt::IsObjectLoaded(AIDicName))
@@ -367,7 +367,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
@@ -521,7 +521,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		}
 	};
 
-	if (auto ppPowerUpBld = Variables::Rules.TryGetString(ID, "PowersUpBuilding")) // Early load
+	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
 	{
 		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
 			LoadBuilding(*ppPowerUpBld);
@@ -592,11 +592,11 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
-	if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	if (Variables::RulesMap.GetBool(ID, "Turret")) // Has turret
 	{
-		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+		if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel"))
 		{
-			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			FString BarlName = ID + "barl";
 
 
@@ -648,8 +648,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 				UnionSHP_Add(pTempBuf, width, height);
 
-				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
 
 				if (pTurImages[i])
 				{
@@ -698,7 +698,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		}
 		else //SHP anim
 		{
-			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 			for (int i = 0; i < facings; ++i)
@@ -716,8 +716,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 					UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
 				}
 
-				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
 					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
 
@@ -758,7 +758,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	AvailableFacings[ID] = facings;
 
@@ -928,7 +928,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	};
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
-	if (Variables::Rules.GetBool(ID, "Wall"))
+	if (Variables::RulesMap.GetBool(ID, "Wall"))
 		nBldStartFrame--;
 
 	FString AnimKeys[9] =
@@ -994,11 +994,11 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
 
-	if (Variables::Rules.GetBool(ID, "Turret")) // Has turret
+	if (Variables::RulesMap.GetBool(ID, "Turret")) // Has turret
 	{
-		if (Variables::Rules.GetBool(ID, "TurretAnimIsVoxel"))
+		if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel"))
 		{
-			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			FString BarlName = ID + "barl";
 
 
@@ -1048,8 +1048,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 				memcpy_s(pTempBuf, width * height, pBuffer, width * height);
 				UnionSHP_Add(pTempBuf, width, height);
 
-				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
 
 				if (pTurImages[i])
 				{
@@ -1104,7 +1104,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		}
 		else //SHP anim
 		{
-			FString TurName = Variables::Rules.GetString(ID, "TurretAnim", ID + "tur");
+			FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
 			int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 			bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 			for (int i = 0; i < facings; ++i)
@@ -1120,8 +1120,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 					UnionSHP_Add(pTempBufShadow, width, height, 0, 0, false, true);
 				}
 
-				int deltaX = Variables::Rules.GetInteger(ID, "TurretAnimX", 0);
-				int deltaY = Variables::Rules.GetInteger(ID, "TurretAnimY", 0);
+				int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
+				int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
 				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
 					nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
 
@@ -1175,7 +1175,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	FString PaletteName = "iso\233NotAutoTinted";
 	PaletteName = CINI::Art->GetString(ArtID, "RubblePalette", PaletteName);
 	GetFullPaletteName(PaletteName);
@@ -1302,7 +1302,7 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 		}
 	};
 
-	if (Variables::Rules.GetBool(ID, "LeaveRubble"))
+	if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
 	{
 		int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 3;
 		if (loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow && CINI::Art->GetBool(ArtID, "Shadow", true)))
@@ -1336,11 +1336,11 @@ void CLoadingExt::LoadInfantry(FString ID)
 {	
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetInfantryFileID(ID);
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 
 	FString sequenceName = CINI::Art->GetString(ImageID, "Sequence");
-	bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
-	bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer" 
+	bool deployable = Variables::RulesMap.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
+	bool waterable = Variables::RulesMap.GetString(ID, "MovementZone") == "AmphibiousDestroyer" 
 		&& CINI::Art->KeyExists(sequenceName, "Swim");
 	FString frames = CINI::Art->GetString(sequenceName, "Guard", "0,1,1");
 	int framesToRead[8];
@@ -1454,7 +1454,7 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 		FString DictName;
 		DictName.Format("%s%d", ID, 0);
 		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
-		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::Rules.GetBool(ID, "SpawnsTiberium"))
+		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 		{
 			PaletteName = "unitsno.pal";
 		}
@@ -1473,7 +1473,7 @@ void CLoadingExt::LoadTerrainOrSmudge(FString ID, bool terrain)
 
 		if (ExtConfigs::InGameDisplay_AlphaImage && terrain)
 		{
-			if (auto pAIFile = Variables::Rules.TryGetString(ID, "AlphaImage"))
+			if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
 			{
 				auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
 				if (!CLoadingExt::IsObjectLoaded(AIDicName))
@@ -1487,8 +1487,8 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetVehicleOrAircraftFileID(ID);
-	bool bHasTurret = Variables::Rules.GetBool(ID, "Turret");
-	bool bHasShadow = !Variables::Rules.GetBool(ID, "NoShadow");
+	bool bHasTurret = Variables::RulesMap.GetBool(ID, "Turret");
+	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL

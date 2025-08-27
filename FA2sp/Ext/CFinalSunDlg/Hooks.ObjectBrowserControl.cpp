@@ -71,7 +71,7 @@ DEFINE_HOOK(45CD22, CIsoView_OnMouseMove_LButtonDown_PlaceObject, 9)
         if (cell->Smudge > -1)
             Map.DeleteSmudgeData(cell->Smudge);
 
-        auto& rules = Variables::Rules;
+        auto& rules = Variables::RulesMap;
         //check overlapping
         int width = rules.GetInteger(smudge.TypeID, "Width", 1);
         int height = rules.GetInteger(smudge.TypeID, "Height", 1);
@@ -785,7 +785,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
                         if (cell->Smudge < 0)
                         {
-                            auto& rules = Variables::Rules;
+                            auto& rules = Variables::RulesMap;
                             //check overlapping
                             int width = rules.GetInteger(smudge.TypeID, "Width", 1);
                             int height = rules.GetInteger(smudge.TypeID, "Height", 1);
@@ -1011,7 +1011,7 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_PropertyBrush, 5)
 
                             if (cell->Smudge < 0)
                             {
-                                auto& rules = Variables::Rules;
+                                auto& rules = Variables::RulesMap;
                                 //check overlapping
                                 int width = rules.GetInteger(smudge.TypeID, "Width", 1);
                                 int height = rules.GetInteger(smudge.TypeID, "Height", 1);
@@ -1308,15 +1308,18 @@ DEFINE_HOOK(45BF73, CIsoView_OnMouseMove_PropertyBrush, 9)
     return CIsoView::CurrentCommand->Command == FACurrentCommand::WaypointHandle ? 0x45BF7C : 0x45C168;
 }
 
+// Now indices can be updated
 // Add a house won't update indices, so there might be hidden risks if not reloading the map.
 // That's why these hooks are not used.
 //DEFINE_HOOK_AGAIN(40A5CB, CINIEditor_Update, 6)
-//DEFINE_HOOK_AGAIN(44EB1C, CHouses_ONBNDeleteHouseClicked_UpdateTreeview, 7)
-//DEFINE_HOOK(44E320, CHouses_ONBNAddHouseClicked_UpdateTreeview, 7)
-//{
-//    GlobalVars::Dialogs::CFinalSunDlg->MyViewFrame.pObjectBrowserControl->Update();
-//    return 0;
-//}
+DEFINE_HOOK_AGAIN(44EB1C, CHouses_ONBNDeleteHouseClicked_UpdateTreeview, 7)
+DEFINE_HOOK(44E320, CHouses_ONBNAddHouseClicked_UpdateTreeview, 7)
+{
+    //CFinalSunDlg::Instance->MyViewFrame.pViewObjects->Update();
+    CMapDataExt::UpdateMapSectionIndicies("Houses");
+    CMapDataExt::UpdateMapSectionIndicies("Countries");
+    return 0;
+}
 
 //DEFINE_HOOK(51AFB8, ObjectBrowserControl_OnSelectedChanged, 6)
 //{

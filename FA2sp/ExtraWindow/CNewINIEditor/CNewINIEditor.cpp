@@ -25,7 +25,7 @@ CFinalSunDlg* CNewINIEditor::m_parent;
 HWND CNewINIEditor::m_hwndImporter;
 CINI& CNewINIEditor::map = CINI::CurrentDocument;
 CINI& CNewINIEditor::fadata = CINI::FAData;
-MultimapHelper& CNewINIEditor::rules = Variables::Rules;
+MultimapHelper& CNewINIEditor::rules = Variables::RulesMap;
 
 HWND CNewINIEditor::hSearchText;
 HWND CNewINIEditor::hSectionList;
@@ -652,6 +652,9 @@ void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
     else if (strcmp(lpSectionName, "Annotations") == 0) {
         CMapData::Instance->UpdateFieldInfantryData(false);
     }
+    else if (strcmp(lpSectionName, "Countries") == 0) {
+        CMapDataExt::UpdateMapSectionIndicies("Countries");
+    }
     else if (IsHouse(lpSectionName)) {
         CMapData::Instance->UpdateFieldBasenodeData(false);
     }
@@ -671,6 +674,8 @@ void CNewINIEditor::UpdateAllGameObject()
     CMapData::Instance->UpdateFieldCelltagData(false);
     CMapData::Instance->UpdateFieldBasenodeData(false);
     CMapDataExt::UpdateAnnotation();
+    CMapDataExt::UpdateMapSectionIndicies("Countries");
+
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap.m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
@@ -681,7 +686,8 @@ bool CNewINIEditor::IsGameObject(const char* lpSectionName)
 
     if (str == "Terrain" || str == "Waypoints" || str == "Smudge" ||
         str == "Structures" || str == "Units" || str == "CellTags" ||
-        str == "Aircraft" || str == "Infantry" || str == "Annotations")
+        str == "Aircraft" || str == "Infantry" || str == "Annotations"
+        || str == "Countries")
         return true;
 
     return false;

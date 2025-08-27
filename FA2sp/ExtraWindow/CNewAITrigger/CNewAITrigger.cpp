@@ -18,7 +18,7 @@
 HWND CNewAITrigger::m_hwnd;
 CFinalSunDlg* CNewAITrigger::m_parent;
 CINI& CNewAITrigger::map = CINI::CurrentDocument;
-MultimapHelper& CNewAITrigger::rules = Variables::Rules;
+MultimapHelper& CNewAITrigger::rules = Variables::RulesMap;
 CINI& CNewAITrigger::fadata = CINI::FAData;
 
 HWND CNewAITrigger::hSelectedAITrigger;
@@ -168,17 +168,14 @@ void CNewAITrigger::Update(HWND& hWnd)
     
     idx = 0;
     while (SendMessage(hCountry, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    if (const auto& indicies = Variables::GetRulesMapSection("Countries"))
+    const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
+    SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
+    for (auto& value : indicies)
     {
-        SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<all>");
-        for (auto& pair : *indicies)
-        {
-            if (pair.second == "GDI" || pair.second == "Nod")
-                continue;
-            SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(pair.second, true));
-        }
+        if (value == "GDI" || value == "Nod")
+            continue;
+        SendMessage(hCountry, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true));
     }
-
     
     idx = 0;
     while (SendMessage(hComparator, CB_DELETESTRING, 0, NULL) != CB_ERR);

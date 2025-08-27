@@ -1373,7 +1373,7 @@ void CObjectSearch::SearchObjects(HWND hWnd, const char* source)
                     
                     name = StringtableLoader::QueryUIName(pID);
                     if (name == "MISSING")
-                        name = Variables::Rules.GetString(pID, "Name", pID);
+                        name = Variables::RulesMap.GetString(pID, "Name", pID);
                     if (name != pID) {
                         FString tmp = name;
                         name.Format("%s (%s)", tmp, pID);

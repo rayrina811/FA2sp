@@ -5,6 +5,8 @@
 #include <CINI.h>
 #include "../../Helpers/Translations.h"
 #include "../../FA2sp.h"
+#include <filesystem>
+
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
@@ -122,7 +124,10 @@ bool CLoadingExt::InitMixFilesFix()
 						Logger::Raw("[MixLoader] %s failed!\n", Mix);
 					return ExtConfigs::DisableDirectoryCheck || result;
 				}
-				Logger::Raw("[MixLoader] %s failed!\n", Mix);
+				if (std::filesystem::exists(FullPath.c_str()))
+				{
+					Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+				}
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
 		};
@@ -312,7 +317,10 @@ bool CLoadingExt::InitMixFilesFix()
 				index++;
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
-			Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+			if (std::filesystem::exists(FullPath.c_str()))
+			{
+				Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+			}
 			return ExtConfigs::DisableDirectoryCheck || result;
 		};
 

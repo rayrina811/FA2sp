@@ -91,7 +91,7 @@ public:
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);
-    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<bool>& mask);
+    static void MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd, std::vector<char>& mask);
     static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, const std::vector<byte>& mask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
     static std::vector<MapCoord> GetTubePath(int x1, int y1, int x2, int y2, bool first = true);

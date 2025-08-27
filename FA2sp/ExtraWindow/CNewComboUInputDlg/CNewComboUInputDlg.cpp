@@ -45,44 +45,21 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 	{
 	case COMBOUINPUT_MANUAL:
 		if (!ReadValue && UseStrictOrder) {
-			if (LoadFrom == 1 || LoadFrom == 2) {
-				if (const auto& indicies = LoadFrom == 1 ? Variables::GetRulesSection(m_Section) : Variables::GetRulesMapSection(m_Section))
+			auto&& entries = mmh.ParseIndicies(m_Section, true);
+			for (size_t i = 0, sz = entries.size(); i < sz; i++)
+			{
+				FString output;
+				output.Format("%d - %s", i, entries[i]);
+
+				FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
+				if (uiname != entries[i] && uiname != "" && uiname != "MISSING")
 				{
-					int idx = 0;
-					for (auto& pair : *indicies)
-					{
-						FString output;
-						output.Format("%d - %s", idx, pair.second);
-						FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-						if (uiname != pair.second && uiname != "" && uiname != "MISSING")
-						{
-							FString tmp = output;
-							output.Format("%s - %s", tmp, uiname);
-						}
-
-						m_ManualStrings.push_back(output);
-						box->AddString(m_ManualStrings.back());
-						idx++;
-					}
+					FString tmp = output;
+					output.Format("%s - %s", tmp, uiname);
 				}
-			}
-			else {
-				auto&& entries = mmh.ParseIndicies(m_Section, true);
-				for (size_t i = 0, sz = entries.size(); i < sz; i++)
-				{
-					FString output;
-					output.Format("%d - %s", i, entries[i]);
 
-					FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
-					if (uiname != entries[i] && uiname != "" && uiname != "MISSING")
-					{
-						FString tmp = output;
-						output.Format("%s - %s", tmp, uiname);
-					}
-
-					m_ManualStrings.push_back(output);
-					box->AddString(m_ManualStrings.back());
-				}
+				m_ManualStrings.push_back(output);
+				box->AddString(m_ManualStrings.back());
 			}
 		}
 		else {
@@ -127,9 +104,7 @@ BOOL CNewComboUInputDlg::OnInitDialog()
 	}
 
 	box->SetCurSel(0);
-
-
-	return TRUE;  
+	return TRUE;
 }
 
 void CNewComboUInputDlg::OnOK()

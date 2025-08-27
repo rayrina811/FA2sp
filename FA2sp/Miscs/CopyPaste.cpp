@@ -76,7 +76,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
 
         if (pCell->Terrain > -1)
         {
-            pushString(Variables::GetRulesMapValueAt("TerrainTypes", pCell->TerrainType), item.TerrainData);
+            pushString(Variables::RulesMap.GetValueAt("TerrainTypes", pCell->TerrainType), item.TerrainData);
             objectMask |= ObjectRecord::RecordType::Terrain;
         }
 
@@ -84,7 +84,7 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             auto& smudge = CMapData::Instance->SmudgeDatas[pCell->Smudge];
             if (smudge.X == coords.Y && smudge.Y == coords.X)
             {
-                pushString(Variables::GetRulesMapValueAt("SmudgeTypes", pCell->SmudgeType), item.SmudgeData);
+                pushString(Variables::RulesMap.GetValueAt("SmudgeTypes", pCell->SmudgeType), item.SmudgeData);
                 objectMask |= ObjectRecord::RecordType::Smudge;
             }
         }

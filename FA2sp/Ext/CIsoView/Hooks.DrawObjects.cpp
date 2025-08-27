@@ -60,7 +60,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 	{
 		if (landType == LandType::Water || landType == LandType::Beach)
 		{
-			ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage", obj.TypeID);
+			ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage", obj.TypeID);
 		}
 	}
 	if (ExtConfigs::InGameDisplay_Damage)
@@ -68,11 +68,11 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 		int HP = atoi(obj.Health);
 		if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 		{
-			ImageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionYellow", ImageID);
+			ImageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionYellow", ImageID);
 		}
 		if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 		{
-			ImageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionRed", ImageID);
+			ImageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionRed", ImageID);
 		}
 		if (ExtConfigs::InGameDisplay_Water)
 		{
@@ -80,11 +80,11 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 			{
 				if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 				{
-					ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage.ConditionYellow", ImageID);
+					ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage.ConditionYellow", ImageID);
 				}
 				if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 				{
-					ImageID = Variables::Rules.GetString(obj.TypeID, "WaterImage.ConditionRed", ImageID);
+					ImageID = Variables::RulesMap.GetString(obj.TypeID, "WaterImage.ConditionRed", ImageID);
 				}
 			}
 		}
@@ -92,7 +92,7 @@ inline static void GetUnitImageID(FString& ImageID, const CUnitData& obj, const 
 	// UnloadingClass is prior
 	if (ExtConfigs::InGameDisplay_Deploy && obj.Status == "Unload")
 	{
-		ImageID = Variables::Rules.GetString(obj.TypeID, "UnloadingClass", ImageID);
+		ImageID = Variables::RulesMap.GetString(obj.TypeID, "UnloadingClass", ImageID);
 	}
 }
 
@@ -549,9 +549,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	int shadowMask_width = window.right - window.left;
 	int shadowMask_height = window.bottom - window.top;
 	int shadowMask_size = shadowMask_width * shadowMask_height;
-	std::vector<bool> shadowMask_Building_Infantry(shadowMask_size, false);
-	std::vector<bool> shadowMask_Terrain(shadowMask_size, false);
-	std::vector<bool> shadowMask_Overlay(shadowMask_size, false);
+	std::vector<char> shadowMask_Building_Infantry(shadowMask_size, 0);
+	std::vector<char> shadowMask_Terrain(shadowMask_size, 0);
+	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap) continue;
@@ -661,7 +661,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							y1 -= DrawOffsetY;
 
 							int nFacing = 0;
-							if (Variables::Rules.GetBool(objRender.ID, "Turret") && !Variables::Rules.GetBool(objRender.ID, "TurretAnimIsVoxel"))
+							if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 							{
 								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
@@ -674,7 +674,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 								status = CLoadingExt::GBIN_DAMAGED;
 							else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-								&& !(Variables::Rules.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::Rules.GetBool(objRender.ID, "CanOccupyFire")))
+								&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
 								status = CLoadingExt::GBIN_DAMAGED;
 							const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
 
@@ -717,7 +717,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					}
 					bool deploy = ExtConfigs::InGameDisplay_Deploy
-						&& obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
+						&& obj.Status == "Unload" && Variables::RulesMap.GetBool(obj.TypeID, "Deployer");
 
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 
@@ -797,7 +797,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 		if (shadow && cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
 		{
-			auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
+			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
 			const auto& imageName = CLoadingExt::GetImageName(obj, 0, true);
 
 			if (!CLoadingExt::IsObjectLoaded(obj))
@@ -812,7 +812,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				int y1 = y;
 
 				CIsoViewExt::MaskShadowPixels(window, 
-					x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
+					x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
 					pData, shadowMask_Terrain);
 			}
 		}
@@ -823,7 +823,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 			if (!pData || !pData->pImageBuffer)
 			{
-				auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellExt->NewOverlay);
+				auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
 				if (!CLoadingExt::IsOverlayLoaded(obj))
 				{
 					CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
@@ -1008,7 +1008,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		//smudges
 		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges)
 		{
-			auto obj = Variables::GetRulesMapValueAt("SmudgeTypes", cell->SmudgeType);
+			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
 			const auto& imageName = CLoadingExt::GetImageName(obj, 0);
 			if (!CLoadingExt::IsObjectLoaded(obj))
 			{
@@ -1044,7 +1044,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (!pData || !pData->pImageBuffer)
 				{
-					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellNextExt.NewOverlay);
+					auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellNextExt.NewOverlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
 					{
 						CLoadingExt::GetExtension()->LoadOverlay(obj, cellNextExt.NewOverlay);
@@ -1121,7 +1121,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (!pData || !pData->pImageBuffer)
 				{
-					auto obj = Variables::GetRulesMapValueAt("OverlayTypes", cellExt->NewOverlay);
+					auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", cellExt->NewOverlay);
 					if (!CLoadingExt::IsOverlayLoaded(obj))
 					{
 						CLoadingExt::GetExtension()->LoadOverlay(obj, cellExt->NewOverlay);
@@ -1182,7 +1182,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		//terrains
 		if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
 		{
-			auto obj = Variables::GetRulesMapValueAt("TerrainTypes", cell->TerrainType);
+			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
 			const auto& imageName = CLoadingExt::GetImageName(obj, 0);
 
 			if (!CLoadingExt::IsObjectLoaded(obj))
@@ -1194,17 +1194,17 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (pData->pImageBuffer)
 			{
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
+					x - pData->FullWidth / 2, y - pData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12),
 					pData, NULL, 255, 0, -1, false);
 
-				if (auto pAIFile = Variables::Rules.TryGetString(obj, "AlphaImage"))
+				if (auto pAIFile = Variables::RulesMap.TryGetString(obj, "AlphaImage"))
 				{
 					auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
 
 					if (pAIData && pAIData->pImageBuffer)
 					{
 						CIsoViewExt::BlitSHPTransparent_AlphaImage(pThis, lpDesc->lpSurface, window, boundary,
-							x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::Rules.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pAIData);
+							x - pAIData->FullWidth / 2, y - pAIData->FullHeight / 2 + (Variables::RulesMap.GetBool(obj, "SpawnsTiberium") ? 0 : 12), pAIData);
 					}
 				}
 			}
@@ -1235,7 +1235,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				if (CIsoViewExt::DrawStructures)
 				{
 					int nFacing = 0;
-					if (Variables::Rules.GetBool(objRender.ID, "Turret"))
+					if (Variables::RulesMap.GetBool(objRender.ID, "Turret"))
 					{
 						int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 						nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
@@ -1248,7 +1248,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 						status = CLoadingExt::GBIN_DAMAGED;
 					else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-						&& !(Variables::Rules.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::Rules.GetBool(objRender.ID, "CanOccupyFire")))
+						&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
 						status = CLoadingExt::GBIN_DAMAGED;
 					const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status);
 
@@ -1297,7 +1297,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						if (ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages)
 						{
-							if (auto pAIFile = Variables::Rules.TryGetString(objRender.ID, "AlphaImage"))
+							if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
 							{
 								auto pAIData = CLoadingExt::GetImageDataFromServer(*pAIFile + "\233ALPHAIMAGE");
 
@@ -1421,9 +1421,9 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (pData->pImageBuffer)
 				{
-					bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::Rules.GetString(obj.TypeID, "SpeedType") == "Hover"
-						&& (Variables::Rules.GetString(obj.TypeID, "Locomotor") == "Hover"
-							|| Variables::Rules.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
+					bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && Variables::RulesMap.GetString(obj.TypeID, "SpeedType") == "Hover"
+						&& (Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "Hover"
+							|| Variables::RulesMap.GetString(obj.TypeID, "Locomotor") == "{4A582742-9839-11d1-B709-00A024DDAFD1}");
 
 					auto color = Miscs::GetColorRef(obj.House);
 
@@ -1465,11 +1465,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int HP = atoi(obj.Health);
 					if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP)
 					{
-						imageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionYellow", imageID);
+						imageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionYellow", imageID);
 					}
 					if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 					{
-						imageID = Variables::Rules.GetString(obj.TypeID, "Image.ConditionRed", imageID);
+						imageID = Variables::RulesMap.GetString(obj.TypeID, "Image.ConditionRed", imageID);
 					}
 				}
 
@@ -1520,7 +1520,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 					}
 					bool deploy = ExtConfigs::InGameDisplay_Deploy
-						&& obj.Status == "Unload" && Variables::Rules.GetBool(obj.TypeID, "Deployer");
+						&& obj.Status == "Unload" && Variables::RulesMap.GetBool(obj.TypeID, "Deployer");
 
 					const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, false, deploy && !water, water);
 

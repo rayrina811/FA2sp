@@ -79,7 +79,7 @@ DEFINE_HOOK(468760, Miscs_GetColor, 7)
 
 	ppmfc::CString color = "";
 	if (pHouse)
-		if (auto pStr = Variables::Rules.TryGetString(pHouse, "Color")) {
+		if (auto pStr = Variables::RulesMap.TryGetString(pHouse, "Color")) {
 			color = *pStr;
 		}
 
@@ -171,7 +171,7 @@ DEFINE_HOOK(4C76C6, CMapData_ResizeMap_PositionFix_SmudgeAndBasenodeAndTube, 5)
 	}
 	CMapData::Instance->UpdateFieldSmudgeData(false);
 
-	for (const auto& [_, house] : Variables::Rules.GetSection("Houses"))
+	for (const auto& [_, house] : Variables::RulesMap.GetSection("Houses"))
 	{
 		if (auto pSection = CMapData::Instance->INI.GetSection(house))
 		{

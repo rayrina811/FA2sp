@@ -127,7 +127,7 @@ public:
                     group.Items.push_back(STDHelpers::IntToString(overlays.Overlay));
                     if (overlays.Overlay < 0xFFFF)
                     {
-                        CLoadingExt::GetExtension()->LoadOverlay(Variables::GetRulesMapValueAt("OverlayTypes", overlays.Overlay), overlays.Overlay);
+                        CLoadingExt::GetExtension()->LoadOverlay(Variables::RulesMap.GetValueAt("OverlayTypes", overlays.Overlay), overlays.Overlay);
 
                         if (atomsData.empty()) {
                             group.HasExtraIndex = false;

@@ -318,7 +318,7 @@ DEFINE_HOOK(4F1620, CTerrainDlg_Update_SetOverlayName, 8)
     auto theater = TheaterHelpers::GetCurrentSuffix();
     theater.MakeUpper();
     theater = "RenameID" + theater;
-    const auto ovrID = Variables::GetRulesMapValueAt("OverlayTypes", index);
+    const auto ovrID = Variables::RulesMap.GetValueAt("OverlayTypes", index);
     auto name = CINI::FALanguage().TryGetString(theater, ovrID);
     if (!name) {
         name = CINI::FALanguage().TryGetString("RenameID", ovrID);

@@ -191,11 +191,10 @@ CBuildingData ExtConfigs::DefaultBuildingProperty;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
-MultimapHelper Variables::Rules = { &CINI::Rules(), &CINI::CurrentDocument() };
+MultimapHelper Variables::RulesMap = { &CINI::Rules(), &CINI::CurrentDocument() };
+MultimapHelper Variables::Rules = { &CINI::Rules() };
 MultimapHelper Variables::FAData = { &CINI::FAData() };
 MultimapHelper Variables::Rules_FAData = { &CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData() };
-std::unordered_map<FString, std::vector<std::pair<FString, FString>>> Variables::OrderedRulesMapIndicies;
-std::unordered_map<FString, std::vector<std::pair<FString, FString>>> Variables::OrderedRulesIndicies;
 
 void FA2sp::ExtConfigsInitialize()
 {	
