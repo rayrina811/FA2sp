@@ -82,6 +82,7 @@ int ExtConfigs::BaseNodeIndex_Background_Color;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtFacings_Drag;
+bool ExtConfigs::ExtFacings_DragPreview;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
 bool ExtConfigs::UndoRedo_RecordObjects;
@@ -294,6 +295,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
+	ExtConfigs::ExtFacings_DragPreview = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.DragPreview", true);
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
@@ -934,6 +936,13 @@ void FA2sp::ExtConfigsInitialize()
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.Drag", "Allow drag units into 32 facings"),
 		.IniKey = "ExtFacings.Drag",
 		.Value = &ExtConfigs::ExtFacings_Drag,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.DragPreview", "Preview facing while draging"),
+		.IniKey = "ExtFacings.DragPreview",
+		.Value = &ExtConfigs::ExtFacings_DragPreview,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

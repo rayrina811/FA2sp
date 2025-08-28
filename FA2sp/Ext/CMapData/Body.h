@@ -498,8 +498,6 @@ public:
     static void UpdateFieldAircraftData_RedrawMinimap();
 
     static int OreValue[4];
-    static bool SkipUpdateBuildingInfo;
-    static std::vector<int> deletedKeys;
     static std::vector<std::vector<int>> Tile_to_lat;
     static std::vector<int> TileSet_starts;
 

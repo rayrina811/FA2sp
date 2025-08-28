@@ -537,11 +537,6 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		auto m_id = isoView->CurrentCellObjectIndex;
 		auto m_type = isoView->CurrentCellObjectType;
 
-		CBuildingData structure;
-		CInfantryData infantry;
-		CUnitData unit;
-		CAircraftData aircraft;
-
 		int X = R->EBX();
 		int	Y = R->EDI();
 		MapCoord newMapCoord = { X,Y };
@@ -549,6 +544,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		//order: inf unit air str
 		if (m_type == 0)
 		{
+			CInfantryData infantry;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Infantry);
 			Map->GetInfantryData(m_id, infantry);
 			auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
@@ -558,6 +554,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 3)
 		{
+			CUnitData unit;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Unit);
 			Map->GetUnitData(m_id, unit);
 			auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
@@ -567,6 +564,7 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 2)
 		{
+			CAircraftData aircraft;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Aircraft);
 			Map->GetAircraftData(m_id, aircraft);
 			auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
@@ -576,11 +574,11 @@ DEFINE_HOOK(466E00, CIsoView_OnLButtonUp_DragFacing, 7)
 		}
 		else if (m_type == 1)
 		{
+			CBuildingData structure;
 			CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Building);
 			Map->GetBuildingData(m_id, structure);
 			auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
 			structure.Facing = CMapDataExt::GetFacing(oldMapCoord, newMapCoord, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
-			CMapDataExt::SkipUpdateBuildingInfo = true;
 			Map->DeleteBuildingData(m_id);
 			Map->SetBuildingData(&structure, NULL, NULL, 0, "");
 		}

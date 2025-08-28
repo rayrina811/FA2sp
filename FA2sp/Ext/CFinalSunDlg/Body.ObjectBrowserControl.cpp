@@ -2559,6 +2559,80 @@ void CViewObjectsExt::ApplyChangeOwner(int X, int Y)
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
+void CViewObjectsExt::ApplyDragFacing(int X, int Y)
+{
+    auto pIsoView = CIsoView::GetInstance();
+    auto Map = &CMapData::Instance();
+    auto& m_id = pIsoView->CurrentCellObjectIndex;
+    auto& m_type = pIsoView->CurrentCellObjectType;
+    MapCoord point = { X,Y };
+
+    //order: inf unit air str
+    if (m_type == 0)
+    {
+        ppmfc::CString oldFacing;
+        CInfantryData infantry;
+        Map->GetInfantryData(m_id, infantry);
+        oldFacing = infantry.Facing;
+        auto oldMapCoord = MapCoord{ atoi(infantry.X), atoi(infantry.Y) };
+        infantry.Facing = CMapDataExt::GetFacing(oldMapCoord, point, infantry.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
+        Map->DeleteInfantryData(m_id);
+        Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        Map->DeleteInfantryData(m_id);
+        infantry.Facing = oldFacing;
+        Map->SetInfantryData(&infantry, NULL, NULL, 0, -1);
+    }
+    else if (m_type == 3)
+    {
+        ppmfc::CString oldFacing;
+        CUnitData unit;
+        Map->GetUnitData(m_id, unit);
+        oldFacing = unit.Facing;
+        auto oldMapCoord = MapCoord{ atoi(unit.X), atoi(unit.Y) };
+        unit.Facing = CMapDataExt::GetFacing(oldMapCoord, point, unit.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
+        Map->DeleteUnitData(m_id);
+        Map->SetUnitData(&unit, NULL, NULL, 0, "");
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        Map->DeleteUnitData(m_id);
+        unit.Facing = oldFacing;
+        Map->SetUnitData(&unit, NULL, NULL, 0, "");
+    }
+    else if (m_type == 2)
+    {
+        ppmfc::CString oldFacing;
+        CAircraftData aircraft;
+        Map->GetAircraftData(m_id, aircraft);
+        oldFacing = aircraft.Facing;
+        auto oldMapCoord = MapCoord{ atoi(aircraft.X), atoi(aircraft.Y) };
+        aircraft.Facing = CMapDataExt::GetFacing(oldMapCoord, point, aircraft.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
+        Map->DeleteAircraftData(m_id);
+        Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        Map->DeleteAircraftData(m_id);
+        aircraft.Facing = oldFacing;
+        Map->SetAircraftData(&aircraft, NULL, NULL, 0, "");
+    }
+    else if (m_type == 1)
+    {
+        ppmfc::CString oldFacing;
+        CBuildingData structure;
+        Map->GetBuildingData(m_id, structure);
+        oldFacing = structure.Facing;
+        auto oldMapCoord = MapCoord{ atoi(structure.X), atoi(structure.Y) };
+        structure.Facing = CMapDataExt::GetFacing(oldMapCoord, point, structure.Facing, ExtConfigs::ExtFacings_Drag ? 32 : 8);
+        Map->DeleteBuildingData(m_id);
+        Map->SetBuildingData(&structure, NULL, NULL, 0, "");
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+        auto cell = Map->GetCellAt(oldMapCoord.X, oldMapCoord.Y);
+        m_id = cell->Structure;
+        Map->DeleteBuildingData(m_id);
+        structure.Facing = oldFacing;
+        Map->SetBuildingData(&structure, NULL, NULL, 0, "");
+        m_id = cell->Structure;
+    }
+}
+
 void CViewObjectsExt::ApplyPropertyBrush(int X, int Y)
 {
     auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
@@ -2623,7 +2697,6 @@ void CViewObjectsExt::ApplyPropertyBrush_Building(int nIndex)
     CMapData::Instance->GetBuildingData(nIndex, data);
     
     ApplyPropertyBrush_Building(data);
-    CMapDataExt::SkipUpdateBuildingInfo = true;
     CMapData::Instance->DeleteBuildingData(nIndex);
     CMapData::Instance->SetBuildingData(&data, nullptr, nullptr, 0, "");
 }

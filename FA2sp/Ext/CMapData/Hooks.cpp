@@ -832,24 +832,12 @@ DEFINE_HOOK(466FE0, CIsoView_OnLButtonUp_Drag_Building, 5)
 
 	if ((nFlags != MK_SHIFT))
 	{
-		CMapDataExt::SkipUpdateBuildingInfo = true;
 		Map->DeleteBuildingData(m_id);
 	}
 	Map->SetBuildingData(&structure, NULL, NULL, 0, "");
 
 
 	return 0x467682;
-}
-
-DEFINE_HOOK(45FA55, CIsoView_Update_SetBuildingProperty, 6)
-{
-	CMapDataExt::SkipUpdateBuildingInfo = true;
-	return 0;
-}
-DEFINE_HOOK(46CD45, CIsoView_Update_ChangeBuildingOwner, 6)
-{
-	CMapDataExt::SkipUpdateBuildingInfo = true;
-	return 0;
 }
 
 DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)

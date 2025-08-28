@@ -95,6 +95,7 @@ public:
     static bool ExtWaypoints;
     static bool ExtFacings;
     static bool ExtFacings_Drag;
+    static bool ExtFacings_DragPreview;
     static int UndoRedoLimit;
     static bool UndoRedo_RecordObjects;
     static bool UndoRedo_ShiftPlaceTile;

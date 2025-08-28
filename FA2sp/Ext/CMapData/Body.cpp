@@ -47,7 +47,6 @@ CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
-bool CMapDataExt::SkipUpdateBuildingInfo = false;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::CurrentTheaterIndex;
