@@ -1573,7 +1573,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
         int x2 = X + line.second.X;
         int y2 = Y + line.second.Y;
         ClipAndDrawLine(x1, y1, x2, y2);
-        ClipAndDrawLine(x1, y1, x2, y2);
+        //ClipAndDrawLine(x1, y1, x2, y2);
         if (!bUseDot)
         {
             ClipAndDrawLine(x1 + 1, y1, x2 + 1, y2);

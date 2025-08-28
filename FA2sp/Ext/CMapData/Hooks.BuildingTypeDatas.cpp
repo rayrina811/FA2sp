@@ -126,8 +126,8 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 						MapCoord start, end;
 						start.X = ((x - length) - y) * 30;
 						start.Y = ((x - length) + y) * 15;
-						end.X = (x - y) * 30;
-						end.Y = (x + y) * 15;
+						end.X = (x - y) * 30 + 2;
+						end.Y = (x + y) * 15 + 1;
 						DataExt.LinesToDraw->push_back(std::make_pair(start, end));
 						length = 0;
 					}
@@ -137,8 +137,8 @@ DEFINE_HOOK(4B5460, CMapData_InitializeBuildingTypes, 7)
 					MapCoord start, end;
 					start.X = ((DataExt.Width - length) - y) * 30;
 					start.Y = ((DataExt.Width - length) + y) * 15;
-					end.X = (DataExt.Width - y) * 30;
-					end.Y = (DataExt.Width + y) * 15;
+					end.X = (DataExt.Width - y) * 30 + 2;
+					end.Y = (DataExt.Width + y) * 15 + 1;
 					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
 				}
 			}
