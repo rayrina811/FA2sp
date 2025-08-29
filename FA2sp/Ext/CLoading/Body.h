@@ -324,33 +324,16 @@ private:
 
 struct MixEntry {
 	uint32_t id;
-	int64_t offset;
-	int64_t size;
+	uint32_t offset;
+	uint32_t size;
 };
-
-struct MixEntryHash {
-	std::size_t operator()(const MixEntry& entry) const noexcept {
-		std::size_t h1 = std::hash<uint32_t>{}(entry.id);
-		std::size_t h2 = std::hash<int64_t>{}(entry.offset);
-		std::size_t h3 = std::hash<int64_t>{}(entry.size);
-		return h1 ^ (h2 << 1) ^ (h3 << 2);
-	}
-};
-
-struct MixEntryEqual {
-	bool operator()(const MixEntry& lhs, const MixEntry& rhs) const noexcept {
-		return lhs.id == rhs.id && lhs.offset == rhs.offset && lhs.size == rhs.size;
-	}
-};
-
-using MixEntrySet = std::unordered_set<MixEntry, MixEntryHash, MixEntryEqual>;
 
 struct MixFile {
 	std::string path;
 	std::ifstream stream;
-	MixEntrySet entries;
+	std::vector<MixEntry> entries;
 	bool isNested = false; 
-	int64_t baseOffset = 0;
+	uint32_t baseOffset = 0;
 };
 
 struct FindFileHelper {
@@ -365,10 +348,9 @@ public:
 	MixLoader(const MixLoader&) = delete;
 	MixLoader& operator=(const MixLoader&) = delete;
 
-	void SetDLL(HMODULE h);
-	bool LoadTopMix(const std::string& path, const std::string& game);
-	bool LoadNestedMix(MixFile& parent, const MixEntry& entry, const std::string& game);
-	bool LoadMixFile(const std::string& path, const std::string& game, int* parentIndex = nullptr);
+	bool LoadTopMix(const std::string& path);
+	bool LoadNestedMix(MixFile& parent, const MixEntry& entry);
+	bool LoadMixFile(const std::string& path, int* parentIndex = nullptr);
 	int QueryFileIndex(const std::string& fileName, int mixIdx = -1);
 	std::unique_ptr<uint8_t[]> LoadFile(const std::string& fileName, size_t* outSize, int mixIdx = -1);
 	bool ExtractFile(const std::string& fileName, const std::string& outPath, int mixIdx = -1);
@@ -380,17 +362,6 @@ private:
 	MixLoader() = default;
 	~MixLoader() = default;
 
-	typedef char* (__cdecl* GetMixInfoFunc)(char*, char*, int*);
-	typedef char* (__cdecl* GetMixInfoFromRangeFunc)(char*, char*, long long, long long, int*);
-	typedef void(__cdecl* FreeMixMemFunc)(char*);
-
-	HMODULE hDLL = nullptr;
-	GetMixInfoFunc GetMixInfo = nullptr;
-	GetMixInfoFromRangeFunc GetMixInfoFromRange = nullptr;
-	FreeMixMemFunc FreeMixMem = nullptr;
-
 	std::vector<MixFile> mixFiles;
 	std::unordered_map<uint32_t, FindFileHelper> fileMap;
-
-	static MixEntrySet parseMixInfoRaw(const char* raw, int rawLen);
 };

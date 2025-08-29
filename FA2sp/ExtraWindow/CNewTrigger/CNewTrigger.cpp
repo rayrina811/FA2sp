@@ -23,7 +23,7 @@ HWND CNewTrigger::m_hwnd;
 CFinalSunDlg* CNewTrigger::m_parent;
 CINI& CNewTrigger::map = CINI::CurrentDocument;
 CINI& CNewTrigger::fadata = CINI::FAData;
-MultimapHelper& CNewTrigger::rules = Variables::Rules;
+MultimapHelper& CNewTrigger::rules = Variables::RulesMap;
 
 HWND CNewTrigger::hSelectedTrigger;
 HWND CNewTrigger::hNewTrigger;
@@ -279,14 +279,12 @@ void CNewTrigger::Update(HWND& hWnd)
 
     idx = 0;
     while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR); 
-    if (const auto& indicies = Variables::GetRulesMapSection("Countries"))
+    const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
+    for (auto& value : indicies)
     {
-        for (auto& pair : *indicies)
-        {
-            if (pair.second == "GDI" || pair.second == "Nod")
-                continue;
-            SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(pair.second, true).c_str());
-        }
+        if (value == "GDI" || value == "Nod")
+            continue;
+        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(value, true).c_str());
     }
 
     idx = 0;
@@ -501,7 +499,6 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_INSERTSTRING, SelectedTriggerIndex, (LPARAM)(LPCSTR)newName.c_str());
                     SendMessage(hActionParameter[CurrentTriggerActionParam], CB_SETCURSEL, hActionParameterCur, NULL);
                 }
-
             }
             break;
         case Controls::Disabled:
@@ -563,6 +560,17 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnCloseupCComboBox(hAttachedtrigger, AttachedTriggerLabels);
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && DropNeedUpdate)
+            {
+                SortTriggers(CurrentTrigger->ID);
+                int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
+                SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
+                if (CurrentTriggerActionParam > -1)
+                {
+                    OnSelchangeActionListbox();
+                }
+                DropNeedUpdate = false;
+            }
             break;
         case Controls::Type:
             if (CODE == CBN_SELCHANGE)
@@ -589,6 +597,17 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnCloseupCComboBox(hEventParameter[0], EventParamLabels[0]);
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && DropNeedUpdate)
+            {
+                SortTriggers(CurrentTrigger->ID);
+                int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
+                SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
+                if (CurrentTriggerActionParam > -1)
+                {
+                    OnSelchangeActionListbox();
+                }
+                DropNeedUpdate = false;
+            }
             break;
         case Controls::EventParameter2:
             if (CODE == CBN_SELCHANGE)
@@ -599,6 +618,13 @@ BOOL CALLBACK CNewTrigger::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
                 OnCloseupCComboBox(hEventParameter[1], EventParamLabels[1]);
             else if (CODE == CBN_SELENDOK)
                 ExtraWindow::bComboLBoxSelected = true;
+            else if (CODE == CBN_DROPDOWN && DropNeedUpdate)
+            {
+                SortTriggers(CurrentTrigger->ID);
+                int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
+                SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
+                DropNeedUpdate = false;
+            }
             break;
         case Controls::Actiontype:
             if (CODE == CBN_SELCHANGE)
@@ -1389,6 +1415,11 @@ void CNewTrigger::OnSeldropdownTrigger(HWND& hWnd)
 
     int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
     SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
+
+    if (CurrentTriggerActionParam > -1)
+    {
+        OnSelchangeActionListbox();
+    }
 }
 
 void CNewTrigger::OnClickNewTrigger()
@@ -2067,6 +2098,18 @@ void CNewTrigger::AdjustActionHeight()
 
 void CNewTrigger::OnDropdownCComboBox(int index)
 {
+    if (DropNeedUpdate)
+    {
+        SortTriggers(CurrentTrigger->ID);
+        int idx = SendMessage(hAttachedtrigger, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTriggerDisplayName(CurrentTrigger->AttachedTrigger).c_str());
+        SendMessage(hAttachedtrigger, CB_SETCURSEL, idx, NULL);
+        if (CurrentTriggerActionParam > -1)
+        {
+            OnSelchangeActionListbox();
+        }
+        DropNeedUpdate = false;
+    }
+
     if (index == CurrentCSFActionParam && ExtConfigs::TutorialTexts_Viewer)
     {
         PostMessage(hActionParameter[index], CB_SHOWDROPDOWN, FALSE, 0);

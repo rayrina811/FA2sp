@@ -60,7 +60,7 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
         for (int i = 1300; i <= 1313; ++i)
             pThis->GetDlgItem(i)->ShowWindow(SW_HIDE);
 
-        int nUpgrades = Variables::Rules.GetInteger(pThis->CString_ObjectID, "Upgrades", 0);
+        int nUpgrades = Variables::RulesMap.GetInteger(pThis->CString_ObjectID, "Upgrades", 0);
 
         if (!pThis->CString_ObjectID.IsEmpty())
         {
@@ -75,7 +75,7 @@ DEFINE_HOOK(417F40, CPropertyBuilding_OnInitDialog, 7)
                 std::vector<std::string> upgrades;
                 for (auto& bld : CMapData::Instance->BuildingTypes)
                 {
-                    if (auto const pString = Variables::Rules.TryGetString(bld.first, "PowersUpBuilding"))
+                    if (auto const pString = Variables::RulesMap.TryGetString(bld.first, "PowersUpBuilding"))
                     {
                         if (*pString == pThis->CString_ObjectID)
                             upgrades.push_back(bld.first.m_pchData);

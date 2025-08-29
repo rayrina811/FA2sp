@@ -144,8 +144,22 @@ DEFINE_HOOK(4669A8, CIsoView_OnLButtonUp_Scaled_1, A)
 	return 0x466C6E;
 }
 
-DEFINE_HOOK(45AFFC, CIsoView_OnMouseMove_Drag_skip, 7)
+DEFINE_HOOK(45AFFC, CIsoView_OnMouseMove_Drag_skip_dragFacing, 7)
 {
+	if (ExtConfigs::ExtFacings_DragPreview)
+	{
+		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+		if (CIsoView::CurrentCommand->Command == 0
+			&& (GetKeyState(VK_CONTROL) & 0x8000)
+			&& CIsoView::GetInstance()->CurrentCellObjectIndex >= 0
+			&& CIsoView::GetInstance()->CurrentCellObjectType >= 0
+			&& CIsoView::GetInstance()->CurrentCellObjectType <= 3)
+		{
+			CViewObjectsExt::ApplyDragFacing(point.X, point.Y);
+		}
+	}
+
 	return 0x45CD6D;
 }
 

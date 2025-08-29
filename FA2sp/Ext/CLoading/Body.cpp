@@ -5,6 +5,8 @@
 #include <CINI.h>
 #include "../../Helpers/Translations.h"
 #include "../../FA2sp.h"
+#include <filesystem>
+
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { 0 };
 bool CLoadingExt::IsLoadingObjectView = false;
@@ -45,8 +47,7 @@ bool CLoadingExt::InitMixFilesFix()
 		}
 	}
 
-	HMODULE hDLL = LoadLibraryA("mixinfo.dll");
-	if (!hDLL || !ExtConfigs::ExtMixLoader)
+	if (!ExtConfigs::ExtMixLoader)
 	{
 		// Load Extra Mixes
 		if (auto pSection = CINI::FAData->GetSection("ExtraMixes"))
@@ -123,7 +124,10 @@ bool CLoadingExt::InitMixFilesFix()
 						Logger::Raw("[MixLoader] %s failed!\n", Mix);
 					return ExtConfigs::DisableDirectoryCheck || result;
 				}
-				Logger::Raw("[MixLoader] %s failed!\n", Mix);
+				if (std::filesystem::exists(FullPath.c_str()))
+				{
+					Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+				}
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
 		};
@@ -260,10 +264,9 @@ bool CLoadingExt::InitMixFilesFix()
 	}
 	else
 	{
-		Logger::Raw("[ExtMixLoader] Init via Mixinfo Method.\n");
+		Logger::Raw("[ExtMixLoader] ExtMixLoader Enabled!\n");
 		auto& manager = MixLoader::Instance();
 		manager.Clear();
-		manager.SetDLL(hDLL);
 
 		int index = 0;
 		// Load Extra Mixes
@@ -283,7 +286,7 @@ bool CLoadingExt::InitMixFilesFix()
 				else
 					path = CFinalSunApp::Instance->FilePath();
 				path += "\\" + key;
-				if (manager.LoadMixFile(path, "ra2"))
+				if (manager.LoadMixFile(path))
 				{
 					Logger::Raw("[ExtMixLoader][EXTRA] %04d - %s loaded.\n", index++, path);
 				}
@@ -300,7 +303,7 @@ bool CLoadingExt::InitMixFilesFix()
 		{
 			FString FullPath = Dir + Mix;
 			int parent = -1;
-			bool result = manager.LoadMixFile(FullPath, "ra2", &parent);
+			bool result = manager.LoadMixFile(FullPath, &parent);
 			if (result)
 			{
 				if (parent >= 0)
@@ -314,14 +317,17 @@ bool CLoadingExt::InitMixFilesFix()
 				index++;
 				return ExtConfigs::DisableDirectoryCheck || result;
 			}
-			Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+			if (std::filesystem::exists(FullPath.c_str()))
+			{
+				Logger::Raw("[ExtMixLoader] %s failed!\n", Mix);
+			}
 			return ExtConfigs::DisableDirectoryCheck || result;
 		};
 
 		FString fa2extra = CFinalSunApp::Instance->ExePath();
 		fa2extra += "\\";
 		fa2extra += "fa2extra.mix";
-		if (manager.LoadMixFile(fa2extra, "ra2"))
+		if (manager.LoadMixFile(fa2extra))
 		{
 			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, fa2extra);
 		}
@@ -382,7 +388,7 @@ bool CLoadingExt::InitMixFilesFix()
 		//MARBLE should be ahead of normal theater mixes
 		FString FullPath = CFinalSunApp::ExePath();
 		FullPath += "\\MARBLE.MIX";
-		int result = manager.LoadMixFile(FullPath, "ra2");
+		int result = manager.LoadMixFile(FullPath);
 		if (result)
 		{
 			Logger::Raw("[ExtMixLoader] %04d - %s loaded.\n", index++, FullPath);

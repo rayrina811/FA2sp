@@ -16,7 +16,7 @@ DEFINE_HOOK(4D4150, CRandomTree_OnInitDialog, 7)
 
         pThis->ppmfc::CDialog::OnInitDialog();
 
-        auto&& terrains = Variables::Rules.ParseIndicies("TerrainTypes", true);
+        auto&& terrains = Variables::RulesMap.ParseIndicies("TerrainTypes", true);
         for (size_t i = 0, sz = terrains.size(); i < sz; ++i)
         {
             if (!CViewObjectsExt::IsIgnored(terrains[i]))

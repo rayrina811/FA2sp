@@ -379,6 +379,7 @@ public:
     bool UpdateEngine(int nData);
     static void OnExeTerminate();
     static void InitializeOnUpdateEngine();
+    static void ApplyDragFacing(int X, int Y);
     static void ApplyChangeOwner(int X, int Y);
     static void ApplyPropertyBrush(int X, int Y);
     static void ApplyPropertyBrush_Building(int nIndex);

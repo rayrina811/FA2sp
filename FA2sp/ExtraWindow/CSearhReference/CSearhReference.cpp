@@ -19,7 +19,7 @@
 HWND CSearhReference::m_hwnd;
 CFinalSunDlg* CSearhReference::m_parent;
 CINI& CSearhReference::map = CINI::CurrentDocument;
-MultimapHelper& CSearhReference::rules = Variables::Rules;
+MultimapHelper& CSearhReference::rules = Variables::RulesMap;
 
 HWND CSearhReference::hListbox;
 HWND CSearhReference::hRefresh;

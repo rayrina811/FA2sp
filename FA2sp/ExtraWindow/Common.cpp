@@ -11,10 +11,11 @@
 #include <algorithm>
 #include <CFinalSunApp.h>
 #include "../Miscs/StringtableLoader.h"
+#include "../Ext/CMapData/Body.h"
 
 CINI& ExtraWindow::map = CINI::CurrentDocument;
 CINI& ExtraWindow::fadata = CINI::FAData;
-MultimapHelper& ExtraWindow::rules = Variables::Rules;
+MultimapHelper& ExtraWindow::rules = Variables::RulesMap;
 
 bool ExtraWindow::bComboLBoxSelected = false;
 bool ExtraWindow::bEnterSearch = false;
@@ -305,46 +306,29 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
                 {
                     if (strictOrder == "1")
                     {
-                        // rules
-                        if (loadFrom == "1" || loadFrom == "2") {
-                            if (const auto& indicies = loadFrom == "1" ? Variables::GetRulesSection(sectionName) : Variables::GetRulesMapSection(sectionName))
+                        for (auto pINI : mmh.GetINIData())
+                        {
+                            if (pINI == &CINI::CurrentDocument)
                             {
-                                int idx = 0;
-                                for (auto& pair : *indicies)
-                                {
-                                    FString output;
-                                    output.Format("%d - %s", idx, pair.second);
-                                    if (showUIName == "1")
-                                    {
-                                        FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-                                        if (uiname != pair.second && uiname != "")
-                                        {
-                                            FString tmp = output;
-                                            output.Format("%s - %s", tmp, uiname);
-                                        }
-                                    }
-                                    SendMessage(hWnd, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)output);
-                                    idx++;
-                                }
+                                // refresh indicies
+                                CMapDataExt::UpdateMapSectionIndicies(sectionName);
                             }
                         }
-                        else {
-                            auto&& entries = mmh.ParseIndicies(sectionName, true);
-                            for (size_t i = 0, sz = entries.size(); i < sz; i++)
+                        auto&& entries = mmh.ParseIndicies(sectionName, true);
+                        for (size_t i = 0, sz = entries.size(); i < sz; i++)
+                        {
+                            FString output;
+                            output.Format("%d - %s", i, entries[i]);
+                            if (showUIName == "1")
                             {
-                                FString output;
-                                output.Format("%d - %s", i, entries[i]);
-                                if (showUIName == "1")
+                                FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
+                                if (uiname != entries[i] && uiname != "")
                                 {
-                                    FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
-                                    if (uiname != entries[i] && uiname != "")
-                                    {
-                                        FString tmp = output;
-                                        output.Format("%s - %s", tmp, uiname);
-                                    }
+                                    FString tmp = output;
+                                    output.Format("%s - %s", tmp, uiname);
                                 }
-                                SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
                             }
+                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
                         }
                     }
                     else
@@ -372,7 +356,6 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx)
         }
         break;
     }
-
 }
 
 void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
@@ -430,28 +413,25 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
 
     int idx = 0;
     int rIdx = 0;
-    if (const auto& indicies = Variables::GetRulesMapSection("Countries"))
+    const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
+    for (auto& value : indicies)
     {
-        for (auto& pair : *indicies)
-        {
-            if (pair.second == "Nod" || pair.second == "GDI") {
-                rIdx++;
-                continue;
-            }
-            FString output;
-                output.Format("%d - %s", rIdx, pair.second);
-                FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-                if (uiname != pair.second && uiname != "")
-                {
-                    FString tmp = output;
-                    output.Format("%s - %s", tmp, uiname);
-                }
-
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
+        if (value == "Nod" || value == "GDI") {
             rIdx++;
+            continue;
         }
-    }
+        FString output;
+            output.Format("%d - %s", rIdx, value);
+            FString uiname = CViewObjectsExt::QueryUIName(value, true);
+            if (uiname != value && uiname != "")
+            {
+                FString tmp = output;
+                output.Format("%s - %s", tmp, uiname);
+            }
 
+        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
+        rIdx++;
+    }
 }
 
 void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style, bool sort)
@@ -460,36 +440,34 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
 
     auto addValueList = [&](const char* secName)
         {
-            if (const auto& indicies = Variables::GetRulesMapSection(secName))
+            const auto& indicies = Variables::RulesMap.ParseIndicies(secName, true);
+            for (auto& value : indicies)
             {
-                for (auto& pair : *indicies)
+                FString output;
+                output.Format("%s", value);
+                FString uiname = CViewObjectsExt::QueryUIName(value, true);
+                switch (style)
                 {
-                    FString output;
-                    output.Format("%s", pair.second);
-                    FString uiname = CViewObjectsExt::QueryUIName(pair.second, true);
-                    switch (style)
-                    {
-                    case 0:
-                    {
-                        FString tmp = output;
-                        output.Format("%s - %s", tmp, uiname);
-                    }
-                    break;
-                    case 1:
-                    {
-                        FString tmp = output;
-                        output.Format("%s - %s", tmp, uiname);
-                    }
-                    break;
-                    default:
-                        break;
-                    }
-
-                    if (sort)
-                        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
-                    else
-                        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
+                case 0:
+                {
+                    FString tmp = output;
+                    output.Format("%s - %s", tmp, uiname);
                 }
+                break;
+                case 1:
+                {
+                    FString tmp = output;
+                    output.Format("%s - %s", tmp, uiname);
+                }
+                break;
+                default:
+                    break;
+                }
+
+                if (sort)
+                    SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
+                else
+                    SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
             }
         };
 
@@ -963,16 +941,18 @@ FString ExtraWindow::GetCloneName(FString oriName)
 
     return newName;
 }
+
 void ExtraWindow::LoadFrom(MultimapHelper& mmh, FString loadfrom)
 {
     if (loadfrom == "0" || loadfrom == "fadata")
         mmh.AddINI(&CINI::FAData);
     else if (loadfrom == "1" || loadfrom == "rules")
-        mmh.AddINI(&CINI::Rules);
+    {
+        mmh = Variables::Rules;
+    }
     else if (loadfrom == "2" || loadfrom == "rules+map")
     {
-        mmh.AddINI(&CINI::Rules);
-        mmh.AddINI(&CINI::CurrentDocument);
+        mmh = Variables::RulesMap;
     }
     else if (loadfrom == "3" || loadfrom == "map")
         mmh.AddINI(&CINI::CurrentDocument);

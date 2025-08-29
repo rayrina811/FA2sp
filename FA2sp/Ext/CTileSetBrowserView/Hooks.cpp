@@ -209,7 +209,7 @@ DEFINE_HOOK(4F4774, CTileSetBrowserView_SetOverlay_LoadOverlayImage, 5)
 
     if (CMapData::Instance->MapWidthPlusHeight)
     {
-        auto obj = Variables::GetRulesMapValueAt("OverlayTypes", Overlay);
+        auto obj = Variables::RulesMap.GetValueAt("OverlayTypes", Overlay);
         if (!CLoadingExt::IsOverlayLoaded(obj))
         {
             CLoadingExt::GetExtension()->LoadOverlay(obj, Overlay);

@@ -603,14 +603,14 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             load = atoi(UserScriptExt::GetParam(Params, 4));
         }
         if (load == 1) {
-            auto key = Variables::GetRulesKeyAt(section, index);
+            auto key = Variables::Rules.GetKeyAt(section, index);
             if (key != "") {
                 UserScriptExt::Temps.push_back(key);
                 UserScriptExt::EditVaribale = true;
             }
         }
         else if (load == 2) {
-            auto key = Variables::GetRulesMapKeyAt(section, index);
+            auto key = Variables::RulesMap.GetKeyAt(section, index);
             if (key != "") {
                 UserScriptExt::Temps.push_back(key);
                 UserScriptExt::EditVaribale = true;
@@ -641,14 +641,14 @@ DEFINE_HOOK(516974, CUserScripts_NewFunction_SwitchID, 8)
             load = atoi(UserScriptExt::GetParam(Params, 4));
         }
         if (load == 1) {
-            auto val = Variables::GetRulesValueAt(section, index);
+            auto val = Variables::Rules.GetValueAt(section, index);
             if (val != "") {
                 UserScriptExt::Temps.push_back(val);
                 UserScriptExt::EditVaribale = true;
             }
         }
         else if (load == 2) {
-            auto val = Variables::GetRulesMapValueAt(section, index);
+            auto val = Variables::RulesMap.GetValueAt(section, index);
             if (val != "") {
                 UserScriptExt::Temps.push_back(val);
                 UserScriptExt::EditVaribale = true;

@@ -23,7 +23,7 @@
 HWND CNewTaskforce::m_hwnd;
 CFinalSunDlg* CNewTaskforce::m_parent;
 CINI& CNewTaskforce::map = CINI::CurrentDocument;
-MultimapHelper& CNewTaskforce::rules = Variables::Rules;
+MultimapHelper& CNewTaskforce::rules = Variables::RulesMap;
 
 
 HWND CNewTaskforce::hSelectedTaskforce;

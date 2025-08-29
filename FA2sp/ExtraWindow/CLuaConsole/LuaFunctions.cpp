@@ -2189,7 +2189,7 @@ namespace LuaFunctions
 		if (!CMapData::Instance->IsCoordInMap(x, y))
 			return;
 
-		int OverlayCount = (*Variables::GetRulesMapSection("OverlayTypes")).size();
+		int OverlayCount = Variables::RulesMap.ParseIndicies("OverlayTypes").size();
 		int limit = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ? 0xFFFF : 0xFF;
 		if (overlay >= limit || (overlay < 0 && overlayData < 0))
 		{
@@ -2680,18 +2680,6 @@ namespace LuaFunctions
 					const auto& contains = pair.second;
 					const auto& value = pSection->GetEntities().find(contains)->second;
 					ret.push_back(std::make_pair(pair.first, value.m_pchData));
-				}
-			}
-		}
-		else if (loadFrom == "rules" || loadFrom == "rules+map")
-		{
-			if (auto indicies = loadFrom == "rules" ? Variables::GetRulesSection(section) : Variables::GetRulesMapSection(section))
-			{
-				int idx = 0;
-				for (auto& pair : *indicies)
-				{
-					ret.push_back(std::make_pair(idx, pair.second));
-					idx++;
 				}
 			}
 		}

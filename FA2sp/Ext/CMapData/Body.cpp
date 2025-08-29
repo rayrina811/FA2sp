@@ -47,7 +47,6 @@ CellData CMapDataExt::ExtTempCellData;
 //MapCoord CMapDataExt::CurrentMapCoord;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
-bool CMapDataExt::SkipUpdateBuildingInfo = false;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::CurrentTheaterIndex;
@@ -134,34 +133,34 @@ BuildingPowers CMapDataExt::GetStructurePower(CBuildingData object)
 			double multiplier = std::pow(10.0, precision);
 			return std::round(value * multiplier) / multiplier;
 		};
-	int strength = (int)((double)Variables::Rules.GetInteger(object.TypeID, "Strength") * (double)(atoi(object.Health) / 256.0));
+	int strength = (int)((double)Variables::RulesMap.GetInteger(object.TypeID, "Strength") * (double)(atoi(object.Health) / 256.0));
 	if (strength == 0 && atoi(object.Health) > 0)
 		strength = 1;
 
 	int power1 = 0;
 	int power2 = 0;
 	int power3 = 0;
-	int powerMain = Variables::Rules.GetInteger(object.TypeID, "Power");
+	int powerMain = Variables::RulesMap.GetInteger(object.TypeID, "Power");
 	if (powerMain > 0)
-		powerMain = ((double)powerMain) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+		powerMain = ((double)powerMain) * roundToPrecision(((double)strength / (double)Variables::RulesMap.GetInteger(object.TypeID, "Strength")), 5);
 
 	if (object.Upgrade1 != "None" && atoi(object.Upgrades) >= 1)
 	{
-		power1 = Variables::Rules.GetInteger(object.Upgrade1, "Power");
+		power1 = Variables::RulesMap.GetInteger(object.Upgrade1, "Power");
 		if (power1 > 0)
-			power1 = ((double)power1) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+			power1 = ((double)power1) * roundToPrecision(((double)strength / (double)Variables::RulesMap.GetInteger(object.TypeID, "Strength")), 5);
 	}
 	if (object.Upgrade2 != "None" && atoi(object.Upgrades) >= 2)
 	{
-		power2 = Variables::Rules.GetInteger(object.Upgrade2, "Power");
+		power2 = Variables::RulesMap.GetInteger(object.Upgrade2, "Power");
 		if (power2 > 0)
-			power2 = ((double)power2) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+			power2 = ((double)power2) * roundToPrecision(((double)strength / (double)Variables::RulesMap.GetInteger(object.TypeID, "Strength")), 5);
 	}
 	if (object.Upgrade3 != "None" && atoi(object.Upgrades) >= 3)
 	{
-		power3 = Variables::Rules.GetInteger(object.Upgrade3, "Power");
+		power3 = Variables::RulesMap.GetInteger(object.Upgrade3, "Power");
 		if (power3 > 0)
-			power3 = ((double)power3) * roundToPrecision(((double)strength / (double)Variables::Rules.GetInteger(object.TypeID, "Strength")), 5);
+			power3 = ((double)power3) * roundToPrecision(((double)strength / (double)Variables::RulesMap.GetInteger(object.TypeID, "Strength")), 5);
 	}
 	ret.TotalPower = powerMain + power1 + power2 + power3;
 	ret.Output = (powerMain > 0 ? powerMain : 0) 
@@ -562,10 +561,10 @@ int CMapDataExt::GetInfantryAt(int dwPos, int dwSubPos)
 
 void CMapDataExt::InitOreValue()
 {
-    OreValue[OreType::Aboreus] = Variables::Rules.GetInteger("Aboreus", "Value");
-    OreValue[OreType::Cruentus] = Variables::Rules.GetInteger("Cruentus", "Value");
-    OreValue[OreType::Riparius] = Variables::Rules.GetInteger("Riparius", "Value");
-    OreValue[OreType::Vinifera] = Variables::Rules.GetInteger("Vinifera", "Value");
+    OreValue[OreType::Aboreus] = Variables::RulesMap.GetInteger("Aboreus", "Value");
+    OreValue[OreType::Cruentus] = Variables::RulesMap.GetInteger("Cruentus", "Value");
+    OreValue[OreType::Riparius] = Variables::RulesMap.GetInteger("Riparius", "Value");
+    OreValue[OreType::Vinifera] = Variables::RulesMap.GetInteger("Vinifera", "Value");
 }
 
 void CMapDataExt::SmoothAll()
@@ -1304,6 +1303,30 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 	}
 
 	return "";
+}
+
+void CMapDataExt::UpdateMapSectionIndicies(const ppmfc::CString& lpSection)
+{
+	if (auto pSection = CINI::CurrentDocument->GetSection(lpSection))
+	{
+		std::vector<std::pair<FString, FString>> buffer;
+		for (auto& [key, value] : pSection->GetEntities())
+		{
+			buffer.push_back(std::make_pair(key, value));
+		}
+		CINI::CurrentDocument->DeleteSection(lpSection);
+		pSection = CINI::CurrentDocument->AddSection(lpSection);
+		int index = 0;
+		for (auto& [key, value] : buffer)
+		{
+			CINI::CurrentDocument->WriteString(pSection, key, value);
+			std::pair<ppmfc::CString, int> ins =
+				std::make_pair((ppmfc::CString)key, index++);
+			std::pair<INIIndiceDict::iterator, bool> ret;
+			reinterpret_cast<FAINIIndicesMap*>(&pSection->GetIndices())->insert(&ret, &ins);
+		}
+		Variables::RulesMap.ClearMap(lpSection);
+	}
 }
 
 void CMapDataExt::UpdateAnnotation()
@@ -2059,53 +2082,6 @@ void CMapDataExt::UpdateFieldAircraftData_RedrawMinimap()
 	}
 }
 
-void CMapDataExt::UpdateIncludeIniInMap()
-{
-	if (ExtConfigs::AllowIncludes)
-	{
-		const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
-		if (auto pSection = CINI::CurrentDocument->GetSection(includeSection)) {
-			INIIncludes::MapIncludedKeys.clear();
-			INIIncludes::IsFirstINI = false;
-			INIIncludes::IsMapINI = true;
-			INIIncludes::MapINIWarn = true;
-			CINI ini;
-
-			for (auto& pair : pSection->GetEntities()) {
-				const ppmfc::CString& includeFile = pair.second;
-
-				if (includeFile && strlen(includeFile) > 0) {
-					bool canLoad = true;
-					for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
-						if (!strcmp(INIIncludes::LoadedINIFiles[j], includeFile)) {
-							canLoad = false;
-							break;
-						}
-					}
-
-					if (canLoad) {
-						Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
-						CLoading::Instance->LoadTSINI(
-							includeFile, &ini, TRUE
-						);
-					}
-				}
-			}
-
-			for (auto& [secName, pSection] : ini.Dict)
-			{
-				for (const auto& [key, value] : pSection.GetEntities())
-				{
-					INIIncludes::MapIncludedKeys[secName][key] = CINI::CurrentDocument->GetString(secName, key);
-					CINI::CurrentDocument->WriteString(secName, key, value);
-				}
-			}
-			INIIncludes::IsFirstINI = true;
-			INIIncludes::IsMapINI = false;
-		}
-	}
-}
-
 void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDataExt)
 {
 	Logger::Debug("CMapDataExt::InitializeAllHdmEdition() Called!\n");
@@ -2116,6 +2092,10 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoView::GetInstance()->CurrentCellObjectType = -1;
 	CIsoView::GetInstance()->Drag = FALSE;
 
+	Variables::RulesMap.ClearMap();
+	Variables::Rules.ClearMap();
+	Variables::Rules_FAData.ClearMap();
+
 	if (reloadCellDataExt)
 	{
 		CMapDataExt::CellDataExts.clear();
@@ -2124,74 +2104,48 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		UndoRedoDataIndex = -1;
 	}
 
-	Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
-	for (auto& section : CINI::CurrentDocument->Dict) {
-		auto&& cur = CINI::CurrentDocument->ParseIndiciesData(section.first);
-		auto& Indicies = Variables::OrderedRulesMapIndicies[section.first];
-		for (int i = 0; i < cur.size(); i++)
-		{
-			auto& key = cur[i];
-			FString value = CINI::CurrentDocument->GetString(section.first, key, "");
-			value.Trim();
-			if (value != "") {
-				// map's include is different with ares'
-				bool same = false;
-				for (auto& checkSame : Indicies) {
-					if (checkSame.second == value) {
-						same = true;
-						break;
-					}
-				}
-				if (!same) {
-					Indicies.push_back(std::make_pair(key, value));
-				}
-			}
-		}
-	}
-
 	int ovrIdx = 0;
 	CMapDataExt::OverlayTypeDatas.clear();
-	if (const auto& section = Variables::GetRulesMapSection("OverlayTypes"))
+	const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+	for (const auto& ol : overlays)
 	{
-		for (const auto& ol : *section)
-		{
-			auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
-			item.Rock = Variables::Rules.GetBool(ol.second, "IsARock");
-			item.Wall = Variables::Rules.GetBool(ol.second, "Wall");
-			item.WallPaletteName = CINI::Art->GetString(ol.second, "Palette", "unit");
-			item.TerrainRock = Variables::Rules.GetString(ol.second, "Land", "") == "Rock";
-			auto name = Variables::Rules.GetString(ol.second, "Name", "");
-			name.MakeLower();
-			item.RailRoad = Variables::Rules.GetString(ol.second, "Land", "") == "Railroad" 
-				|| name.Find("track") > -1 || name.Find("rail") > -1;
-			std::vector<FString> colors;
+		auto& item = CMapDataExt::OverlayTypeDatas.emplace_back();
+		item.Rock = Variables::RulesMap.GetBool(ol, "IsARock");
+		item.Wall = Variables::RulesMap.GetBool(ol, "Wall");
+		item.WallPaletteName = CINI::Art->GetString(ol, "Palette", "unit");
+		item.TerrainRock = Variables::RulesMap.GetString(ol, "Land", "") == "Rock";
+		auto name = Variables::RulesMap.GetString(ol, "Name", "");
+		name.MakeLower();
+		item.RailRoad = Variables::RulesMap.GetString(ol, "Land", "") == "Railroad" 
+			|| name.Find("track") > -1 || name.Find("rail") > -1;
+		std::vector<FString> colors;
 
-			if (RIPARIUS_BEGIN <= ovrIdx && ovrIdx <= RIPARIUS_END && Variables::Rules.KeyExists("Riparius", "MinimapColor"))
-			{
-				colors = FString::SplitString(Variables::Rules.GetString("Riparius", "MinimapColor", "0,0,0"), 2);
-			}
-			else if (CRUENTUS_BEGIN <= ovrIdx && ovrIdx <= CRUENTUS_END && Variables::Rules.KeyExists("Cruentus", "MinimapColor"))
-			{
-				colors = FString::SplitString(Variables::Rules.GetString("Cruentus", "MinimapColor", "0,0,0"), 2);
-			}
-			else if (VINIFERA_BEGIN <= ovrIdx && ovrIdx <= VINIFERA_END && Variables::Rules.KeyExists("Vinifera", "MinimapColor"))
-			{
-				colors = FString::SplitString(Variables::Rules.GetString("Vinifera", "MinimapColor", "0,0,0"), 2);
-			}
-			else if (ABOREUS_BEGIN <= ovrIdx && ovrIdx <= ABOREUS_END && Variables::Rules.KeyExists("Aboreus", "MinimapColor"))
-			{
-				colors = FString::SplitString(Variables::Rules.GetString("Aboreus", "MinimapColor", "0,0,0"), 2);
-			}
-			else
-			{
-				colors = FString::SplitString(Variables::Rules.GetString(ol.second, "RadarColor", "0,0,0"), 2);
-			}
-			item.RadarColor.R = atoi(colors[0]);
-			item.RadarColor.G = atoi(colors[1]);
-			item.RadarColor.B = atoi(colors[2]);
-			ovrIdx++;
+		if (RIPARIUS_BEGIN <= ovrIdx && ovrIdx <= RIPARIUS_END && Variables::RulesMap.KeyExists("Riparius", "MinimapColor"))
+		{
+			colors = FString::SplitString(Variables::RulesMap.GetString("Riparius", "MinimapColor", "0,0,0"), 2);
 		}
+		else if (CRUENTUS_BEGIN <= ovrIdx && ovrIdx <= CRUENTUS_END && Variables::RulesMap.KeyExists("Cruentus", "MinimapColor"))
+		{
+			colors = FString::SplitString(Variables::RulesMap.GetString("Cruentus", "MinimapColor", "0,0,0"), 2);
+		}
+		else if (VINIFERA_BEGIN <= ovrIdx && ovrIdx <= VINIFERA_END && Variables::RulesMap.KeyExists("Vinifera", "MinimapColor"))
+		{
+			colors = FString::SplitString(Variables::RulesMap.GetString("Vinifera", "MinimapColor", "0,0,0"), 2);
+		}
+		else if (ABOREUS_BEGIN <= ovrIdx && ovrIdx <= ABOREUS_END && Variables::RulesMap.KeyExists("Aboreus", "MinimapColor"))
+		{
+			colors = FString::SplitString(Variables::RulesMap.GetString("Aboreus", "MinimapColor", "0,0,0"), 2);
+		}
+		else
+		{
+			colors = FString::SplitString(Variables::RulesMap.GetString(ol, "RadarColor", "0,0,0"), 2);
+		}
+		item.RadarColor.R = atoi(colors[0]);
+		item.RadarColor.G = atoi(colors[1]);
+		item.RadarColor.B = atoi(colors[2]);
+		ovrIdx++;
 	}
+
 
 	if (CNewTeamTypes::GetHandle())
 		::SendMessage(CNewTeamTypes::GetHandle(), 114514, 0, 0);
@@ -2303,8 +2257,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	BridgeSet = CINI::CurrentTheater->GetInteger("General", "BridgeSet", -10);
 	WoodBridgeSet = CINI::CurrentTheater->GetInteger("General", "WoodBridgeSet", -10);
 	HeightBase = CINI::CurrentTheater->GetInteger("General", "HeightBase", -10);
-	ConditionYellow = Variables::Rules.GetSingle("AudioVisual", "ConditionYellow", 0.5f);
-	ConditionRed = Variables::Rules.GetSingle("AudioVisual", "ConditionRed", 0.25f);
+	ConditionYellow = Variables::RulesMap.GetSingle("AudioVisual", "ConditionYellow", 0.5f);
+	ConditionRed = Variables::RulesMap.GetSingle("AudioVisual", "ConditionRed", 0.25f);
 
 	AutoShore_ShoreTileSet = ShorePieces;
 	AutoShore_GreenTileSet = GreenTile;
@@ -2580,14 +2534,14 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CLoadingExt::LoadShp(InsigniaVeteran, "pips.shp", PaletteName, 14, false);
 	CLoadingExt::LoadShp(InsigniaElite, "pips.shp", PaletteName, 15, false);
 
-	for (auto& [_, ID] : Variables::Rules.GetSection("InfantryTypes"))
+	for (auto& [_, ID] : Variables::RulesMap.GetSection("InfantryTypes"))
 	{
 		auto ArtID = CLoadingExt::GetArtID(ID);
 		auto ImageID = CLoadingExt::GetExtension()->GetInfantryFileID(ID);
 
 		auto sequenceName = CINI::Art->GetString(ImageID, "Sequence");
-		bool deployable = Variables::Rules.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
-		bool waterable = Variables::Rules.GetString(ID, "MovementZone") == "AmphibiousDestroyer"
+		bool deployable = Variables::RulesMap.GetBool(ID, "Deployer") && CINI::Art->KeyExists(sequenceName, "Deployed");
+		bool waterable = Variables::RulesMap.GetString(ID, "MovementZone") == "AmphibiousDestroyer"
 			&& CINI::Art->KeyExists(sequenceName, "Swim");
 		if (ExtConfigs::InGameDisplay_Water && waterable)
 		{

@@ -23,7 +23,7 @@ HWND CNewScript::m_hwnd;
 CFinalSunDlg* CNewScript::m_parent;
 CINI& CNewScript::map = CINI::CurrentDocument;
 CINI& CNewScript::fadata = CINI::FAData;
-MultimapHelper& CNewScript::rules = Variables::Rules;
+MultimapHelper& CNewScript::rules = Variables::RulesMap;
 
 HWND CNewScript::hSelectedScript;
 HWND CNewScript::hNewScript;

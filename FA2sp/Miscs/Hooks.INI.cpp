@@ -2,11 +2,6 @@
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
 
-
-/*
-* Codes imported from Ares
-*/
-
 using std::map;
 using std::vector;
 
@@ -15,97 +10,279 @@ bool INIIncludes::IsFirstINI = true;
 bool INIIncludes::IsMapINI = false;
 bool INIIncludes::MapINIWarn = false;
 vector<CINI*> INIIncludes::LoadedINIs;
-vector<char*> INIIncludes::LoadedINIFiles;
+vector<FString> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
 map<FString, unsigned int> INIIncludes::CurrentINIIdxHelper;
 std::unordered_map<FString, std::unordered_map<FString, FString>> INIIncludes::MapIncludedKeys;
-std::unordered_map<CINI*, CINIExt> CINIManager::propertyMap;
+std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 
-static void Trim(char* str) {
-    if (!str) return;
-    char* start = str;
-    while (*start && isspace(static_cast<unsigned char>(*start))) {
-        start++;
-    }
-    if (*start == '\0') {
-        *str = '\0';
-        return;
-    }
-    char* end = start + strlen(start) - 1;
-    while (end > start && isspace(static_cast<unsigned char>(*end))) {
-        end--;
-    }
-    *(end + 1) = '\0';
-    if (start != str) {
-        memmove(str, start, strlen(start) + 1);
-    }
-}
-
-DEFINE_HOOK(452EFB, CLoading_ParseINI_BracketFix_inheritSupport, 7)
+void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace)
 {
-    LEA_STACK(char*, lpLine, STACK_OFFS(0x22FC, 0x200C));
-
-    const char* lb1 = strchr(lpLine, '[');
-    const char* rb1 = strchr(lpLine, ']');
-    const char* eq = strchr(lpLine, '=');
-
-    // illegal section name
-    if (!lb1 || !rb1 || rb1 < lb1 || (eq && eq < lb1)) {
-        if (INIIncludes::SkipBracketFix)
-            return 0;
-        return 0x453012;
+    if (bClear)
+    {
+        auto itr = Dict.end();
+        for (size_t i = 0, sz = Dict.size(); i < sz && itr != Dict.begin(); ++i) {
+            --itr;
+            itr->second.~INISection();
+            Dict.manual_erase(itr);
+        }
     }
 
-    // ares mode
-    if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType)
+    auto writeString = [](INISection* pSection, const FString& key, const FString& value)
     {
-        if (rb1[1] == ':' && rb1[2] == '[') {
-            const char* lb2 = rb1 + 2;
-            const char* rb2 = strchr(lb2, ']');
-            if (rb2) {
+        std::pair<ppmfc::CString, ppmfc::CString> ins = std::make_pair(key, value);
+        std::pair<INIStringDict::iterator, bool> ret;
+        reinterpret_cast<FAINIEntriesMap*>(&pSection->GetEntities())->insert(&ret, &ins);
+        if (!ret.second)
+            new(&ret.first->second) ppmfc::CString(value);
+    };
 
-                char sectionA[128] = { 0 };
-                char sectionB[128] = { 0 };
+    FString content(reinterpret_cast<char*>(pFile), fileSize);
+    INISection* pCurrentSection = nullptr;
 
-                size_t lenA = rb1 - (lb1 + 1);
-                size_t lenB = rb2 - (lb2 + 1); 
+    size_t idx = 0;
+    const size_t len = content.length();
+    size_t plusEqual = 0;
+    bool findTargetSection = false;
 
-                if (lenA < sizeof(sectionA) && lenB < sizeof(sectionB)) {
-                    GET_STACK(CINI*, pINI, STACK_OFFS(0x22FC, 0x22D0));
+    while (idx < len) {
+        size_t lineEnd = content.find_first_of("\r\n", idx);
+        if (lineEnd == FString::npos) lineEnd = len;
+        FString line = content.substr(idx, lineEnd - idx);
+        FString::TrimSemicolon(line);
 
-                    memcpy(sectionA, lb1 + 1, lenA);
-                    sectionA[lenA] = '\0';
+        idx = lineEnd;
+        while (idx < len && (content[idx] == '\r' || content[idx] == '\n')) ++idx;
 
-                    memcpy(sectionB, lb2 + 1, lenB);
-                    sectionB[lenB] = '\0';
+        if (line.empty()) continue;
+        if (line[0] == ';') continue;
 
-                    if (auto pSectionB = pINI->GetSection(sectionB))
-                    {
-                        for (const auto& [key, value] : pSectionB->GetEntities())
+        // ------------------- Section -------------------
+        if (line[0] == '[') {
+            size_t closePos = line.find(']');
+            if (closePos == FString::npos) {
+                if (INIIncludes::SkipBracketFix) exit(1);
+                continue;
+            }
+
+            FString sectionName = line.substr(1, closePos - 1);
+            FString sectionInherit;
+            plusEqual = 0;
+
+            if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
+                size_t p = closePos + 2;
+                if (p < line.size() && line[p] == '[') {
+                    size_t close2 = line.find(']', p);
+                    if (close2 != FString::npos) {
+                        sectionInherit = line.substr(p + 1, close2 - (p + 1));
+                    }
+                }
+            }
+
+            if (!sectionName.empty()) {
+                if (lpSection && sectionName != lpSection) {
+                    pCurrentSection = nullptr;
+                    continue;
+                }
+                else if (lpSection && sectionName == lpSection) {
+                    findTargetSection = true;
+                }
+                else if (lpSection && findTargetSection) {
+                    return;
+                }
+                pCurrentSection = AddOrGetSection(sectionName);
+
+                // ares mode
+                if (ExtConfigs::AllowInherits && !ExtConfigs::InheritType && !sectionInherit.empty()) {
+
+                    if (auto pSectionInherit = GetSection(sectionInherit)) {
+                        for (const auto& [key, value] : pSectionInherit->GetEntities())
                         {
-                            pINI->WriteString(sectionA, key, value);
+                            writeString(pCurrentSection, key, value);
+                        }
+                    }
+                }
+                if (CMapDataExt::IsLoadingMapFile)
+                {
+                    CMapDataExt::MapIniSectionSorting.push_back(sectionName);
+                }
+            }
+            continue;
+        }
+
+        // -------------------  Key=Value -------------------
+        if (pCurrentSection) {
+            size_t eqPos = line.find('=');
+            if (eqPos == FString::npos) continue;
+
+            FString key = line.substr(0, eqPos);
+            FString value = line.substr(eqPos + 1);
+
+            if (bTrimSpace) {
+                key.Trim();
+                value.Trim();
+            }
+
+            if (ExtConfigs::AllowPlusEqual) {
+                if (key == "+") {
+                    while (true)
+                    {
+                        key.Format("FA2sp%u", plusEqual);
+                        ++plusEqual;
+                        if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
+                            break;
+                    }
+                }
+            }
+
+            if (!key.empty()) {
+                size_t currentIndex = pCurrentSection->GetEntities().size();
+                writeString(pCurrentSection, key, value);
+
+                std::pair<ppmfc::CString, int> ins =
+                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                std::pair<INIIndiceDict::iterator, bool> ret;
+                reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+            }
+        }
+        else {
+            continue;
+        }
+    }
+
+    if (ExtConfigs::AllowIncludes)
+    {
+        using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
+        const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
+
+        if (auto pSection = GetSection(includeSection)) {
+            if (this == &CINI::CurrentDocument) {
+                INIIncludes::MapIncludedKeys.clear();
+                INIIncludes::MapINIWarn = true;
+            }
+            for (auto& [index, key] : ParseIndiciesData(includeSection)) {
+                if (key.IsEmpty()) continue;
+                const ppmfc::CString& includeFile = pSection->GetString(key);
+
+                if (includeFile && strlen(includeFile) > 0) {
+                    if (std::find(INIIncludes::LoadedINIFiles.begin(), INIIncludes::LoadedINIFiles.end(), includeFile)
+                        == INIIncludes::LoadedINIFiles.end()) {
+                        INIIncludes::LoadedINIFiles.push_back(includeFile);
+                        Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
+
+                        CINIExt ini;
+                        CLoading::Instance->LoadTSINI(includeFile, &ini, TRUE);
+
+                        INIIncludes::LoadedINIFiles.erase(
+                            std::remove_if(INIIncludes::LoadedINIFiles.begin(), INIIncludes::LoadedINIFiles.end(),
+                                [&includeFile](const FString& item) {
+                            return item == includeFile;
+                        }),
+                            INIIncludes::LoadedINIFiles.end()
+                        );
+                      
+                        for (auto& [sectionName, pSection] : ini.Dict) {
+                            auto pTargetSection = AddOrGetSection(sectionName);
+                            std::vector<INIPair> targetIndicies;
+                            for (const auto& [index, key] : ParseIndiciesData(sectionName)) {
+                                targetIndicies.push_back(std::make_pair(key, GetString(pTargetSection, key)));
+                            }
+                            for (const auto& [index, key] : ini.ParseIndiciesData(sectionName))
+                            {
+                                if (key.IsEmpty()) continue;
+                                auto value = ini.GetString(&pSection, key);
+                                // the include of Ares will delete the same key in registries
+                                // and then add it to the bottom
+                                // it will ignore empty values
+                                targetIndicies.erase(
+                                    std::remove_if(targetIndicies.begin(), targetIndicies.end(),
+                                        [&key](const INIPair& item) {
+                                    return item.first == key;
+                                }),
+                                    targetIndicies.end()
+                                );
+                                targetIndicies.push_back(std::make_pair(key, value));
+                                if (this == &CINI::CurrentDocument) {
+                                    INIIncludes::MapIncludedKeys[sectionName][key] = GetString(pTargetSection, key);
+                                }
+                            }
+                            DeleteSection(sectionName);
+                            pTargetSection = AddSection(sectionName);
+                            int index = 0;
+                            for (const auto& [key, value] : targetIndicies)
+                            {
+                                writeString(pTargetSection, key, value);
+                                std::pair<ppmfc::CString, int> ins =
+                                    std::make_pair((ppmfc::CString)key, index++);
+                                std::pair<INIIndiceDict::iterator, bool> ret;
+                                reinterpret_cast<FAINIIndicesMap*>(&pTargetSection->GetIndices())->insert(&ret, &ins);
+                            }
+                        }
+                    }  
+                }
+            }
+        }
+    }
+
+    // phobos mode
+    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType) {
+        for (auto& sectionA : Dict) {
+            if (KeyExists(sectionA.first, "$Inherits"))  {
+                auto inherits = STDHelpers::SplitString(GetString(sectionA.first, "$Inherits"));
+                for (const auto& sectionB : inherits) {
+                    if (auto pSectionB = GetSection(sectionB)) {
+                        for (const auto& [key, value] : pSectionB->GetEntities()) {
+                            if (!KeyExists(sectionA.first, key)) {
+                                writeString(&sectionA.second, key, value);
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
 
-    if (CMapDataExt::IsLoadingMapFile)
-    {
-        char section[128] = { 0 };
-        size_t lenA = rb1 - (lb1 + 1);
-        if (lenA < sizeof(section))
-        {
-            memcpy(section, lb1 + 1, lenA);
-            section[lenA] = '\0';
-            CMapDataExt::MapIniSectionSorting.push_back(section);
-        }
+// return values:
+// 0 for success
+// 1 for path not available
+// 2 for fail to read file
+DEFINE_HOOK(452CC0, CINI_ParseINI, 8)
+{
+    GET(CINIExt*, pThis, ECX);
+    GET_STACK(const char*, lpPath, 0x4);
+    GET_STACK(const char*, lpSection, 0x8);
+    GET_STACK(int, bTrimSpace, 0xC);
+
+    if (!lpPath) {
+        R->EAX(1);
+        return 0x4534C2;
     }
+    std::ifstream file(lpPath, std::ios::binary | std::ios::ate);
+    if (!file) {
+        R->EAX(2);
+        return 0x4534C2;
+    }
+    std::streampos pos = file.tellg();
+    if (pos == -1) {
+        R->EAX(2);
+        return 0x4534C2;
+    }
+    size_t fileSize = static_cast<size_t>(pos);
+    auto buffer = std::make_unique<uint8_t[]>(fileSize);
+    file.seekg(0, std::ios::beg);
+    if (!file.read(reinterpret_cast<char*>(buffer.get()), fileSize)) {
+        file.close();
+        R->EAX(2);
+        return 0x4534C2;
+    }
+    file.close();
 
-    // normal [Section]
-    return 0x452F56;
+    pThis->LoadINIExt(buffer.get(), fileSize, lpSection, false, /*bTrimSpace*/true);
+ 
+    R->EAX(0);
+    return 0x4534C2;
 }
 
 // some maps use '[' for encryption
@@ -116,466 +293,117 @@ DEFINE_HOOK(49D64F, CMapData_LoadMap_SkipBracketFix, 6)
     return 0;
 }
 
-DEFINE_HOOK(4530F7, CLoading_ParseINI_PlusSupport, 8)
+DEFINE_HOOK(47FFB0, CLoading_LoadTSINI, 7)
 {
-    LEA_STACK(char*, lpKey, STACK_OFFS(0x22FC, 0x200C));
-    LEA_STACK(char*, lpValue, STACK_OFFS(0x22FC, 0x100C));
-
-    Trim(lpKey);
-    Trim(lpValue);
-
-    if (ExtConfigs::AllowPlusEqual)
-    {
-        GET_STACK(CINI*, pINI, STACK_OFFS(0x22FC, 0x22D0));
-        LEA_STACK(const char*, lpSection, STACK_OFFS(0x22FC, 0x210C));
-        if (strcmp(lpKey, "+") == 0)
-        {
-            unsigned int& attempt = INIIncludes::CurrentINIIdxHelper[lpSection];
-            while (true)
-            {
-                sprintf_s(lpKey, 0x1000, "FA2sp%u", attempt);
-                if (!pINI->KeyExists(lpSection, lpKey))
-                    break;
-                ++attempt;
-                if (attempt >= 10000)
-                {
-                    sprintf_s(lpKey, 0x1000, "+");
-                    break;
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-DEFINE_HOOK(47FFB0, CLoading_LoadTSINI_IncludeSupport_1, 7)
-{
-
+    GET(CLoadingExt*, pThis, ECX);
     GET_STACK(const char*, pFile, 0x4);
-    GET_STACK(CINI*, pINI, 0x8);
+    GET_STACK(CINIExt*, pINI, 0x8);
+    GET_STACK(BOOL, bMerge, 0xC);
 
-    INIIncludes::LoadedINIs.push_back(pINI);
-    INIIncludes::LoadedINIFiles.push_back(_strdup(pFile));
     CINIManager::GetInstance().SetProperty(pINI, { pFile });
-
-    return 0;
-}
-
-DEFINE_HOOK(48028D, CLoading_LoadTSINI_PackageSupport, 5)
-{
-    CINI* xINI = INIIncludes::LoadedINIs.back();
-    if (!xINI)
-        return 0;
-
-    FString filename = CINIManager::GetInstance().GetProperty(xINI).Name;
-
-    size_t size = 0;
-    auto data = ResourcePackManager::instance().getFileData(filename, &size);
-    if (data && size > 0)
-    {
-        FString out_path = CFinalSunApp::Instance->FilePath();
-        out_path += "\\FinalSun";
-        out_path += filename;
-
-        std::ofstream fout(out_path, std::ios::binary);
-        if (fout.is_open()) 
-        {
-            fout.write(reinterpret_cast<const char*>(data.get()), static_cast<std::streamsize>(size));
-            fout.close();
-
-            // load as a mix ini
-            return 0x480337;
-        }
-    }
-    if (ExtConfigs::ExtMixLoader)
-    {
-        auto& manager = MixLoader::Instance();
-        size_t sizeM = 0;
-        auto result = manager.LoadFile(filename, &sizeM);
-        if (result && sizeM > 0)
-        {
-            FString out_path = CFinalSunApp::Instance->FilePath();
-            out_path += "\\FinalSun";
-            out_path += filename;
-
-            std::ofstream fout(out_path, std::ios::binary);
-            if (fout.is_open())
-            {
-                fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(sizeM));
-                fout.close();
-
-                // load as a mix ini
-                return 0x480337;
-            }
-        }
+    DWORD dwSize = 0;
+    if (auto pBuffer = static_cast<byte*>(pThis->ReadWholeFile(pFile, &dwSize))) {
+        pINI->LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true);
+        GameDeleteArray(pBuffer, dwSize);
     }
 
-    return 0;
-}
-
-DEFINE_HOOK(480880, INIClass_LoadTSINI_IncludeSupport_2, 5)
-{
-    if (INIIncludes::LoadedINIs.size() == 0)
-        return 0;
-    CINI* xINI = INIIncludes::LoadedINIs.back();
-    if (!xINI)
-        return 0;
-
-    bool readExtra = false;
-    if (INIIncludes::IsFirstINI)
-    {
-        readExtra = true;
-        INIIncludes::IsFirstINI = false;
-    }
-
-    auto toLower = [&](const FString& input) {
-        FString result = input;
-        std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
-            return std::tolower(c);
-            });
-        return result;
-        };
-    auto toLowerC = [&](const char* input) {
-        FString result = input;
-        std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) {
-            return std::tolower(c);
-            });
-        return result;
-        };
-
-    char buffer[0x80]{0};
-
-    FString fullPath = CINIManager::GetInstance().GetProperty(xINI).Name;
-    std::vector<FString> folders;
-    for (auto& f : STDHelpers::SplitString(fullPath, "\\")) {
-        if (f != "") {
-            folders.push_back(f);
-        }
-    }
-    if (folders.empty())
-        return 0;
-    auto fileName = FString(folders.back());
-    folders.pop_back();
-
-    // to fit some mods that change these names
-    FString extraName = toLower(fileName);
-    int theaterIniType = -1;
-    bool isPartOfRulesIni = false;
-
-    auto getOriTileSetName = [xINI](int type)
-        {
-            FString sName = "";
-            for (int index = 0; index < 10000; index++)
-            {
-                sName.Format("TileSet%04d", index);
-                if (xINI->SectionExists(sName))
-                {
-                    auto setName = xINI->GetString(sName, "SetName");
-                    auto& set = CMapDataExt::TileSetOriginSetNames[type];
-                    if (set.find(index) == set.end())
-                    {
-                        set[index] = setName;
-                    }
+    if ((pINI == &CINI::Temperate
+       || pINI == &CINI::Snow
+       || pINI == &CINI::Urban
+       || pINI == &CINI::NewUrban
+       || pINI == &CINI::Lunar
+       || pINI == &CINI::Desert
+       || pINI == &CINI::Rules
+       || pINI == &CINI::Art
+       || pINI == &CINI::Sound
+       || pINI == &CINI::Eva
+       || pINI == &CINI::Theme
+       || pINI == &CINI::Ai)
+        && FString(pFile).find("fa2extra_") == FString::npos) {
+        FString extraFile = "fa2extra_";
+        auto paths = FString::SplitString(pFile, "\\");
+        extraFile += paths.back();
+        Logger::Debug("Include Ext Loaded Extra File: %s\n", extraFile);
+        DWORD dwSize = 0;
+        if (auto pBuffer = static_cast<byte*>(pThis->ReadWholeFile(extraFile, &dwSize))) {
+            CINIExt ini;
+            ini.LoadINIExt(pBuffer, dwSize, nullptr, !bMerge, true);
+            GameDeleteArray(pBuffer, dwSize);
+            for (auto& [sectionName, pSourceSection] : ini.Dict) {
+                auto pTargetSection = pINI->AddOrGetSection(sectionName);
+                for (auto& [key, value] : pSourceSection.GetEntities()) {
+                    pINI->WriteString(pTargetSection, key, value);
                 }
-                else break;
             }
-        };
+        }
+    }
 
-    if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "TemperateYR", "TemperatMd.ini")))
-    {
+    int theaterIniType = -1;
+    if (pINI == &CINI::Temperate) {
         theaterIniType = 0;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "SnowYR", "SnowMd.ini")))
-    {
+    else if (pINI == &CINI::Snow) {
         theaterIniType = 1;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanYR", "UrbanMd.ini")))
-    {
+    else if (pINI == &CINI::Urban) {
         theaterIniType = 2;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "UrbanNYR", "UrbanNMd.ini")))
-    {
+    else if (pINI == &CINI::NewUrban) {
         theaterIniType = 3;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "LunarYR", "lunarmd.ini")))
-    {
+    else if (pINI == &CINI::Lunar) {
         theaterIniType = 4;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "DesertYR", "desertmd.ini")))
-    {
+    else if (pINI == &CINI::Desert) {
         theaterIniType = 5;
     }
-    else if (extraName == toLowerC(CINI::FAData->GetString("Filenames", "RulesYR", "rulesmd.ini"))) {
-        isPartOfRulesIni = true;
-        INIIncludes::RulesIncludeFiles.clear();
-        Variables::OrderedRulesIndicies.clear();
-        Variables::OrderedRulesMapIndicies.clear();
-    }
-    for (size_t j = 0; j < INIIncludes::RulesIncludeFiles.size(); ++j) {
-        FString name1 = toLower(INIIncludes::RulesIncludeFiles[j]);
-        FString name2 = toLower(FString(fullPath));
-
-        if (name1 == name2) {
-            isPartOfRulesIni = true;
-            break;
-        }
-    }
-
-    if (theaterIniType > -1)
-        getOriTileSetName(theaterIniType);
-
-    if (fileName.find("fa2extra_") == FString::npos)
-        extraName = "fa2extra_" + extraName;
-
-    if (ExtConfigs::AllowIncludes || isPartOfRulesIni)
-    {
-        const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
-
-        int nMix = CLoading::Instance->SearchFile(fileName.c_str());
-        CINI ini;
-        FString path = CFinalSunApp::Instance->FilePath();
-        FString externalPath = CFinalSunApp::Instance->FilePath();
-        for (auto& f : folders) {
-            path += "\\" + f;
-            externalPath += "\\" + f;
-        }
-        path += "\\FinalSun";
-        externalPath += "\\";
-        path += fileName;
-        externalPath += fileName;
-
-        bool copied = false;
-        std::ifstream fin;
-        fin.open(externalPath, std::ios::in | std::ios::binary);
-        if (fin.is_open())  {
-            fin.close();
-            CopyFile(externalPath.c_str(), path.c_str(), FALSE);
-            copied = true;
-        }
-        if (!copied)
-        {
-            size_t size = 0;
-            auto data = ResourcePackManager::instance().getFileData(fileName, &size);
-            if (data && size > 0)
-            {
-                std::ofstream fout(path, std::ios::binary);
-                if (fout.is_open())
+    if (theaterIniType >= 0) {
+        FString sName = "";
+        for (int index = 0; index < 10000; index++) {
+            sName.Format("TileSet%04d", index);
+            if (pINI->SectionExists(sName)) {
+                auto setName = pINI->GetString(sName, "SetName");
+                auto& set = CMapDataExt::TileSetOriginSetNames[theaterIniType];
+                if (set.find(index) == set.end())
                 {
-                    fout.write(reinterpret_cast<const char*>(data.get()), static_cast<std::streamsize>(size));
-                    fout.close();
-                    copied = true;
+                    set[index] = setName;
                 }
             }
-        }        
-        if (!copied && ExtConfigs::ExtMixLoader)
-        {
-            auto& manager = MixLoader::Instance();
-            size_t size = 0;
-            auto result = manager.LoadFile(fileName, &size);
-            if (result && size > 0)
-            {
-                std::ofstream fout(path, std::ios::binary);
-                if (fout.is_open())
-                {
-                    fout.write(reinterpret_cast<const char*>(result.get()), static_cast<std::streamsize>(size));
-                    fout.close();
-                    copied = true;
-                }
-            }
-        }
-        if (!copied)
-        {
-            if (CLoading::Instance->HasFile(fileName.c_str(), nMix)) {
-                CMixFile::ExtractFile(fileName.c_str(), path.c_str(), nMix);
-                copied = true;
-            }
+            else break;
         }
 
-        ini.ClearAndLoad(path.c_str());
-        if (isPartOfRulesIni) {
-            for (const auto& section : ini.Dict) {
-                auto&& cur = ini.ParseIndiciesData(section.first);
-                auto& Indicies = Variables::OrderedRulesIndicies[section.first];
-                for (int i = 0; i < cur.size(); i++)
-                {
-                    auto& key = cur[i];
-                    FString value = ini.GetString(section.first, key, "");
-                    // the include of Ares will delete the same key in registries
-                    // and then add it to the bottom
-                    // it will ignore empty values
-                    if (value != "") {
-                        Indicies.erase(
-                            std::remove_if(Indicies.begin(), Indicies.end(),
-                                [&key](const std::pair<FString, FString>& item) {
-                                    return item.first == key;
-                                }),
-                            Indicies.end()
-                        );
-
-                        bool same = false;
-                        for (auto& checkSame : Indicies) {
-                            if (checkSame.second == value) {
-                                same = true;
-                                break;
-                            }
-                        }
-                        if (!same) {
-                            Indicies.push_back(std::make_pair(key, value));
-                        }
-                    }
-                }
-            }
-            Variables::OrderedRulesMapIndicies = Variables::OrderedRulesIndicies;
-        }
-
-        if (ExtConfigs::AllowIncludes)
-        {
-            if (auto pSection = ini.GetSection(includeSection)) {
-                for (auto& pair : pSection->GetEntities()) {
-                    const ppmfc::CString& includeFile = pair.second;
-
-                    if (includeFile && strlen(includeFile) > 0) {
-                        bool canLoad = true;
-                        for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
-                            if (!strcmp(INIIncludes::LoadedINIFiles[j], includeFile)) {
-                                canLoad = false;
-                                break;
-                            }
-                        }
-                        if (isPartOfRulesIni) {
-                            INIIncludes::RulesIncludeFiles.push_back(_strdup(includeFile));
-                        }
-
-                        if (canLoad) {
-                            if (!INIIncludes::IsMapINI)
-                                Logger::Debug("Include Ext Loaded File: %s\n", includeFile);
-                            else
-                                Logger::Debug("Include Ext Loaded File in Map: %s\n", includeFile);
-                            CLoading::Instance->LoadTSINI(
-                                includeFile, (CINI*)xINI, TRUE
-                            );
-                        }
-                    }
-                }
-            }
-        }
-        DeleteFile(path.c_str());
-    }
-
-    ++INIIncludes::LastReadIndex;
-    buffer[0] = '\0';
-
-    if (readExtra)
-    {
-        INIIncludes::IsFirstINI = true;
-        // only load extra file in the main INI
-        strcpy_s(buffer, extraName.c_str());
-        if (buffer && strlen(buffer) > 0) {
-            bool canLoad = true;
-            for (size_t j = 0; j < INIIncludes::LoadedINIFiles.size(); ++j) {
-                if (!strcmp(INIIncludes::LoadedINIFiles[j], buffer)) {
-                    canLoad = false;
-                    break;
-                }
-
-            }
-
-            if (canLoad) {
-                if (!INIIncludes::IsMapINI)
-                    Logger::Debug("Include Ext Loaded File: %s\n", buffer);
-                else
-                    Logger::Debug("Include Ext Loaded File in Map: %s\n", buffer);
-                CLoading::Instance->LoadTSINI(
-                    buffer, (CINI*)xINI, TRUE
-                );
-            }
-        }
-    } 
-
-    if (theaterIniType > -1)
-    {
         int index;
         std::map<int, FString> newMarbles;
-        for (index = 0; index < 10000; index++)
-        {
+        for (index = 0; index < 10000; index++) {
             FString sectionName;
             sectionName.Format("TileSet%04d", index);
-            if (!xINI->SectionExists(sectionName))
-            {
+            if (!pINI->SectionExists(sectionName)) {
                 break;
             }
-            else
-            {
-                auto nmm = xINI->GetString(sectionName, "NewMarbleMadness");
-                if (nmm != "")
-                {
+            else {
+                auto nmm = pINI->GetString(sectionName, "NewMarbleMadness");
+                if (nmm != "")  {
                     newMarbles[index] = nmm;
                 }
-
             }
         }
-        if (index > 0 && newMarbles.size() > 0)
-        {
+        if (index > 0 && newMarbles.size() > 0) {
             for (auto& [i, secName] : newMarbles) {
-
                 FString oldSectionName;
                 FString newSectionName;
                 oldSectionName.Format("TileSet%04d", i);
                 newSectionName.Format("TileSet%04d", index);
-                xINI->WriteString(oldSectionName, "MarbleMadness", std::to_string(index).c_str());
+                pINI->WriteString(oldSectionName, "MarbleMadness", std::to_string(index).c_str());
 
-                auto section = xINI->AddOrGetSection(secName);
-                for (auto& pair : section->GetEntities())
-                {
-                    auto newSection = xINI->AddOrGetSection(newSectionName);
-                    xINI->WriteString(newSection, pair.first, pair.second);
+                auto section = pINI->AddOrGetSection(secName);
+                for (auto& pair : section->GetEntities())  {
+                    auto newSection = pINI->AddOrGetSection(newSectionName);
+                    pINI->WriteString(newSection, pair.first, pair.second);
                 }
                 index++;
             }
         }
-        getOriTileSetName(theaterIniType);
     }
 
-    // phobos mode
-    if (ExtConfigs::AllowInherits && ExtConfigs::InheritType)
-    {
-        for (const auto& sectionA : xINI->Dict) 
-        {
-            if (xINI->KeyExists(sectionA.first, "$Inherits"))
-            {
-                auto inherits = STDHelpers::SplitString(xINI->GetString(sectionA.first, "$Inherits"));
-                for (const auto& sectionB : inherits)
-                {
-                    if (auto pSectionB = xINI->GetSection(sectionB))
-                    {
-                        for (const auto& [key, value] : pSectionB->GetEntities())
-                        {
-                            if (!xINI->KeyExists(sectionA.first, key))
-                                xINI->WriteString(sectionA.first, key, value);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (INIIncludes::LoadedINIs.size() > 0)
-    {
-        auto ini_to_remove = INIIncludes::LoadedINIs.end() - 1;
-        CINIManager::GetInstance().RemoveInstance(*ini_to_remove);
-        INIIncludes::LoadedINIs.erase(ini_to_remove);
-    }
-
-    if (!INIIncludes::LoadedINIs.size()) {
-        for (int j = INIIncludes::LoadedINIFiles.size() - 1; j >= 0; --j) {
-            if (char* ptr = INIIncludes::LoadedINIFiles[j]) {
-                free(ptr);
-                INIIncludes::CurrentINIIdxHelper.clear();
-            }
-            INIIncludes::LoadedINIFiles.erase(INIIncludes::LoadedINIFiles.begin() + j);
-        }
-        INIIncludes::LastReadIndex = -1;
-    }
-
-    return 0;
+    return 0x480892;
 }

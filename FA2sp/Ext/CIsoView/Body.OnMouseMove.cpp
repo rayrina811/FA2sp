@@ -1658,7 +1658,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             FString name = "MISSING";
             FString ttype = "";
 
-            auto value = Variables::GetRulesMapValueAt("OverlayTypes", overlay);
+            auto value = Variables::RulesMap.GetValueAt("OverlayTypes", overlay);
             if (value != "")
             {
                 auto thisname = mmh.GetString(value, "Name");

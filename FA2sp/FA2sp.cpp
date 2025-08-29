@@ -82,6 +82,7 @@ int ExtConfigs::BaseNodeIndex_Background_Color;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
 bool ExtConfigs::ExtFacings_Drag;
+bool ExtConfigs::ExtFacings_DragPreview;
 int ExtConfigs::UndoRedoLimit;
 bool ExtConfigs::UndoRedo_ShiftPlaceTile;
 bool ExtConfigs::UndoRedo_RecordObjects;
@@ -191,11 +192,10 @@ CBuildingData ExtConfigs::DefaultBuildingProperty;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
-MultimapHelper Variables::Rules = { &CINI::Rules(), &CINI::CurrentDocument() };
+MultimapHelper Variables::RulesMap = { &CINI::Rules(), &CINI::CurrentDocument() };
+MultimapHelper Variables::Rules = { &CINI::Rules() };
 MultimapHelper Variables::FAData = { &CINI::FAData() };
 MultimapHelper Variables::Rules_FAData = { &CINI::Rules(), &CINI::CurrentDocument(), &CINI::FAData() };
-std::unordered_map<FString, std::vector<std::pair<FString, FString>>> Variables::OrderedRulesMapIndicies;
-std::unordered_map<FString, std::vector<std::pair<FString, FString>>> Variables::OrderedRulesIndicies;
 
 void FA2sp::ExtConfigsInitialize()
 {	
@@ -295,6 +295,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
+	ExtConfigs::ExtFacings_DragPreview = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.DragPreview", true);
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
@@ -939,6 +940,13 @@ void FA2sp::ExtConfigsInitialize()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtFacings.DragPreview", "Preview facing while draging"),
+		.IniKey = "ExtFacings.DragPreview",
+		.Value = &ExtConfigs::ExtFacings_DragPreview,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtMixLoader", "Enable new mix loader"),
 		.IniKey = "ExtMixLoader",
 		.Value = &ExtConfigs::ExtMixLoader,
@@ -1101,12 +1109,12 @@ void FA2sp::ExtConfigsInitialize()
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
-	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
-	//	.IniKey = "StringBufferStackAllocation",
-	//	.Value = &ExtConfigs::StringBufferStackAllocation,
-	//	.Type = ExtConfigs::SpecialOptionType::None
-	//	});
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
+		.IniKey = "StringBufferStackAllocation",
+		.Value = &ExtConfigs::StringBufferStackAllocation,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),

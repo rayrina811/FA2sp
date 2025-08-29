@@ -14,15 +14,21 @@
 using std::map;
 using std::vector;
 
-struct CINIExt
+class NOVTABLE CINIExt : public CINI
+{
+public:
+    void LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace);
+};
+
+struct CINIInfo
 {
     FString Name;
 };
 
-class CINIManager 
+class CINIManager
 {
 private:
-    static std::unordered_map<CINI*, CINIExt> propertyMap;
+    static std::unordered_map<CINI*, CINIInfo> propertyMap;
     CINIManager() = default;
 
 public:
@@ -31,13 +37,13 @@ public:
         return instance;
     }
 
-    void SetProperty(CINI* instance, CINIExt value) {
+    void SetProperty(CINI* instance, CINIInfo value) {
         if (instance) {
             propertyMap[instance] = value;
         }
     }
 
-    CINIExt GetProperty(CINI* instance, CINIExt defaultValue = {}) {
+    CINIInfo GetProperty(CINI* instance, CINIInfo defaultValue = {}) {
         auto it = propertyMap.find(instance);
         return (it != propertyMap.end()) ? it->second : defaultValue;
     }
@@ -53,7 +59,7 @@ class INIIncludes
 public:
     static int LastReadIndex;
     static vector<CINI*> LoadedINIs;
-    static vector<char*> LoadedINIFiles;
+    static vector<FString> LoadedINIFiles;
     static map<FString, unsigned int> CurrentINIIdxHelper;
     static vector<char*> RulesIncludeFiles;
     static bool IsFirstINI;

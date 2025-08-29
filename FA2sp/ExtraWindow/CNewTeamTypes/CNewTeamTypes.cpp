@@ -23,7 +23,7 @@
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
 CINI& CNewTeamTypes::map = CINI::CurrentDocument;
-MultimapHelper& CNewTeamTypes::rules = Variables::Rules;
+MultimapHelper& CNewTeamTypes::rules = Variables::RulesMap;
 HWND CNewTeamTypes::hSelectedTeam;
 HWND CNewTeamTypes::hNewTeam;
 HWND CNewTeamTypes::hDelTeam;

@@ -114,6 +114,15 @@ bool MultimapHelper::GetBool(ppmfc::CString pSection, ppmfc::CString pKey, bool 
 
 std::vector<ppmfc::CString> MultimapHelper::ParseIndicies(ppmfc::CString pSection, bool bParseIntoValue)
 {
+    if (bParseIntoValue && ValueIndiciesMap.find(pSection) != ValueIndiciesMap.end())
+    {
+        return ValueIndiciesMap[pSection];
+    }
+    else if (!bParseIntoValue && KeyIndiciesMap.find(pSection) != KeyIndiciesMap.end())
+    {
+        return KeyIndiciesMap[pSection];
+    }
+
     std::vector<ppmfc::CString> ret;
     std::map<unsigned int, ppmfc::CString> tmp;
     std::map<ppmfc::CString, unsigned int> tmp2;
@@ -164,7 +173,52 @@ std::vector<ppmfc::CString> MultimapHelper::ParseIndicies(ppmfc::CString pSectio
         tmp4.push_back(ret[i]);
     }
 
+    if (bParseIntoValue)
+    {
+        ValueIndiciesMap[pSection] = tmp4;
+    }
+    else
+    {
+        KeyIndiciesMap[pSection] = tmp4;
+    }
+
     return tmp4;
+}
+
+ppmfc::CString MultimapHelper::GetValueAt(ppmfc::CString section, int index, ppmfc::CString Default)
+{
+    if (ValueIndiciesMap.find(section) != ValueIndiciesMap.end())
+    {
+        auto&& indicies = ValueIndiciesMap[section];
+        return index < indicies.size() ? indicies[index] : Default;
+    }
+    auto&& indicies = ParseIndicies(section, true);
+    return index < indicies.size() ? indicies[index] : Default;
+}
+
+ppmfc::CString MultimapHelper::GetKeyAt(ppmfc::CString section, int index, ppmfc::CString Default)
+{
+    if (KeyIndiciesMap.find(section) != KeyIndiciesMap.end())
+    {
+        auto&& indicies = KeyIndiciesMap[section];
+        return index < indicies.size() ? indicies[index] : Default;
+    }
+    auto&& indicies = ParseIndicies(section, false);
+    return index < indicies.size() ? indicies[index] : Default;
+}
+
+void MultimapHelper::ClearMap(ppmfc::CString section)
+{
+    if (section == "")
+    {
+        KeyIndiciesMap.clear();
+        ValueIndiciesMap.clear();
+    }
+    else
+    {
+        KeyIndiciesMap.erase(section);
+        ValueIndiciesMap.erase(section);
+    }
 }
 
 std::map<ppmfc::CString, ppmfc::CString, INISectionEntriesComparator> MultimapHelper::GetSection(ppmfc::CString pSection)

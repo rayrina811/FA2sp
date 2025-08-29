@@ -433,8 +433,8 @@ public:
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset);
-    static void UpdateIncludeIniInMap();
     static ppmfc::CString GetAvailableIndex();
+    static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)
     {
         return CMapDataExt::CellDataExts[pos].HasAnnotation;
@@ -498,8 +498,6 @@ public:
     static void UpdateFieldAircraftData_RedrawMinimap();
 
     static int OreValue[4];
-    static bool SkipUpdateBuildingInfo;
-    static std::vector<int> deletedKeys;
     static std::vector<std::vector<int>> Tile_to_lat;
     static std::vector<int> TileSet_starts;
 

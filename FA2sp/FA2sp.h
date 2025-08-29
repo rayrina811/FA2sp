@@ -95,6 +95,7 @@ public:
     static bool ExtWaypoints;
     static bool ExtFacings;
     static bool ExtFacings_Drag;
+    static bool ExtFacings_DragPreview;
     static int UndoRedoLimit;
     static bool UndoRedo_RecordObjects;
     static bool UndoRedo_ShiftPlaceTile;
@@ -237,84 +238,10 @@ namespace std {
 class Variables
 {
 public:
+    static MultimapHelper RulesMap;
     static MultimapHelper Rules;
     static MultimapHelper FAData;
     static MultimapHelper Rules_FAData;
-    static std::unordered_map<FString, std::vector<std::pair<FString, FString>>> OrderedRulesMapIndicies;
-    static std::unordered_map<FString, std::vector<std::pair<FString, FString>>> OrderedRulesIndicies;
-
-    static std::optional<std::vector<std::pair<FString, FString>>> GetRulesSection(FString section)
-    {
-        static const std::vector<std::pair<FString, FString>> empty;
-        auto it = OrderedRulesIndicies.find(section);
-        if (it != OrderedRulesIndicies.end())
-        {
-            return it->second;
-        }
-        return empty;
-    }
-    static std::optional<std::vector<std::pair<FString, FString>>> GetRulesMapSection(FString section)
-    {
-        static const std::vector<std::pair<FString, FString>> empty;
-        auto it = OrderedRulesMapIndicies.find(section);
-        if (it != OrderedRulesMapIndicies.end())
-        {
-            return it->second;
-        }
-        return empty;
-    }
-    static FString GetRulesValueAt(FString section, int index, FString Default = "")
-    {
-        FString ret = Default;
-        if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
-        {
-            const auto& pSection = OrderedRulesIndicies[section];
-            if (0 <= index && index < pSection.size())
-            {
-                ret = pSection[index].second;
-            }
-        }
-        return ret;
-    }
-    static FString GetRulesKeyAt(FString section, int index, FString Default = "")
-    {
-        FString ret = Default;
-        if (OrderedRulesIndicies.find(section) != OrderedRulesIndicies.end())
-        {
-            const auto& pSection = OrderedRulesIndicies[section];
-            if (0 <= index && index < pSection.size())
-            {
-                ret = pSection[index].first;
-            }
-        }
-        return ret;
-    }
-    static FString GetRulesMapValueAt(FString section, int index, FString Default = "")
-    {
-        FString ret = Default;
-        if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
-        {
-            const auto& pSection = OrderedRulesMapIndicies[section];
-            if (0 <= index && index < pSection.size())
-            {
-                ret = pSection[index].second;
-            }
-        }
-        return ret;
-    }
-    static FString GetRulesMapKeyAt(FString section, int index, FString Default = "")
-    {
-        FString ret = Default;
-        if (OrderedRulesMapIndicies.find(section) != OrderedRulesMapIndicies.end())
-        {
-            const auto& pSection = OrderedRulesMapIndicies[section];
-            if (0 <= index && index < pSection.size())
-            {
-                ret = pSection[index].first;
-            }
-        }
-        return ret;
-    }
 };
 
 class VEHGuard {
