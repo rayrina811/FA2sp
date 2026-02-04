@@ -55,6 +55,10 @@ public:
     friend FString operator+(const FString& lhs, TCHAR rhs) { FString r = lhs; r += rhs; return r; }
     friend FString operator+(LPCSTR lhs, const FString& rhs) { FString r; if(lhs) r = lhs; r += rhs; return r; }
 
+    std::string ToStdString() const {
+        return static_cast<const std::string&>(*this);
+    }
+
     int GetLength() const { return static_cast<int>(length()); }
     bool IsEmpty() const { return empty(); }
     FString& MakeReverse() {
@@ -612,7 +616,7 @@ public:
     static void TrimIndex(FString& str) {
         str.Trim();
         int spaceIndex = str.Find(' ');
-        if (spaceIndex > 0) {
+        if (spaceIndex >= 0) {
             str = str.Mid(0, spaceIndex);
         }
     }
@@ -620,15 +624,34 @@ public:
     static void TrimSemicolon(FString& str) {
         str.Trim();
         int semicolon = str.Find(';');
-        if (semicolon > 0) {
+        if (semicolon >= 0) {
             str = str.Mid(0, semicolon);
+        }
+    }
+
+    static FString GetComment(const FString& line)
+    {
+        int pos = line.Find(';');
+        if (pos < 0)
+            return FString();
+
+        FString comment = line.Mid(pos + 1);
+        comment.Trim();
+        return comment;
+    }
+
+    static void TrimSemicolonElse(FString& str) {
+        str.Trim();
+        int semicolon = str.Find(';');
+        if (semicolon >= 0) {
+            str = str.Mid(semicolon + 1);
         }
     }
 
     static void TrimIndexElse(FString& str) {
         str.Trim();
         int spaceIndex = str.Find(' ');
-        if (spaceIndex > 0) {
+        if (spaceIndex >= 0) {
             str = str.Mid(spaceIndex + 1);
         }
     }

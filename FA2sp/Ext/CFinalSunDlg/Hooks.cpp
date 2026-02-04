@@ -12,6 +12,7 @@
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
+#include "../CTileSetBrowserFrame/Body.h"
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
@@ -568,6 +569,14 @@ DEFINE_HOOK(4353BD, CFinalSunDlg_OnMaptoolsBackcliff, 9)
     return 0;
 }
 
+DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
+{
+    auto view = CTileSetBrowserFrameExt::TileSetBrowserView_Instance;
+    if (view && view->CurrentMode == 2)
+        return 0x435FF7;
+    return 0;
+}
+
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)
 {
     if (!CIsoView::GetInstance()->IsScrolling)
@@ -601,6 +610,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     CopyPaste::PastedCoords.clear();
     CIsoViewExt::EnableAutoTrack = false;
     if (CIsoView::CurrentCommand->Command == 0x1B)
+    {
+        CIsoView::CurrentCommand->Command = 0x0;
+        CIsoView::CurrentCommand->Type = 0;
+    }   
+    if (CIsoView::CurrentCommand->Command == 0x25)
     {
         CIsoView::CurrentCommand->Command = 0x0;
         CIsoView::CurrentCommand->Type = 0;

@@ -576,7 +576,6 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	GET_STACK(DWORD, dwPos, 0x10);
 	GET_STACK(ppmfc::CString, suggestedID, 0x14);
 
-
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
@@ -585,19 +584,22 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 
 	bool skipOverlapping = false;
 	bool overlappingWarning = false;
+	int X = dwPos % Map->MapWidthPlusHeight;
+	int Y = dwPos / Map->MapWidthPlusHeight;
 
 	CBuildingData structure;
 	if (lpStructure != NULL)
 	{
 		structure = *lpStructure;
-		skipOverlapping = true;
-		
+		skipOverlapping = true;	
+		X = atoi(structure.X);
+		Y = atoi(structure.Y);
 	}
 	else
 	{
 		char cx[10], cy[10];
-		_itoa(dwPos % Map->MapWidthPlusHeight, cx, 10);
-		_itoa(dwPos / Map->MapWidthPlusHeight, cy, 10);
+		_itoa(X, cx, 10);
+		_itoa(Y, cy, 10);
 
 		structure.Health = ExtConfigs::DefaultBuildingProperty.Health;
 		structure.Facing = ExtConfigs::DefaultBuildingProperty.Facing;
@@ -616,8 +618,8 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		structure.TypeID = lpType;
 		structure.X = cx;
 		structure.Y = cy;
-		
 	}
+
 	if (ExtConfigs::PlaceStructureUpgrades) 
 	{
 		int upgradeCount = 0;
@@ -653,6 +655,88 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 	}
 
 	auto pSection = m_mapfile->AddOrGetSection("Structures");
+	if (ExtConfigs::PlaceStructurePlaceUpgrade)
+	{
+		bool isPowerUp = CMapDataExt::PowersUpBuildingSet.find(structure.TypeID) != CMapDataExt::PowersUpBuildingSet.end();
+		if (isPowerUp)
+		{
+			bool placePowerUp = false;
+			int iniIndex = -1;
+			int max = 0;
+			if (CMapData::Instance->IsCoordInMap(X, Y))
+			{
+				auto cell = CMapData::Instance->GetCellAt(X, Y);
+				if (cell->Structure > -1)
+				{
+					auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+					if (StrINIIndex != -1)
+					{
+						auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+						auto itr = CMapDataExt::PowersUpBuildings.find(objRender.ID);
+						if (itr != CMapDataExt::PowersUpBuildings.end())
+						{
+							if (itr->second.find(structure.TypeID) != itr->second.end())
+							{
+								placePowerUp = true;
+								iniIndex = StrINIIndex;
+								max = Variables::RulesMap.GetInteger(objRender.ID, "Upgrades", 0);
+							}
+						}
+					}
+				}
+			}
+			if (placePowerUp)
+			{
+				
+				if (!CMapDataExt::PlaceStructure_Preview)
+				{
+					auto key = m_mapfile->GetKeyAt("Structures", iniIndex);
+					FString value = m_mapfile->GetValueAt("Structures", iniIndex);
+					auto powerUpCount = atoi(value.GetParam(10));
+					if (powerUpCount == max)
+						powerUpCount--;
+					FString count;
+					if (powerUpCount == 0)
+					{
+						value.SetParam(10, "1");
+						value.SetParam(12, structure.TypeID);
+					}
+					else if (powerUpCount == 1)
+					{
+						value.SetParam(10, "2");
+						value.SetParam(13, structure.TypeID);
+					}
+					else if (powerUpCount == 2)
+					{
+						value.SetParam(10, "3");
+						value.SetParam(14, structure.TypeID);
+					}
+
+					m_mapfile->WriteString("Structures", key, value);
+				}
+				auto& renderData = CMapDataExt::BuildingRenderDatasFix[iniIndex];
+				CMapDataExt::PlaceStructure_OldData[iniIndex] = renderData;
+				if (renderData.PowerUpCount == max)
+					renderData.PowerUpCount--;
+				if (renderData.PowerUpCount == 0)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp1 = structure.TypeID;
+				}
+				else if (renderData.PowerUpCount == 1)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp2 = structure.TypeID;
+				}
+				else if (renderData.PowerUpCount == 2)
+				{
+					renderData.PowerUpCount++;
+					renderData.PowerUp3 = structure.TypeID;
+				}
+				return 0x4AD921;
+			}
+		}
+	}
 	if (!CopyPaste::OnLButtonDownPasted && !CMapDataExt::SkipBuildingOverlappingCheck)
 	{
 		// check overlap
@@ -661,101 +745,89 @@ DEFINE_HOOK(4ACB60, CMapData_Update_AddBuilding, 7)
 		for (const auto& pair : ignoreList)
 		{
 			if (pair.second == structure.TypeID)
+			{
 				skipCheck = true;
-
+				break;
+			}
 		}
 
 		if (!skipCheck && ExtConfigs::PlaceStructureOverlappingCheck)
 		{
-			std::map<int, int> Occupied;
-			int length = CMapData::Instance->MapWidthPlusHeight;
-			length *= length;
+			bool overlapping = false;
+			const int Index = CMapDataExt::GetBuildingTypeIndex(structure.TypeID);
+			const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
 
+			if (!DataExt.IsCustomFoundation())
 			{
-				const int Index = CMapDataExt::GetBuildingTypeIndex(structure.TypeID);
-				const int Y = atoi(structure.Y);
-				const int X = atoi(structure.X);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
-
-				if (!DataExt.IsCustomFoundation())
+				for (int dx = 0; dx < DataExt.Height; ++dx)
 				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
+					for (int dy = 0; dy < DataExt.Width; ++dy)
 					{
-						for (int dy = 0; dy < DataExt.Width; ++dy)
+						if (CMapData::Instance->IsCoordInMap(X + dx, Y + dy))
 						{
-							MapCoord coord = { X + dx, Y + dy };
-							if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
+							auto cell = CMapData::Instance->GetCellAt(X + dx, Y + dy);
+							if (cell->Structure > -1)
 							{
-								Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] = 114514;
+								bool skipCheck = false;
+								auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+								if (StrINIIndex != -1)
+								{
+									auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+									for (const auto& pair : ignoreList)
+									{
+										if (pair.second == objRender.ID)
+										{
+											skipCheck = true;
+											break;
+										}
+									}
+									if (!skipCheck)
+										overlapping = true;
+								}
 							}
-
 						}
-					}
-				}
-				else
-				{
-					for (const auto& block : *DataExt.Foundations)
-					{
-						MapCoord coord = { X + block.Y, Y + block.X };
-						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-						{
-							Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] = 114514;
-						}
-
 					}
 				}
 			}
-
-			for (const auto& pair : pSection->GetEntities())
+			else
 			{
-				bool skipThis = false;
-				auto values = STDHelpers::SplitString(pair.second, 4);
-				auto& type = values[1];
-
-				for (const auto& pair2 : ignoreList)
-					if (pair2.second == type)
-						skipThis = true;
-				if (skipThis)
-					continue;
-
-				const int Index = CMapDataExt::GetBuildingTypeIndex(type);
-				const int Y = atoi(values[3]);
-				const int X = atoi(values[4]);
-				const auto& DataExt = CMapDataExt::BuildingDataExts[Index];
-
-				if (!DataExt.IsCustomFoundation())
+				for (const auto& block : *DataExt.Foundations)
 				{
-					for (int dx = 0; dx < DataExt.Height; ++dx)
+					if (CMapData::Instance->IsCoordInMap(X + block.Y, Y + block.X))
 					{
-						for (int dy = 0; dy < DataExt.Width; ++dy)
+						auto cell = CMapData::Instance->GetCellAt(X + block.Y, Y + block.X);
+						if (cell->Structure > -1)
 						{
-							MapCoord coord = { X + dx, Y + dy };
-							if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-								if (Occupied.find(CMapData::Instance->GetCoordIndex(coord.X, coord.Y)) != Occupied.end())
-									if (Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] >= 114514)
-										Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] += 1;
+							bool skipCheck = false;
+							auto StrINIIndex = CMapDataExt::StructureIndexMap[cell->Structure];
+							if (StrINIIndex != -1)
+							{
+								auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+								for (const auto& pair : ignoreList)
+								{
+									if (pair.second == objRender.ID)
+									{
+										skipCheck = true;
+										break;
+									}
+								}
+								if (!skipCheck)
+									overlapping = true;
+							}
 						}
 					}
 				}
+			}
+	
+			if (overlapping)
+			{
+				if (!skipOverlapping)
+					return 0x4AD921;
 				else
 				{
-					for (const auto& block : *DataExt.Foundations)
-					{
-						MapCoord coord = { X + block.Y, Y + block.X };
-						if (CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
-							if (Occupied.find(CMapData::Instance->GetCoordIndex(coord.X, coord.Y)) != Occupied.end())
-								if (Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] >= 114514)
-									Occupied[CMapData::Instance->GetCoordIndex(coord.X, coord.Y)] += 1;
-					}
+					Logger::Raw("over?????\n");
+					overlappingWarning = true;
 				}
-			}
-			for (auto& o : Occupied)
-			{
-				if (o.second > 114514)
-					if (!skipOverlapping)
-						return 0x4AD921;
-					else
-						overlappingWarning = true;
 			}
 		}
 
@@ -947,6 +1019,8 @@ DEFINE_HOOK(4A8FB0, CMapData_DeleteStructure, 7)
 		LightingSourceTint::CalculateMapLamps();
 	}
 
+	CMapDataExt::RemapableOverlay_RemoveBuilding(cellIndex);
+
 	return 0x4A98AC;
 }
 
@@ -989,6 +1063,7 @@ DEFINE_HOOK(49ED34, CMapData_LoadMap_InitializeMapDataExt, 5)
 {
 	Logger::Debug("CMapData::LoadMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::IsNewMap = false;
 	return 0;
 }
 
@@ -997,6 +1072,13 @@ DEFINE_HOOK(4B9E38, CMapData_CreateMap_InitializeMapDataExt, 5)
 	CMapDataExt::IsUTF8File = false;
 	Logger::Debug("CMapData::CreateMap(): About to call InitializeAllHdmEdition()\n");
 	CMapDataExt::InitializeAllHdmEdition();
+	CMapDataExt::MapIniSectionSorting.clear();
+	CMapDataExt::MapInlineComments.clear();
+	CMapDataExt::MapFrontlineComments.clear();
+	CMapDataExt::MapInsectionComments.clear();
+	CMapDataExt::MapFrontsectionComments.clear();
+	CMapDataExt::IsNewMap = true;
+
 	return 0;
 }
 

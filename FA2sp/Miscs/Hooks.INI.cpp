@@ -1,7 +1,6 @@
 #include "Hooks.INI.h"
 #include "../Ext/CMapData/Body.h"
 #include "../Ext/CLoading/Body.h"
-#include <queue>
 
 using std::map;
 using std::vector;
@@ -14,11 +13,11 @@ vector<CINI*> INIIncludes::LoadedINIs;
 vector<FString> INIIncludes::LoadedINIFiles;
 vector<char*> INIIncludes::RulesIncludeFiles;
 map<FString, unsigned int> INIIncludes::CurrentINIIdxHelper;
-std::unordered_map<FString, std::unordered_map<FString, FString>> INIIncludes::MapIncludedKeys;
 std::unordered_map<CINI*, CINIInfo> CINIManager::propertyMap;
 bool INIIncludes::SkipBracketFix = false;
 
-void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection, bool bClear, bool bTrimSpace, bool bAllowInclude)
+void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
+    bool bClear, bool bTrimSpace, bool bAllowInclude, std::queue<ppmfc::CString>* parentIncludeInis)
 {
     if (bClear)
     {
@@ -47,117 +46,199 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
         content.toANSI();
 
     INISection* pCurrentSection = nullptr;
+    FString CurrentSectionName;
+    FString PendingComment;
 
     size_t idx = 0;
     const size_t len = content.length();
     static size_t plusEqual = 0;
-    static std::map<CINIExt*, std::map<FString, FString>> InheritSections;
+    static std::map<CINIExt*, std::map<FString, std::vector<FString>>> InheritSections;
+    std::set<FString> LoadedSections;
     if (bAllowInclude) {
         plusEqual = 0;
         InheritSections.clear();
     }
     bool findTargetSection = false;
     bool firstLine = true;
+    bool keepComment = this == &CINI::CurrentDocument && ExtConfigs::SaveMap_KeepComments;
 
-    while (idx < len) {
-        size_t lineEnd = content.find_first_of("\r\n", idx);
-        if (lineEnd == FString::npos) lineEnd = len;
-        FString line = content.substr(idx, lineEnd - idx);
-        FString::TrimSemicolon(line);
+    std::istringstream iss(content);
+    FString line;
+    while (std::getline(iss, line))
+    {
+        line.Trim();
+        if (!line.empty())
+        {
+            if (firstLine) {
+                firstLine = false;
+                if (encoding == UTF8_ASCII && line.find("UTF8") != FString::npos)
+                    loadAsUTF8 = true;
+            }
+            if (!keepComment) {
+                if (line[0] == ';') continue;
+            }
+            else {
+                if (line[0] == ';') {
+                    FString comment = line.substr(1);
+                    comment.Trim();
+                    PendingComment += comment + "\n";
+                    continue;
+                }
+            }
 
-        idx = lineEnd;
-        while (idx < len && (content[idx] == '\r' || content[idx] == '\n')) ++idx;
+            // ------------------- Section -------------------
+            if (line[0] == '[') {
+                size_t closePos = line.find(']');
 
-        if (line.empty()) continue;
-        if (firstLine) {
-            firstLine = false;
-            if (encoding == UTF8_ASCII && line.find("UTF8") != FString::npos)
-                loadAsUTF8 = true;
-        }
-        if (line[0] == ';') continue;
+                if (closePos == FString::npos) {
+                    if (INIIncludes::SkipBracketFix) exit(1);
+                    continue;
+                }
 
-        // ------------------- Section -------------------
-        if (line[0] == '[') {
-            size_t closePos = line.find(']');
-            if (closePos == FString::npos) {
-                if (INIIncludes::SkipBracketFix) exit(1);
+                FString inlineSectionComment;
+                if (keepComment) {
+                    size_t commentPos = line.find(';', closePos + 1);
+                    if (commentPos != FString::npos) {
+                        inlineSectionComment = line.substr(commentPos + 1);
+                        inlineSectionComment.Trim();
+                        line = line.substr(0, commentPos);
+                    }
+                }
+
+                CurrentSectionName = line.substr(1, closePos - 1);
+
+                if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
+                    size_t p = closePos + 2;
+                    if (p < line.size() && line[p] == '[') {
+                        size_t close2 = line.find(']', p);
+                        if (close2 != FString::npos) {
+                            InheritSections[this][CurrentSectionName].push_back(line.substr(p + 1, close2 - (p + 1)));
+                        }
+                    }
+                }
+
+                if (!CurrentSectionName.empty()) {
+                    if (lpSection && CurrentSectionName != lpSection) {
+                        pCurrentSection = nullptr;
+                        continue;
+                    }
+                    else if (lpSection && CurrentSectionName == lpSection) {
+                        findTargetSection = true;
+                    }
+                    else if (lpSection && findTargetSection) {
+                        return;
+                    }
+
+                    // only read first repeated section in the main file
+                    // for include files, all sections will be read
+                    if (bAllowInclude) {
+                        if (LoadedSections.find(CurrentSectionName) != LoadedSections.end()) {
+                            pCurrentSection = nullptr;
+                        }
+                        else {
+                            pCurrentSection = AddOrGetSection(CurrentSectionName);
+                            LoadedSections.insert(CurrentSectionName);
+                        }
+                    }
+                    else {
+                        pCurrentSection = AddOrGetSection(CurrentSectionName);
+                    }
+
+                    if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting) {
+                        auto it = std::find(CMapDataExt::MapIniSectionSorting.begin(), CMapDataExt::MapIniSectionSorting.end(), CurrentSectionName);
+                        if (it == CMapDataExt::MapIniSectionSorting.end()) {
+                            CMapDataExt::MapIniSectionSorting.push_back(CurrentSectionName);
+                        }
+                    }
+
+                    if (keepComment) {
+                        PendingComment.Trim();
+                        if (!PendingComment.empty()) {
+                            CMapDataExt::MapFrontsectionComments[CurrentSectionName] = PendingComment;
+                            PendingComment.clear();
+                        }
+                        inlineSectionComment.Trim();
+                        if (!inlineSectionComment.empty()) {
+                            CMapDataExt::MapInsectionComments[CurrentSectionName] = inlineSectionComment;
+                        }
+                    }
+                }
                 continue;
             }
 
-            FString sectionName = line.substr(1, closePos - 1);
+            // -------------------  Key=Value -------------------
+            if (pCurrentSection) {
+                size_t eqPos = line.find('=');
 
-            if (closePos + 1 < line.size() && line[closePos + 1] == ':') {
-                size_t p = closePos + 2;
-                if (p < line.size() && line[p] == '[') {
-                    size_t close2 = line.find(']', p);
-                    if (close2 != FString::npos) {
-                        InheritSections[this][sectionName] = line.substr(p + 1, close2 - (p + 1));
+                FString inlineComment;
+                if (keepComment) {
+                    size_t commentPos = line.find(';', eqPos + 1);
+                    if (commentPos != FString::npos) {
+                        inlineComment = line.substr(commentPos + 1);
+                        inlineComment.Trim();
+                        line = line.substr(0, commentPos);
                     }
                 }
-            }
 
-            if (!sectionName.empty()) {
-                if (lpSection && sectionName != lpSection) {
-                    pCurrentSection = nullptr;
-                    continue;
-                }
-                else if (lpSection && sectionName == lpSection) {
-                    findTargetSection = true;
-                }
-                else if (lpSection && findTargetSection) {
-                    return;
+                if (eqPos == FString::npos) continue;
+
+                FString key = line.substr(0, eqPos);
+                FString value = line.substr(eqPos + 1);
+
+                int semicolon = value.Find(';');
+                if (semicolon > 0) {
+                    value = value.Mid(0, semicolon);
                 }
 
-                pCurrentSection = AddOrGetSection(sectionName);
-
-                if (CMapDataExt::IsLoadingMapFile && ExtConfigs::SaveMap_PreserveINISorting)
-                {
-                    CMapDataExt::MapIniSectionSorting.push_back(sectionName);
+                if (bTrimSpace) {
+                    key.Trim();
+                    value.Trim();
                 }
-            }
-            continue;
-        }
 
-        // -------------------  Key=Value -------------------
-        if (pCurrentSection) {
-            size_t eqPos = line.find('=');
-            if (eqPos == FString::npos) continue;
-
-            FString key = line.substr(0, eqPos);
-            FString value = line.substr(eqPos + 1);
-
-            if (bTrimSpace) {
-                key.Trim();
-                value.Trim();
-            }
-
-            if (ExtConfigs::AllowPlusEqual) {
-                if (key == "+") {
-                    while (true)
-                    {
-                        key.Format("FA2sp%u", plusEqual);
-                        ++plusEqual;
-                        if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
-                            break;
+                if (ExtConfigs::AllowPlusEqual) {
+                    if (key == "+") {
+                        while (true)
+                        {
+                            key.Format("FA2sp%u", plusEqual);
+                            ++plusEqual;
+                            if (pCurrentSection->GetEntities().find(key) == pCurrentSection->GetEntities().end())
+                                break;
+                        }
                     }
                 }
+
+                if (!key.empty()) {
+                    size_t currentIndex = pCurrentSection->GetEntities().size();
+                    writeString(pCurrentSection, key, value);
+
+                    if (keepComment) {
+                        PendingComment.Trim();
+                        if (!PendingComment.empty()) {
+                            CMapDataExt::MapFrontlineComments[CurrentSectionName][key] = PendingComment;
+                            PendingComment.clear();
+                        }
+                        inlineComment.Trim();
+                        if (!inlineComment.empty()) {
+                            CMapDataExt::MapInlineComments[CurrentSectionName][key] = inlineComment;
+                        }
+                    }
+
+                    std::pair<ppmfc::CString, int> ins =
+                        std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                    std::pair<INIIndiceDict::iterator, bool> ret;
+                    reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+                }
             }
-
-            if (!key.empty()) {
-                size_t currentIndex = pCurrentSection->GetEntities().size();
-                writeString(pCurrentSection, key, value);
-
-                std::pair<ppmfc::CString, int> ins =
-                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                std::pair<INIIndiceDict::iterator, bool> ret;
-                reinterpret_cast<FAINIIndicesMap*>(&pCurrentSection->GetIndices())->insert(&ret, &ins);
+            else {
+                continue;
             }
         }
-        else {
-            continue;
+        else if (!PendingComment.IsEmpty())
+        {
+            PendingComment += "\n";
         }
     }
-
+ 
     auto loadAresInheritedIni = [&](CINIExt* ini)
     {
         // ares mode
@@ -165,28 +246,30 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
             auto itr = InheritSections.find(ini);
             if (itr != InheritSections.end()) {
                 const auto& pairs = itr->second;
-                for (const auto& [main, inherit] : pairs) {
+                for (const auto& [main, inherits] : pairs) {
                     auto pSectionA = GetSection(main);
                     auto pSectionA_New = ini->GetSection(main);
-                    auto pSectionB = GetSection(inherit);
-                    if (pSectionA && pSectionB) {
-                        for (const auto& [key, value] : pSectionB->GetEntities())
-                        {
-                            if (pSectionA_New
-                                && pSectionA_New->GetEntities().find(key)
-                                != pSectionA_New->GetEntities().end())
-                                continue;
+                    for (const auto& inherit : inherits) {
+                        auto pSectionB = GetSection(inherit);
+                        if (pSectionA && pSectionB) {
+                            for (const auto& [key, value] : pSectionB->GetEntities())
+                            {
+                                if (pSectionA_New
+                                    && pSectionA_New->GetEntities().find(key)
+                                    != pSectionA_New->GetEntities().end())
+                                    continue;
 
-                            size_t currentIndex = pSectionA->GetEntities().size();
+                                size_t currentIndex = pSectionA->GetEntities().size();
 
-                            writeString(pSectionA, key, value);
+                                writeString(pSectionA, key, value);
 
-                            std::pair<ppmfc::CString, int> ins =
-                                std::make_pair((ppmfc::CString)key, (int)currentIndex);
-                            std::pair<INIIndiceDict::iterator, bool> ret;
-                            reinterpret_cast<FAINIIndicesMap*>(&pSectionA->GetIndices())->insert(&ret, &ins);
+                                std::pair<ppmfc::CString, int> ins =
+                                    std::make_pair((ppmfc::CString)key, (int)currentIndex);
+                                std::pair<INIIndiceDict::iterator, bool> ret;
+                                reinterpret_cast<FAINIIndicesMap*>(&pSectionA->GetIndices())->insert(&ret, &ins);
+                            }
                         }
-                    }
+                    }            
                 }
                 InheritSections.erase(itr);
             }
@@ -197,16 +280,22 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
     {
         using INIPair = std::pair<ppmfc::CString, ppmfc::CString>;
         const char* includeSection = ExtConfigs::IncludeType ? "$Include" : "#include";
-
-        if (auto pSection = GetSection(includeSection)) {
+        auto pIncludeSection = GetSection(includeSection);
+        if (pIncludeSection || parentIncludeInis) {
             if (this == &CINI::CurrentDocument) {
-                INIIncludes::MapIncludedKeys.clear();
                 INIIncludes::MapINIWarn = true;
             }
             std::set<ppmfc::CString> includedInis;
             std::queue<ppmfc::CString> currentIncludeInis;
-            for (auto& [index, key] : ParseIndiciesData(includeSection)) {
-                currentIncludeInis.push(pSection->GetString(key));
+            if (parentIncludeInis)
+            {
+                currentIncludeInis = *parentIncludeInis;
+            }
+            else
+            {
+                for (auto& [index, key] : ParseIndiciesData(includeSection)) {
+                    currentIncludeInis.push(pIncludeSection->GetString(key));
+                }
             }
             while (!currentIncludeInis.empty()) {
                 std::queue<ppmfc::CString> nextIncludeInis;
@@ -251,9 +340,6 @@ void CINIExt::LoadINIExt(uint8_t* pFile, size_t fileSize, const char* lpSection,
                                         targetIndicies.end()
                                     );
                                     targetIndicies.push_back(std::make_pair(key, value));
-                                    if (this == &CINI::CurrentDocument) {
-                                        INIIncludes::MapIncludedKeys[sectionName][key] = GetString(pTargetSection, key);
-                                    }
                                 }
                                 DeleteSection(sectionName);
                                 pTargetSection = AddSection(sectionName);

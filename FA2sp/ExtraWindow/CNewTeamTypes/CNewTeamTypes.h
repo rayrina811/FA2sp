@@ -55,7 +55,8 @@ public:
         TurnToScript = 1501,
         TurnToTag = 1502,
         SearchReference = 1999,
-        ParadropAircraft = 2001
+        ParadropAircraft = 2001,
+        DragPoint = 2002
     };
 
     static void Create(CFinalSunDlg* pWnd);
@@ -71,6 +72,10 @@ public:
     static void OnSelchangeScript(bool edited = false);
     static void OnSelchangeTag(bool edited = false);
     static void OnClickNewTeam();
+
+    static void OnDropdownTaskForce();
+    static void OnDropdownScript();
+    static void OnDropdownTag();
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -88,10 +93,6 @@ protected:
     static void OnClickCloTeam(HWND& hWnd);
     static void OnClickSearchReference(HWND& hWnd);
 
-    static void OnDropdownTaskForce();
-    static void OnDropdownScript();
-    static void OnDropdownTag();
-
     static void OnCloseupTaskForce();
     static void OnCloseupScript();
     static void OnCloseupTeamtypes();
@@ -106,6 +107,8 @@ protected:
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
+    static LRESULT CALLBACK DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
     static HWND m_hwnd;
@@ -155,13 +158,14 @@ public:
     static HWND hTurnToTaskforce;
     static HWND hTurnToScript;
     static HWND hTurnToTag;
+    static HWND hDragPoint;
 
     static bool TaskforceListChanged;
     static bool ScriptListChanged;
     static bool TagListChanged;
+    static FString CurrentTeamID;
 private:
     static int SelectedTeamIndex;
-    static FString CurrentTeamID;
     static std::map<int, FString> TaskForceLabels;
     static std::map<int, FString> TeamLabels;
     static std::map<int, FString> ScriptLabels;
@@ -171,5 +175,11 @@ private:
     static bool WaypointAutodrop;
     static bool DropNeedUpdate;
     static std::vector<FString> mindControlDecisions;
+
+    static WNDPROC OrigDragDotProc;
+    static WNDPROC OrigDragingDotProc;
+    static bool m_dragging;
+    static POINT m_dragOffset;
+    static HWND m_hDragGhost;
 };
 

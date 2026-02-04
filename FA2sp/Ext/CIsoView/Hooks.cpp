@@ -22,6 +22,7 @@
 #include "../../Miscs/TheaterInfo.h"
 #include "../../Helpers/Helper.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../CTileSetBrowserFrame/Body.h"
 
 namespace CIsoViewDrawTemp
 {
@@ -93,8 +94,18 @@ DEFINE_HOOK(46BDFA, CIsoView_DrawMouseAttachedStuff_Structure, 5)
 	
 	const int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
 	const auto& cell = CMapData::Instance->CellDatas[nMapCoord];
-	if (cell.Structure < 0)
-		CMapData::Instance->SetBuildingData(nullptr, CIsoView::CurrentCommand->ObjectID, CIsoView::CurrentHouse(), nMapCoord, "");
+	if (ExtConfigs::PlaceStructurePlaceUpgrade)
+	{
+		bool isPowerUp = CMapDataExt::PowersUpBuildingSet.find(CIsoView::CurrentCommand->ObjectID)
+			!= CMapDataExt::PowersUpBuildingSet.end();
+		if (cell.Structure < 0 || isPowerUp)
+			CMapData::Instance->SetBuildingData(nullptr, CIsoView::CurrentCommand->ObjectID, CIsoView::CurrentHouse(), nMapCoord, "");
+	}
+	else
+	{
+		if (cell.Structure < 0)
+			CMapData::Instance->SetBuildingData(nullptr, CIsoView::CurrentCommand->ObjectID, CIsoView::CurrentHouse(), nMapCoord, "");
+	}
 
 	return 0x46BF98;
 }
@@ -199,7 +210,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 
 		CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 		auto tmp = CIsoView::CurrentCommand->Command;
-		if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->View.CurrentMode == 1) {
+		if (CTileSetBrowserFrameExt::TileSetBrowserView_Instance->CurrentMode == 1) {
 			HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
 			HWND hTileComboBox = ::GetDlgItem(hParent, 1366);
 			::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1366, CBN_SELCHANGE), (LPARAM)hTileComboBox);
@@ -208,6 +219,7 @@ DEFINE_HOOK(469410, CIsoView_ReInitializeDDraw_ReloadFA2SPHESettings, 6)
 	}
 
 	CIsoViewExt::ReInitializingDDraw = false;
+
 	return 0;
 }
 
@@ -901,6 +913,8 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 	auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
 	const int& x = point.X;
 	const int& y = point.Y;
+	auto tmp = TempValueHolder(CMapDataExt::PlaceStructure_Preview, true);
+	CMapDataExt::PlaceStructure_OldData.clear();
 
 	constexpr int MapBlockSize = 32;
 	constexpr int Padding = 4;
@@ -968,6 +982,19 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 
 		if (cur_field->Structure != oldData[ix * TotalSize + ex].Structure)
 			Map->DeleteBuildingData(cur_field->Structure);
+
+		if (ExtConfigs::PlaceStructurePlaceUpgrade && oldData[ix * TotalSize + ex].Structure > -1)
+		{
+			auto StrINIIndex = CMapDataExt::StructureIndexMap[oldData[ix * TotalSize + ex].Structure];
+			if (StrINIIndex != -1)
+			{
+				auto itr = CMapDataExt::PlaceStructure_OldData.find(StrINIIndex);
+				if (itr != CMapDataExt::PlaceStructure_OldData.end())
+				{
+					CMapDataExt::BuildingRenderDatasFix[itr->first] = itr->second;
+				}
+			}
+		}
 
 		if (cur_field->Terrain != oldData[ix * TotalSize + ex].Terrain)
 			Map->DeleteTerrainData(cur_field->Terrain);

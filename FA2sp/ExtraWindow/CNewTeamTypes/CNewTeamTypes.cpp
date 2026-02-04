@@ -23,6 +23,7 @@
 #include <chrono>
 #include "../CTriggerAnnotation/CTriggerAnnotation.h"
 #include "../CNewAITrigger/CNewAITrigger.h"
+#include "../CBatchTrigger/CBatchTrigger.h"
 
 HWND CNewTeamTypes::m_hwnd;
 CFinalSunDlg* CNewTeamTypes::m_parent;
@@ -85,7 +86,12 @@ bool CNewTeamTypes::Autodrop;
 bool CNewTeamTypes::WaypointAutodrop;
 bool CNewTeamTypes::DropNeedUpdate;
 std::vector<FString> CNewTeamTypes::mindControlDecisions;
-
+WNDPROC CNewTeamTypes::OrigDragDotProc;
+WNDPROC CNewTeamTypes::OrigDragingDotProc;
+bool CNewTeamTypes::m_dragging = false;
+POINT CNewTeamTypes::m_dragOffset{};
+HWND CNewTeamTypes::m_hDragGhost = nullptr;
+HWND CNewTeamTypes::hDragPoint = nullptr;
 
 void CNewTeamTypes::Create(CFinalSunDlg* pWnd)
 {
@@ -204,6 +210,7 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hTurnToTaskforce = GetDlgItem(hWnd, Controls::TurnToTaskforce);
     hTurnToScript = GetDlgItem(hWnd, Controls::TurnToScript);
     hTurnToTag = GetDlgItem(hWnd, Controls::TurnToTag);
+    hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
 
     mindControlDecisions.clear();
     mindControlDecisions.push_back(FString("0 - ") + Translations::TranslateOrDefault("MindControlDecisions.0", "Don't use this logic"));
@@ -212,6 +219,15 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     mindControlDecisions.push_back(FString("3 - ") + Translations::TranslateOrDefault("MindControlDecisions.3", "Send to Bio Reactor"));
     mindControlDecisions.push_back(FString("4 - ") + Translations::TranslateOrDefault("MindControlDecisions.4", "Assign to hunt"));
     mindControlDecisions.push_back(FString("5 - ") + Translations::TranslateOrDefault("MindControlDecisions.5", "Do nothing"));
+
+    ExtraWindow::RegisterDropTarget(hTaskforce, DropType::TeamEditorTaskForce);
+    ExtraWindow::RegisterDropTarget(hScript, DropType::TeamEditorScript);
+    ExtraWindow::RegisterDropTarget(hTag, DropType::TeamEditorTag);
+
+    if (hDragPoint)
+    {
+        OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
+    }
 
     Update(hWnd);
 }
@@ -345,7 +361,312 @@ void CNewTeamTypes::Close(HWND& hWnd)
 
     CNewTeamTypes::m_hwnd = NULL;
     CNewTeamTypes::m_parent = NULL;
+}
 
+LRESULT CALLBACK CNewTeamTypes::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_SETCURSOR:
+    {
+        if (CurrentTeamID != "")
+        {
+            SetCursor(LoadCursor(nullptr, IDC_HAND));
+            return TRUE;
+        }
+        break;
+    }
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(CurrentTeamID != "" ? RGB(0, 200, 0) : RGB(200, 0, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        if (CurrentTeamID != "")
+        {
+            m_dragging = true;
+            SetCapture(hWnd);
+
+            POINT pt;
+            GetCursorPos(&pt);
+
+            m_hDragGhost = CreateWindowEx(
+                WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
+                "STATIC",
+                nullptr,
+                WS_POPUP,
+                pt.x - 6, pt.y - 6,
+                12, 12,
+                nullptr, nullptr,
+                static_cast<HINSTANCE>(FA2sp::hInstance),
+                nullptr
+            );
+
+            if (m_hDragGhost)
+            {
+                OrigDragingDotProc = (WNDPROC)SetWindowLongPtr(m_hDragGhost, GWLP_WNDPROC, (LONG_PTR)DragingDotProc);
+                SetLayeredWindowAttributes(m_hDragGhost, 0, 200, LWA_ALPHA);
+                ShowWindow(m_hDragGhost, SW_SHOW);
+            }
+            return 0;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        if (!m_dragging) break;
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowPos(
+            m_hDragGhost,
+            nullptr,
+            pt.x - 6, pt.y - 6,
+            0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        );
+
+        return 0;
+    }
+    case WM_LBUTTONUP:
+    {
+        if (!m_dragging) break;
+
+        m_dragging = false;
+        ReleaseCapture();
+
+        POINT pt;
+        GetCursorPos(&pt);
+
+        SetWindowLongPtr(
+            m_hDragGhost,
+            GWLP_WNDPROC,
+            (LONG_PTR)OrigDragingDotProc
+        );
+        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+        DestroyWindow(m_hDragGhost);
+        m_hDragGhost = nullptr;
+
+        auto target = ExtraWindow::FindDropTarget(pt);
+        if (target.hWnd)
+        {
+            auto teamID = CurrentTeamID + " ";
+            switch (target.type)
+            {          
+            case DropType::ActionParam0:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(0);
+                    }
+                }
+                break;
+            case DropType::ActionParam1:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(1);
+                    }
+                }
+                break;
+            case DropType::ActionParam2:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(2);
+                    }
+                }
+                break;
+            case DropType::ActionParam3:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(3);
+                    }
+                }
+                break;
+            case DropType::ActionParam4:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(4);
+                    }
+                }
+                break;
+            case DropType::ActionParam5:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeActionListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeActionParam(5);
+                    }
+                }
+                break;
+            case DropType::EventParam0:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeEventListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeEventParam(0);
+                    }
+                }
+                break;
+            case DropType::EventParam1:
+                if (target.triggerInstance && target.triggerInstance->GetHandle())
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        target.triggerInstance->OnSelchangeEventListbox();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        target.triggerInstance->OnSelchangeEventParam(1);
+                    }
+                }
+                break;
+            case DropType::AIEditorTeam0:
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        CNewAITrigger::OnDropdownTeam();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        CNewAITrigger::OnSelchangeTeam(0);
+                    }
+                }
+                break;
+            case DropType::AIEditorTeam1:
+                {
+                    auto idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    if (idx == CB_ERR)
+                    {
+                        CNewAITrigger::OnDropdownTeam();
+                        idx = ExtraWindow::FindCBStringExactStart(target.hWnd, teamID);
+                    }
+                    if (idx != CB_ERR)
+                    {
+                        SendMessage(target.hWnd, CB_SETCURSEL, idx, NULL);
+                        CNewAITrigger::OnSelchangeTeam(1);
+                    }
+                }
+                break;
+            case DropType::BatchTriggerListView:
+            {
+                ListViewHitResult hit;
+                if (ExtraWindow::HitTestListView(target.hWnd, pt, hit))
+                {
+                    CBatchTrigger::OnDroppedIntoCell(hit.item, hit.subItem, CurrentTeamID);
+                }
+            }
+            break;
+            case DropType::Unknown:
+            default:
+                break;
+            }
+        }
+
+        ReleaseCapture();
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
+}
+
+LRESULT CALLBACK CNewTeamTypes::DragingDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        HBRUSH hBrush = CreateSolidBrush(RGB(0, 200, 0));
+        FillRect(hdc, &ps.rcPaint, hBrush);
+        DeleteObject(hBrush);
+
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+    }
+
+    return DefWindowProc(
+        hWnd, message, wParam, lParam
+    );
 }
 
 BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
@@ -420,6 +741,8 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
                 DropNeedUpdate = true;
                 CNewAITrigger::TeamListChanged = true;
+                CNewTrigger::Instance[0].TeamListChanged = true;
+                CNewTrigger::Instance[1].TeamListChanged = true;
 
                 FString name;
                 name.Format("%s (%s)", CurrentTeamID, buffer);
@@ -644,6 +967,12 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         CNewTeamTypes::Close(hWnd);
         return TRUE;
     }
+    case WM_MOVE:
+    case WM_SIZE:
+    {
+        ExtraWindow::UpdateDropTargetRect(hWnd);
+        break;
+    }
     case 114514: // used for update
     {
         Update(hWnd);
@@ -821,7 +1150,6 @@ void CNewTeamTypes::OnCloseupTag()
         OnSelchangeTeamtypes();
     }
 }
-
 
 void CNewTeamTypes::OnSelchangeHouse(bool edited)
 {
@@ -1151,6 +1479,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
     if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
     {
+        CurrentTeamID = "";
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)"");
@@ -1187,6 +1516,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSearchReference, BM_SETCHECK, BST_UNCHECKED, 0);
+        InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
     }
 
@@ -1196,6 +1526,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
     FString::TrimIndex(pID);
 
     CurrentTeamID = pID;
+    InvalidateRect(hDragPoint, nullptr, TRUE);
 
     CTriggerAnnotation::Type = AnnoTeam;
     CTriggerAnnotation::ID = CurrentTeamID;
@@ -1278,32 +1609,27 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (!found)
             SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.m_pchData);
 
-        found = false;
-        for (int idx = 0; idx < SendMessage(hParadropAircraft, CB_GETCOUNT, NULL, NULL); idx++)
+        auto SetCurSel = [](HWND hwnd, char* text)
         {
-            ppmfc::CString id;
-            SendMessage(hParadropAircraft, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            id = buffer;
-            STDHelpers::TrimIndex(id);
-            if (id == paradropAircraft)
-            {
-                SendMessage(hParadropAircraft, CB_SETCURSEL, idx, NULL);
-                found = true;
-                break;
-            }
-        }
+            int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
+            if (idx != CB_ERR)
+                SendMessage(hwnd, CB_SETCURSEL, idx, NULL);
+            else
+                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
+        };
+
         if (paradropAircraft == "")
             paradropAircraft = "None";
         if (!found)
             SendMessage(hParadropAircraft, WM_SETTEXT, 0, (LPARAM)paradropAircraft.m_pchData);
 
-        SendMessage(hVeteranLevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "VeteranLevel").m_pchData);
-        SendMessage(hTechlevel, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "TechLevel").m_pchData);
-        SendMessage(hTransportWaypoint, WM_SETTEXT, 0, (LPARAM)tWaypoint.m_pchData);
-        SendMessage(hWaypoint, WM_SETTEXT, 0, (LPARAM)waypoint.m_pchData);
+        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").m_pchData);
+        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").m_pchData);
+        SetCurSel(hTransportWaypoint, tWaypoint.m_pchData);
+        SetCurSel(hWaypoint, waypoint.m_pchData);
         SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").m_pchData);
         SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").m_pchData);
-        SendMessage(hGroup, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Group").m_pchData);
+        SetCurSel(hGroup, map.GetString(pID, "Group").m_pchData);
         int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
         if (idxMCD != CB_ERR)
             SendMessage(hMindControlDecision, CB_SETCURSEL, idxMCD, NULL);
@@ -1411,8 +1737,8 @@ void CNewTeamTypes::OnClickTurnToTag()
     FString::TrimIndex(text);
 
     // actually turn to first trigger with this tag, since tag is not important
-    if (CNewTrigger::GetHandle() == NULL)
-        CNewTrigger::Create(m_parent);
+    if (CNewTrigger::Instance[0].GetHandle() == NULL)
+        CNewTrigger::Instance[0].Create(m_parent);
 
     for (const auto& [ID, trigger] : CMapDataExt::Triggers)
     {
@@ -1423,13 +1749,13 @@ void CNewTeamTypes::OnClickTurnToTag()
         }
     }
 
-    auto dlg = GetDlgItem(CNewTrigger::GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+    auto dlg = GetDlgItem(CNewTrigger::Instance[0].GetHandle(), CNewTrigger::Controls::SelectedTrigger);
     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(text));
     if (idx == CB_ERR)
         return;
     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-    CNewTrigger::OnSelchangeTrigger();
-    SetWindowPos(CNewTrigger::GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    CNewTrigger::Instance[0].OnSelchangeTrigger();
+    SetWindowPos(CNewTrigger::Instance[0].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 }
 
 void CNewTeamTypes::OnClickNewTeam()
@@ -1509,6 +1835,8 @@ void CNewTeamTypes::OnClickNewTeam()
 
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
+    CNewTrigger::Instance[0].TeamListChanged = true;
+    CNewTrigger::Instance[1].TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
@@ -1544,6 +1872,8 @@ void CNewTeamTypes::OnClickDelTeam(HWND& hWnd)
     SendMessage(hSelectedTeam, CB_SETCURSEL, idx, NULL);
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
+    CNewTrigger::Instance[0].TeamListChanged = true;
+    CNewTrigger::Instance[1].TeamListChanged = true;
 }
 
 void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
@@ -1610,6 +1940,8 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
 
         OnSelchangeTeamtypes();
         CNewAITrigger::TeamListChanged = true;
+        CNewTrigger::Instance[0].TeamListChanged = true;
+        CNewTrigger::Instance[1].TeamListChanged = true;
     }
 }
 
@@ -1628,7 +1960,6 @@ void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
     {
         ::SendMessage(CSearhReference::GetHandle(), 114514, 0, 0);
     }
-
 }
 
 bool CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)

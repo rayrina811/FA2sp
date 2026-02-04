@@ -98,6 +98,7 @@ int ExtConfigs::SaveMap_AutoSave_Interval;
 int ExtConfigs::SaveMap_AutoSave_Interval_Real;
 int ExtConfigs::SaveMap_AutoSave_MaxCount;
 bool ExtConfigs::SaveMap_OnlySaveMAP;
+bool ExtConfigs::SaveMap_KeepComments;
 //bool ExtConfigs::SaveMap_MultiPlayOnlySaveYRM;
 //bool ExtConfigs::SaveMap_SinglePlayOnlySaveMAP;
 int ExtConfigs::SaveMap_DefaultPreviewOptionMP;
@@ -136,6 +137,7 @@ bool ExtConfigs::InfantrySubCell_OccupationBits;
 bool ExtConfigs::PlaceStructureOverlappingCheck;
 bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
+bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
@@ -174,6 +176,7 @@ bool ExtConfigs::InGameDisplay_AlphaImage;
 bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
+bool ExtConfigs::InGameDisplay_RemapableOverlay;
 bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
 bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
@@ -331,7 +334,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AlphaImage = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AlphaImage", true);
 	ExtConfigs::InGameDisplay_Bridge = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Bridge", true);
 	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
-	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable", false);
+	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable");
+	ExtConfigs::InGameDisplay_RemapableOverlay = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.RemapableOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -372,6 +376,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::SaveMap_FileEncodingComment = CINI::FAData->GetBool("ExtConfigs", "SaveMap.FileEncodingComment");
 	ExtConfigs::SaveMap_OnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP");
+	ExtConfigs::SaveMap_KeepComments = CINI::FAData->GetBool("ExtConfigs", "SaveMap.KeepComments");
 	ExtConfigs::SaveMap_PreserveINISorting = CINI::FAData->GetBool("ExtConfigs", "SaveMap.PreserveINISorting");
 	//ExtConfigs::SaveMap_MultiPlayOnlySaveYRM = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveYRM.MultiPlay");
 	//ExtConfigs::SaveMap_SinglePlayOnlySaveMAP = CINI::FAData->GetBool("ExtConfigs", "SaveMap.OnlySaveMAP.SinglePlay");
@@ -423,6 +428,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureOverlappingCheck = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.OverlappingCheck");
 	ExtConfigs::PlaceStructureUpgrades = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.AutoUpgrade");
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
+	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
 	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
@@ -731,6 +737,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.InGameDisplay.RemapableOverlay", "Display remapble colors of overlays"),
+		.IniKey = "InGameDisplay.RemapableOverlay",
+		.Value = &ExtConfigs::InGameDisplay_RemapableOverlay,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.FlatToGroundHideExtra", "Hide extra image when flat-to-ground is enabled"),
 		.IniKey = "FlatToGroundHideExtra",
 		.Value = &ExtConfigs::FlatToGroundHideExtra,
@@ -848,6 +861,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "SaveMap.FileEncodingComment",
 		.Value = &ExtConfigs::SaveMap_FileEncodingComment,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SaveMap.KeepComments", "Keep existing map comments"),
+		.IniKey = "SaveMap.KeepComments",
+		.Value = &ExtConfigs::SaveMap_KeepComments,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1114,6 +1134,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.UpgradeStrength", "Set buildings with upgrades to full health (for its appearance in game)"),
 		.IniKey = "PlaceStructure.UpgradeStrength",
 		.Value = &ExtConfigs::PlaceStructureUpgradeStrength,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.PlaceStructure.PlaceUpgrade", "Upgrades can be directly placed onto buildings"),
+		.IniKey = "PlaceStructure.PlaceUpgrade",
+		.Value = &ExtConfigs::PlaceStructurePlaceUpgrade,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 

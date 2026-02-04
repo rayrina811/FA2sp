@@ -16,6 +16,10 @@
 #include "../../Sol/sol.hpp"
 #include <cctype>
 #include <chrono>
+#include <shobjidl.h> 
+#include <string>
+#include <fstream>
+#include <sstream>
 #include "../../Miscs/MultiSelection.h"
 #include <unordered_set>
 #include "../CNewComboUInputDlg/CNewComboUInputDlg.h"
@@ -293,8 +297,7 @@ namespace LuaFunctions
 	
 	static std::string read_input()
 	{
-		GetWindowText(CLuaConsole::hInputBox, CLuaConsole::Buffer, BUFFER_SIZE);
-		return CLuaConsole::Buffer;
+		return ExtraWindow::GetScintillaText(CLuaConsole::hInputBox);
 	}
 
 	struct TimePoint {
@@ -1043,7 +1046,75 @@ namespace LuaFunctions
 
 	static std::string GetAvailableIndex()
 	{
-		return CMapDataExt::GetAvailableIndex().m_pchData;
+		auto v = VEHGuard(false);
+		auto& ini = CINI::CurrentDocument;
+		int initNumber = 1000000;
+
+		std::unordered_set<std::string> usedIDs;
+		int maxID = 0;
+
+		auto parseID = [&](const std::string& s) {
+			try {
+				return std::stoi(s);
+			}
+			catch (...) {
+				return -1;
+			}
+		};
+
+		for (const auto& sec : { "ScriptTypes", "TaskForces", "TeamTypes" }) {
+			if (auto pSection = ini->GetSection(sec)) {
+				for (const auto& [k, v] : pSection->GetEntities()) {
+					std::string id = v.m_pchData;
+					usedIDs.insert(id);
+					int val = parseID(id);
+					if (val >= 0) maxID = std::max(maxID, val);
+				}
+			}
+		}
+
+		for (const auto& sec : { "Triggers", "Events", "Tags", "Actions", "AITriggerTypes" }) {
+			if (auto pSection = ini->GetSection(sec)) {
+				for (const auto& [k, v] : pSection->GetEntities()) {
+					std::string id = k.m_pchData;
+					usedIDs.insert(id);
+					int val = parseID(id);
+					if (val >= 0) maxID = std::max(maxID, val);
+				}
+			}
+		}
+
+		if (ExtConfigs::UseSequentialIndexing) {
+
+			for (auto& id : UsedINIIndices)
+			{
+				int val = parseID(id);
+				if (val >= 0) maxID = std::max(maxID, val);
+			}
+			if (maxID < initNumber)
+				maxID = initNumber - 1;
+			int nextID = maxID + 1;
+			char idBuffer[9];
+			std::sprintf(idBuffer, "%08d", nextID);
+			return idBuffer;
+		}
+
+		char idBuffer[9];
+		while (true) {
+			std::sprintf(idBuffer, "%08d", initNumber);
+			std::string id(idBuffer);
+
+			if (usedIDs.find(id) == usedIDs.end()
+				&& UsedINIIndices.find(id) == UsedINIIndices.end()
+				&& !ini->SectionExists(id.c_str())
+				) {
+				return id;
+			}
+
+			initNumber++;
+		}
+
+		return "";
 	}
 
 	struct tag
@@ -3628,6 +3699,102 @@ namespace LuaFunctions
 		}
 	}
 
+	static std::string ReadFileToString(const std::wstring& path)
+	{
+		std::ifstream file(path, std::ios::binary);
+		if (!file) return {};
+
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		return ss.str();
+	}
+
+	static std::string OpenFileToString()
+	{
+		HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+		bool needUninit = SUCCEEDED(hr);
+
+		IFileOpenDialog* pDialog = nullptr;
+		std::string result;
+
+		hr = CoCreateInstance(
+			CLSID_FileOpenDialog,
+			nullptr,
+			CLSCTX_INPROC_SERVER,
+			IID_PPV_ARGS(&pDialog)
+		);
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pDialog->Show(nullptr);
+			if (SUCCEEDED(hr))
+			{
+				IShellItem* pItem = nullptr;
+				if (SUCCEEDED(pDialog->GetResult(&pItem)))
+				{
+					PWSTR pszFilePath = nullptr;
+					if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
+					{
+						result = ReadFileToString(pszFilePath);
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pDialog->Release();
+		}
+
+		if (needUninit)
+			CoUninitialize();
+
+		return result;
+	}
+
+	static bool SaveStringToFile(const std::string& content)
+	{
+		HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+		bool needUninit = SUCCEEDED(hr);
+
+		IFileSaveDialog* pDialog = nullptr;
+		bool success = false;
+
+		hr = CoCreateInstance(
+			CLSID_FileSaveDialog,
+			nullptr,
+			CLSCTX_INPROC_SERVER,
+			IID_PPV_ARGS(&pDialog)
+		);
+
+		if (SUCCEEDED(hr))
+		{
+			hr = pDialog->Show(nullptr);
+			if (SUCCEEDED(hr))
+			{
+				IShellItem* pItem = nullptr;
+				if (SUCCEEDED(pDialog->GetResult(&pItem)))
+				{
+					PWSTR pszFilePath = nullptr;
+					if (SUCCEEDED(pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath)))
+					{
+						std::ofstream file(pszFilePath, std::ios::binary);
+						if (file)
+						{
+							file.write(content.data(), content.size());
+							success = true;
+						}
+						CoTaskMemFree(pszFilePath);
+					}
+					pItem->Release();
+				}
+			}
+			pDialog->Release();
+		}
+
+		if (needUninit)
+			CoUninitialize();
+
+		return success;
+	}
 
 	static void redraw_window()
 	{

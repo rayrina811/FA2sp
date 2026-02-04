@@ -109,6 +109,7 @@ public:
     static int SaveMap_AutoSave_Interval_Real;
     static int SaveMap_AutoSave_MaxCount;
     static bool SaveMap_OnlySaveMAP;
+    static bool SaveMap_KeepComments;
     //static bool SaveMap_MultiPlayOnlySaveYRM;
     //static bool SaveMap_SinglePlayOnlySaveMAP;
     static int SaveMap_DefaultPreviewOptionMP;
@@ -147,6 +148,7 @@ public:
     static bool PlaceStructureOverlappingCheck;
     static bool PlaceStructureUpgrades;
     static bool PlaceStructureUpgradeStrength;
+    static bool PlaceStructurePlaceUpgrade;
     static bool PlaceTileSkipHide;
     static bool InitializeMap;
     static bool ReloadGameFromMapFolder;
@@ -185,6 +187,7 @@ public:
     static bool InGameDisplay_Bridge;
     static bool InGameDisplay_AnimAdjust;
     static bool InGameDisplay_Cloakable;
+    static bool InGameDisplay_RemapableOverlay;
     static bool ObjectBrowser_Ore_RandomPlacement;
     static bool ObjectBrowser_Ore_ExtraSupport;
     static bool FlatToGroundHideExtra;

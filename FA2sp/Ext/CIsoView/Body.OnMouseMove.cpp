@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/StringtableLoader.h"
+#include "../../Helpers/Helper.h"
 
 void CIsoViewExt::DrawBridgeLine(HDC hDC)
 {
@@ -1500,6 +1501,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
 
             int tileIndex = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
             int tileUnsafeIndex = cell->TileIndex;
+            if (tileUnsafeIndex == 0xffff)
+            {
+                tileUnsafeIndex = 0;
+            }
             int tileSubIndex = cell->TileSubIndex;
 
             if (CFinalSunApp::Instance->FrameMode)
@@ -1766,17 +1771,20 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             if (cell->Waypoint != -1)
             {
                 auto pSection = CINI::CurrentDocument->GetSection("Waypoints");
-                auto& pWP = *pSection->GetKeyAt(cell->Waypoint);
-                auto& pVal = *pSection->GetValueAt(cell->Waypoint);
-                int WPX = atoi(pVal) / 1000;
-                int WPY = atoi(pVal) % 1000;
-
-                if (point.X == WPX && point.Y == WPY)
+                auto pWP = pSection->GetKeyAt(cell->Waypoint);
+                auto pVal = pSection->GetValueAt(cell->Waypoint);
+                if (pWP && pVal)
                 {
-                    const int offset = 18;
-                    int i = 1;
-                    FString pSrc;
-                    auto process = [](const char* s)
+                    int waypoint = atoi(*pWP);
+                    int WPX = atoi(*pVal) / 1000;
+                    int WPY = atoi(*pVal) % 1000;
+
+                    if (point.X == WPX && point.Y == WPY)
+                    {
+                        const int offset = 18;
+                        int i = 1;
+                        FString pSrc;
+                        auto process = [](const char* s)
                         {
                             int n = 0;
                             int len = strlen(s);
@@ -1791,146 +1799,157 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                             return n - 1;
                         };
 
-                    for (auto& triggerPair : CMapDataExt::Triggers)
-                    {
-                        auto& trigger = triggerPair.second;
-                        bool addEvent = false;
-                        bool addAction = false;
-                        for (auto& thisEvent : trigger->Events)
+                        for (auto& triggerPair : CMapDataExt::Triggers)
                         {
-
-                            auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
-                            FString paramType[2];
-                            paramType[0] = eventInfos[1];
-                            paramType[1] = eventInfos[2];
-                            std::vector<FString> pParamTypes[2];
-                            pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
-                            pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
-                            FString thisWp = "-1";
-                            if (thisEvent.Params[0] == "2")
+                            auto& trigger = triggerPair.second;
+                            bool addEvent = false;
+                            bool addAction = false;
+                            for (auto& thisEvent : trigger->Events)
                             {
-                                if (pParamTypes[0][1] == "1")// waypoint
+
+                                auto eventInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), thisEvent.EventNum, "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+                                FString paramType[2];
+                                paramType[0] = eventInfos[1];
+                                paramType[1] = eventInfos[2];
+                                std::vector<FString> pParamTypes[2];
+                                pParamTypes[0] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[0], "MISSING,0"));
+                                pParamTypes[1] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[1], "MISSING,0"));
+                                FString thisWp = "-1";
+                                if (thisEvent.Params[0] == "2")
                                 {
-                                    thisWp = thisEvent.Params[1];
-                                    if (thisWp == pWP) addEvent = true;
+                                    if (pParamTypes[0][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[1];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
+                                    if (pParamTypes[1][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[2];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
                                 }
-                                if (pParamTypes[1][1] == "1")// waypoint
+                                else
                                 {
-                                    thisWp = thisEvent.Params[2];
-                                    if (thisWp == pWP) addEvent = true;
-                                }
-                            }
-                            else
-                            {
-                                if (pParamTypes[1][1] == "1")// waypoint
-                                {
-                                    thisWp = thisEvent.Params[1];
-                                    if (thisWp == pWP) addEvent = true;
-                                }
-                            }
-                        }
-                        if (addEvent)
-                        {
-                            pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
-                                "Event: %s (%s)")
-                                , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                            pSrc = "";
-                            i++;
-                        }
-
-                        for (auto& thisAction : trigger->Actions)
-                        {
-                            auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
-                            FString thisWp = "-1";
-                            FString paramType[7];
-                            for (int i = 0; i < 7; i++)
-                                paramType[i] = actionInfos[i + 1];
-
-                            std::vector<FString> pParamTypes[6];
-                            for (int i = 0; i < 6; i++)
-                                pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
-
-                            thisAction.Param7isWP = true;
-                            for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())
-                            {
-                                if (atoi(pair.second) == -atoi(paramType[0]))
-                                    thisAction.Param7isWP = false;
-                            }
-
-                            for (int i = 0; i < 6; i++)
-                            {
-                                auto& param = pParamTypes[i];
-                                if (param[1] == "1")// waypoint
-                                {
-                                    thisWp = thisAction.Params[i];
-                                    if (thisWp == pWP) addAction = true;
+                                    if (pParamTypes[1][1] == "1")// waypoint
+                                    {
+                                        thisWp = thisEvent.Params[1];
+                                        if (thisWp == *pWP) addEvent = true;
+                                    }
                                 }
                             }
-                            if (atoi(paramType[6]) > 0 && thisAction.Param7isWP)
+                            if (addEvent)
                             {
-                                thisWp.Format("%d", process(thisAction.Params[6]));
-                                if (thisWp == pWP) addAction = true;
-                            }
-                        }
-                        if (addAction)
-                        {
-                            pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
-                                "Action: %s (%s)")
-                                , trigger->Name, trigger->ID);
-                            TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                            pSrc = "";
-                            i++;
-                        }
-                    }
-
-                    if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
-                    {
-
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            bool add = false;
-
-                            for (int i = 0; i < 50; i++)
-                            {
-                                char id[10];
-                                _itoa(i, id, 10);
-                                auto line = CINI::CurrentDocument->GetString(pair.second, id);
-                                if (line == "")
-                                    continue;
-
-                                auto app = FString::SplitString(line);
-                                if (app.size() != 2)
-                                    continue;
-
-                                int actionType = atoi(app[0]);
-                                switch (actionType)
-                                {
-                                case 1: if (app[1] == pWP) add = true; break;
-                                case 3: if (app[1] == pWP) add = true; break;
-                                case 15: if (app[1] == pWP) add = true; break;
-                                case 16: if (app[1] == pWP) add = true; break;
-                                case 59: if (app[1] == pWP) add = true; break;
-                                default: break;
-                                }
-                            }
-                            if (add)
-                            {
-                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
-                                    "Script: %s (%s)")
-                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Event",
+                                    "Event: %s (%s)")
+                                    , trigger->Name, trigger->ID);
                                 TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
                                 pSrc = "";
                                 i++;
                             }
 
+                            for (auto& thisAction : trigger->Actions)
+                            {
+                                auto actionInfos = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), thisAction.ActionNum, "MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+                                FString thisWp = "-1";
+                                FString paramType[7];
+                                for (int i = 0; i < 7; i++)
+                                    paramType[i] = actionInfos[i + 1];
 
+                                std::vector<FString> pParamTypes[6];
+                                for (int i = 0; i < 6; i++)
+                                    pParamTypes[i] = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
 
+                                thisAction.Param7isWP = true;
+                                for (auto& pair : CINI::FAData->GetSection("DontSaveAsWP")->GetEntities())
+                                {
+                                    if (atoi(pair.second) == -atoi(paramType[0]))
+                                        thisAction.Param7isWP = false;
+                                }
+
+                                for (int i = 0; i < 6; i++)
+                                {
+                                    auto& param = pParamTypes[i];
+                                    if (param[1] == "1")// waypoint
+                                    {
+                                        thisWp = thisAction.Params[i];
+                                        if (thisWp == *pWP) addAction = true;
+                                    }
+                                }
+                                if (atoi(paramType[6]) > 0 && thisAction.Param7isWP)
+                                {
+                                    thisWp.Format("%d", process(thisAction.Params[6]));
+                                    if (thisWp == *pWP) addAction = true;
+                                }
+                            }
+                            if (addAction)
+                            {
+                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Action",
+                                    "Action: %s (%s)")
+                                    , trigger->Name, trigger->ID);
+                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                pSrc = "";
+                                i++;
+                            }
                         }
-                    }
-                    if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
-                    {
-                        auto process = [](const char* s)
+
+                        if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+                        {
+                            for (auto& pair : pSection->GetEntities())
+                            {
+                                bool add = false;
+
+                                for (int i = 0; i < 50; i++)
+                                {
+                                    char id[10];
+                                    _itoa(i, id, 10);
+                                    auto line = CINI::CurrentDocument->GetString(pair.second, id);
+                                    if (line == "")
+                                        continue;
+
+                                    auto app = FString::SplitString(line);
+                                    if (app.size() != 2)
+                                        continue;
+
+                                    auto& actionType = app[0];
+                                    auto paramType = CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), actionType);
+                                    FString param = FString::SplitString(paramType, 1)[1];
+                                    auto scriptParamType = CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), param);
+                                    auto types = FString::SplitString(scriptParamType, 1);
+                                    bool hasExtra = types.size() >= 4;
+                                    auto& scriptParamA = types[1];
+                                    FString scriptParamB = hasExtra ? types[3] :FString("");
+                                    bool meetAtA = scriptParamA == "1";
+                                    bool meetAtB = scriptParamB == "1";
+                                    if (meetAtA || meetAtB)
+                                    {
+                                        int param = atoi(app[1]);
+                                        if (hasExtra)
+                                        {
+                                            int low = LOWORD(param);
+                                            int high = HIWORD(param);
+                                            if (meetAtA && low == waypoint) add = true;
+                                            if (meetAtB && high == waypoint) add = true;
+                                        }
+                                        else
+                                        {
+                                            if (meetAtA && param == waypoint) add = true;
+                                        }
+                                    }
+                                }
+                                if (add)
+                                {
+                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Script",
+                                        "Script: %s (%s)")
+                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                    pSrc = "";
+                                    i++;
+                                }
+                            }
+                        }
+                        if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+                        {
+                            auto process = [](const char* s)
                             {
                                 int n = 0;
                                 int len = strlen(s);
@@ -1944,26 +1963,420 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
                                     return -1;
                                 return n - 1;
                             };
-                        for (auto& pair : pSection->GetEntities())
-                        {
-                            auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
-
-                            if (process(wp) == atoi(pWP))
+                            for (auto& pair : pSection->GetEntities())
                             {
-                                pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
-                                    "Team: %s (%s)")
-                                    , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
-                                TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
-                                pSrc = "";
-                                i++;
+                                auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+
+                                if (process(wp) == atoi(*pWP))
+                                {
+                                    pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
+                                        "Team: %s (%s)")
+                                        , CINI::CurrentDocument->GetString(pair.second, "Name"), pair.second);
+                                    TextOut(hDC, drawX, drawY + lineHeight * i, pSrc, strlen(pSrc));
+                                    pSrc = "";
+                                    i++;
+                                }
                             }
+                        }
+                    }
+                }               
+            }
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x25)
+    {
+        int drawX = X - CIsoViewExt::drawOffsetX + 30;
+        int drawY = Y - CIsoViewExt::drawOffsetY - 15;
+        int i = 1;
+        // 0-9: trigger editors
+        if (CIsoView::CurrentCommand->Type >= 0
+            && CIsoView::CurrentCommand->Type <= 9
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+        {
+            FString line1;
+            FString newTag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
+            FString currentTag;
+            bool hasObject = false;
+            if (newTag != "" && newTag != "<none>")
+            {
+                if (cell->Structure > -1)
+                {
+                    hasObject = true;
+                    CBuildingData data;
+                    CMapData::Instance->GetBuildingData(cell->Structure, data);
+                    currentTag = data.Tag;
+                }
+                if (cell->Unit > -1)
+                {
+                    hasObject = true;
+                    CUnitData data;
+                    CMapData::Instance->GetUnitData(cell->Unit, data);
+                    currentTag = data.Tag;
+                }
+                if (cell->Aircraft > -1)
+                {
+                    hasObject = true;
+                    CAircraftData data;
+                    CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+                    currentTag = data.Tag;
+                }
+                int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
+                if (infantry > -1)
+                {
+                    if (ExtConfigs::InfantrySubCell_Edit)
+                    {
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
+
+                    }
+                    if (infantry > -1)
+                    {
+                        hasObject = true;
+                        CInfantryData data;
+                        CMapData::Instance->GetInfantryData(infantry, data);
+                        currentTag = data.Tag;
+                    }
+                }
+                if (hasObject)
+                {
+                    ::SetBkColor(hDC, RGB(255, 255, 255));
+                    if (currentTag == "" || currentTag == "None")
+                    {
+                        currentTag = "None";
+                    }
+                    else
+                    {
+                        auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", currentTag));
+                        if (tag.size() > 1)
+                            currentTag.Format("%s (%s)", currentTag, tag[1]);
+                        else
+                            currentTag.Format("%s", currentTag);
+                    }
+                    auto tag = FString::SplitString(CINI::CurrentDocument->GetString("Tags", newTag));
+                    if (tag.size() > 1)
+                        newTag.Format("%s (%s)", newTag, tag[1]);
+                    else
+                        newTag.Format("%s", newTag);
+
+                    line1.Format(Translations::TranslateOrDefault("DragAttachTag",
+                        "Tag: %s -> %s"), currentTag, newTag);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line1, line1.GetLength());
+                }
+            }
+
+            ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
+        }
+    }
+    if (CIsoView::CurrentCommand->Command == 0x17)
+    {
+        int drawX = X - CIsoViewExt::drawOffsetX + 30;
+        int drawY = Y - CIsoViewExt::drawOffsetY - 15;
+        int i = 1;
+        bool hasObject = false;
+
+        auto display = 
+            [&i, drawX, drawY, &hDC, lineHeight]
+            (int nCheckBoxIdx, bool* pCheckBoxBools,
+                const ppmfc::CString& src, const ppmfc::CString& dst,
+                const char* lpLabelName, const char* lpDefault
+                )
+        {
+            FString line;
+            if (pCheckBoxBools[nCheckBoxIdx])
+            {
+                if (!src.IsEmpty() && src != dst)
+                {
+                    FString format = Translations::TranslateOrDefault(lpLabelName, lpDefault);
+                    format += ": %s -> %s";
+                    line.Format(format, dst, src);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line, line.GetLength());
+                }
+            }
+        };
+        auto displayNew = 
+            [&i, drawX, drawY, &hDC, lineHeight]
+            (int nCheckBoxIdx, bool* pCheckBoxBools,
+                const ppmfc::CString& src,
+                const char* lpLabelName, const char* lpDefault
+                )
+        {
+            FString line;
+            if (pCheckBoxBools[nCheckBoxIdx])
+            {
+                if (!src.IsEmpty())
+                {
+                    FString format = Translations::TranslateOrDefault(lpLabelName, lpDefault);
+                    format += ": %s";
+                    line.Format(format, src);
+                    ::TextOut(hDC, drawX, drawY + lineHeight * i++, line, line.GetLength());
+                }
+            }
+        };
+
+        ::SetBkColor(hDC, RGB(255, 255, 255));
+
+
+        if ((pIsoView->BrushSizeX == 1 && pIsoView->BrushSizeY == 1) 
+            && ((ExtConfigs::InfantrySubCell_Edit &&
+                CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+                || (CIsoView::CurrentCommand->Type != CViewObjectsExt::PropertyBrushTypes::Set_Infantry))
+            )
+        {
+            if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Building)
+            {
+                auto& dlg = CViewObjectsExt::BuildingBrushDlg;
+                auto& bools = CViewObjectsExt::BuildingBrushBools;
+                if (cell->Structure > -1 && dlg)
+                {
+                    for (int i = 0; i < 14; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CBuildingData data;
+                        CMapData::Instance->GetBuildingData(cell->Structure, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(3, bools, dlg->CString_Sellable, data.AISellable, "PropertyBrush.AISellable", "AISellable");
+                        display(4, bools, dlg->CString_Rebuildable, data.AIRebuildable, "PropertyBrush.AIRebuildable", "AIRebuildable");
+                        display(5, bools, dlg->CString_EnergySupport, data.PoweredOn, "PropertyBrush.PoweredOn", "PoweredOn");
+                        display(6, bools, dlg->CString_UpgradeCount, data.Upgrades, "PropertyBrush.Upgrades", "Upgrades");
+                        display(7, bools, dlg->CString_Spotlight, data.SpotLight, "PropertyBrush.SpotLight", "SpotLight");
+                        display(8, bools, dlg->CString_Upgrade1, data.Upgrade1, "PropertyBrush.Upgrade1", "Upgrade1");
+                        display(9, bools, dlg->CString_Upgrade2, data.Upgrade2, "PropertyBrush.Upgrade2", "Upgrade2");
+                        display(10, bools, dlg->CString_Upgrade3, data.Upgrade3, "PropertyBrush.Upgrade3", "Upgrade3");
+                        display(11, bools, dlg->CString_AIRepairs, data.AIRepairable, "PropertyBrush.AIRepairable", "AIRepairable");
+                        display(12, bools, dlg->CString_ShowName, data.Nominal, "PropertyBrush.Nominal", "Nominal");
+                        display(13, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+            {
+                auto& dlg = CViewObjectsExt::InfantryBrushDlg;
+                auto& bools = CViewObjectsExt::InfantryBrushBools;
+                int infantry = CMapDataExt::GetInfantryAt(point.X + point.Y * CMapData::Instance->MapWidthPlusHeight);
+                if (infantry > -1 && dlg)
+                {
+                    if (ExtConfigs::InfantrySubCell_Edit)
+                    {
+                        infantry = CIsoViewExt::GetSelectedSubcellInfantryIdx(point.X, point.Y);
+
+                    }
+                    if (infantry > -1)
+                    {
+                        for (int i = 0; i < 10; ++i)
+                        {
+                            if (bools[i])
+                            {
+                                hasObject = true;
+                                break;
+                            }
+                        }
+                        if (hasObject)
+                        {
+                            CInfantryData data;
+                            CMapData::Instance->GetInfantryData(infantry, data);
+
+                            display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                            display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                            display(2, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
+                            display(3, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                            display(4, bools, dlg->CString_VerteranStatus, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                            display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                            display(6, bools, dlg->CString_OnBridge, data.IsAboveGround, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                            display(7, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                            display(8, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                            display(9, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
                         }
                     }
                 }
             }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Vehicle)
+            {
+                auto& dlg = CViewObjectsExt::VehicleBrushDlg;
+                auto& bools = CViewObjectsExt::VehicleBrushBools;
+                if (cell->Unit > -1 && dlg)
+                {
+                    for (int i = 0; i < 11; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CUnitData data;
+                        CMapData::Instance->GetUnitData(cell->Unit, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
+                        display(3, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                        display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                        display(6, bools, dlg->CString_OnBridge, data.IsAboveGround, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                        display(7, bools, dlg->CString_FollowerID, data.FollowsIndex, "PropertyBrush.FollowsIndex", "FollowsIndex");
+                        display(8, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                        display(9, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                        display(10, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Aircraft)
+            {
+                auto& dlg = CViewObjectsExt::AircraftBrushDlg;
+                auto& bools = CViewObjectsExt::AircraftBrushBools;
+                if (cell->Aircraft > -1 && dlg)
+                {
+                    for (int i = 0; i < 9; ++i)
+                    {
+                        if (bools[i])
+                        {
+                            hasObject = true;
+                            break;
+                        }
+                    }
+                    if (hasObject)
+                    {
+                        CAircraftData data;
+                        CMapData::Instance->GetAircraftData(cell->Aircraft, data);
+
+                        display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
+                        display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
+                        display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
+                        display(3, bools, dlg->CString_Status, data.Status, "PropertyBrush.Status", "Status");
+                        display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                        display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
+                        display(6, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                        display(7, bools, dlg->CString_AutoCreateYesRecruitable, data.AutoYESRecruitType, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                        display(8, bools, dlg->CString_Tag, data.Tag, "PropertyBrush.Tag", "Tag");
+                    }
+                }
+            }
         }
+        else
+        {
+            if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Building)
+            {
+                auto& dlg = CViewObjectsExt::BuildingBrushDlg;
+                auto& bools = CViewObjectsExt::BuildingBrushBools;
+                for (int i = 0; i < 14; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(3, bools, dlg->CString_Sellable, "PropertyBrush.AISellable", "AISellable");
+                    displayNew(4, bools, dlg->CString_Rebuildable, "PropertyBrush.AIRebuildable", "AIRebuildable");
+                    displayNew(5, bools, dlg->CString_EnergySupport, "PropertyBrush.PoweredOn", "PoweredOn");
+                    displayNew(6, bools, dlg->CString_UpgradeCount, "PropertyBrush.Upgrades", "Upgrades");
+                    displayNew(7, bools, dlg->CString_Spotlight, "PropertyBrush.SpotLight", "SpotLight");
+                    displayNew(8, bools, dlg->CString_Upgrade1, "PropertyBrush.Upgrade1", "Upgrade1");
+                    displayNew(9, bools, dlg->CString_Upgrade2, "PropertyBrush.Upgrade2", "Upgrade2");
+                    displayNew(10, bools, dlg->CString_Upgrade3, "PropertyBrush.Upgrade3", "Upgrade3");
+                    displayNew(11, bools, dlg->CString_AIRepairs, "PropertyBrush.AIRepairable", "AIRepairable");
+                    displayNew(12, bools, dlg->CString_ShowName, "PropertyBrush.Nominal", "Nominal");
+                    displayNew(13, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Infantry)
+            {
+                auto& dlg = CViewObjectsExt::InfantryBrushDlg;
+                auto& bools = CViewObjectsExt::InfantryBrushBools;
+                for (int i = 0; i < 10; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(4, bools, dlg->CString_VerteranStatus, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_OnBridge, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                    displayNew(7, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(8, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(9, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Vehicle)
+            {
+                auto& dlg = CViewObjectsExt::VehicleBrushDlg;
+                auto& bools = CViewObjectsExt::VehicleBrushBools;
+                for (int i = 0; i < 11; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_OnBridge, "PropertyBrush.IsAboveGround", "IsAboveGround");
+                    displayNew(7, bools, dlg->CString_FollowerID, "PropertyBrush.FollowsIndex", "FollowsIndex");
+                    displayNew(8, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(9, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(10, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+            else if (CIsoView::CurrentCommand->Type == CViewObjectsExt::PropertyBrushTypes::Set_Aircraft)
+            {
+                auto& dlg = CViewObjectsExt::AircraftBrushDlg;
+                auto& bools = CViewObjectsExt::AircraftBrushBools;
+                for (int i = 0; i < 9; ++i)
+                {
+                    if (bools[i])
+                    {
+                        hasObject = true;
+                        break;
+                    }
+                }
+                if (hasObject)
+                {
+                    displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
+                    displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
+                    displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
+                    displayNew(3, bools, dlg->CString_Status, "PropertyBrush.Status", "Status");
+                    displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
+                    displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
+                    displayNew(6, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
+                    displayNew(7, bools, dlg->CString_AutoCreateYesRecruitable, "PropertyBrush.AutoYESRecruitType", "AutoYESRecruitType");
+                    displayNew(8, bools, dlg->CString_Tag, "PropertyBrush.Tag", "Tag");
+                }
+            }
+        }
+        ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
     }
-    if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y) 
+    if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y)
         || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {
         pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,

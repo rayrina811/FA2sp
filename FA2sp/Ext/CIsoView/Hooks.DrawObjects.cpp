@@ -793,8 +793,25 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			virtualHeight = cell->Height - subTile.YMinusExY / 15;
 		}
 
+		// bridge hack
 		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
-			virtualHeight = cell->Height;
+		{
+			int relativeIdx = cell->TileIndex - CMapDataExt::TileSet_starts[tileSetOri];
+			if (6 > relativeIdx && relativeIdx >= 0 && relativeIdx != 2 && relativeIdx != 5)
+			{
+				virtualHeight = cell->Height;
+			}
+			else if (11 > relativeIdx && relativeIdx >= 6)
+			{
+				if (tileSubIndex != 8 && tileSubIndex != 9)
+					virtualHeight = cell->Height;
+			}
+			else if (16 > relativeIdx && relativeIdx >= 11)
+			{
+				if (tileSubIndex != 4 && tileSubIndex != 9)
+					virtualHeight = cell->Height;
+			}
+		}
 
 		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
 		{
@@ -1148,7 +1165,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								auto pData = clips[i].get();
 
 								auto& coord = DataExt.BottomCoords[i];
-								MapCoord coordInMap = { X + coord.X, Y + coord.Y };		
+								MapCoord coordInMap = { objRender.X + coord.X, objRender.Y + coord.Y };
 								
 								while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 								{
@@ -1172,8 +1189,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									{
 										for (int dx = 0; dx < DataExt.Height; ++dx)
 										{
-											const int x = X + dx;
-											const int y = Y + dy;
+											const int x = objRender.X + dx;
+											const int y = objRender.Y + dy;
 											if (isCoordInFullMap(x, y))
 											{
 												found = true;
@@ -1200,11 +1217,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
 							{
-								int x1 = objRender.X;
-								int y1 = objRender.Y;
-								CIsoView::MapCoord2ScreenCoord(x1, y1);
-								x1 -= DrawOffsetX;
-								y1 -= DrawOffsetY;
 								int nFacing = 0;
 								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								{
@@ -1334,7 +1346,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							auto pData = clips[i].get();
 							auto& coord = DataExt.BottomCoords[i];
-							MapCoord coordInMap = { X + coord.X, Y + coord.Y };
+							MapCoord coordInMap = { node.X + coord.X, node.Y + coord.Y };
 
 							while (IsCoordInWindowButOnBottom(coordInMap.X, coordInMap.Y))
 							{
@@ -1358,8 +1370,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								{
 									for (int dx = 0; dx < DataExt.Height; ++dx)
 									{
-										const int x = X + dx;
-										const int y = Y + dy;
+										const int x = node.X + dx;
+										const int y = node.Y + dy;
 										if (isCoordInFullMap(x, y))
 										{
 											found = true;
@@ -2090,7 +2102,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						const int x = part.Data->X + dx;
 						const int y = part.Data->Y + dy;
 						int pos = CMapData::Instance->GetCoordIndex(x, y);
-						if (pos < CMapDataExt::CellDataExts.size());
+						if (pos < CMapDataExt::CellDataExts.size())
 						{
 							auto& cellExt = CMapDataExt::CellDataExts[pos];
 							for (const auto& [_, type] : cellExt.Structures)
@@ -2110,7 +2122,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					const int x = part.Data->X + block.Y;
 					const int y = part.Data->Y + block.X;
 					int pos = CMapData::Instance->GetCoordIndex(x, y);
-					if (pos < CMapDataExt::CellDataExts.size());
+					if (pos < CMapDataExt::CellDataExts.size())
 					{
 						auto& cellExt = CMapDataExt::CellDataExts[pos];
 						for (const auto& [_, type] : cellExt.Structures)
@@ -2495,7 +2507,6 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			if (tileIndex == 65535)
 				tileIndex = 0;
 
-
 			if (CMapDataExt::TileData && tileIndex < CMapDataExt::TileDataCount && cell->TileSubIndex < CMapDataExt::TileData[tileIndex].TileBlockCount)
 			{
 				auto ttype = CMapDataExt::TileData[tileIndex].TileBlockDatas[cell->TileSubIndex].TerrainType;
@@ -2564,6 +2575,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		AnnotationImage->lpSurface->Lock(NULL, &AnnotationDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) == DD_OK;
 	if (AnnotationImage) AnnotationImage->lpSurface->GetColorKey(DDCKEY_SRCBLT, &AnnotationColorKey);
 
+	std::vector<ppmfc::CString*> Celltags;
+	if (CIsoViewExt::DrawCelltags)
+		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
+			for (auto& [key, value] : pSection->GetEntities())
+				Celltags.push_back(&value);
+	std::vector<ppmfc::CString*> Waypoints;
+	if (CIsoViewExt::DrawWaypoints)
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+			for (auto& [key, value] : pSection->GetEntities())
+				Waypoints.push_back(&value);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
@@ -2580,19 +2601,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			auto itr = CMapDataExt::CustomCelltagColors.find(id);
 			if (itr != CMapDataExt::CustomCelltagColors.end())
 			{
-				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
-					x + 25 - CellTagImage->FullWidth / 2,
-					y + 12 - CellTagImage->FullHeight / 2, -1, -1,
-					ExtConfigs::DrawCelltagTranslucent ? 128 : 255,
-					ExtConfigs::DisplayColor_Celltag, itr->second);
+				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, false);
+				pThis->BlitTransparentDesc(image->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc,
+					x + 29 - image->FullWidth / 2,
+					y + 13 - image->FullHeight / 2, -1, -1,
+					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
 			}
 			else
 			{
 				pThis->BlitTransparentDescNoLock(CellTagImage->lpSurface,
 					CIsoViewExt::GetBackBuffer(), lpDesc, CellTagDesc, CellTagColorKey,
-					x + 25 - CellTagImage->FullWidth / 2,
-					y + 12 - CellTagImage->FullHeight / 2, -1, -1,
+					x + 29 - CellTagImage->FullWidth / 2,
+					y + 13 - CellTagImage->FullHeight / 2, -1, -1,
 					ExtConfigs::DrawCelltagTranslucent ? 128 : 255);
 			}
 		};
@@ -2602,11 +2623,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			auto itr = CMapDataExt::CustomWaypointColors.find(id);
 			if (itr != CMapDataExt::CustomWaypointColors.end())
 			{
-				pThis->BlitTransparentDescNoLock(WaypointImage->lpSurface,
-					CIsoViewExt::GetBackBuffer(), lpDesc, WaypointDesc, WaypointColorKey,
+				auto image = CLoadingExt::GetOrLoadFlagOrCelltagFromMap(itr->second, true);
+				pThis->BlitTransparentDesc(image->lpSurface,
+					CIsoViewExt::GetBackBuffer(), lpDesc,
 					x + 30 - WaypointImage->FullWidth / 2,
-					y + 12 - WaypointImage->FullHeight / 2, -1, -1,
-					255, ExtConfigs::DisplayColor_Waypoint, itr->second);
+					y + 12 - WaypointImage->FullHeight / 2);
 			}
 			else
 			{
@@ -2617,43 +2638,46 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 		};
 
-		if (CellTagLocked && CIsoViewExt::DrawCelltags && cell->CellTag != -1)
+		if (CellTagLocked && cell->CellTag > -1 && cell->CellTag < Celltags.size())
 		{
-			auto id = CMapData::Instance().INI.GetStringAt("CellTags", cell->CellTag);
-
-			if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id.IsEmpty())
+			auto id = Celltags[cell->CellTag];
+			if (id)
 			{
-				for (auto& name : CViewObjectsExt::ObjectFilterCT)
+				if (CIsoViewExt::DrawCellTagsFilter && !CViewObjectsExt::ObjectFilterCT.empty() && !id->IsEmpty())
 				{
-					if (name == id)
+					for (auto& name : CViewObjectsExt::ObjectFilterCT)
 					{
-						drawCellTagImage(id);
-						break;
-					}
-					if (STDHelpers::IsNumber(name))
-					{
-						int n = atoi(name);
-						if (n < 1000000)
+						if (name == *id)
 						{
-							FString buffer;
-							buffer.Format("%08d", n + 1000000);
-							if (buffer == id)
+							drawCellTagImage(*id);
+							break;
+						}
+						if (STDHelpers::IsNumber(name))
+						{
+							int n = atoi(name);
+							if (n < 1000000)
 							{
-								drawCellTagImage(id);
-								break;
+								FString buffer;
+								buffer.Format("%08d", n + 1000000);
+								if (buffer == *id)
+								{
+									drawCellTagImage(*id);
+									break;
+								}
 							}
 						}
 					}
 				}
+				else
+					drawCellTagImage(*id);
 			}
-			else
-				drawCellTagImage(id);
 		}
 
-		if (WaypointLocked && CIsoViewExt::DrawWaypoints && cell->Waypoint != -1)
+		if (WaypointLocked && cell->Waypoint > -1 && cell->Waypoint < Waypoints.size())
 		{
-			auto id = CMapData::Instance().INI.GetKeyAt("Waypoints", cell->Waypoint);
-			drawWaypoinyImage(id);
+			auto id = Waypoints[cell->Waypoint];
+			if (id)
+				drawWaypoinyImage(*id);
 		}
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))

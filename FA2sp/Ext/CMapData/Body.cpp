@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
+#include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
 #include "../../ExtraWindow/CNewAITrigger/CNewAITrigger.h"
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
@@ -50,6 +51,7 @@ CellData CMapDataExt::ExtTempCellData;
 MapCoord CMapDataExt::CurrentMapCoordPaste;
 std::unordered_map<int, BuildingDataExt> CMapDataExt::BuildingDataExts;
 std::unordered_map<FString, int> CMapDataExt::BuildingTypes;
+std::map<int, MapCoord> CMapDataExt::BuildingCenterCoords;
 CTileTypeClass* CMapDataExt::TileData = nullptr;
 int CMapDataExt::TileDataCount = 0;
 int CMapDataExt::CurrentTheaterIndex;
@@ -99,11 +101,154 @@ bool CMapDataExt::IsUTF8File = false;
 bool CMapDataExt::SkipBuildingOverlappingCheck = false;
 std::vector<FString> CMapDataExt::MapIniSectionSorting;
 std::map<FString, std::set<FString>> CMapDataExt::PowersUpBuildings;
+std::set<FString> CMapDataExt::PowersUpBuildingSet;
 std::map<int, std::vector<CustomTile>> CMapDataExt::CustomTiles;
+bool CMapDataExt::PlaceStructure_Preview = false;
+std::map<int, BuildingRenderData> CMapDataExt::PlaceStructure_OldData;
 std::map<FString, COLORREF> CMapDataExt::CustomWaypointColors;
 std::map<FString, COLORREF> CMapDataExt::CustomCelltagColors;
 ObjectRecord* ObjectRecord::ObjectRecord_HoldingPtr = nullptr;
 std::map<FString, std::vector<TechnoAttachment>> CMapDataExt::TechnoAttachments;
+std::map<FString, std::map<FString, FString>> CMapDataExt::MapInlineComments;
+std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
+std::map<FString, FString> CMapDataExt::MapInsectionComments;
+std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
+bool CMapDataExt::IsNewMap;
+
+static inline int DistSqrByIndex(int a, int b)
+{
+	auto& Map = CMapData::Instance;
+	int dx = Map->GetXFromCoordIndex(a) - Map->GetXFromCoordIndex(b);
+	int dy = Map->GetYFromCoordIndex(a) - Map->GetYFromCoordIndex(b);
+	return dx * dx + dy * dy;
+}
+
+void CMapDataExt::RemapableOverlay_RefreshBuildingIndices()
+{
+	if (!ExtConfigs::InGameDisplay_RemapableOverlay)
+		return;
+
+	auto& Map = CMapData::Instance;
+	const int MAP_W = Map->MapWidthPlusHeight;
+	const int MAP_H = Map->MapWidthPlusHeight;
+	const int MAP_SIZE = MAP_W * MAP_H;
+	const int INF = INT_MAX;
+
+	for (auto& cell : CellDataExts) {
+		cell.CenterBuildingIndex = -1;
+		cell.NearestCenterCellIndex = -1;
+	}
+
+	for (const auto& [buildingIndex, coord] : BuildingCenterCoords) {
+		int centerIdx = Map->GetCoordIndex(coord.X, coord.Y);
+		if (centerIdx < 0 || centerIdx >= MAP_SIZE)
+			continue;
+
+		auto& cell = CellDataExts[centerIdx];
+		cell.CenterBuildingIndex = buildingIndex;
+		cell.NearestCenterCellIndex = centerIdx;
+	}
+
+	for (int y = 0; y < MAP_H; ++y) {
+		for (int x = 0; x < MAP_W; ++x) {
+			int idx = y * MAP_W + x;
+			if (idx >= MAP_SIZE)
+				continue;
+
+			auto& cur = CellDataExts[idx];
+			if (cur.NearestCenterCellIndex != -1)
+				continue;
+
+			int bestCenter = -1;
+			int bestDist = INF;
+
+			if (x > 0)
+				RemapableOverlay_CheckNeighbor(idx, idx - 1, bestCenter, bestDist);
+			if (y > 0)
+				RemapableOverlay_CheckNeighbor(idx, idx - MAP_W, bestCenter, bestDist);
+
+			if (bestCenter != -1) {
+				cur.NearestCenterCellIndex = bestCenter;
+				cur.CenterBuildingIndex =
+					CellDataExts[bestCenter].CenterBuildingIndex;
+			}
+		}
+	}
+
+	for (int y = MAP_H - 1; y >= 0; --y) {
+		for (int x = MAP_W - 1; x >= 0; --x) {
+			int idx = y * MAP_W + x;
+			if (idx >= MAP_SIZE)
+				continue;
+
+			auto& cur = CellDataExts[idx];
+
+			int curDist = (cur.NearestCenterCellIndex == -1)
+				? INF
+				: DistSqrByIndex(idx, cur.NearestCenterCellIndex);
+
+			int bestCenter = cur.NearestCenterCellIndex;
+			int bestDist = curDist;
+
+			if (x + 1 < MAP_W)
+				RemapableOverlay_CheckNeighbor(idx, idx + 1, bestCenter, bestDist);
+			if (y + 1 < MAP_H)
+				RemapableOverlay_CheckNeighbor(idx, idx + MAP_W, bestCenter, bestDist);
+
+			if (bestCenter != cur.NearestCenterCellIndex) {
+				cur.NearestCenterCellIndex = bestCenter;
+				cur.CenterBuildingIndex =
+					CellDataExts[bestCenter].CenterBuildingIndex;
+			}
+		}
+	}
+
+	for (auto& cell : CellDataExts) {
+		if (cell.CenterBuildingIndex == -1)
+			continue;
+
+		int strINI = StructureIndexMap[cell.CenterBuildingIndex];
+		if (strINI >= 0) {
+			cell.RemapableColor =
+				BuildingRenderDatasFix[strINI].HouseColor;
+		}
+	}
+}
+
+void CMapDataExt::RemapableOverlay_CheckNeighbor(
+	int currentIdx,
+	int neighborIdx,
+	int& bestCenterCellIdx,
+	int& bestDistSqr)
+{
+	if (neighborIdx < 0 || neighborIdx >= (int)CellDataExts.size())
+		return;
+
+	const auto& neighbor = CellDataExts[neighborIdx];
+	if (neighbor.NearestCenterCellIndex == -1)
+		return;
+
+	int dist = DistSqrByIndex(currentIdx, neighbor.NearestCenterCellIndex);
+	if (dist < bestDistSqr) {
+		bestDistSqr = dist;
+		bestCenterCellIdx = neighbor.NearestCenterCellIndex;
+	}
+}
+
+void CMapDataExt::RemapableOverlay_AddBuilding(int buildingIndex, const MapCoord& center)
+{
+	BuildingCenterCoords[buildingIndex] = center;
+	RemapableOverlay_RefreshBuildingIndices();
+}
+
+void CMapDataExt::RemapableOverlay_RemoveBuilding(int buildingIndex)
+{
+	auto it = BuildingCenterCoords.find(buildingIndex);
+	if (it != BuildingCenterCoords.end()) {
+		BuildingCenterCoords.erase(it);
+		RemapableOverlay_RefreshBuildingIndices();
+	}
+}
 
 int CMapDataExt::GetOreValue(unsigned short nOverlay, unsigned char nOverlayData)
 {
@@ -339,10 +484,54 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 	DataExt.BottomCoords.reserve(std::max(1, DataExt.Width + DataExt.Height - 1));
 	for (int x = 0; x < std::max(1, DataExt.Width + DataExt.Height - 1); ++x)
 	{
-		if (x < DataExt.Width)
-			DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+		if (!DataExt.IsCustomFoundation())
+		{
+			if (x < DataExt.Width)
+				DataExt.BottomCoords.emplace_back(DataExt.Height - 1, x);
+			else
+				DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
+		}
 		else
-			DataExt.BottomCoords.emplace_back(DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1);
+		{
+			auto& coords = *DataExt.Foundations;
+			MapCoord coord = { 0,0 };
+			if (x < DataExt.Width)
+				coord = { DataExt.Height - 1, x };
+			else
+				coord = { DataExt.Height + DataExt.Width - 2 - x, DataExt.Width - 1 };
+
+			int loopX = x;
+			while (std::find(coords.begin(), coords.end(), MapCoord{ coord.Y, coord.X }) == coords.end())
+			{
+				if (coord.X <= 0 || coord.Y <= 0)
+				{
+					if (std::find(coords.begin(), coords.end(), MapCoord{ coord.Y, coord.X }) == coords.end())
+					{
+						if (loopX < DataExt.Width)
+						{
+							loopX++;
+							coord = { DataExt.Height, loopX + 1 };
+						}
+						else if (loopX > DataExt.Width)
+						{
+							loopX--;
+							coord = { DataExt.Height + DataExt.Width - 1 - loopX, DataExt.Width };
+						}
+						else
+						{
+							break;
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+				coord.X--;
+				coord.Y--;
+			}
+			DataExt.BottomCoords.emplace_back(coord);
+		}
 	}
 }
 
@@ -469,6 +658,14 @@ void CMapDataExt::UpdateTriggers()
 	{
 		TriggerSort::Instance.LoadAllTriggers();
 	}
+	for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+	{
+		auto o = &CNewTrigger::Instance[i];
+		if (o->CurrentTrigger)
+		{
+			o->CurrentTrigger = CMapDataExt::GetTrigger(o->CurrentTriggerID);
+		}
+	}
 }
 
 FString CMapDataExt::AddTrigger(std::shared_ptr<Trigger> trigger) {
@@ -493,8 +690,8 @@ FString CMapDataExt::AddTrigger(FString id) {
 
 std::shared_ptr<Trigger> CMapDataExt::GetTrigger(FString id) {
 	auto it = CMapDataExt::Triggers.find(id);
-	if (it != CMapDataExt::Triggers.end()) {
-		return std::shared_ptr<Trigger>(it->second.get(), [](Trigger*) {});
+	if (it != Triggers.end()) {
+		return it->second;
 	}
 	return nullptr;
 }
@@ -504,6 +701,14 @@ void CMapDataExt::DeleteTrigger(FString id)
 	auto it = CMapDataExt::Triggers.find(id);
 	if (it != CMapDataExt::Triggers.end()) {
 		CMapDataExt::Triggers.erase(it);
+	}
+}
+
+void CMapDataExt::ReloadTrigger(const FString& id)
+{
+	auto it = Triggers.find(id);
+	if (it != Triggers.end()) {
+		it->second->LoadFromMap(id);
 	}
 }
 
@@ -669,8 +874,8 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 				{
 					if (!this->IsCoordInMap(m + X, n + Y))
 						continue;
-					if (customTileData->TileBlockDatas[subIdx].TileBlock 
-						&& customTileData->TileBlockDatas[subIdx].TileBlock->ImageData)
+					if (customTileData->TileBlockDatas[subIdx].HasTileBlock 
+						&& customTileData->TileBlockDatas[subIdx].GetTileBlock()->ImageData)
 					{
 						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
 						if (cellExt.AddRandomTile) return;
@@ -690,7 +895,7 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			for (int n = 0; n < width; n++)
 			{
 				auto& tile = customTileData->TileBlockDatas[subIdx];
-				if (tile.TileBlock && tile.TileBlock->ImageData && this->IsCoordInMap(m + X, n + Y))
+				if (tile.GetTileBlock() && tile.GetTileBlock()->ImageData && this->IsCoordInMap(m + X, n + Y))
 				{
 					auto tileData = CMapDataExt::TileData[tile.TileIndex];
 					auto tileSet = tileData.TileSet;
@@ -1396,7 +1601,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 	}
 }
 
-void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value)
+void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value, bool refreshCenter)
 {
 	if (value == "")
 		value = CINI::CurrentDocument->GetValueAt("Structures", iniIndex);
@@ -1414,6 +1619,7 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				CMapDataExt::StructureIndexMap[i]++;
 		}
 		StructureIndexMap.push_back(iniIndex);
+
 		const auto splits = FString::SplitString(value, 16);
 
 		BuildingRenderData data;
@@ -1471,6 +1677,21 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 				}
 			}
 		}
+
+		if (ExtConfigs::InGameDisplay_RemapableOverlay)
+		{
+			if (refreshCenter)
+			{
+				// wall buildings can't affect overlays
+				if (!Variables::RulesMap.GetBool(data.ID, "Wall"))
+					CMapDataExt::RemapableOverlay_AddBuilding(cellIndex, { X + DataExt.Height / 2, Y + DataExt.Width / 2 });
+			}
+			else
+			{
+				if (!Variables::RulesMap.GetBool(data.ID, "Wall"))
+					BuildingCenterCoords[cellIndex] = { X + DataExt.Height / 2, Y + DataExt.Width / 2 };
+			}
+		}
 	}
 }
 
@@ -1479,6 +1700,7 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 	auto Map = &CMapData::Instance();
 	auto& fielddata_size = Map->CellDataCount;
 	auto& fielddata = Map->CellDatas;
+	BuildingCenterCoords.clear();
 
 	int i = 0;
 	for (i = 0; i < fielddata_size; i++)
@@ -1494,8 +1716,12 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 		i = 0;
 		for (const auto& data : sec->GetEntities())
 		{
-			UpdateFieldStructureData_Index(i, data.second);
+			UpdateFieldStructureData_Index(i, data.second, false);
 			i++;
+		}
+		if (ExtConfigs::InGameDisplay_RemapableOverlay)
+		{
+			RemapableOverlay_RefreshBuildingIndices();
 		}
 	}
 }
@@ -1652,7 +1878,7 @@ ppmfc::CString CMapDataExt::GetAvailableIndex()
 
 	if (ExtConfigs::UseSequentialIndexing) {
 		if (maxID < initNumber)
-			maxID = initNumber;
+			maxID = initNumber - 1;
 		int nextID = maxID + 1;
 		char idBuffer[9];
 		std::sprintf(idBuffer, "%08d", nextID);
@@ -2597,29 +2823,25 @@ void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
 	Height = height;
 	TileIndex = tile;
 	SubTileIndex = subtile;
-	if (CMapDataExt::TileDataCount > TileIndex
-		&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
-		&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData)
-		TileBlock = &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex];
-	else
-		TileBlock = nullptr;
+
+	HasTileBlock = CMapDataExt::TileDataCount > TileIndex
+	&& CMapDataExt::TileData[TileIndex].TileBlockCount > SubTileIndex
+	&& CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex].ImageData;
+
 
 	FrameTileIndex = TileIndex;
 	if (CMapDataExt::TileData[TileIndex].FrameModeIndex != 0xFFFF)
 		FrameTileIndex = CMapDataExt::TileData[TileIndex].FrameModeIndex;
 
-	if (CMapDataExt::TileDataCount > FrameTileIndex
+	HasFrameTileBlock = CMapDataExt::TileDataCount > FrameTileIndex
 		&& CMapDataExt::TileData[FrameTileIndex].TileBlockCount > SubTileIndex
-		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData)
-		FrameTileBlock = &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
-	else
-		FrameTileBlock = TileBlock;
+		&& CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex].ImageData;
 }
 
 int CustomTileBlock::GetHeight() const
 {
 	int height = 0;
-	if (TileBlock)
+	if (HasTileBlock)
 		height = Height;// +TileBlock->Height;
 	if (height > 14) height = 14;
 	return height;
@@ -2627,16 +2849,21 @@ int CustomTileBlock::GetHeight() const
 
 CTileBlockClass* CustomTileBlock::GetDisplayTileBlock()
 {
-	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	if (CFinalSunApp::Instance->FrameMode && HasFrameTileBlock)
 	{
-		return FrameTileBlock;
+		return &CMapDataExt::TileData[FrameTileIndex].TileBlockDatas[SubTileIndex];
 	}
-	return TileBlock;
+	return HasTileBlock ? &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex] : nullptr;
+}
+
+CTileBlockClass* CustomTileBlock::GetTileBlock()
+{
+	return HasTileBlock ? &CMapDataExt::TileData[TileIndex].TileBlockDatas[SubTileIndex] : nullptr;
 }
 
 int CustomTileBlock::GetDisplayTileIndex() const
 {
-	if (CFinalSunApp::Instance->FrameMode && FrameTileBlock)
+	if (CFinalSunApp::Instance->FrameMode && HasFrameTileBlock)
 	{
 		return FrameTileIndex;
 	}
@@ -3162,10 +3389,23 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		if (CNewScript::GetHandle())
 			::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
 
-		if (CNewTrigger::GetHandle())
-			::SendMessage(CNewTrigger::GetHandle(), 114514, 0, 0);
-		else
+		bool noEditor = true;
+		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+		{
+			if (CNewTrigger::Instance[i].GetHandle())
+			{
+				noEditor = false;
+				::SendMessage(CNewTrigger::Instance[i].GetHandle(), 114514, 0, 0);
+			}
+		}
+		if (noEditor)
 			CMapDataExt::UpdateTriggers();
+
+		CBatchTrigger::NeedClear = true;
+		if (CBatchTrigger::GetHandle())
+		{
+			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
+		}
 
 		if (CNewINIEditor::GetHandle())
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
@@ -3782,6 +4022,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	UpdateAnnotation();
 	CIsoViewExt::DistanceRuler.clear();
 	CMapDataExt::PowersUpBuildings.clear();
+	CMapDataExt::PowersUpBuildingSet.clear();
 	auto buildings = Variables::RulesMap.ParseIndicies("BuildingTypes", true);
 	for (const auto& building : buildings)
 	{
@@ -3789,6 +4030,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		if (!parent.IsEmpty())
 		{
 			CMapDataExt::PowersUpBuildings[parent].insert(building);
+			CMapDataExt::PowersUpBuildingSet.insert(building);
 		}
 		auto parents = Variables::RulesMap.GetString(building, "PowersUp.Buildings");
 		if (!parents.IsEmpty())
@@ -3797,6 +4039,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			for (auto& p : atoms)
 			{
 				CMapDataExt::PowersUpBuildings[p].insert(building);
+				CMapDataExt::PowersUpBuildingSet.insert(building);
 			}
 		}
 	}
@@ -3811,8 +4054,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				ppmfc::CString colorkey = "Wp";
 				colorkey += key;
-				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
-				CMapDataExt::CustomWaypointColors[key] = color;
+				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				{
+					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Waypoint);
+					CMapDataExt::CustomWaypointColors[key] = color;
+				}
 			}
 		}
 		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
@@ -3821,8 +4067,11 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				ppmfc::CString colorkey = "Tag";
 				colorkey += value;
-				auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
-				CMapDataExt::CustomCelltagColors[value] = color;
+				if (CINI::CurrentDocument->KeyExists("FA2spColors", colorkey))
+				{
+					auto color = CINI::CurrentDocument->GetColor(pColors, colorkey, ExtConfigs::DisplayColor_Celltag);
+					CMapDataExt::CustomCelltagColors[value] = color;
+				}
 			}
 		}
 	}
