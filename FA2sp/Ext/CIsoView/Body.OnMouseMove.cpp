@@ -1637,11 +1637,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         {
             FString line1;
             int id = cell->Terrain;
-            int type = cell->TerrainType;
-            FString name = Variables::RulesMap.GetValueAt("TerrainTypes", type);
 
-            if (id > -1)
+            if (id > -1 && id < CMapData::Instance->TerrainDatas.size())
             {
+                FString name = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
                 auto name2 = CViewObjectsExt::QueryUIName(name, true);
                 line1.Format(Translations::TranslateOrDefault("ObjectInfo.Terrain",
                     "Terrain: %s (%s), ID: %d")
@@ -1655,7 +1654,6 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         {
             FString line1;
 
-            auto& rules = CINI::Rules();
             CSmudgeData target;
             int id = 0;
             bool found = false;
@@ -1663,8 +1661,8 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
             {
                 if (thisSmudge.X <= 0 || thisSmudge.Y <= 0 || thisSmudge.Flag)
                     continue;
-                int thisWidth = rules.GetInteger(thisSmudge.TypeID, "Width", 1);
-                int thisHeight = rules.GetInteger(thisSmudge.TypeID, "Height", 1);
+                int thisWidth = Variables::RulesMap.GetInteger(thisSmudge.TypeID, "Width", 1);
+                int thisHeight = Variables::RulesMap.GetInteger(thisSmudge.TypeID, "Height", 1);
                 int thisX = thisSmudge.Y;
                 int thisY = thisSmudge.X;//opposite
                 for (int i = 0; i < thisWidth; i++)
@@ -2376,6 +2374,17 @@ void CIsoViewExt::DrawMouseMove(HDC hDC)
         }
         ::SetBkColor(hDC, RGB(0xFF, 0xFF, 0xFF));
     }
+
+    auto& command = pIsoView->LastAltCommand;
+    if ((GetKeyState(VK_MENU) & 0x8000) && command.isSame() &&
+        (CIsoView::CurrentCommand->Command == 4
+            && CIsoView::CurrentCommand->Type == 4))
+    {
+        auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+        auto mapCoords = pIsoView->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });
+        CIsoViewExt::DrawMultiMapCoordBorders(hDC, mapCoords, ExtConfigs::CursorSelectionBound_Color);
+    }
+
     if (!ExtConfigs::DisplayObjectsOutside && CMapData::Instance().IsCoordInMap(point.X, point.Y)
         || ExtConfigs::DisplayObjectsOutside && CMapDataExt::IsCoordInFullMap(point.X, point.Y))
     {

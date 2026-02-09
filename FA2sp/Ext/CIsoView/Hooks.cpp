@@ -72,8 +72,8 @@ DEFINE_HOOK(469A69, CIsoView_CalculateOverlayConnection_OverlayAutoConnectionFix
 	{
 		char lpKey[4];
 		_itoa(nOverlayIndex, lpKey, 10);
-		auto pRegName = CINI::Rules->GetString("OverlayTypes", lpKey, "");
-		bool bWall = CINI::Rules->GetBool(pRegName, "Wall", false);
+		auto pRegName = Variables::RulesMap.GetString("OverlayTypes", lpKey, "");
+		bool bWall = Variables::RulesMap.GetBool(pRegName, "Wall", false);
 		if (bWall)
 			return CanConnect;
 	}
@@ -1537,7 +1537,7 @@ DEFINE_HOOK(469520, CIsoView_GetOverlayDirection, 6)
 		if (dir2) p |= 2 + damageStage * 16;
 		if (dir3) p |= 4 + damageStage * 16;
 		if (dir4) p |= 8 + damageStage * 16;
-		if (!dir1 && !dir2 && !dir3 && !dir4) p = overlayData;
+		if (!dir1 && !dir2 && !dir3 && !dir4) p = damageStage * 16;
 	}
 
 	R->EAX(p);

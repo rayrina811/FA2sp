@@ -179,6 +179,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40043, "Menu.Edit.Lighting");
     translateMenuItem(40039, "Menu.Edit.Houses");
     translateMenuItem(40151, "Menu.Edit.TriggerEditor");
+    translateMenuItem(40168, "Menu.Edit.BatchTriggerEditor");
     translateMenuItem(40042, "Menu.Edit.TagEditor");
     translateMenuItem(40139, "Menu.Edit.Taskforces");
     translateMenuItem(40150, "Menu.Edit.Scripts");
@@ -575,6 +576,12 @@ DEFINE_HOOK(435FDD, CFinalSunDlg_OnMarblemadness, 6)
     if (view && view->CurrentMode == 2)
         return 0x435FF7;
     return 0;
+}
+
+DEFINE_HOOK(42459A, CFinalSunDlg_OnInitDialog_LoadMap, 6)
+{
+    CMapData::Instance->LoadMap(CFinalSunApp::MapPath());
+    return 0x4245CD;
 }
 
 DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp_CancelDistanceRuler, 6)

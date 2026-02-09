@@ -166,6 +166,8 @@ int ExtConfigs::TreeViewCameo_Size;
 bool ExtConfigs::TreeViewCameo_Display;
 float ExtConfigs::LightingSource[3];
 bool ExtConfigs::UseStrictNewTheater;
+bool ExtConfigs::UseDefaultUnitImage;
+bool ExtConfigs::UseDefaultUnitImage_TechnoAttachment;
 bool ExtConfigs::InGameDisplay_Shadow;
 bool ExtConfigs::InGameDisplay_Shadow_OnGround;
 bool ExtConfigs::InGameDisplay_Deploy;
@@ -322,6 +324,8 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
+	ExtConfigs::UseDefaultUnitImage = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage");
+	ExtConfigs::UseDefaultUnitImage_TechnoAttachment = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage.TechnoAttachment");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
 	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
@@ -741,6 +745,20 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "InGameDisplay.RemapableOverlay",
 		.Value = &ExtConfigs::InGameDisplay_RemapableOverlay,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage", "Display default images for vehicles, infantry, aircraft without images"),
+		.IniKey = "UseDefaultUnitImage",
+		.Value = &ExtConfigs::UseDefaultUnitImage,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage.TechnoAttachment", "Display default images for techno attachments without images"),
+		.IniKey = "UseDefaultUnitImage.TechnoAttachment",
+		.Value = &ExtConfigs::UseDefaultUnitImage_TechnoAttachment,
+		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

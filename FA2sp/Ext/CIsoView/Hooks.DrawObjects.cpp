@@ -42,6 +42,8 @@ struct CellInfo {
 
 static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> TerrainTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe*>> FiresToDraw;
@@ -243,20 +245,34 @@ static void DrawTechnoAttachments
 				int newFacing = (7 - (oriFacing + info.RotationAdjust) / 32 + facings) % facings;
 
 				const auto& imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = ExtConfigs::UseDefaultUnitImage_TechnoAttachment ?
+					CLoadingExt::GetImageDataFromMap(imageName, eItemType, newFacing, facings, isShadow) 
+					: CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!isShadow && pData->pImageBuffer)
+				if (!isShadow)
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
 
-					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-						pData, NULL,
-						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
+					auto draw = [&] {
+						if (pData->pImageBuffer)
+							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+							pData, NULL,
+							ExtConfigs::InGameDisplay_Cloakable
+							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); 
+					};
 						
 					draw();
+
+					if (CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = displayX + mat.OutputX + info.DeltaX;
+						veter.Y = displayY + mat.OutputY + info.DeltaY;
+						veter.VP = 0;
+						veter.ID = info.ID;
+					}
 
 					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -273,19 +289,33 @@ static void DrawTechnoAttachments
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
 				FString imageName = CLoadingExt::GetImageName(info.ID, newFacing, isShadow);
-				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+				auto pData = ExtConfigs::UseDefaultUnitImage_TechnoAttachment ? 
+					CLoadingExt::GetImageDataFromMap(imageName, eItemType, newFacing, facings, isShadow) 
+					: CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (!isShadow && pData->pImageBuffer)
+				if (!isShadow)
 				{
 					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-					auto draw = [&] {CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
-						displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-						displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-						pData, NULL,
-						ExtConfigs::InGameDisplay_Cloakable
-						&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); };
+					auto draw = [&] {
+						if (pData->pImageBuffer)
+							CIsoViewExt::BlitSHPTransparent(pThis, lpSurface, window, boundary,
+							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
+							pData, NULL,
+							ExtConfigs::InGameDisplay_Cloakable
+							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255, color, 0, true); 
+					};
 
 					draw();
+
+					if (CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = displayX + mat.OutputX + info.DeltaX;
+						veter.Y = displayY + mat.OutputY + info.DeltaY;
+						veter.VP = 0;
+						veter.ID = info.ID;
+					}
 
 					DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 						displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -324,19 +354,33 @@ static void DrawTechnoAttachments
 				{
 					auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(imageName);
 					auto pBldData = CLoadingExt::BindClippedImages(clips);
-					if (pBldData && pBldData->pImageBuffer)
+					if (pBldData)
 					{
 						auto ArtID = CLoadingExt::GetArtID(info.ID);			
 						auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 						Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
-						auto draw = [&] {CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
-							displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
-							displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
-							NULL, ExtConfigs::InGameDisplay_Cloakable
-							&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255,
-							color, -1, false, isoset.find(info.ID) != isoset.end()); };
+						auto draw = [&] {
+							if (pBldData->pImageBuffer)
+								CIsoViewExt::BlitSHPTransparent_Building(pThis, lpSurface, window, boundary,
+								displayX - pBldData->FullWidth / 2 + mat.OutputX + info.DeltaX,
+								displayY - pBldData->FullHeight / 2 + mat.OutputY + info.DeltaY, pBldData.get(),
+								NULL, ExtConfigs::InGameDisplay_Cloakable
+								&& Variables::RulesMap.GetBool(info.ID, "Cloakable") ? 128 : 255,
+								color, -1, false, isoset.find(info.ID) != isoset.end()); 
+						};
 
 						draw();
+
+						if (CIsoViewExt::DrawVeterancy)
+						{
+							const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(info.ID);
+							const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+							auto& veter = DrawVeterancies.emplace_back();
+							veter.X = displayX + mat.OutputX + info.DeltaX + (DataExt.Width - DataExt.Height) * 30 / 2;
+							veter.Y = displayY + mat.OutputY + info.DeltaY + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+							veter.VP = 0;
+							veter.ID = info.ID;
+						}
 
 						DrawTechnoAttachments(draw, recursionStack, info.ID, oriFacing + info.RotationAdjust, eItemType, cell, lpSurface, boundary,
 							displayX + mat.OutputX + info.DeltaX, displayY + mat.OutputY + info.DeltaY, color, isShadow);
@@ -369,6 +413,8 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 
 	WaypointsToDraw.clear();
 	OverlayTextsToDraw.clear();
+	SmudgeTextsToDraw.clear();
+	TerrainTextsToDraw.clear();
 	BuildingsToDraw.clear();
 	AlphaImagesToDraw.clear();
 	FiresToDraw.clear();
@@ -1041,9 +1087,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		CIsoViewExt::CurrentDrawCellLocation.Height = cell->Height;
 
 		//smudges
-		if (cell->Smudge != -1 && CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cell->Smudge != -1 && cell->Smudge < CMapData::Instance->SmudgeDatas.size() 
+			&& CIsoViewExt::DrawSmudges && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
+			auto& obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1056,10 +1103,14 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}
 				auto pData = CLoadingExt::GetImageDataFromMap(imageName);
 
-				if (pData->pImageBuffer)
+				if (pData && pData->pImageBuffer)
 				{
 					CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
 						x - pData->FullWidth / 2, y - pData->FullHeight / 2, pData, NULL, 255, 0, -1, false);
+				}
+				else
+				{
+					SmudgeTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, obj));
 				}
 			}
 		}
@@ -1429,13 +1480,13 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						bool deploy = ExtConfigs::InGameDisplay_Deploy
 							&& obj.Status == "Unload" && Variables::RulesMap.GetBool(obj.TypeID, "Deployer");
 
-						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
-
 						if (!CLoadingExt::IsObjectLoaded(obj.TypeID))
 						{
 							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
+
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8, true);
 
 						if (pData->pImageBuffer)
 						{
@@ -1501,7 +1552,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName, 
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true);
 
 					if (pData->pImageBuffer)
 					{
@@ -1559,9 +1611,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 				}		
 			}
 		}
-		if (shadow && cell->Terrain != -1 && CIsoViewExt::DrawTerrains)
+		if (shadow && cell->Terrain != -1 
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size()
+			&& CIsoViewExt::DrawTerrains)
 		{
-			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
+			auto& obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1766,11 +1820,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		//smudges in redrawn tiles
 		if (cell->Smudge != -1 
+			&& cell->Smudge < CMapData::Instance->SmudgeDatas.size()
 			&& CIsoViewExt::DrawSmudges 
 			&& cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround
 			&& (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("SmudgeTypes", cell->SmudgeType);
+			auto& obj = CMapData::Instance->SmudgeDatas[cell->Smudge].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1910,9 +1965,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		//terrains
-		if (cell->Terrain != -1 && CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
+		if (cell->Terrain != -1
+			&& cell->Terrain < CMapData::Instance->TerrainDatas.size() 
+			&& CIsoViewExt::DrawTerrains && (info.isInMap || ExtConfigs::DisplayObjectsOutside))
 		{
-			auto obj = Variables::RulesMap.GetValueAt("TerrainTypes", cell->TerrainType);
+			auto& obj = CMapData::Instance->TerrainDatas[cell->Terrain].TypeID;
 			if (!CIsoViewExt::RenderingMap
 				|| CIsoViewExt::RenderingMap
 				&& CIsoViewExt::MapRendererIgnoreObjects.find(obj)
@@ -1948,6 +2005,10 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
+				}
+				else
+				{
+					TerrainTextsToDraw.push_back(std::make_pair(MapCoord{ X,Y }, obj));
 				}
 			}		
 		}
@@ -2013,6 +2074,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
+
+					if (firstDraw && CIsoViewExt::DrawVeterancy)
+					{
+						auto& veter = DrawVeterancies.emplace_back();
+						veter.X = x1 + (DataExt.Width - DataExt.Height) * 30 / 2;
+						veter.Y = y1 + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+						veter.VP = 0;
+						veter.ID = objRender.ID;
+					}
+
 					if (firstDraw && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 					{
 						if (auto pAIFile = Variables::RulesMap.TryGetString(objRender.ID, "AlphaImage"))
@@ -2192,7 +2263,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing);
 
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, false);
 
 					if (pData->pImageBuffer)
 					{
@@ -2220,6 +2292,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.X = x;
 							veter.Y = y - (HoveringUnit ? 10 : 0) - (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0);
 							veter.VP = VP;
+							veter.ID = obj.TypeID;
 						}
 
 						std::set<FString> drawn;
@@ -2270,7 +2343,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					int facings = CLoadingExt::GetAvailableFacing(obj.TypeID);
 					int nFacing = (atoi(obj.Facing) * facings / 256) % facings;
 					const auto& imageName = CLoadingExt::GetImageName(imageID, nFacing);
-					auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+					auto pData = CLoadingExt::GetImageDataFromMap(imageName,
+						CLoadingExt::ObjectType::Aircraft, nFacing, facings, false);
 
 					if (pData->pImageBuffer)
 					{
@@ -2287,6 +2361,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							veter.X = x;
 							veter.Y = y;
 							veter.VP = VP;
+							veter.ID = obj.TypeID;
 						}
 
 						std::set<FString> drawn;
@@ -2336,7 +2411,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						{
 							CLoadingExt::GetExtension()->LoadObjects(obj.TypeID);
 						}
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName);
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8);
 
 						if (pData->pImageBuffer)
 						{
@@ -2380,6 +2455,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								veter.X = x1 - 5;
 								veter.Y = y1 - 4 - 15;
 								veter.VP = VP;
+								veter.ID = obj.TypeID;
 							}
 
 							std::set<FString> drawn;
@@ -2416,12 +2492,28 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 		for (auto& dv : DrawVeterancies)
 		{
+			ImageDataClassSafe* pImage = nullptr;
+			auto insignia = CLoadingExt::GetInsignia(dv.ID);
 			if (dv.VP >= 200)
-				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					dv.X - elite->FullWidth / 2 + 10, dv.Y + 21 - elite->FullHeight / 2, elite, 0, 255, 0, -100, false);
+			{
+				pImage = elite;
+				if (!insignia.Elite.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Elite);
+			}
 			else if (dv.VP >= 100)
+			{
+				pImage = veteran;
+				if (!insignia.Veteran.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Veteran);
+			}
+			else
+			{
+				if (!insignia.Rookie.IsEmpty())
+					pImage = CLoadingExt::GetImageDataFromMap(insignia.Rookie);
+			}
+			if (pImage)
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					dv.X - veteran->FullWidth / 2 + 10, dv.Y + 21 - veteran->FullWidth / 2, veteran, 0, 255, 0, -100, false);
+					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2, pImage, 0, 255, 0, -100, false);
 		}
 	}
 
@@ -2710,26 +2802,56 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		pThis->DrawBitmap("target", drawX - 20, drawY - 11, lpDesc);
 	}
 
-	if (CIsoViewExt::DrawOverlays 
-		&& (!CIsoViewExt::RenderingMap 
-			|| CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame))
+	if (!CIsoViewExt::RenderingMap
+		|| CIsoViewExt::RenderingMap && CIsoViewExt::RenderInvisibleInGame)
 	{
 		SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 		SetTextColor(hDC, RGB(0, 0, 0));
-		for (const auto& [coord, index] : OverlayTextsToDraw)
+		if (CIsoViewExt::DrawOverlays)
 		{
-			if (IsCoordInWindow(coord.X, coord.Y))
+			for (const auto& [coord, index] : OverlayTextsToDraw)
 			{
-				MapCoord mc = coord;
-				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
-				int drawX = mc.X - DrawOffsetX + 30;
-				int drawY = mc.Y - DrawOffsetY - 25;
-				TextOut(hDC, drawX, drawY, index, strlen(index));
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
+			}
+		}
+		if (CIsoViewExt::DrawTerrains)
+		{
+			for (const auto& [coord, index] : TerrainTextsToDraw)
+			{
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
+			}
+		}
+		if (CIsoViewExt::DrawSmudges)
+		{
+			for (const auto& [coord, index] : SmudgeTextsToDraw)
+			{
+				if (IsCoordInWindow(coord.X, coord.Y))
+				{
+					MapCoord mc = coord;
+					CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
+					int drawX = mc.X - DrawOffsetX + 30;
+					int drawY = mc.Y - DrawOffsetY - 25;
+					TextOut(hDC, drawX, drawY, index, strlen(index));
+				}
 			}
 		}
 	}
-
+	
 	if (CIsoViewExt::DrawBaseNodeIndex)
 	{
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
@@ -2874,7 +2996,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	// line tool
 	auto& command = pThis->LastAltCommand;
 	if ((GetKeyState(VK_MENU) & 0x8000) && command.isSame() 
-		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers))
+		&& (!CIsoViewExt::RenderingMap || CIsoViewExt::RenderingMap && CIsoViewExt::RenderCurrentLayers)
+		&& CIsoView::CurrentCommand->Command != 4)
 	{
 		auto point = pThis->GetCurrentMapCoord(pThis->MouseCurrentPosition);
 		auto mapCoords = pThis->GetLinePoints({ command.X, command.Y }, { point.X,point.Y });
