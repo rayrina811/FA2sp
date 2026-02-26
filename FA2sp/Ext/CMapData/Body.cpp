@@ -89,6 +89,7 @@ std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 std::unordered_set<FString> CMapDataExt::TerrainPaletteBuildings;
 std::unordered_set<FString> CMapDataExt::DamagedAsRubbleBuildings;
 std::unordered_set<int> CMapDataExt::RedrawExtraTileSets;
+std::unordered_set<int> CMapDataExt::NoHeightRedrawTileSets;
 std::unordered_map<int, Palette*> CMapDataExt::TileSetPalettes;
 int CMapDataExt::NewINIFormat = 4;
 WORD CMapDataExt::NewOverlay[0x40000] = {0xFFFF};
@@ -115,6 +116,7 @@ std::map<FString, std::map<FString, FString>> CMapDataExt::MapFrontlineComments;
 std::map<FString, FString> CMapDataExt::MapInsectionComments;
 std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
+bool CMapDataExt::SkipUpdateMinimap = false;
 
 static inline int DistSqrByIndex(int a, int b)
 {
@@ -1656,7 +1658,8 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 						CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
 						pCell->Structure = cellIndex;
 						pCell->TypeListIndex = BuildingIndex;
-						CMapData::Instance->UpdateMapPreviewAt(x, y);
+						if (!CMapDataExt::SkipUpdateMinimap)
+							CMapData::Instance->UpdateMapPreviewAt(x, y);
 					}
 				}
 			}
@@ -1674,7 +1677,8 @@ void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString va
 					CMapDataExt::CellDataExts[coord].Structures[cellIndex] = BuildingIndex;
 					pCell->Structure = cellIndex;
 					pCell->TypeListIndex = BuildingIndex;
-					CMapData::Instance->UpdateMapPreviewAt(x, y);
+					if (!CMapDataExt::SkipUpdateMinimap)
+						CMapData::Instance->UpdateMapPreviewAt(x, y);
 				}
 			}
 		}
@@ -1979,8 +1983,8 @@ void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr)
 			if (pExt->IsCoordInMap(x + i, y + e))
 				pExt->SmoothTiberium(pExt->GetCoordIndex(x + i, y + e));
 
-
-	pExt->UpdateMapPreviewAt(x, y);
+	if (!CMapDataExt::SkipUpdateMinimap)
+		pExt->UpdateMapPreviewAt(x, y);
 }
 
 void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr)
@@ -3488,6 +3492,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CMapDataExt::ShoreTileSets.clear();
 	CMapDataExt::SoftTileSets.clear();
 	CMapDataExt::RedrawExtraTileSets.clear();
+	CMapDataExt::NoHeightRedrawTileSets.clear();
 	CMapDataExt::TileSetPalettes.clear();
 
 	if (auto theater = CINI::CurrentTheater())
@@ -3565,6 +3570,15 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		for (const auto& [_, value] : pSection->GetEntities())
 		{
 			RedrawExtraTileSets.insert(atoi(value));
+		}
+	}
+	FString noRedraw = "NoExtraHeightRedrawTileSets";
+	noRedraw += theaterSuffix;
+	if (auto pSection = CINI::FAData->GetSection(noRedraw))
+	{
+		for (const auto& [_, value] : pSection->GetEntities())
+		{
+			NoHeightRedrawTileSets.insert(atoi(value));
 		}
 	}
 

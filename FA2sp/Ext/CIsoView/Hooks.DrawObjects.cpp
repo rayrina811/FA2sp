@@ -209,6 +209,14 @@ static void DrawTechnoAttachments
 		auto eParentType = CLoadingExt::GetExtension()->GetItemType(parentID);
 		int oriParentFacing = oriFacing;
 		std::size_t redrawIndex = std::distance(infos.begin(), firstGroupEnd);
+
+		if (eParentType == CLoadingExt::ObjectType::Building)
+		{
+			const int BuildingIndex = CMapDataExt::GetBuildingTypeIndex(parentID);
+			const auto& DataExt = CMapDataExt::BuildingDataExts[BuildingIndex];
+			displayX += (DataExt.Width - DataExt.Height) * 30 / 2;
+			displayY += (DataExt.Width + DataExt.Height - 2) * 15 / 2 + 15;
+		}
 		for (int i = 0; i < infos.size(); ++i)
 		{
 			const auto& info = infos[i];
@@ -347,7 +355,6 @@ static void DrawTechnoAttachments
 					newFacing = (facings + 7 * facings / 8 -
 						((oriFacing + info.RotationAdjust) * facings / 256) % facings) % facings;
 				}
-
 				auto imageName = CLoadingExt::GetBuildingImageName(info.ID, newFacing, 0, isShadow);
 					
 				if (!isShadow)
@@ -784,7 +791,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 	std::vector<char> shadowMask_Overlay(shadowMask_size, 0);
 	std::vector<byte> shadowMask(shadowMask_size, 0);
 	std::vector<byte> shadowHeightMask(shadowMask_size, 0);
-	std::vector<byte> cellHeightMask(shadowMask_size, 0);
+	std::vector<int> cellHeightMask(shadowMask_size, 0);
 
 	//loop1: tiles
 	std::vector<MapCoord> RedrawCoords;
@@ -840,7 +847,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		}
 
 		// bridge hack
-		if (tileSetOri == CMapDataExt::BridgeSet || tileSetOri == CMapDataExt::WoodBridgeSet)
+		if (tileSetOri == CMapDataExt::BridgeSet 
+			|| tileSetOri == CMapDataExt::WoodBridgeSet)
 		{
 			int relativeIdx = cell->TileIndex - CMapDataExt::TileSet_starts[tileSetOri];
 			if (6 > relativeIdx && relativeIdx >= 0 && relativeIdx != 2 && relativeIdx != 5)
@@ -849,14 +857,17 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 			else if (11 > relativeIdx && relativeIdx >= 6)
 			{
-				if (tileSubIndex != 8 && tileSubIndex != 9)
-					virtualHeight = cell->Height;
+				virtualHeight = cell->Height;
 			}
 			else if (16 > relativeIdx && relativeIdx >= 11)
 			{
-				if (tileSubIndex != 4 && tileSubIndex != 9)
-					virtualHeight = cell->Height;
+				virtualHeight = cell->Height;
 			}
+		}
+		auto& heightSet = CMapDataExt::NoHeightRedrawTileSets;
+		if (heightSet.find(tileSetOri) != heightSet.end())
+		{
+			virtualHeight = cell->Height;
 		}
 
 		for (int i = 1; i <= 2 + virtualHeight - cell->Height + cell->Height / 2; i++)
@@ -902,7 +913,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						
 					CIsoViewExt::BlitTerrain(pThis, lpDesc->lpSurface, window, boundary,
 						x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask);
+						isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 
 					auto& cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
 					cellExt.HasAnim = false;
@@ -1170,6 +1181,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 							}
 
+							int techLevel = Variables::RulesMap.GetInteger(objRender.ID, "TechLevel");
+							bool isBunker = Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire");
 							const int HP = objRender.Strength;
 							int status = CLoadingExt::GBIN_NORMAL;
 							if (HP == 0)
@@ -1177,7 +1190,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							else if (static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) > HP)
 								status = CLoadingExt::GBIN_DAMAGED;
 							else if (static_cast<int>((CMapDataExt::ConditionYellow + 0.001f) * 256) > HP
-								&& !(Variables::RulesMap.GetInteger(objRender.ID, "TechLevel") < 0 && Variables::RulesMap.GetBool(objRender.ID, "CanOccupyFire")))
+								&& !(isBunker && techLevel < 0))
 								status = CLoadingExt::GBIN_DAMAGED;
 
 							int x1 = objRender.X;
@@ -1211,7 +1224,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									{ objRender.X,objRender.Y,CMapDataExt::TryGetCellAt(objRender.X, objRender.Y)->Height },
 									false, isRubble || isTerrain ? 4 : 3);
 							}
-							for (int i = 0; i < std::min(DataExt.BottomCoords.size(), clips.size()); ++i)
+							int partCount = std::min(DataExt.BottomCoords.size(), clips.size());
+							for (int i = 0; i < partCount; ++i)
 							{
 								auto pData = clips[i].get();
 
@@ -1255,6 +1269,12 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								}
 
 								if (cellExt)
+								{
+									bool hasFire = status == CLoadingExt::GBIN_DAMAGED;
+									if (isBunker && techLevel > -1
+										&& static_cast<int>((CMapDataExt::ConditionRed + 0.001f) * 256) <= HP)
+										hasFire = false;
+
 									cellExt->BuildingRenderParts.push_back
 									({ StrINIIndex,(short)i,
 										x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
@@ -1262,16 +1282,19 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										BuildingIndex,
 										status,
 										pData,
-										pPal
+										pPal,
+										i == DataExt.Width - 1,
+										hasFire
 										});
+								}
 							}
 
 							if (shadow && CIsoViewExt::DrawStructures && !isCloakable(objRender.ID))
 							{
 								int nFacing = 0;
+								int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 								if (Variables::RulesMap.GetBool(objRender.ID, "Turret") && !Variables::RulesMap.GetBool(objRender.ID, "TurretAnimIsVoxel"))
 								{
-									int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
 									nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
 								}
 								const auto& imageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, status, true);
@@ -1284,7 +1307,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 										shadowHeightMask, cell->Height);
 
 									std::set<FString> drawn;
-									DrawTechnoAttachments([] {}, drawn, objRender.ID, nFacing == 0 ? 0 : objRender.Facing,
+									DrawTechnoAttachments([] {}, drawn, objRender.ID, FacingCount == 1 ? 0 : objRender.Facing,
 										CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 										x1, y1, 0xffffff, true);
 								}
@@ -1442,7 +1465,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 									BuildingIndex,
 									pData,
 									pPal,
-									&node });
+									&node
+									});
 						}
 					}
 				}
@@ -1486,9 +1510,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						const auto& imageName = CLoadingExt::GetImageName(obj.TypeID, nFacing, true, deploy && !water, water);
 
-						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry, nFacing, 8, true);
+						bool useDefault = false;
+						auto pData = CLoadingExt::GetImageDataFromMap(imageName, CLoadingExt::ObjectType::Infantry,
+							nFacing, 8, true, &useDefault);
 
-						if (pData->pImageBuffer)
+						bool allowDraw = true;
+						if (useDefault)
+						{
+							useDefault = false;
+							const auto& imageNameMain = CLoadingExt::GetImageName(obj.TypeID, nFacing, false, deploy && !water, water);
+							auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain, CLoadingExt::ObjectType::Infantry,
+								nFacing, 8, false, &useDefault);
+							allowDraw = useDefault;
+						}
+
+						if (allowDraw && pData->pImageBuffer)
 						{
 							int x1 = x;
 							int y1 = y;
@@ -1552,10 +1588,21 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 					const auto& imageName = CLoadingExt::GetImageName(ImageID, nFacing, true);
 
+					bool useDefault = false;
 					auto pData = CLoadingExt::GetImageDataFromMap(imageName, 
-						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true);
+						CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
 
-					if (pData->pImageBuffer)
+					bool allowDraw = true;
+					if (useDefault)
+					{
+						useDefault = false;
+						const auto& imageNameMain = CLoadingExt::GetImageName(ImageID, nFacing, false);
+						auto pDataMain = CLoadingExt::GetImageDataFromMap(imageNameMain,
+							CLoadingExt::ObjectType::Vehicle, nFacing, facings, true, &useDefault);
+						allowDraw = useDefault;
+					}
+
+					if (allowDraw && pData->pImageBuffer)
 					{
 						int x1 = x;
 						int y1 = y;
@@ -1732,6 +1779,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 
 				if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 				{
+					int tileSetOri = CMapDataExt::TileData[tileIndex].TileSet;
 					if (CFinalSunApp::Instance->FrameMode)
 					{
 						if (CMapDataExt::TileData[tileIndex].FrameModeIndex < CMapDataExt::TileDataCount)
@@ -1773,7 +1821,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 								isCellHidden(cell) ? 128 : 255,
 								shadow ? &shadowMask : nullptr,
 								shadow ? &shadowHeightMask : nullptr,
-								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0));
+								cell->Height + (subTile.YMinusExY < 0 ? ((subTile.YMinusExY + 15) / -30) : 0), nullptr, tileSetOri);
 
 							if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 							{
@@ -2100,7 +2148,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (firstDraw && CIsoViewExt::DrawFires && part.Status == CLoadingExt::GBIN_DAMAGED && DataExt.DamageFireOffsets.size() > 0)
+					if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
 					{
 						auto fires = CLoadingExt::GetRandomFire({ objRender.X,objRender.Y }, DataExt.DamageFireOffsets.size());
 						for (int i = 0; i < fires.size(); ++i)
@@ -2116,16 +2164,16 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 							}
 						}
 					}
-					if (firstDraw)
+					if (part.IsBottom)
 					{
 						int nFacing = 0;
+						int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
+						if (FacingCount > 1)
+						{
+							nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
+						}
 						auto draw = [&]
 						{
-							int FacingCount = CLoadingExt::GetAvailableFacing(objRender.ID);
-							if (FacingCount > 1)
-							{
-								nFacing = (FacingCount + 7 * FacingCount / 8 - (objRender.Facing * FacingCount / 256) % FacingCount) % FacingCount;
-							}
 							const auto& ImageName = CLoadingExt::GetBuildingImageName(objRender.ID, nFacing, part.Status);
 							auto& clips = CLoadingExt::GetBuildingClipImageDataFromMap(ImageName);
 							auto pData = CLoadingExt::BindClippedImages(clips);
@@ -2140,7 +2188,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						};
 
 						std::set<FString> drawn;
-						DrawTechnoAttachments(draw, drawn, objRender.ID, nFacing == 0 ? 0 : objRender.Facing,
+						DrawTechnoAttachments(draw, drawn, objRender.ID, FacingCount <= 1 ? 0 : objRender.Facing,
 							CLoadingExt::ObjectType::Building, cell, lpDesc->lpSurface, boundary,
 							x1, y1,
 							objRender.HouseColor, false);
@@ -2228,6 +2276,15 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 					auto& isoset = CMapDataExt::TerrainPaletteBuildings;
 					CIsoViewExt::BlitSHPTransparent_Building(pThis, lpDesc->lpSurface, window, boundary,
 						part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
+				}
+				if (firstDraw && CIsoViewExt::DrawVeterancy)
+				{
+					auto& veter = DrawVeterancies.emplace_back();
+					veter.X = x1 + (DataExt.Width - DataExt.Height) * 30 / 2;
+					veter.Y = y1 + (DataExt.Width + DataExt.Height - 2) * 15 / 2;
+					veter.VP = 0;
+					veter.ID = part.Data->ID;
+					veter.Transp = true;
 				}
 			}
 		}
@@ -2513,7 +2570,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 			if (pImage)
 				CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary,
-					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2, pImage, 0, 255, 0, -100, false);
+					dv.X - pImage->FullWidth / 2 + 10, dv.Y + 21 - pImage->FullHeight / 2,
+					pImage, 0, dv.Transp ? 128: 255, 0, -100, false);
 		}
 	}
 
@@ -2672,11 +2730,11 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		if (auto pSection = CINI::CurrentDocument->GetSection("CellTags"))
 			for (auto& [key, value] : pSection->GetEntities())
 				Celltags.push_back(&value);
-	std::vector<ppmfc::CString*> Waypoints;
+	std::vector<const ppmfc::CString*> Waypoints;
 	if (CIsoViewExt::DrawWaypoints)
 		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
 			for (auto& [key, value] : pSection->GetEntities())
-				Waypoints.push_back(&value);
+				Waypoints.push_back(&key);
 	for (const auto& info : visibleCells)
 	{
 		if (!info.isInMap && !ExtConfigs::DisplayObjectsOutside) continue;
@@ -2710,7 +2768,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 		};
 
-		auto drawWaypoinyImage = [&](const ppmfc::CString& id)
+		auto drawWaypointImage = [&](const ppmfc::CString& id)
 		{
 			auto itr = CMapDataExt::CustomWaypointColors.find(id);
 			if (itr != CMapDataExt::CustomWaypointColors.end())
@@ -2769,7 +2827,7 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 		{
 			auto id = Waypoints[cell->Waypoint];
 			if (id)
-				drawWaypoinyImage(*id);
+				drawWaypointImage(*id);
 		}
 
 		if (AnnotationLocked && CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))

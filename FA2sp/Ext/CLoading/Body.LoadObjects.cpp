@@ -51,27 +51,29 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 }
 
 ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
-	ObjectType type, int facing, int totalFacings, bool shadow)
+	ObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
 {
 	auto itr = ImageDataMap.find(name);
 	if (ExtConfigs::UseDefaultUnitImage &&
-		name.Find("FA2DEFAULT_") == -1 &&
-		(itr == ImageDataMap.end() 
-			|| itr != ImageDataMap.end() && !itr->second->pImageBuffer))
+		(itr == ImageDataMap.end() || itr != ImageDataMap.end() && !itr->second->pImageBuffer) &&
+		name.Find("FA2DEFAULT_") == -1)
 	{
 		if (type == ObjectType::Infantry)
 		{
+			if (isDefault) *isDefault = true;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
 		else if (type == ObjectType::Vehicle)
 		{
+			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
 			return GetImageDataFromMap(imageName);
 		}
 		else if (type == ObjectType::Aircraft)
 		{
+			if (isDefault) *isDefault = true;
 			int newFacing = facing * 32 / totalFacings;
 			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_AIRCRAFT", newFacing, shadow);
 			return GetImageDataFromMap(imageName);
@@ -298,6 +300,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
 		BuildingClipsImageDataMap.clear();
+		LoadedInsignias.clear();
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -317,7 +320,6 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	SurfaceImageDataMap.clear();
 	CustomFlagMap.clear();
 	CustomCelltagMap.clear();
-	LoadedInsignias.clear();
 }
 
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
@@ -404,17 +406,18 @@ FString CLoadingExt::GetVehicleOrAircraftFileID(FString ID)
 	return ImageID;
 }
 
-void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer, int width, int height, Palette* palette)
+void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char* pBuffer,
+	int width, int height, Palette* palette, unsigned char*& pAlphaBuffer)
 {
 	auto& ret = CLoadingExt::GetBuildingClipImageDataFromMap(ImageID);
 	ret.clear();
 	int idx = CMapDataExt::GetBuildingTypeIndex(ID);
 	auto& DataExt = CMapDataExt::GetExtension()->BuildingDataExts[idx];
-	CLoadingExt::TrimImageEdges(pBuffer, width, height);
+	CLoadingExt::TrimImageEdges(pBuffer, width, height, &pAlphaBuffer);
 	int parts = DataExt.BottomCoords.size();
 	if (parts == 1)
 	{
-		auto pData = SetBuildingImageDataSafe(pBuffer, ImageID, width, height, palette);
+		auto pData = SetBuildingImageDataSafe(pBuffer, ImageID, width, height, palette, pAlphaBuffer);
 		pData->ClipOffsets.FullWidth = width;
 		pData->ClipOffsets.LeftOffset = 0;
 	}
@@ -422,7 +425,9 @@ void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char
 	{
 		int bottomIdx = DataExt.Width - 1;
 		std::vector<int> witdhs(parts, 0);
+		std::vector<int> alphaWitdhs(parts, 0);
 		std::vector<unsigned char*> pSplit(parts, 0);
+		std::vector<unsigned char*> pAlphaSplit(parts, 0);
 		int left = 0;
 		for (int i = 0; i < parts; ++i)
 		{
@@ -434,13 +439,45 @@ void CLoadingExt::ClipAndLoadBuilding(FString ID, FString ImageID, unsigned char
 				right = width;
 			right = std::max(0, right);
 			pSplit[i] = ClipImageHorizontal(pBuffer, width, height, left, right, witdhs[i]);
-			auto pData = SetBuildingImageDataSafe(pSplit[i], ImageID, witdhs[i], height, palette);
+			pAlphaSplit[i] = ClipImageHorizontal(pAlphaBuffer, width, height, left, right, alphaWitdhs[i]);
+			auto pData = SetBuildingImageDataSafe(pSplit[i], ImageID, witdhs[i], height, palette, pAlphaSplit[i]);
+			if (pAlphaSplit[i])
+				GameDeleteArray(pAlphaSplit[i], alphaWitdhs[i] * height);
 			pData->ClipOffsets.FullWidth = width;
 			pData->ClipOffsets.LeftOffset = left;
 			left = right;
 		}
 		GameDeleteArray(pBuffer, width * height);
 	}
+}
+
+static bool IsPreOccupiedBunker(const FString& ID)
+{
+	bool isBunker = Variables::RulesMap.GetBool(ID, "CanBeOccupied");
+	if (!isBunker) return false;
+
+	FString firstInf;
+	auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+	if (types.empty()) return false;
+	
+	firstInf = types[0];
+
+	auto eItemType = CLoadingExt::GetExtension()->GetItemType(firstInf);
+	if (eItemType != CLoadingExt::ObjectType::Infantry) return false;
+
+	return true;
+}
+
+static FString GetFinalLoopAnim(const FString& image)
+{
+	int loopCount = CINI::Art->GetInteger(image, "LoopCount", 1);
+	if (loopCount < 0) return image;
+
+	if (auto next = CINI::Art->TryGetString(image, "Next"))
+	{
+		return GetFinalLoopAnim(next->m_pchData);
+	}
+	return image;
 }
 
 void CLoadingExt::LoadBuilding(FString ID)
@@ -477,6 +514,8 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel") 
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -486,6 +525,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
@@ -517,56 +557,59 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, 
-		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
-			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
-			name = CINI::Art->GetString(name, "Image", name);
-			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
+		bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+		int opacity = 255 - CINI::Art->GetInteger(name, "Translucency") * 256 / 100;
+		opacity = std::clamp(opacity, 0, 255);
+		name = CINI::Art->GetString(name, "Image", name);
+		applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
-			FString file = name + ".SHP";
-			int nMix = SearchFile(file);
-			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
-			// if anim file in RA2(MD).mix, always use NewTheater = yes
-			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
-			{
-				applyNewTheater = true;
-			}
+		FString file = name + ".SHP";
+		int nMix = SearchFile(file);
+		int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+		// if anim file in RA2(MD).mix, always use NewTheater = yes
+		if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
+		{
+			applyNewTheater = true;
+		}
 
-			if (applyNewTheater || forceNewTheater == 1)
-				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+		if (applyNewTheater || forceNewTheater == 1)
+			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
+		nMix = SearchFile(file);
+		if (!HasFile(file, nMix))
+		{
+			SetGenericTheaterLetter(file);
 			nMix = SearchFile(file);
 			if (!HasFile(file, nMix))
 			{
-				SetGenericTheaterLetter(file);
-				nMix = SearchFile(file);
-				if (!HasFile(file, nMix))
+				if (!ExtConfigs::UseStrictNewTheater)
 				{
-					if (!ExtConfigs::UseStrictNewTheater)
-					{
-						auto searchNewTheater = [&nMix, this, &file](char t)
-							{
-								if (file.GetLength() >= 2)
-									file.SetAt(1, t);
-								nMix = SearchFile(file);
-								return HasFile(file, nMix);
-							};
-						file = name + ".SHP";
-						nMix = SearchFile(file);
-						if (!HasFile(file, nMix))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
-													return false;
-					}
-					else
-					{
-						return false;
-					}
+					auto searchNewTheater = [&nMix, this, &file](char t)
+						{
+							if (file.GetLength() >= 2)
+								file.SetAt(1, t);
+							nMix = SearchFile(file);
+							return HasFile(file, nMix);
+						};
+					file = name + ".SHP";
+					nMix = SearchFile(file);
+					if (!HasFile(file, nMix))
+						if (!searchNewTheater('T'))
+							if (!searchNewTheater('A'))
+								if (!searchNewTheater('U'))
+									if (!searchNewTheater('N'))
+										if (!searchNewTheater('L'))
+											if (!searchNewTheater('D'))
+												return false;
+				}
+				else
+				{
+					return false;
 				}
 			}
+		}
 
 		ShapeHeader header;
 		unsigned char* pBuffer;
@@ -577,27 +620,33 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
+
+		Palette* thisPal = nullptr;
+		bool hasNewPal = pMixedPal != nullptr;
 		if (customPal != "")
 		{
-			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			thisPal = PalettesManager::LoadPalette(customPal);
+			if (thisPal && !hasNewPal)
 			{
-				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
-				int counter = 0;
-				for (int j = 0; j < header.Height; ++j)
+				pMixedPal = CreateBalancedPalette(palette, thisPal);
+				RemapImagePalette(pBuffer, header.Width, header.Height, thisPal, pMixedPal, false);
+				for (auto& added : UnionSHP_Data[0])
 				{
-					for (int i = 0; i < header.Width; ++i)
-					{
-						unsigned char& ch = pBuffer[counter];
-						ch = lookupTable[ch];
-						counter++;
-					}
+					RemapImagePalette(added.pBuffer, added.Width, added.Height, palette, pMixedPal, true);
 				}
+				palette = pMixedPal;
 			}
 		}
+		if (hasNewPal)
+		{
+			RemapImagePalette(pBuffer, header.Width, header.Height, thisPal ? thisPal : mainPalette, pMixedPal, true);
+		}
 
+		CurrentLoadingAnim.Replace("Damaged", "");
+		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
+			isBib ? 1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			isBib ? -1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"), false, opacity, thisPal == nullptr);
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -608,28 +657,29 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
+	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey = "")
 	{
 		CurrentLoadingAnim = animkey;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
+			if (ignorekey.IsEmpty() || !CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
+				auto anim = GetFinalLoopAnim(*pStr);
+				int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
 				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
+				if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
+					customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
 					GetFullPaletteName(customPal);
 				}
-				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
-				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
+				int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
+				int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
 				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
 				{
 					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
 					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
 				}
 
-				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
 			}
 		}
 	};
@@ -640,7 +690,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			LoadBuilding(*ppPowerUpBld);
 	}
 
-	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0);
+	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + (isPreOccupiedBunker ? 2 : 0);
 
 	if (Variables::RulesMap.GetBool(ID, "Gate"))
 	{
@@ -650,7 +700,7 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
-		"ActiveAnim",
+		isPreOccupiedBunker ? "ActiveAnimGarrisoned": "ActiveAnim",
 		"ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
@@ -671,28 +721,33 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
-	
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1, true);
+	}
 	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
-	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 0, 0, 0, "", bHasShadow, 1);
-	}
 
 	FString DictName;
 
-	unsigned char* pBuffer;
+	unsigned char* pBuffer = nullptr;
 	int width, height;
-	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true);
+	bool hasTranspaernt = false;
+	unsigned char* pOpacityBuffer = nullptr;
+	for (auto& data : UnionSHP_Data[0])
+		if (data.Opacity != 255) 
+			hasTranspaernt = true;
+
+	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true,
+		hasTranspaernt ? &pOpacityBuffer : nullptr, palette);
 
 	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
 	int widthShadow, heightShadow;
 	if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		UnionSHP_GetAndClear(pBufferShadow, &widthShadow, &heightShadow, false, true);
-
 
 	if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")) // Voxel turret
 	{
@@ -801,9 +856,18 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 			unsigned char* pImage;
 			int width1, height1;
 
-			UnionSHP_GetAndClear(pImage, &width1, &height1);
+			unsigned char* pAlphaImage = nullptr;
+			if (hasTranspaernt)
+			{
+				pAlphaImage = GameCreateArray<unsigned char>(width * height);
+				memcpy(pAlphaImage, pOpacityBuffer, width * height);
+			}
+			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false, 
+				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 			DictName.Format("%s\233%d", ID, i);
-			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
+			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
+			if (pAlphaImage)
+				GameDeleteArray(pAlphaImage, width * height);
 		}
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -841,10 +905,19 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 
 			unsigned char* pImage;
 			int width1, height1;
-			UnionSHP_GetAndClear(pImage, &width1, &height1);
+			unsigned char* pAlphaImage = nullptr;
+			if (hasTranspaernt)
+			{
+				pAlphaImage = GameCreateArray<unsigned char>(width * height);
+				memcpy(pAlphaImage, pOpacityBuffer, width * height);
+			}
+			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false,
+				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 
 			DictName.Format("%s\233%d", ID, i);
-			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
+			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
+			if (pAlphaImage)
+				GameDeleteArray(pAlphaImage, width * height);
 
 			if (shadow)
 			{
@@ -858,18 +931,19 @@ void CLoadingExt::LoadBuilding_Normal(FString ID)
 		}
 		GameDelete(pBuffer);
 		GameDelete(pBufferShadow);
-
 	}
 	else // No turret
 	{
 		DictName.Format("%s\233%d", ID, 0);
-		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette);
+		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette, pOpacityBuffer);
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
 			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
+	if (pOpacityBuffer)
+		GameDelete(pOpacityBuffer);
 }
 
 void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
@@ -882,6 +956,9 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")
 			|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
+	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 	if (CINI::Art->GetBool(ArtID, "TerrainPalette"))
@@ -891,6 +968,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	}
 	GetFullPaletteName(PaletteName);
 	auto palette = PalettesManager::LoadPalette(PaletteName);
+	auto mainPalette = palette;
 
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
@@ -923,9 +1001,12 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
-		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, FString customPal = "", bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
+			int opacity = 255 - CINI::Art->GetInteger(name, "Translucency") * 256 / 100;
+			opacity = std::clamp(opacity, 0, 255);
 			name = CINI::Art->GetString(name, "Image", name);
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
@@ -983,28 +1064,33 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
+
+		Palette* thisPal = nullptr;
+		bool hasNewPal = pMixedPal != nullptr;
 		if (customPal != "")
 		{
-			if (auto thisPal = PalettesManager::LoadPalette(customPal))
+			thisPal = PalettesManager::LoadPalette(customPal);
+			if (thisPal && !hasNewPal)
 			{
-				std::vector<int> lookupTable = GeneratePalLookupTable(thisPal, palette);
-				int counter = 0;
-				for (int j = 0; j < header.Height; ++j)
+				pMixedPal = CreateBalancedPalette(palette, thisPal);
+				RemapImagePalette(pBuffer, header.Width, header.Height, thisPal, pMixedPal, false);
+				for (auto& added : UnionSHP_Data[0])
 				{
-					for (int i = 0; i < header.Width; ++i)
-					{
-						unsigned char& ch = pBuffer[counter];
-						ch = lookupTable[ch];
-						counter++;
-					}
+					RemapImagePalette(added.pBuffer, added.Width, added.Height, palette, pMixedPal, true);
 				}
+				palette = pMixedPal;
 			}
 		}
+		if (hasNewPal)
+		{
+			RemapImagePalette(pBuffer, header.Width, header.Height, thisPal ? thisPal : mainPalette, pMixedPal, true);
+		}
 
-
+		CurrentLoadingAnim.Replace("Damaged", "");
+		CurrentLoadingAnim.Replace("Garrisoned", "");
 		UnionSHP_Add(pBuffer, header.Width, header.Height, deltaX, deltaY, false, false,
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
-			CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"));
+			isBib ? 1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "ZAdjust"),
+			isBib ? -1000000000 : CINI::Art->GetInteger(ArtID, CurrentLoadingAnim + "YSort"), false, opacity, thisPal == nullptr);
 
 		if (shadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -1019,43 +1105,44 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 	{
 		FString damagedAnimkey = animkey + "Damaged";
 		CurrentLoadingAnim = animkey;
+		FString anim;
 		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					GetFullPaletteName(customPal);
-				}
-				int deltaX = CINI::Art->GetInteger(*pStr, "XDrawOffset");
-				int deltaY = CINI::Art->GetInteger(*pStr, "YDrawOffset");
-				if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
-				{
-					deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
-					deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
-				}
-
-				loadSingleFrameShape(*pStr, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(*pStr, "Shadow"));
+				anim = GetFinalLoopAnim(*pStr);
 			}
 		}
 		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
 		{
 			if (!CINI::FAData->GetBool(ignorekey, ID))
 			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				FString customPal = "";
-				if (!CINI::Art->GetBool(*pStr, "ShouldUseCellDrawer", true)) {
-					customPal = CINI::Art->GetString(*pStr, "CustomPalette", "anim.pal");
-					GetFullPaletteName(customPal);
-				}
-				loadSingleFrameShape(*pStr, nStartFrame, 0, 0, customPal);
+				anim = GetFinalLoopAnim(*pStr);
 			}
+		}
+
+		if (!anim.IsEmpty())
+		{
+			int nStartFrame = CINI::Art->GetInteger(anim, "LoopStart");
+			FString customPal = "";
+			if (!CINI::Art->GetBool(anim, "ShouldUseCellDrawer", true)) {
+				customPal = CINI::Art->GetString(anim, "CustomPalette", "anim.pal");
+				GetFullPaletteName(customPal);
+			}
+			int deltaX = CINI::Art->GetInteger(anim, "XDrawOffset");
+			int deltaY = CINI::Art->GetInteger(anim, "YDrawOffset");
+			if (animkey.Find("ActiveAnim") != -1 || animkey == "IdleAnim")
+			{
+				deltaX += CINI::Art->GetInteger(ArtID, animkey + "X");
+				deltaY += CINI::Art->GetInteger(ArtID, animkey + "Y");
+			}
+
+			loadSingleFrameShape(anim, nStartFrame, deltaX, deltaY, customPal, CINI::Art->GetBool(anim, "Shadow"));
 		}
 	};
 
-	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1;
+	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 1 
+		+ ((isPreOccupiedBunker && techLevel > -1) ? 2 : 0);
 	if (Variables::RulesMap.GetBool(ID, "Wall"))
 	{
 		nBldStartFrame--;
@@ -1089,20 +1176,27 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 		"IgnoreSuperAnim3",
 		"IgnoreSuperAnim4"
 	};
+	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
+		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1, true);
+	}
 	loadBuildingFrameShape(ImageID, nBldStartFrame, 0, 0, bHasShadow);
 	for (int i = 0; i < 9; ++i)
 	{
 		loadAnimFrameShape(AnimKeys[i], IgnoreKeys[i]);
 	}
-	if (auto pStr = CINI::Art->TryGetString(ArtID, "BibShape")) {
-		loadSingleFrameShape(*pStr, 1, 0, 0, "", bHasShadow, 1);
-	}
 
 	FString DictName;
 
-	unsigned char* pBuffer;
+	unsigned char* pBuffer = nullptr;
 	int width, height;
-	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true);
+	bool hasTranspaernt = false;
+	unsigned char* pOpacityBuffer = nullptr;
+	for (auto& data : UnionSHP_Data[0])
+		if (data.Opacity != 255)
+			hasTranspaernt = true;
+
+	UnionSHP_GetAndClear(pBuffer, &width, &height, false, false, true,
+		hasTranspaernt ? &pOpacityBuffer : nullptr, palette);
 
 	FString DictNameShadow;
 	unsigned char* pBufferShadow{ 0 };
@@ -1214,13 +1308,23 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 			unsigned char* pImage;
 			int width1, height1;
+			unsigned char* pAlphaImage = nullptr;
+			if (hasTranspaernt)
+			{
+				pAlphaImage = GameCreateArray<unsigned char>(width * height);
+				memcpy(pAlphaImage, pOpacityBuffer, width * height);
+			}
 
-			UnionSHP_GetAndClear(pImage, &width1, &height1);
+			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false,
+				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 			if (loadAsRubble)
 				DictName.Format("%s\233%d\233RUBBLE", ID, i);
 			else
 				DictName.Format("%s\233%d\233DAMAGED", ID, i);
-			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
+			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
+
+			if (pAlphaImage)
+				GameDeleteArray(pAlphaImage, width * height);
 		}
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
@@ -1259,13 +1363,22 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 
 			unsigned char* pImage;
 			int width1, height1;
-			UnionSHP_GetAndClear(pImage, &width1, &height1);
+			unsigned char* pAlphaImage = nullptr;
+			if (hasTranspaernt)
+			{
+				pAlphaImage = GameCreateArray<unsigned char>(width * height);
+				memcpy(pAlphaImage, pOpacityBuffer, width * height);
+			}
+			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false,
+				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 
 			if (loadAsRubble)
 				DictName.Format("%s\233%d\233RUBBLE", ID, i);
 			else
 				DictName.Format("%s\233%d\233DAMAGED", ID, i); 
-			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette);
+			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
+			if (pAlphaImage)
+				GameDeleteArray(pAlphaImage, width * height);
 
 			if (shadow)
 			{
@@ -1290,7 +1403,7 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			DictName.Format("%s\233%d\233RUBBLE", ID, 0);
 		else
 			DictName.Format("%s\233%d\233DAMAGED", ID, 0);
-		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette);
+		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette, pOpacityBuffer);
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
@@ -1301,6 +1414,8 @@ void CLoadingExt::LoadBuilding_Damaged(FString ID, bool loadAsRubble)
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
+	if (pOpacityBuffer)
+		GameDelete(pOpacityBuffer);
 }
 
 void CLoadingExt::LoadBuilding_Rubble(FString ID)
@@ -1344,7 +1459,8 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 	};
 
 	auto loadSingleFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0,
-		int deltaY = 0, bool shadow = false, int forceNewTheater = -1) -> bool
+		int deltaY = 0, bool shadow = false, int forceNewTheater = -1,
+		bool isBib = false) -> bool
 	{
 			bool applyNewTheater = CINI::Art->GetBool(name, "NewTheater");
 			name = CINI::Art->GetString(name, "Image", name);
@@ -1416,27 +1532,6 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 		return true;
 	};
 
-	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey)
-	{
-		FString damagedAnimkey = animkey + "Damaged";
-		if (auto pStr = CINI::Art->TryGetString(ArtID, damagedAnimkey))
-		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
-			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(*pStr, nStartFrame);
-			}
-		}
-		else if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
-		{
-			if (!CINI::FAData->GetBool(ignorekey, ID))
-			{
-				int nStartFrame = CINI::Art->GetInteger(*pStr, "LoopStart");
-				loadSingleFrameShape(*pStr, nStartFrame);
-			}
-		}
-	};
-
 	if (Variables::RulesMap.GetBool(ID, "LeaveRubble"))
 	{
 		int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + 3;
@@ -1447,7 +1542,8 @@ void CLoadingExt::LoadBuilding_Rubble(FString ID)
 			UnionSHP_GetAndClear(pBuffer, &width, &height);
 
 			FString DictName = ID + "\2330\233RUBBLE";
-			ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, pal);
+			unsigned char* tmp = nullptr;
+			ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, pal, tmp);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
@@ -1673,6 +1769,68 @@ void CLoadingExt::LoadInsignia(FString ID)
 	}
 }
 
+static int GetIFVTurretIndex(const char* infantrySection, const char* ifvSection)
+{
+	if (!infantrySection || !ifvSection || !*infantrySection || !*ifvSection)
+		return -1;
+
+	int ifvMode = Variables::RulesMap.GetInteger(infantrySection, "IFVMode", 0);
+	if (ifvMode < 0)
+		return -1;
+
+	int weaponSlot = ifvMode + 1; 
+	if (weaponSlot > 128) 
+		return -1;
+
+	bool isGunner = Variables::RulesMap.GetBool(ifvSection, "Gunner", false);
+
+	if (!isGunner)
+		return -1;
+
+	// ares mode
+	char keyName[64];
+	_snprintf_s(keyName, sizeof(keyName), "WeaponTurretIndex%d", weaponSlot);
+
+	int turretIndex = Variables::RulesMap.GetInteger(ifvSection, keyName, -1);
+	if (turretIndex >= 0)
+		return turretIndex;
+
+	const char* prefixList[] = {
+		"Normal", "Repair", "MachineGun", "Sniper", "Explode", "TerroristExplode",
+		"Chrono", "Pistol", "BrainBlast", "Flak", "Shock", "RadCannon", "Cow",
+		"Initiate", "Virus", "YuriPrime", "Guardian",
+		nullptr
+	};
+
+	const char* foundPrefix = nullptr;
+
+	for (int i = 0; prefixList[i] != nullptr; ++i)
+	{
+		const char* prefix = prefixList[i];
+		char weaponKey[64];
+		_snprintf_s(weaponKey, sizeof(weaponKey), "%sTurretWeapon", prefix);
+
+		int value = Variables::RulesMap.GetInteger(ifvSection, weaponKey, -1);
+		if (value == ifvMode)
+		{
+			foundPrefix = prefix;
+			break;
+		}
+	}
+
+	if (!foundPrefix)
+		return -1; 
+
+	char indexKey[64];
+	_snprintf_s(indexKey, sizeof(indexKey), "%sTurretIndex", foundPrefix);
+
+	turretIndex = Variables::RulesMap.GetInteger(ifvSection, indexKey, -1);
+	if (turretIndex < 0)
+		return -1;
+
+	return turretIndex;
+}
+
 void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 {
 	LoadInsignia(ID);
@@ -1682,6 +1840,15 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
+	int ifvTurIndex = -1;
+	if (Variables::RulesMap.GetBool(ID, "Gunner"))
+	{
+		auto types = STDHelpers::SplitString(Variables::RulesMap.GetString(ID, "InitialPayload.Types"));
+		if (!types.empty())
+		{
+			ifvTurIndex = GetIFVTurretIndex(types[0], ID);
+		}
+	}
 
 	if (CINI::Art->GetBool(ArtID, "Voxel")) // As VXL
 	{
@@ -1775,6 +1942,11 @@ void CLoadingExt::LoadVehicleOrAircraft(FString ID)
 
 			FString turFileName = ImageID + "tur.vxl";
 			FString turHVAName = ImageID + "tur.hva";
+			if (ifvTurIndex >= 0)
+			{
+				turFileName.Format("%stur%d.vxl", ImageID, ifvTurIndex);
+				turHVAName.Format("%stur%d.hva", ImageID, ifvTurIndex);
+			}
 			if (VoxelDrawer::LoadVXLFile(turFileName))
 			{
 				if (VoxelDrawer::LoadHVAFile(turHVAName))
@@ -2271,7 +2443,8 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, i
 	if (clip) TrimImageEdges(pData, pPal == &CMapDataExt::Palette_Shadow);
 }
 
-ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal)
+ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
+	int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer)
 {
 	auto& ret = CLoadingExt::GetBuildingClipImageDataFromMap(NameInDict);
 	ret.emplace_back(std::make_unique<ImageDataClassSafe>());
@@ -2279,6 +2452,11 @@ ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer
 	if (pBuffer)
 	{
 		SetImageDataSafe(pBuffer, pData, FullWidth, FullHeight, pPal);
+		if (pAlphaBuffer)
+		{
+			pData->pOpacity = std::unique_ptr<unsigned char[]>(new unsigned char[FullWidth * FullHeight]);
+			std::memcpy(pData->pOpacity.get(), pAlphaBuffer, FullWidth * FullHeight);
+		}
 	}
 	else
 	{
@@ -2443,16 +2621,17 @@ void CLoadingExt::ShrinkSHP(unsigned char* pIn, int InWidth, int InHeight, unsig
 }
 
 void CLoadingExt::UnionSHP_Add(unsigned char* pBuffer, int Width, int Height,
-	int DeltaX, int DeltaY, bool UseTemp, bool bShadow, int ZAdjust, int YSort, bool MainBody)
+	int DeltaX, int DeltaY, bool UseTemp, bool bShadow, int ZAdjust, int YSort,
+	bool MainBody, unsigned char Opacity, bool Remapable)
 {
 	if (bShadow && pBuffer)
-		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
+		UnionSHPShadow_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody, Opacity, Remapable });
 	else if (pBuffer)
-		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody });
+		UnionSHP_Data[UseTemp].push_back(SHPUnionData{ pBuffer,Width,Height,DeltaX,DeltaY, ZAdjust, YSort, MainBody, Opacity, Remapable });
 }
 
-void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth,
-	int* OutHeight, bool UseTemp, bool bShadow, bool bSort)
+void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
+	int* OutWidth, int* OutHeight, bool UseTemp, bool bShadow, bool bSort, unsigned char** pOutAlphaBuffer, Palette* pPal)
 {
 	auto& data = bShadow ? UnionSHPShadow_Data : UnionSHP_Data;
 	if (data[UseTemp].size() == 0)
@@ -2467,6 +2646,14 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 		pOutBuffer = data[UseTemp][0].pBuffer;
 		*OutWidth = data[UseTemp][0].Width;
 		*OutHeight = data[UseTemp][0].Height;
+		if (pOutAlphaBuffer && !*pOutAlphaBuffer)
+		{
+			size_t pixelCount = (size_t)data[UseTemp][0].Width * data[UseTemp][0].Height;
+			unsigned char* alpha = GameCreateArray<unsigned char>(pixelCount);
+			memset(alpha, data[UseTemp][0].Opacity, pixelCount);
+			*pOutAlphaBuffer = alpha;
+		}
+
 		data[UseTemp].clear();
 		return;
 	}
@@ -2474,14 +2661,35 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 	// For each shp, we make their center at the same point, this will give us proper result.
 	int W = 0, H = 0;
 
-	for (auto& data : data[UseTemp])
+	for (auto& img : data[UseTemp])
 	{
-		if (W < data.Width + 2 * abs(data.DeltaX)) W = data.Width + 2 * abs(data.DeltaX);
-		if (H < data.Height + 2 * abs(data.DeltaY)) H = data.Height + 2 * abs(data.DeltaY);
+		if (W < img.Width + 2 * abs(img.DeltaX)) W = img.Width + 2 * abs(img.DeltaX);
+		if (H < img.Height + 2 * abs(img.DeltaY)) H = img.Height + 2 * abs(img.DeltaY);
 	}
 
 	// just make it work like unsigned char[W][H];
-	pOutBuffer = GameCreateArray<unsigned char>(W * H);
+	pOutBuffer = GameCreateArray<unsigned char>(W * H); 
+	memset(pOutBuffer, 0, W * H);
+
+	unsigned char* alphaBuffer = nullptr;
+	unsigned char* alphaTempBuffer = nullptr;
+	if (pOutAlphaBuffer)
+	{
+		if (!*pOutAlphaBuffer)
+		{
+			alphaBuffer = GameCreateArray<unsigned char>(W * H);
+			memset(alphaBuffer, 0, W * H);
+			*pOutAlphaBuffer = alphaBuffer;
+		}
+		else
+		{
+			alphaTempBuffer = *pOutAlphaBuffer;
+			alphaBuffer = GameCreateArray<unsigned char>(W * H);
+			memset(alphaBuffer, 0, W * H);
+			*pOutAlphaBuffer = alphaBuffer;
+		}
+	}
+
 	*OutWidth = W;
 	*OutHeight = H;
 
@@ -2544,19 +2752,127 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer, int* OutWidth
 	}
 
 	// Image[X][Y] <=> pOutBuffer[Y * W + X];
-	for (auto& data : data[UseTemp])
+	bool lastImgRemapable = true;
+	for (const auto& img : data[UseTemp])
 	{
-		int nStartX = ImageCenterX - data.Width / 2 + data.DeltaX;
-		int nStartY = ImageCenterY - data.Height / 2 + data.DeltaY;
+		int nStartX = ImageCenterX - img.Width / 2 + img.DeltaX;
+		int nStartY = ImageCenterY - img.Height / 2 + img.DeltaY;
 
-		for (int j = 0; j < data.Height; ++j)
-			for (int i = 0; i < data.Width; ++i)
-				if (auto nPalIdx = data.pBuffer[j * data.Width + i])
-					pOutBuffer[(nStartY + j) * W + nStartX + i] = nPalIdx;
+		unsigned char layerOpacity = img.Opacity;
 
-		GameDeleteArray(data.pBuffer, data.Width * data.Height);
+		for (int j = 0; j < img.Height; ++j)
+		{
+			int dstY = nStartY + j;
+			if (dstY < 0 || dstY >= H) continue;
+
+			for (int i = 0; i < img.Width; ++i)
+			{
+				unsigned char srcPal = img.pBuffer[j * img.Width + i];
+				if (srcPal == 0) continue;
+
+				//srcPal = 16;
+
+				int dstX = nStartX + i;
+				if (dstX < 0 || dstX >= W) continue;
+
+				size_t dstIdx = (size_t)dstY * W + dstX;
+
+				unsigned char& dstPal = pOutBuffer[dstIdx];
+
+				if (alphaBuffer)
+				{
+					if (alphaTempBuffer)
+					{
+						alphaBuffer[dstIdx] = alphaTempBuffer[j * img.Width + i];
+					}
+					else
+					{
+						unsigned int a_dst = alphaBuffer[dstIdx];
+						unsigned int a_src = layerOpacity;
+
+						unsigned int a_out = a_src + (a_dst * (255 - a_src)) / 255;
+
+						if (a_out > 255) a_out = 255;
+
+						alphaBuffer[dstIdx] = (unsigned char)a_out;
+					}
+				}
+
+				if (dstPal == 0 || layerOpacity == 255)
+				{
+					dstPal = srcPal;
+				}
+				else
+				{
+					bool srcPlayer = (srcPal >= 16 && srcPal <= 31 && img.Remapable);
+					bool dstPlayer = (dstPal >= 16 && dstPal <= 31 && lastImgRemapable);
+
+					if (srcPlayer || dstPlayer)
+					{
+						if (srcPlayer && dstPlayer)
+						{
+							float a_src = layerOpacity / 255.0f;
+							float mixed = (1.0f - a_src) * dstPal + a_src * srcPal;
+							int newIdx = (int)(mixed + 0.5f);
+							if (newIdx < 16) newIdx = 16;
+							if (newIdx > 31) newIdx = 31;
+							dstPal = (unsigned char)newIdx;
+						}
+						else if (srcPlayer)
+						{
+							dstPal = srcPal;
+						}
+					}
+					else
+					{
+						BGRStruct bg = pPal->Data[dstPal]; 
+						float bg_r = bg.R, bg_g = bg.G, bg_b = bg.B;
+
+						BGRStruct fg = pPal->Data[srcPal];
+						float fg_r = fg.R, fg_g = fg.G, fg_b = fg.B;
+
+						float a_fg = layerOpacity / 255.0f;
+						float a_bg = 1.0f - a_fg;
+
+						float mix_r = a_bg * bg_r + a_fg * fg_r;
+						float mix_g = a_bg * bg_g + a_fg * fg_g;
+						float mix_b = a_bg * bg_b + a_fg * fg_b;
+
+						unsigned char best = 0;
+						double minDist = 1e30;
+
+						for (int k = 0; k < 256; ++k)
+						{
+							if (k >= 16 && k <= 31) continue; 
+
+							BGRStruct c = pPal->Data[k];
+							double dr = mix_r - c.R;
+							double dg = mix_g - c.G;
+							double db = mix_b - c.B;
+							double dist = dr * dr + dg * dg + db * db;
+
+							if (dist < minDist)
+							{
+								minDist = dist;
+								best = (unsigned char)k;
+							}
+						}
+
+						dstPal = best;
+					}
+				}
+			}
+		}
+
+		GameDeleteArray(img.pBuffer, img.Width * img.Height);
+		if (alphaTempBuffer)
+		{
+			GameDeleteArray(alphaTempBuffer, img.Width* img.Height);
+			alphaTempBuffer = nullptr;
+		}
+
+		lastImgRemapable = img.Remapable;
 	}
-
 	data[UseTemp].clear();
 }
 
@@ -2749,8 +3065,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 	if (minX > maxX || minY > maxY)
 	{
-		if (!shadow)
-			invalidateImage();
+		invalidateImage();
 		return;
 	}
 
@@ -2770,8 +3085,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 
 	if (newW <= 0 || newH <= 0)
 	{
-		if (!shadow)
-			invalidateImage();
+		invalidateImage();
 		return;
 	}
 
@@ -2796,7 +3110,7 @@ void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 	SetValidBufferSafe(pData, newW, newH);
 }
 
-void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer,int& width,int& height)
+void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer)
 {
 	if (!pBuffer || width <= 0 || height <= 0)
 		return;
@@ -2842,6 +3156,11 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer,int& width,int& height)
 		return;
 
 	unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+	unsigned char* newSecondBuffer = nullptr;
+	if (pSecondBuffer && *pSecondBuffer)
+	{
+		newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
+	}
 
 	for (int y = 0; y < newH; ++y)
 	{
@@ -2851,9 +3170,22 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer,int& width,int& height)
 			pBuffer + srcY * oldW + cropLR,
 			newW
 		);
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			std::memcpy(
+				newSecondBuffer + y * newW,
+				*pSecondBuffer + srcY * oldW + cropLR,
+				newW
+			);
+		}
 	}
 
-	GameDeleteArray(pBuffer, newW * newH);
+	GameDeleteArray(pBuffer, oldW * oldH);
+	if (pSecondBuffer && *pSecondBuffer)
+	{
+		GameDeleteArray(*pSecondBuffer, oldW * oldH);
+		*pSecondBuffer = newSecondBuffer;
+	}
 	pBuffer = newBuffer;
 
 	width = newW;
@@ -3002,6 +3334,14 @@ int CLoadingExt::ColorDistance(const ColorStruct& color1, const ColorStruct& col
 	return diffRed * diffRed + diffGreen * diffGreen + diffBlue * diffBlue;
 }
 
+int CLoadingExt::ColorDistance(const BGRStruct& color1, const BGRStruct& color2)
+{
+	int diffRed = color1.R - color2.R;
+	int diffGreen = color1.G - color2.G;
+	int diffBlue = color1.B - color2.B;
+	return diffRed * diffRed + diffGreen * diffGreen + diffBlue * diffBlue;
+}
+
 std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* second)
 {
 	if (!first || !second) {
@@ -3030,6 +3370,172 @@ std::vector<int> CLoadingExt::GeneratePalLookupTable(Palette* first, Palette* se
 	}
 
 	return lookupTable;
+}
+
+struct ColorWithCount {
+	BGRStruct color;
+	int count = 1; 
+};
+
+bool CLoadingExt::AreColorsVeryClose(const BGRStruct& a, const BGRStruct& b) {
+	int d = ColorDistance(a, b);
+	return d <= 3 * 3; 
+}
+
+Palette* CLoadingExt::CreateBalancedPalette(const Palette* palA, const Palette* palB)
+{
+	Palette* result = GameCreate<Palette>();
+	PalettesManager::CalculatedMixedPalettes.push_back(result);
+
+	result->Data[0] = BGRStruct(0, 0, 0);
+
+	for (int i = 16; i < 32; ++i) {
+		result->Data[i] = palA->Data[i];
+	}
+
+	struct ColorNode {
+		BGRStruct color;
+		int count;
+		float hue;
+	};
+
+	std::vector<ColorNode> colors;
+	colors.reserve(512);
+
+	auto add_palette = [&](const Palette* pal) {
+		for (int i = 1; i < 256; ++i) {
+			if (i >= 16 && i < 32) continue;
+
+			bool found = false;
+			for (auto& c : colors) {
+				if (AreColorsVeryClose(c.color, pal->Data[i])) {
+					c.count++;
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				BGRStruct col = pal->Data[i];
+
+				float r = col.R / 255.f;
+				float g = col.G / 255.f;
+				float b = col.B / 255.f;
+
+				float maxc = std::max({ r, g, b });
+				float minc = std::min({ r, g, b });
+				float delta = maxc - minc;
+
+				float hue = 0.f;
+				if (delta > 0.0001f) {
+					if (maxc == r)
+						hue = fmodf((g - b) / delta, 6.f);
+					else if (maxc == g)
+						hue = (b - r) / delta + 2.f;
+					else
+						hue = (r - g) / delta + 4.f;
+					hue *= 60.f;
+					if (hue < 0) hue += 360.f;
+				}
+
+				colors.push_back({ col, 1, hue });
+			}
+		}
+	};
+
+	add_palette(palA);
+	add_palette(palB);
+
+	if (colors.empty())
+		return result;
+
+	const int target = 224;
+
+	std::sort(colors.begin(), colors.end(),
+		[](const ColorNode& a, const ColorNode& b) {
+		return a.hue < b.hue;
+	});
+
+	int totalWeight = 0;
+	for (auto& c : colors)
+		totalWeight += c.count;
+
+	std::vector<BGRStruct> selected;
+	selected.reserve(target);
+
+	int cumulative = 0;
+	int idx = 0;
+
+	for (int i = 0; i < target; ++i) {
+
+		int threshold = (int)((long long)totalWeight * i / target);
+
+		while (idx < (int)colors.size() - 1 &&
+			cumulative + colors[idx].count <= threshold)
+		{
+			cumulative += colors[idx].count;
+			idx++;
+		}
+
+		selected.push_back(colors[idx].color);
+	}
+
+	int write_idx = 1;
+	for (auto& c : selected) {
+		if (write_idx >= 16 && write_idx < 32)
+			write_idx = 32;
+		if (write_idx >= 256)
+			break;
+
+		result->Data[write_idx++] = c;
+	}
+
+	return result;
+}
+
+void CLoadingExt::RemapImagePalette(
+	unsigned char* pBuffer,
+	int width,
+	int height,
+	const Palette* oldPalette,
+	const Palette* newPalette, 
+	bool remapable)
+{
+	if (!pBuffer || !oldPalette || !newPalette) return;
+
+	int lookup[256]{};
+
+	lookup[0] = 0;
+
+	if (remapable)
+		for (int i = 16; i < 32; ++i) {
+			lookup[i] = i; 
+		}
+
+	for (int i = 1; i < 256; ++i) {
+		if (remapable && i >= 16 && i < 32) continue;
+
+		const BGRStruct& target = oldPalette->Data[i];
+		int minDist = INT_MAX;
+		int best = i; 
+
+		for (int j = 1; j < 256; ++j) {
+			if (j >= 16 && j < 32) continue;
+			int dist = ColorDistance(target, newPalette->Data[j]);
+			if (dist < minDist) {
+				minDist = dist;
+				best = j;
+			}
+		}
+
+		lookup[i] = best;
+	}
+
+	const int total = width * height;
+	for (int i = 0; i < total; ++i) {
+		unsigned char oldIdx = pBuffer[i];
+		pBuffer[i] = static_cast<unsigned char>(lookup[oldIdx]);
+	}
 }
 
 void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** ppBuffer, const ShapeHeader& header)
@@ -3631,6 +4137,12 @@ unsigned char* CLoadingExt::ClipImageHorizontal(
 	int& outWidth
 )
 {
+	if (!pBuffer)
+	{
+		outWidth = 0;
+		return nullptr;
+	}
+
 	cutLeft = std::max(0, cutLeft);
 	cutRight = std::min(width, cutRight);
 
