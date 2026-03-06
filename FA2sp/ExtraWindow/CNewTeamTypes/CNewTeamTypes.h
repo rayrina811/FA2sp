@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Helpers/MultimapHelper.h"
 #include "../../Helpers/FString.h"
+#include "../Common.h"
 
 // A static window class
 class CNewTeamTypes
@@ -181,5 +182,6 @@ private:
     static bool m_dragging;
     static POINT m_dragOffset;
     static HWND m_hDragGhost;
+    static TargetHighlighter hl;
 };
 
