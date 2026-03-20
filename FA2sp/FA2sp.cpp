@@ -5,6 +5,7 @@
 #include "Helpers/MutexHelper.h"
 #include "Helpers/InstructionSet.h"
 #include "Helpers/STDHelpers.h"
+#include "Helpers/WinVer.h"
 #include "Miscs/Palettes.h"
 #include "Miscs/VoxelDrawer.h"
 #include "Miscs/Exception.h"
@@ -27,6 +28,7 @@ std::string FA2sp::STDBuffer;
 ppmfc::CString FA2sp::Buffer;
 void* FA2sp::pExceptionHandler = nullptr;
 bool FA2sp::g_VEH_Enabled = true;
+WindowsOSInfo FA2sp::WinInfo = {};
 
 bool ExtConfigs::IsQuitingProgram = false;
 bool ExtConfigs::BrowserRedraw;
@@ -180,6 +182,7 @@ bool ExtConfigs::InGameDisplay_Bridge;
 bool ExtConfigs::InGameDisplay_AnimAdjust;
 bool ExtConfigs::InGameDisplay_Cloakable;
 bool ExtConfigs::InGameDisplay_RemapableOverlay;
+bool ExtConfigs::DisplayBridgeOverlay;
 bool ExtConfigs::ObjectBrowser_Ore_RandomPlacement;
 bool ExtConfigs::ObjectBrowser_Ore_ExtraSupport;
 bool ExtConfigs::FlatToGroundHideExtra;
@@ -203,6 +206,7 @@ bool ExtConfigs::EnableDarkMode;
 bool ExtConfigs::EnableDarkMode_Init;
 bool ExtConfigs::EnableDarkMode_DimMap;
 bool ExtConfigs::ShrinkTilesInTileSetBrowser;
+bool ExtConfigs::DisableAutoConnectWall;
 bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 
@@ -342,6 +346,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InGameDisplay_AnimAdjust = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.AnimAdjust", true);
 	ExtConfigs::InGameDisplay_Cloakable = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Cloakable");
 	ExtConfigs::InGameDisplay_RemapableOverlay = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.RemapableOverlay");
+	ExtConfigs::DisplayBridgeOverlay = CINI::FAData->GetBool("ExtConfigs", "DisplayBridgeOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 
@@ -438,7 +443,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
-	ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
+	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
 	ExtConfigs::SaveMaps_BetterMapPreview = CINI::FAData->GetBool("ExtConfigs", "SaveMap.BetterMapPreview");
@@ -758,6 +763,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayBridgeOverlay", "Display invisible bridge overlays in numbers"),
+		.IniKey = "DisplayBridgeOverlay",
+		.Value = &ExtConfigs::DisplayBridgeOverlay,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseDefaultUnitImage", "Display default images for vehicles, infantry, aircraft without images"),
 		.IniKey = "UseDefaultUnitImage",
 		.Value = &ExtConfigs::UseDefaultUnitImage,
@@ -1011,12 +1023,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
-		.IniKey = "ArtImageSwap",
-		.Value = &ExtConfigs::ArtImageSwap,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.ArtImageSwap", "Use Image= in art(md).ini (Phobos B25+)"),
+	//	.IniKey = "ArtImageSwap",
+	//	.Value = &ExtConfigs::ArtImageSwap,
+	//	.Type = ExtConfigs::SpecialOptionType::ReloadMap
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.AllowIncludes", "Load include INIs (Ares/Phobos B34+)"),
@@ -1380,6 +1392,23 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	Logger::Initialize();
 	Logger::Info(APPLY_INFO);
 	Logger::Wrap(1);
+
+	FA2sp::WinInfo = WindowsOSInfo::GetDetailedWindowsVersion();
+
+	if (!FA2sp::WinInfo.isValid)
+	{
+		Logger::Raw("Failed to get Windows version information\n");
+	}
+	std::string output = FA2sp::WinInfo.friendlyName + " Build " + std::to_string(FA2sp::WinInfo.buildNumber);
+	if (FA2sp::WinInfo.revision > 0)
+	{
+		output += "." + std::to_string(FA2sp::WinInfo.revision);
+	}
+	if (!FA2sp::WinInfo.csdVersion.empty())
+	{
+		output += " " + FA2sp::WinInfo.csdVersion;
+	}
+	Logger::Raw("[Info] Windows version: %s\n", output.c_str());
 
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());

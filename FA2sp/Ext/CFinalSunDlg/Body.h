@@ -17,24 +17,41 @@
 #include <CMapData.h>
 #include <unordered_set>
 #include <unordered_map>
+class CTechnoDialog;
 
-class NOVTABLE CFinalSunDlgExt : CFinalSunDlg
+struct CheckButtonInfo {
+    HWND hParent;
+    UINT cmdID;
+    int index;
+    bool isChecked;
+    void* pExternalBool;
+};
+
+class NOVTABLE CFinalSunDlgExt : public CFinalSunDlg
 {
 public:
+    static CFinalSunDlgExt* GetExtension()
+    {
+        return reinterpret_cast<CFinalSunDlgExt*>(&CFinalSunDlg::Instance());
+    }
     static void ProgramStartupInit();
 
+    static bool HasMinimap;
     static int CurrentLighting;
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
+    static std::map<UINT, CheckButtonInfo> CheckButtonMap;
+    static std::unique_ptr<CTechnoDialog> TechnoDialog;
 
     static bool CheckProperty_Vehicle(CUnitData data);
     static bool CheckProperty_Aircraft(CAircraftData data);
     static bool CheckProperty_Building(CBuildingData data);
     static bool CheckProperty_Infantry(CInfantryData data);
-
+    static void InitToolbar();
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
     BOOL OnCommandExt(WPARAM wParam, LPARAM lParam);
+    void CheckToolBarButton(UINT dwID, bool check);
 };
 
 class ConnectedTiles
@@ -266,11 +283,6 @@ private:
     void Redraw_MultiSelection();
     void Redraw_Annotation();
 
-    bool DoPropertyBrush_Building();
-    bool DoPropertyBrush_Infantry();
-    bool DoPropertyBrush_Vehicle();
-    bool DoPropertyBrush_Aircraft();
-
     int PropagateFirstNonZeroIcon(HTREEITEM hItem);
     void UpdateTreeIconsForSubtree(HTREEITEM hItem);
 
@@ -401,10 +413,10 @@ public:
     static void ApplyChangeOwner(int X, int Y);
     static void ApplyTag(int X, int Y, FString tag);
     static void ApplyPropertyBrush(int X, int Y);
-    static void ApplyPropertyBrush_Building(int nIndex);
-    static void ApplyPropertyBrush_Infantry(int nIndex);
-    static void ApplyPropertyBrush_Aircraft(int nIndex);
-    static void ApplyPropertyBrush_Vehicle(int nIndex);
+    static void ApplyPropertyBrush_Building(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Infantry(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Aircraft(int nIndex, bool useTechnoDlg = false);
+    static void ApplyPropertyBrush_Vehicle(int nIndex, bool useTechnoDlg = false);
     static void ApplyPropertyBrush_Building(CBuildingData& data);
     static void ApplyPropertyBrush_Infantry(CInfantryData& data);
     static void ApplyPropertyBrush_Aircraft(CAircraftData& data);
@@ -425,6 +437,11 @@ public:
     static void BatchAddMultiSelection(int X, int Y, bool add);
     static void SquareBatchAddMultiSelection(int X, int Y, bool add);
     static void Redraw_ConnectedTile(CViewObjectsExt* pThis);
+
+    static bool DoPropertyBrush_Building();
+    static bool DoPropertyBrush_Infantry();
+    static bool DoPropertyBrush_Vehicle();
+    static bool DoPropertyBrush_Aircraft();
     
     static bool IsIgnored(const char* pItem);
 
@@ -468,4 +485,5 @@ public:
     /// </param>
     /// <returns>The index of side guessed. -1 if cannot be guessed.</returns>
     static int GuessGenericSide(const char* pRegName, int nType);
+    static int GetFinalAlert2Side(const char* pRegName);
 };

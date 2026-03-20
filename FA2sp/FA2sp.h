@@ -12,6 +12,7 @@
 #include <CObjectDatas.h>
 
 typedef unsigned char byte;
+struct WindowsOSInfo;
 
 #define RIPARIUS_BEGIN 102
 #define RIPARIUS_END 121
@@ -34,6 +35,7 @@ public:
     static bool g_VEH_Enabled;
     static void ExtConfigsInitialize();
     static bool IsDarkMode();
+    static WindowsOSInfo WinInfo;
 };
 
 class ExtConfigs
@@ -191,6 +193,7 @@ public:
     static bool InGameDisplay_AnimAdjust;
     static bool InGameDisplay_Cloakable;
     static bool InGameDisplay_RemapableOverlay;
+    static bool DisplayBridgeOverlay;
     static bool ObjectBrowser_Ore_RandomPlacement;
     static bool ObjectBrowser_Ore_ExtraSupport;
     static bool FlatToGroundHideExtra;
@@ -213,6 +216,7 @@ public:
     static bool EnableDarkMode;
     static bool EnableDarkMode_Init;
     static bool EnableDarkMode_DimMap;
+    static bool DisableAutoConnectWall;
     static bool ShrinkTilesInTileSetBrowser;
     static bool UTF8Support_InferEncoding;
     static bool UTF8Support_AlwaysSaveAsUTF8;

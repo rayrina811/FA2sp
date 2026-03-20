@@ -23,7 +23,11 @@ constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
 
 DEFINE_HOOK(4D1E34, CMinimap_Update_NOTOPMOST, 7)
 {
+	CFinalSunDlgExt::HasMinimap = true;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, true);
 	CFinalSunDlg::Instance->MyViewFrame.Minimap.SetWindowPos(ppmfc::CWnd::FromHandle(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+	::PostMessage(CFinalSunDlg::Instance->MyViewFrame.Minimap, WM_APP + 100, NULL, NULL);
+
 	return 0;
 }
 
@@ -160,6 +164,11 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 		borderRect.right = bottomRight2.x;
 		borderRect.bottom = bottomRight2.y;
 
+		borderRect.left *= CMinimapExt::CurrentScale;
+		borderRect.top *= CMinimapExt::CurrentScale;
+		borderRect.right *= CMinimapExt::CurrentScale;
+		borderRect.bottom *= CMinimapExt::CurrentScale;
+
 		pDC->Draw3dRect(&borderRect, RGB(0, 0, 255), RGB(0, 0, 200));
 	}	
 
@@ -180,6 +189,11 @@ DEFINE_HOOK(4D1B50, CMinimap_OnDraw, 7)
 	selRect.top = top;
 	selRect.right = right;
 	selRect.bottom = bottom;
+
+	selRect.left *= CMinimapExt::CurrentScale;
+	selRect.top *= CMinimapExt::CurrentScale;
+	selRect.right *= CMinimapExt::CurrentScale;
+	selRect.bottom *= CMinimapExt::CurrentScale;
 
 	pDC->Draw3dRect(&selRect, RGB(200, 0, 0), RGB(120, 0, 0));
 
@@ -214,6 +228,14 @@ DEFINE_HOOK(4D1E70, CMinimap_OnMouseMove, 7)
 	}
 
 	return 0x4D1F57;
+}
+
+DEFINE_HOOK(4D1E4A, CMinimap_OnSysCommand, 5)
+{
+	ShowWindow(CFinalSunDlg::Instance->MyViewFrame.Minimap, SW_HIDE);
+	CFinalSunDlgExt::HasMinimap = false;
+	CFinalSunDlgExt::GetExtension()->CheckToolBarButton(30107, false);
+	return 0x4D1E5B;
 }
 
 //

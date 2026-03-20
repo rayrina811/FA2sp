@@ -447,6 +447,11 @@ DEFINE_HOOK(46DE00, CIsoView_Draw_Begin, 7)
 		PalettesManager::NeedReloadLighting = false;
 	}
 
+	if (CMapDataExt::Init_OpenMinimap)
+	{
+		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
+		CMapDataExt::Init_OpenMinimap = false;
+	}
 	if (INIIncludes::MapINIWarn)
 	{
 		if (!CINI::CurrentDocument->GetBool("FA2spVersionControl", "MapIncludeWarned"))
@@ -703,6 +708,28 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 			}
 		}
 	}
+
+	std::erase_if(CLoadingExt::IFVTurrets, [](auto& pair)
+	{
+		auto& ifv = pair.first;
+		auto& tur = pair.second;
+
+		if (CLoadingExt::GetIFVTurretIndex(ifv) != tur)
+		{
+			CLoadingExt::LoadedObjects.erase(ifv);
+			return true;
+		}
+		return false;
+	});
+	std::erase_if(CLoadingExt::InitialOccupiedBuildings, [](auto& building)
+	{
+		if (!CLoadingExt::IsPreOccupiedBunker(building))
+		{
+			CLoadingExt::LoadedObjects.erase(building);
+			return true;
+		}
+		return false;
+	});
 
 	auto isCoordInFullMap = [](int X, int Y)
 	{
@@ -1931,7 +1958,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
+							if (ExtConfigs::DisplayBridgeOverlay ||
+								!(cellNextExt.NewOverlay >= 0x4a && cellNextExt.NewOverlay <= 0x65) &&
 								!(cellNextExt.NewOverlay >= 0xcd && cellNextExt.NewOverlay <= 0xec))
 							{
 								char cd[10];
@@ -1988,7 +2016,8 @@ DEFINE_HOOK(46EA64, CIsoView_Draw_MainLoop, 6)
 						}
 						if (!pData || !pData->pImageBuffer)
 						{
-							if (!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
+							if (ExtConfigs::DisplayBridgeOverlay ||
+								!(cellExt->NewOverlay >= 0x4a && cellExt->NewOverlay <= 0x65) &&
 								!(cellExt->NewOverlay >= 0xcd && cellExt->NewOverlay <= 0xec))
 							{
 								char cd[10];

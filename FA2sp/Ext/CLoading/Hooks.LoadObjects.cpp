@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../CMapData/Body.h"
 #include "../../Miscs/Hooks.INI.h"
+#include "../../Helpers/Helper.h"
 
 DEFINE_HOOK(4808A0, CLoading_LoadObjects, 5)
 {
@@ -99,10 +100,11 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
     GET(const char*, mapPath, EDI);
 
     Logger::Debug("CLoading::LoadMap(): Loading %s\n", mapPath);
+    TempValueHolder tmp(CLoadingExt::IsReloading, true);
     CViewObjectsExt::InitializeOnUpdateEngine();
     CIsoView::CurrentCommand->Command = 0;
 
-    if (ExtConfigs::ReloadGameFromMapFolder)
+    if (ExtConfigs::ReloadGameFromMapFolder && !CMapDataExt::IsImportingMap)
     {
         std::string buffer = std::string(mapPath);
         buffer = buffer.substr(0, buffer.find_last_of("\\") + 1);
@@ -164,6 +166,9 @@ DEFINE_HOOK(49D63A, CLoading_LoadMap_ReloadGame, 5)
             }
         }
     }
+
+    if (CMapDataExt::IsImportingMap)
+        CMapDataExt::IsImportingMap = false;
 
     INIIncludes::SkipBracketFix = true;
     CMapDataExt::IsLoadingMapFile = true;

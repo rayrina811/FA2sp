@@ -101,14 +101,15 @@ POPUP "Map tools"
 POPUP "Options"
 {
 	MENUITEM "Settings",  40004
-	MENUITEM "Show minimap\tF2",  40024
+	MENUITEM "Show Minimap\tF2",  40024
 	// MENUITEM "Easy mode",  40023
 	MENUITEM "Sounds",  40118
 	MENUITEM "Show Building Outline",  40123
-	MENUITEM "Disable AutoShore\tCtrl+A",  40104
-	MENUITEM "Disable AutoLat\tCtrl+L",  40105
+	MENUITEM "Disable Auto Shore\tCtrl+A",  40104
+	MENUITEM "Disable Auto LAT\tCtrl+L",  40105
+	MENUITEM "Disable Auto Connect Wall",  30110
     // MENUITEM "Disable Slope Correction",  40120
-	MENUITEM "Select AutoShore Type",  40157
+	MENUITEM "Select Auto Shore Type",  40157
 	MENUITEM "Show Object View Cameo",  40159
 	MENUITEM "Preferences\tCtrl+Shift+P",  40162
 }
@@ -134,8 +135,8 @@ POPUP "Layers"
 	MENUITEM SEPARATOR
 	MENUITEM "MoneyOnMap\tAlt+3",  30007
 	MENUITEM "Bounds\tAlt+4",  30012
-	MENUITEM "Veterancy\tAlt+6",  30021
-	MENUITEM "Rock Cells\tAlt+5",  30014
+	MENUITEM "Veterancy\tAlt+5",  30021
+	MENUITEM "Rock Cells\tAlt+6",  30014
 	MENUITEM "Shadows\tAlt+7",  30022
 	MENUITEM "AlphaImages\tAlt+8",  30023
 	MENUITEM "Annotations\tAlt+9",  30024

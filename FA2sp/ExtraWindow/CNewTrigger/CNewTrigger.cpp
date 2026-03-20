@@ -370,6 +370,24 @@ void CNewTrigger::Close(HWND& hWnd)
         (LONG_PTR)OrigDragDotProc
     );
     SetWindowLongPtr(hDragPoint, GWLP_USERDATA, 0);
+    if (m_hDragGhost)
+    {
+        m_dragging = false;
+        m_actionPressed = false;
+        m_eventPressed = false;
+        m_pressed = false;
+
+        SetWindowLongPtr(
+            m_hDragGhost,
+            GWLP_WNDPROC,
+            (LONG_PTR)OrigDragingDotProc
+        );
+        SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+        DestroyWindow(m_hDragGhost);
+        m_hDragGhost = nullptr;
+        hl.Detach();
+    }
     EndDialog(hWnd, NULL);
 
     CurrentTrigger = nullptr;
@@ -446,6 +464,11 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
             if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD)
             {
                 m_dragging = true;
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
                 m_hDragGhost = CreateWindowEx(
                     WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                     "STATIC",
@@ -506,12 +529,12 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
                 {
                     if (!hl.IsActive())
                     {
-                        hl.Attach(target.hWnd);
+                        hl.Attach(target);
                     }
-                    else if (!hl.IsSameTarget(target.hWnd))
+                    else if (!hl.IsSameTarget(target))
                     {
                         hl.Detach();
-                        hl.Attach(target.hWnd);
+                        hl.Attach(target);
                     }
                 }
                 else if (hl.IsActive())
@@ -523,12 +546,34 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
 
         return 0;
     }
+    case WM_CAPTURECHANGED:
+    {
+        if (m_dragging)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+        }
+        break;
+    }
     case WM_LBUTTONUP:
     {
         if (!m_pressed)
             break;
 
-        ReleaseCapture();
         m_pressed = false;
 
         POINT pt;
@@ -705,8 +750,8 @@ LRESULT CALLBACK CNewTrigger::HandleDragDot(HWND hWnd, UINT msg, WPARAM wParam, 
             CIsoView::CurrentCommand->Command = 0x25;
             CIsoView::CurrentCommand->Type = GetCurrentInstanceIndex();
         }
-
-        m_dragging = false;     
+        m_dragging = false;
+        ReleaseCapture();     
         return 0;
     }
     }
@@ -854,6 +899,27 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
     }
     case WM_MOUSEMOVE:
     {
+        if (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) && m_hDragGhost)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+            break;
+        }
+
         if (!m_actionPressed)
             break;
 
@@ -894,7 +960,11 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
 
                 SelectObject(hdcScreen, hOld);
                 ReleaseDC(NULL, hdcScreen);
-
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
                 m_hDragGhost = CreateWindowEx(
                     WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                     WC_STATIC,
@@ -942,12 +1012,12 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
             {
                 if (!hl.IsActive())
                 {
-                    hl.Attach(target.hWnd);
+                    hl.Attach(target);
                 }
-                else if (!hl.IsSameTarget(target.hWnd))
+                else if (!hl.IsSameTarget(target))
                 {
                     hl.Detach();
-                    hl.Attach(target.hWnd);
+                    hl.Attach(target);
                 }
             }
             else if (hl.IsActive())
@@ -967,6 +1037,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
 
         if (m_dragging)
         {
+            m_dragging = false;
             ReleaseCapture();
 
             POINT pt;
@@ -1024,7 +1095,6 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxAction(HWND hWnd, UINT message, WPARA
                     }
                 }
             }
-            m_dragging = false;
         }
         else
         {
@@ -1089,6 +1159,27 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
     }
     case WM_MOUSEMOVE:
     {
+        if (!(GetAsyncKeyState(VK_LBUTTON) & 0x8000) && m_hDragGhost)
+        {
+            m_dragging = false;
+            m_actionPressed = false;
+            m_eventPressed = false;
+            m_pressed = false;
+            ReleaseCapture();
+
+            SetWindowLongPtr(
+                m_hDragGhost,
+                GWLP_WNDPROC,
+                (LONG_PTR)OrigDragingDotProc
+            );
+            SetWindowLongPtr(m_hDragGhost, GWLP_USERDATA, 0);
+
+            DestroyWindow(m_hDragGhost);
+            m_hDragGhost = nullptr;
+            hl.Detach();
+            break;
+        }
+
         if (!m_eventPressed)
             break;
 
@@ -1129,7 +1220,11 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
 
                 SelectObject(hdcScreen, hOld);
                 ReleaseDC(NULL, hdcScreen);
-
+                if (m_hDragGhost)
+                {
+                    DestroyWindow(m_hDragGhost);
+                    m_hDragGhost = nullptr;
+                }
                 m_hDragGhost = CreateWindowEx(
                     WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED,
                     WC_STATIC,
@@ -1177,12 +1272,12 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
             {
                 if (!hl.IsActive())
                 {
-                    hl.Attach(target.hWnd);
+                    hl.Attach(target);
                 }
-                else if (!hl.IsSameTarget(target.hWnd))
+                else if (!hl.IsSameTarget(target))
                 {
                     hl.Detach();
-                    hl.Attach(target.hWnd);
+                    hl.Attach(target);
                 }
             }
             else if (hl.IsActive())
@@ -1202,6 +1297,7 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
 
         if (m_dragging)
         {
+            m_dragging = false;
             ReleaseCapture();
 
             POINT pt;
@@ -1258,7 +1354,6 @@ LRESULT CALLBACK CNewTrigger::HandleListBoxEvent(HWND hWnd, UINT message, WPARAM
                     }
                 }
             }
-            m_dragging = false;
         }
         else
         {
@@ -3094,10 +3189,13 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
         paramIdx[i] = atoi(paramType[i]);
 
     thisAction.Param7isWP = true;
-    for (auto& pair : fadata.GetSection("DontSaveAsWP")->GetEntities())
+    if (auto pSection = fadata.GetSection("DontSaveAsWP"))
     {
-        if (atoi(pair.second) == -paramIdx[0])
-            thisAction.Param7isWP = false;
+        for (auto& pair : pSection->GetEntities())
+        {
+            if (atoi(pair.second) == -paramIdx[0])
+                thisAction.Param7isWP = false;
+        }
     }
 
     int usageIdx = 0;

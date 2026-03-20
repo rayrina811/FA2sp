@@ -117,6 +117,36 @@ std::map<FString, FString> CMapDataExt::MapInsectionComments;
 std::map<FString, FString> CMapDataExt::MapFrontsectionComments;
 bool CMapDataExt::IsNewMap;
 bool CMapDataExt::SkipUpdateMinimap = false;
+bool CMapDataExt::IsImportingMap = false;
+bool CMapDataExt::Init_OpenMinimap = false;
+const std::vector<FString> CMapDataExt::TechnoStates = 
+{
+	"Ambush",
+	"Area Guard",
+	"Attack",
+	"Capture",
+	"Construction",
+	"Enter",
+	"Guard",
+	"Harmless",
+	"Harvest",
+	"Hunt",
+	"Missile",
+	"Move",
+	"Open",
+	"Patrol",
+	"QMove",
+	"Repair",
+	"Rescue",
+	"Retreat",
+	"Return",
+	"Sabotage",
+	"Selling",
+	"Sleep",
+	"Sticky",
+	"Stop",
+	"Unload"
+};
 
 static inline int DistSqrByIndex(int a, int b)
 {
@@ -996,7 +1026,6 @@ LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 	return TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
 }
 
-
 void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
 {
 	auto Map = CMapDataExt::GetExtension();
@@ -1022,37 +1051,42 @@ void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firs
 	else
 		if (Map->GetOverlayAt(dwPos) != overlay)
 			return;
-	//                              8      2    4      1
-	//                              NW     SE   SW     NE
-	const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
 
-	if (Map->IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+	if (!ExtConfigs::DisableAutoConnectWall)
 	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 8;
+		//                              8      2    4      1
+		//                              NW     SE   SW     NE
+		const int loopCheck[4][2] = { {0,-1},{0,1},{1,0},{-1,0} };
+
+		if (Map->IsCoordInMap(X + loopCheck[0][0], Y + loopCheck[0][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[0][0], Y + loopCheck[0][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 8;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 2;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 4;
+		}
+		if (Map->IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
+		{
+			int thisPos = Map->GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
+			if (Map->GetOverlayAt(thisPos) == overlay)
+				overlayData += 1;
+		}
 	}
-	if (Map->IsCoordInMap(X + loopCheck[1][0], Y + loopCheck[1][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[1][0], Y + loopCheck[1][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 2;
-	}
-	if (Map->IsCoordInMap(X + loopCheck[2][0], Y + loopCheck[2][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[2][0], Y + loopCheck[2][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 4;
-	}
-	if (Map->IsCoordInMap(X + loopCheck[3][0], Y + loopCheck[3][1]))
-	{
-		int thisPos = Map->GetCoordIndex(X + loopCheck[3][0], Y + loopCheck[3][1]);
-		if (Map->GetOverlayAt(thisPos) == overlay)
-			overlayData += 1;
-	}
+
 	Map->SetOverlayDataAt(dwPos, overlayData);
 
-	if (firstRun)
+	if (firstRun && !ExtConfigs::DisableAutoConnectWall)
 	{
 		PlaceWallAt(Map->GetCoordIndex(X - 1, Y), overlay, -1, false);
 		PlaceWallAt(Map->GetCoordIndex(X + 1, Y), overlay, -1, false);
@@ -1550,10 +1584,10 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (getE() > 1) return getIndex(15);
 			if (getN() > 0 && getS() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(17);
 			if (getE() > 0 && getW() > 0 && getNE() == 0 && getNW() == 0 && getSE() == 0 && getSW() == 0) return getIndex(16);
-			if (getSW() > 0 && getSE() > 0) return getIndex(8);
-			if (getNW() > 0 && getSW() > 0) return getIndex(9);
-			if (getNW() > 0 && getNE() > 0) return getIndex(10);
-			if (getNE() > 0 && getSE() > 0) return getIndex(11);
+			if (getSW() > 0 && getSE() > 0 && getN() <= 0) return getIndex(8);
+			if (getNW() > 0 && getSW() > 0 && getE() <= 0) return getIndex(9);
+			if (getNW() > 0 && getNE() > 0 && getS() <= 0) return getIndex(10);
+			if (getNE() > 0 && getSE() > 0 && getW() <= 0) return getIndex(11);
 
 			for (int i = 0; i < 8; ++i)
 			{
@@ -2234,25 +2268,34 @@ void ObjectRecord::record(int recordType)
 				}
 			}
 		};
+	bool recordEditedMark = false;
 	if (recordType & RecordType::Building)
 	{
 		recordIniValue("Structures", BuildingList);
 		recordedFlages |= RecordType::Building;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Unit)
 	{
 		recordIniValue("Units", UnitList);
 		recordedFlages |= RecordType::Unit;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Aircraft)
 	{
 		recordIniValue("Aircraft", AircraftList);
 		recordedFlages |= RecordType::Aircraft;
+		recordEditedMark = true;
 	}
 	if (recordType & RecordType::Infantry)
 	{
 		recordIniValue("Infantry", InfantryList);
 		recordedFlages |= RecordType::Infantry;
+		recordEditedMark = true;
+	}
+	if (recordEditedMark && CIsoViewExt::DrawPropertyBrushMark)
+	{
+		DrawEditedMarkList = CIsoViewExt::DrawEditedMarks;
 	}
 	if (recordType & RecordType::Terrain)
 	{
@@ -2472,25 +2515,34 @@ void ObjectRecord::recover()
 				ini.WriteString(pSection, key, value);
 			}
 		};
+	bool recoverEditedMark = false;
 	if (recordFlags & RecordType::Building)
 	{
 		recoverIniValue("Structures", BuildingList);
 		CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Unit)
 	{
 		recoverIniValue("Units", UnitList);
 		CMapDataExt::UpdateFieldUnitData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Aircraft)
 	{
 		recoverIniValue("Aircraft", AircraftList);
 		CMapDataExt::UpdateFieldAircraftData_RedrawMinimap();
+		recoverEditedMark = true;
 	}
 	if (recordFlags & RecordType::Infantry)
 	{
 		recoverIniValue("Infantry", InfantryList);
 		CMapDataExt::UpdateFieldInfantryData_RedrawMinimap();
+		recoverEditedMark = true;
+	}
+	if (recoverEditedMark && CIsoViewExt::DrawPropertyBrushMark)
+	{
+		CIsoViewExt::DrawEditedMarks = DrawEditedMarkList;
 	}
 	if (recordFlags & RecordType::Terrain)
 	{
@@ -4088,6 +4140,8 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	CLoadingExt::DrawTurretShadow = Variables::RulesMap.GetBool("AudioVisual", "DrawTurretShadow");
+	// ArtImageSwap only available in rulesmd.ini
+	ExtConfigs::ArtImageSwap = Variables::Rules.GetBool("General", "ArtImageSwap");
 
 	if (reloadImages && ExtConfigs::UseDefaultUnitImage)
 	{

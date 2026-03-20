@@ -17,7 +17,7 @@
 
 DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
 {
-    GET(CFinalSunDlg*, pThis, ESI);
+    GET(CFinalSunDlgExt*, pThis, ESI);
 
     auto pMenu = pThis->GetMenu();
     if (ExtConfigs::EnableDarkMode)
@@ -26,20 +26,26 @@ DEFINE_HOOK(424654, CFinalSunDlg_OnInitDialog_SetMenuItemStateByDefault, 7)
         DarkTheme::InitializeMenuOverlay(pThis->GetSafeHwnd());
     }
 
-    pMenu->CheckMenuItem(30000, MF_CHECKED);
-    pMenu->CheckMenuItem(30001, MF_CHECKED);
-    pMenu->CheckMenuItem(30002, MF_CHECKED);
-    pMenu->CheckMenuItem(30003, MF_CHECKED);
-    pMenu->CheckMenuItem(30004, MF_CHECKED);
-    pMenu->CheckMenuItem(30005, MF_CHECKED);
-    pMenu->CheckMenuItem(30006, MF_CHECKED);
-    pMenu->CheckMenuItem(30007, MF_CHECKED);
-    pMenu->CheckMenuItem(30008, MF_CHECKED);
-    pMenu->CheckMenuItem(30009, MF_CHECKED);
-    pMenu->CheckMenuItem(30010, MF_CHECKED);
-    pMenu->CheckMenuItem(30011, MF_CHECKED);
-    pMenu->CheckMenuItem(30012, MF_CHECKED);
-    pMenu->CheckMenuItem(30021, MF_CHECKED);
+    auto check = [&pMenu, pThis](UINT id, UINT status)
+    {
+        pMenu->CheckMenuItem(id, status);
+        pThis->CheckToolBarButton(id, status == MF_CHECKED);
+    };
+
+    check(30000, MF_CHECKED);
+    check(30001, MF_CHECKED);
+    check(30002, MF_CHECKED);
+    check(30003, MF_CHECKED);
+    check(30004, MF_CHECKED);
+    check(30005, MF_CHECKED);
+    check(30006, MF_CHECKED);
+    check(30007, MF_CHECKED);
+    check(30008, MF_CHECKED);
+    check(30009, MF_CHECKED);
+    check(30010, MF_CHECKED);
+    check(30011, MF_CHECKED);
+    check(30012, MF_CHECKED);
+    check(30021, MF_CHECKED);
 
     pMenu->CheckMenuRadioItem(31000, 31003, CFinalSunDlgExt::CurrentLighting, MF_CHECKED);
 
@@ -56,6 +62,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     auto SetItemCheckStatus = [&pMenu](int id, bool& param)
     {
         pMenu->CheckMenuItem(id, param ? MF_CHECKED : MF_UNCHECKED);
+        CFinalSunDlgExt::GetExtension()->CheckToolBarButton(id, param);
     };
 
     SetItemCheckStatus(30000, CIsoViewExt::DrawStructures);
@@ -96,6 +103,7 @@ DEFINE_HOOK(432304, CFinalSunDlg_Update_LayersVisibility, 5)
     SetItemCheckStatus(34051, CIsoViewExt::PasteOverriding);
     SetItemCheckStatus(34052, CIsoViewExt::PasteShowOutline);
     SetItemCheckStatus(40159, ExtConfigs::TreeViewCameo_Display);
+    SetItemCheckStatus(30110, ExtConfigs::DisableAutoConnectWall);
     SetItemCheckStatus(40163, CIsoViewExt::EnableDistanceRuler);
 
     SetItemCheckStatus(32000, CIsoViewExt::AutoPropertyBrush[0]);
@@ -220,6 +228,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(40165, "Menu.MapTools.MapRenderer");
     translateMenuItem(40158, "Menu.Options.LuaScriptConsole");
     translateMenuItem(40159, "Menu.Options.ShowObjectViewCameo");
+    translateMenuItem(30110, "Menu.Options.DisableAutoConnectWall");
 
     translateMenuItem(40004, "Menu.Options.Settings");
     translateMenuItem(40024, "Menu.Options.ShowMinimap");
@@ -387,6 +396,7 @@ DEFINE_HOOK(4340F0, CFinalSunDlg_Tools_ChangeMapHeight, 7)
         int nDelta = 0;
         if (sscanf_s(CInputMessageBox::GetString(lpMessage, lpTitle), "%d", &nDelta) == 1 && nDelta >= -14 && nDelta <= 14)
         {
+            CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
             for (int i = 0; i < CMapData::Instance->CellDataCount; ++i)
             {
                 CMapData::Instance->CellDatas[i].Height =
@@ -672,6 +682,11 @@ DEFINE_HOOK(45EBB1, CIsoView_OnRButtonUp_CancelTreeViewSelection, 6)
     CIsoViewExt::LastAltCommand.reset();
 
     return 0x45EBC5;
+}
+
+DEFINE_HOOK(433078, CFinalSunDlg_OnSize_Minimap, 5)
+{
+    return 0x4330A9;
 }
 
 DEFINE_HOOK(4326C0, CFinalSunDlg_QuitProgram_BeforeDialog, 5)
