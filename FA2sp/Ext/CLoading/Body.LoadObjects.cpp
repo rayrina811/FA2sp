@@ -22,6 +22,7 @@ std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
 std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
 std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
+std::unordered_map<FString, int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
@@ -139,6 +140,14 @@ int CLoadingExt::GetAvailableFacing(const FString& ID)
 	return itr->second;
 }
 
+int CLoadingExt::GetAlphaImageFacing(const FString& ID)
+{
+	auto itr = AlphaImageFacings.find(ID);
+	if (itr == AlphaImageFacings.end())
+		return 0;
+	return itr->second;
+}
+
 FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
 {
 	FString ret;
@@ -146,6 +155,16 @@ FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, 
 		ret.Format("%s\233%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ret.Format("%s\233%d", ID, nFacing);
+	return ret;
+}
+
+FString CLoadingExt::GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing)
+{
+	FString ret;
+	int actFacing = 0;
+	if (nAvaFacing != 0)
+		actFacing = nRawFacing * nAvaFacing / 256;
+	ret.Format("%s\233%d\233ALPHAIMAGE", ID, actFacing);
 	return ret;
 }
 
@@ -234,16 +253,41 @@ CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
 	return ObjectType::Unknown;
 }
 
+bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
+{
+	bool reloaded = false;
+	auto&& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+	bool isOverlay = true;
+	for (int i = 0; i < overlays.size(); ++i)
+	{
+		if (overlays[i] == ID && IsOverlayLoaded(ID))
+		{
+			isOverlay = true;
+			LoadOverlay(ID, i);
+			reloaded = true;
+			break;
+		}
+	}
+	if (IsObjectLoaded(ID))
+	{
+		LoadObjects(ID);
+		reloaded = true;
+	}
+	return reloaded;
+}
+
 void CLoadingExt::LoadObjects(const FString& ID)
 {
 	if (ID == "")
 		return;
 
-    Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
 	if (!IsLoadingObjectView)
 		LoadedObjects.insert(ID);
 
 	auto eItemType = GetItemType(ID);
+	if (eItemType != CLoadingExt::ObjectType::Unknown)
+		Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
+
 	switch (eItemType)
 	{
 	case CLoadingExt::ObjectType::Infantry:
@@ -298,6 +342,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
 		AvailableFacings.clear();
+		AlphaImageFacings.clear();
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
@@ -359,15 +404,13 @@ FString CLoadingExt::GetBuildingFileID(const FString& ID)
 	SetTheaterLetter(ImageID, ExtConfigs::NewTheaterType ? 1 : 0);
 
 	FString validator = ImageID + ".SHP";
-	int nMix = this->SearchFile(validator);
-	if (!HasFile(validator, nMix))
+	if (!HasFileExt(validator))
 	{
 		SetGenericTheaterLetter(ImageID);
 		if (!ExtConfigs::UseStrictNewTheater)
 		{
 			validator = ImageID + ".SHP";
-			nMix = this->SearchFile(validator);
-			if (!HasFile(validator, nMix))
+			if (!HasFileExt(validator))
 				ImageID = backupID;
 		}
 	}
@@ -387,7 +430,10 @@ FString CLoadingExt::GetInfantryFileID(const FString& ID)
 		ImageID += this->TheaterIdentifier;
 	else if (Variables::RulesMap.GetBool(ID, "AlternateArcticArt"))
 		if (this->TheaterIdentifier == 'A')
-			ImageID += 'A';
+		{
+			auto& letter = TheaterHelpers::GetFileTheaterLetter();
+			ImageID += letter['A'];
+		}
 	if (!CINI::Art->SectionExists(ImageID))
 		ImageID = ArtID;
 
@@ -515,15 +561,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadBuilding_Rubble(ID);
 
 	LoadInsignia(ID);
-	if (ExtConfigs::InGameDisplay_AlphaImage)
-	{
-		if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
-		{
-			auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
-			if (!CLoadingExt::IsObjectLoaded(AIDicName))
-				LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
-		}
-	}
+	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
 }
 
 void CLoadingExt::LoadBuilding_Normal(const FString& ID)
@@ -553,12 +591,8 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		FString file = name + ".SHP";
-		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!HasFile(file, nMix))
-			return true;
-
-		if (!CMixFile::LoadSHP(file, nMix))
+		if (!CMixFile::LoadSHP(file))
 			return true;
 
 		ShapeHeader header;
@@ -590,8 +624,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 		FString file = name + ".SHP";
-		int nMix = SearchFile(file);
-		int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+		int loadedMix = CLoadingExt::HasFileMix(file);
 		// if anim file in RA2(MD).mix, always use NewTheater = yes
 		if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
 		{
@@ -600,31 +633,29 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 		if (applyNewTheater || forceNewTheater == 1)
 			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-		nMix = SearchFile(file);
-		if (!HasFile(file, nMix))
+		if (!HasFileExt(file))
 		{
 			SetGenericTheaterLetter(file);
-			nMix = SearchFile(file);
-			if (!HasFile(file, nMix))
+			if (!HasFileExt(file))
 			{
 				if (!ExtConfigs::UseStrictNewTheater)
 				{
-					auto searchNewTheater = [&nMix, this, &file](char t)
+					auto searchNewTheater = [this, &file](char t)
 						{
 							if (file.GetLength() >= 2)
 								file.SetAt(1, t);
-							nMix = SearchFile(file);
-							return HasFile(file, nMix);
+							return HasFileExt(file);
 						};
 					file = name + ".SHP";
-					nMix = SearchFile(file);
-					if (!HasFile(file, nMix))
-						if (!searchNewTheater('T'))
-							if (!searchNewTheater('A'))
-								if (!searchNewTheater('U'))
-									if (!searchNewTheater('N'))
-										if (!searchNewTheater('L'))
-											if (!searchNewTheater('D'))
+
+					auto& letter = TheaterHelpers::GetFileTheaterLetter();
+					if (!HasFileExt(file))
+						if (!searchNewTheater(letter['T']))
+							if (!searchNewTheater(letter['A']))
+								if (!searchNewTheater(letter['U']))
+									if (!searchNewTheater(letter['N']))
+										if (!searchNewTheater(letter['L']))
+											if (!searchNewTheater(letter['D']))
 												return false;
 				}
 				else
@@ -634,10 +665,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 			}
 		}
 
+		if (!CMixFile::LoadSHP(file))
+			return false;
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		if (!CMixFile::LoadSHP(file, nMix))
-			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -996,12 +1027,8 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		FString file = name + ".SHP";
-		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!HasFile(file, nMix))
-			return true;
-
-		if (!CMixFile::LoadSHP(file, nMix))
+		if (!CMixFile::LoadSHP(file))
 			return true;
 
 		ShapeHeader header;
@@ -1034,8 +1061,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			FString file = name + ".SHP";
-			int nMix = SearchFile(file);
-			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+			int loadedMix = CLoadingExt::HasFileMix(file);
 			// if anim file in RA2(MD).mix, always use NewTheater = yes
 			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
 			{
@@ -1044,31 +1070,28 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-			nMix = SearchFile(file);
-			if (!HasFile(file, nMix))
+			if (!HasFileExt(file))
 			{
 				SetGenericTheaterLetter(file);
-				nMix = SearchFile(file);
-				if (!HasFile(file, nMix))
+				if (!HasFileExt(file))
 				{
 					if (!ExtConfigs::UseStrictNewTheater)
 					{
-						auto searchNewTheater = [&nMix, this, &file](char t)
+						auto searchNewTheater = [this, &file](char t)
 							{
 								if (file.GetLength() >= 2)
 									file.SetAt(1, t);
-								nMix = SearchFile(file);
-								return HasFile(file, nMix);
+								return HasFileExt(file);
 							};
 						file = name + ".SHP";
-						nMix = SearchFile(file);
-						if (!HasFile(file, nMix))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
+						auto& letter = TheaterHelpers::GetFileTheaterLetter();
+						if (!HasFileExt(file))
+							if (!searchNewTheater(letter['T']))
+								if (!searchNewTheater(letter['A']))
+									if (!searchNewTheater(letter['U']))
+										if (!searchNewTheater(letter['N']))
+											if (!searchNewTheater(letter['L']))
+												if (!searchNewTheater(letter['D']))
 													return false;
 					}
 					else
@@ -1078,10 +1101,10 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 				}
 			}
 
+		if (!CMixFile::LoadSHP(file))
+			return false;
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		if (!CMixFile::LoadSHP(file, nMix))
-			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -1454,12 +1477,8 @@ void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 	auto loadBuildingFrameShape = [&](FString name, int nFrame = 0, int deltaX = 0, int deltaY = 0, bool shadow = false) -> bool
 	{
 		FString file = name + ".SHP";
-		int nMix = SearchFile(file);
 		// building can be displayed without the body
-		if (!HasFile(file, nMix))
-			return true;
-
-		if (!CMixFile::LoadSHP(file, nMix))
+		if (!CMixFile::LoadSHP(file))
 			return true;
 
 		ShapeHeader header;
@@ -1490,8 +1509,7 @@ void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 			applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 			FString file = name + ".SHP";
-			int nMix = SearchFile(file);
-			int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+			int loadedMix = CLoadingExt::HasFileMix(file);
 			// if anim file in RA2(MD).mix, always use NewTheater = yes
 			if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
 			{
@@ -1500,31 +1518,28 @@ void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 
 			if (applyNewTheater || forceNewTheater == 1)
 				SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-			nMix = SearchFile(file);
-			if (!HasFile(file, nMix))
+			if (!HasFileExt(file))
 			{
 				SetGenericTheaterLetter(file);
-				nMix = SearchFile(file);
-				if (!HasFile(file, nMix))
+				if (!HasFileExt(file))
 				{
 					if (!ExtConfigs::UseStrictNewTheater)
 					{
-						auto searchNewTheater = [&nMix, this, &file](char t)
+						auto searchNewTheater = [this, &file](char t)
 							{
 								if (file.GetLength() >= 2)
 									file.SetAt(1, t);
-								nMix = SearchFile(file);
-								return HasFile(file, nMix);
+								return HasFileExt(file);
 							};
 						file = name + ".SHP";
-						nMix = SearchFile(file);
-						if (!HasFile(file, nMix))
-							if (!searchNewTheater('T'))
-								if (!searchNewTheater('A'))
-									if (!searchNewTheater('U'))
-										if (!searchNewTheater('N'))
-											if (!searchNewTheater('L'))
-												if (!searchNewTheater('D'))
+						auto& letter = TheaterHelpers::GetFileTheaterLetter();
+						if (!HasFileExt(file))
+							if (!searchNewTheater(letter['T']))
+								if (!searchNewTheater(letter['A']))
+									if (!searchNewTheater(letter['U']))
+										if (!searchNewTheater(letter['N']))
+											if (!searchNewTheater(letter['L']))
+												if (!searchNewTheater(letter['D']))
 													return false;
 					}
 					else
@@ -1534,10 +1549,10 @@ void CLoadingExt::LoadBuilding_Rubble(const FString& ID)
 				}
 			}
 
+		if (!CMixFile::LoadSHP(file))
+			return false;
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		if (!CMixFile::LoadSHP(file, nMix))
-			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -1609,86 +1624,82 @@ void CLoadingExt::LoadInfantry(const FString& ID)
 	auto pal = PalettesManager::LoadPalette(PaletteName);
 	
 	FString FileName = ImageID + ".shp";
-	int nMix = this->SearchFile(FileName);
-	if (HasFile(FileName, nMix))
-	{
-		ShapeHeader header;
-		unsigned char* FramesBuffers;
-		if (!CMixFile::LoadSHP(FileName, nMix))
-			return;
+	if (!CMixFile::LoadSHP(FileName))
+		return;
 
-		CShpFile::GetSHPHeader(&header);
+	ShapeHeader header;
+	unsigned char* FramesBuffers;
+	CShpFile::GetSHPHeader(&header);
+	for (int i = 0; i < 8; ++i)
+	{
+		if (IsLoadingObjectView && i != 5)
+			continue;
+
+		CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers, header);
+		FString DictName;
+		DictName.Format("%s\233%d", ID, i);
+		SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, pal);
+
+		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
+		{
+			FString DictNameShadow;
+			unsigned char* pBufferShadow{ 0 };
+			DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+			CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
+			SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+		}
+	}
+
+	if (ExtConfigs::InGameDisplay_Deploy && deployable)
+	{
+		FString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
+		int framesToReadDeploy[8];
+		int frameStartDeploy, frameStepDeploy;
+		sscanf_s(framesDeploy, "%d,%d,%d", &frameStartDeploy, &framesToReadDeploy[0], &frameStepDeploy);
+		for (int i = 0; i < 8; ++i)
+			framesToReadDeploy[i] = frameStartDeploy + i * frameStepDeploy;
+		unsigned char* FramesBuffersDeploy;
 		for (int i = 0; i < 8; ++i)
 		{
-			if (IsLoadingObjectView && i != 5)
-				continue;
-
-			CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers, header);
-			FString DictName;
-			DictName.Format("%s\233%d", ID, i);
-			SetImageDataSafe(FramesBuffers, DictName, header.Width, header.Height, pal);
+			CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
+			FString DictNameDeploy;
+			DictNameDeploy.Format("%s\233%d\233DEPLOY", ID, i);
+			SetImageDataSafe(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
 
 			if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 			{
 				FString DictNameShadow;
 				unsigned char* pBufferShadow{ 0 };
-				DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
-				CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
+				DictNameShadow.Format("%s\233%d\233DEPLOYSHADOW", ID, i);
+				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
 				SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 			}
 		}
-
-		if (ExtConfigs::InGameDisplay_Deploy && deployable)
-		{
-			FString framesDeploy = CINI::Art->GetString(sequenceName, "Deployed", "0,1,1");
-			int framesToReadDeploy[8];
-			int frameStartDeploy, frameStepDeploy;
-			sscanf_s(framesDeploy, "%d,%d,%d", &frameStartDeploy, &framesToReadDeploy[0], &frameStepDeploy);
-			for (int i = 0; i < 8; ++i)
-				framesToReadDeploy[i] = frameStartDeploy + i * frameStepDeploy;
-			unsigned char* FramesBuffersDeploy;
-			for (int i = 0; i < 8; ++i)
-			{
-				CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i], 1, &FramesBuffersDeploy, header);
-				FString DictNameDeploy;
-				DictNameDeploy.Format("%s\233%d\233DEPLOY", ID, i);
-				SetImageDataSafe(FramesBuffersDeploy, DictNameDeploy, header.Width, header.Height, pal);
-
-				if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
-				{
-					FString DictNameShadow;
-					unsigned char* pBufferShadow{ 0 };
-					DictNameShadow.Format("%s\233%d\233DEPLOYSHADOW", ID, i);
-					CLoadingExt::LoadSHPFrameSafe(framesToReadDeploy[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
-					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-				}
-			}
-		}
+	}
 		
-		if (ExtConfigs::InGameDisplay_Water && waterable)
+	if (ExtConfigs::InGameDisplay_Water && waterable)
+	{
+		FString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
+		int framesToReadWater[8];
+		int frameStartWater, frameStepWater;
+		sscanf_s(framesWater, "%d,%d,%d", &frameStartWater, &framesToReadWater[0], &frameStepWater);
+		for (int i = 0; i < 8; ++i)
+			framesToReadWater[i] = frameStartWater + i * frameStepWater;
+		unsigned char* FramesBuffersWater;
+		for (int i = 0; i < 8; ++i)
 		{
-			FString framesWater = CINI::Art->GetString(sequenceName, "Swim", "0,1,1");
-			int framesToReadWater[8];
-			int frameStartWater, frameStepWater;
-			sscanf_s(framesWater, "%d,%d,%d", &frameStartWater, &framesToReadWater[0], &frameStepWater);
-			for (int i = 0; i < 8; ++i)
-				framesToReadWater[i] = frameStartWater + i * frameStepWater;
-			unsigned char* FramesBuffersWater;
-			for (int i = 0; i < 8; ++i)
-			{
-				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
-				FString DictNameWater;
-				DictNameWater.Format("%s\233%d\233WATER", ID, i);
-				SetImageDataSafe(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
+			CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i], 1, &FramesBuffersWater, header);
+			FString DictNameWater;
+			DictNameWater.Format("%s\233%d\233WATER", ID, i);
+			SetImageDataSafe(FramesBuffersWater, DictNameWater, header.Width, header.Height, pal);
 
-				if (ExtConfigs::InGameDisplay_Shadow)
-				{
-					FString DictNameShadow;
-					unsigned char* pBufferShadow{ 0 };
-					DictNameShadow.Format("%s\233%d\233WATERSHADOW", ID, i);
-					CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
-					SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-				}
+			if (ExtConfigs::InGameDisplay_Shadow)
+			{
+				FString DictNameShadow;
+				unsigned char* pBufferShadow{ 0 };
+				DictNameShadow.Format("%s\233%d\233WATERSHADOW", ID, i);
+				CLoadingExt::LoadSHPFrameSafe(framesToReadWater[i] + header.FrameCount / 2, 1, &pBufferShadow, header);
+				SetImageDataSafe(pBufferShadow, DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 			}
 		}
 	}
@@ -1699,48 +1710,39 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetTerrainOrSmudgeFileID(ID);
 	FString FileName = ImageID + this->GetFileExtension();
-	int nMix = this->SearchFile(FileName);
-	if (HasFile(FileName, nMix))
+	if (!CMixFile::LoadSHP(FileName))
+		return;
+	ShapeHeader header;
+	unsigned char* FramesBuffers[1];
+	CShpFile::GetSHPHeader(&header);
+	CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
+	FString DictName;
+	DictName.Format("%s\233%d", ID, 0);
+	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
+	if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
 	{
-		ShapeHeader header;
-		unsigned char* FramesBuffers[1];
-		if (!CMixFile::LoadSHP(FileName, nMix))
-			return;
-		CShpFile::GetSHPHeader(&header);
-		CLoadingExt::LoadSHPFrameSafe(0, 1, &FramesBuffers[0], header);
-		FString DictName;
-		DictName.Format("%s\233%d", ID, 0);
-		FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "iso");
-		if (!CINI::Art->KeyExists(ArtID, "Palette") && Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
-		{
-			PaletteName = "unitsno.pal";
-		}
-		if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
-		{
-			CustomPaletteTerrains.insert(ID);
-		}
-		PaletteName.MakeUpper();
-		GetFullPaletteName(PaletteName);
-		SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
+		PaletteName = "unitsno.pal";
+	}
+	if (CINI::Art->KeyExists(ArtID, "Palette") || Variables::RulesMap.GetBool(ID, "SpawnsTiberium"))
+	{
+		CustomPaletteTerrains.insert(ID);
+	}
+	PaletteName.MakeUpper();
+	GetFullPaletteName(PaletteName);
+	SetImageDataSafe(FramesBuffers[0], DictName, header.Width, header.Height, PalettesManager::LoadPalette(PaletteName));
 
-		if (ExtConfigs::InGameDisplay_Shadow && terrain)
-		{
-			FString DictNameShadow;
-			unsigned char* pBufferShadow[1];
-			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
-			CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
-			SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
-		}
+	if (ExtConfigs::InGameDisplay_Shadow && terrain)
+	{
+		FString DictNameShadow;
+		unsigned char* pBufferShadow[1];
+		DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+		CLoadingExt::LoadSHPFrameSafe(0 + header.FrameCount / 2, 1, &pBufferShadow[0], header);
+		SetImageDataSafe(pBufferShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
+	}
 
-		if (ExtConfigs::InGameDisplay_AlphaImage && terrain)
-		{
-			if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
-			{
-				auto AIDicName = *pAIFile + "\233ALPHAIMAGE";
-				if (!CLoadingExt::IsObjectLoaded(AIDicName))
-					LoadShp(AIDicName, *pAIFile + ".shp", "anim.pal", 0);
-			}
-		}
+	if (terrain)
+	{
+		LoadAlphaImage(ID, CLoadingExt::ObjectType::Terrain);
 	}
 }
 
@@ -1789,6 +1791,34 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 	if (!ret.Rookie.IsEmpty() || !ret.Veteran.IsEmpty() || !ret.Elite.IsEmpty())
 	{
 		LoadedInsignias[ID] = ret;
+	}
+}
+
+void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type)
+{
+	if (!ExtConfigs::InGameDisplay_AlphaImage) return;
+
+	if (auto pAIFile = Variables::RulesMap.TryGetString(ID, "AlphaImage"))
+	{
+		if (!CMixFile::LoadSHP(*pAIFile + ".shp"))
+			return;
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		CShpFile::GetSHPHeader(&header);
+
+		int facings = std::min(256u, std::bit_floor((UINT)header.FrameCount));
+
+		if (type == CLoadingExt::ObjectType::Terrain)
+			facings = 1;
+		AlphaImageFacings[ID] = facings;
+		FString AIDicName;
+		for (int i = 0; i < facings; ++i)
+		{
+			AIDicName.Format("%s\233%d\233ALPHAIMAGE", ID, i);
+			CLoadingExt::LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
+			SetImageDataSafe(FramesBuffers, AIDicName, header.Width, header.Height, &CMapDataExt::Palette_ISO, false);
+			LoadedObjects.insert(AIDicName);
+		}
 	}
 }
 
@@ -2266,8 +2296,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 		FString FileName = ImageID + ".shp";
 		FString FileNameTurret = ImageID + "tur.shp";
-		int nMix = this->SearchFile(FileName);
-		if (HasFile(FileName, nMix))
+		if (HasFileExt(FileName))
 		{
 			ShapeHeader header{};
 			ShapeHeader headerTurret{};
@@ -2278,17 +2307,16 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 			FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
 			GetFullPaletteName(PaletteName);
 
-			int nMixTur = this->SearchFile(FileNameTurret);
-			bool bUseTurrentFile = HasFile(FileNameTurret, nMixTur);
+			bool bUseTurrentFile = HasFileExt(FileNameTurret);
 			if (bHasTurret)
 			{
 				ShapeHeader* currentHeader = nullptr;
-				if (bUseTurrentFile && CMixFile::LoadSHP(FileNameTurret, nMixTur))
+				if (bUseTurrentFile && CMixFile::LoadSHP(FileNameTurret))
 				{
 					CShpFile::GetSHPHeader(&headerTurret);
 					currentHeader = &headerTurret;
 				}
-				else if (!bUseTurrentFile && CMixFile::LoadSHP(FileName, nMix))
+				else if (!bUseTurrentFile && CMixFile::LoadSHP(FileName))
 				{
 					CShpFile::GetSHPHeader(&header);
 					currentHeader = &header;
@@ -2320,14 +2348,14 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 					if (bUseTurrentFile)
 					{
-						CMixFile::LoadSHP(FileName, nMix);
+						CMixFile::LoadSHP(FileName);
 						CShpFile::GetSHPHeader(&header);
 					}
 				}
 			}
 			else
 			{
-				CMixFile::LoadSHP(FileName, nMix);
+				CMixFile::LoadSHP(FileName);
 				CShpFile::GetSHPHeader(&header);
 			}
 
@@ -3219,6 +3247,11 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 
 	if (this->TheaterIdentifier != 0)
 	{
+		char letter = this->TheaterIdentifier;
+		auto& list = TheaterHelpers::GetFileTheaterLetter();
+		char newLetter = list[this->TheaterIdentifier];
+		if (newLetter != 0)
+			letter = newLetter;
 		if (mode == 1)
 		{
 			// Ares code here
@@ -3226,7 +3259,7 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 			char c1 = string[1] & ~0x20; // evil hack to uppercase
 			if (isalpha(static_cast<unsigned char>(c0))) {
 				if (c1 == 'A' || c1 == 'T') {
-					string.SetAt(1, this->TheaterIdentifier);
+					string.SetAt(1, letter);
 				}
 			}
 		}
@@ -3237,7 +3270,7 @@ void CLoadingExt::SetTheaterLetter(FString& string, int mode)
 			char c1 = string[1] & ~0x20;
 			if (c0 == 'G' || c0 == 'N' || c0 == 'C' || c0 == 'Y') {
 				if (c1 == 'A' || c1 == 'T') {
-					string.SetAt(1, this->TheaterIdentifier);
+					string.SetAt(1, letter);
 				}
 			}
 		}
@@ -3272,9 +3305,8 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 		fin.close();
 		return -1;
 	}
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename, &size);
-	if (data && size > 0)
+
+	if (ResourcePackManager::instance().hasFile(filename))
 	{
 		return -1;
 	}
@@ -3289,8 +3321,8 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 
 	if (nMix == -114)
 	{
-		nMix = CLoading::Instance->SearchFile(filename);
-		if (CMixFile::HasFile(filename, nMix))
+		nMix = SearchFileExt(filename);
+		if (nMix)
 			return nMix;
 	}
 	if (CMixFile::HasFile(filename, nMix))
@@ -3309,6 +3341,29 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 	return -2;
 }
 
+int CLoadingExt::SearchFileExt(const FString& filename, bool debugLog)
+{
+	for (int i = 0; i < CMixFile::ArraySize; ++i)
+	{
+		auto& mix = CMixFile::Array[i];
+		if (!mix.is_open())
+			break;
+		if (CMixFile::HasFile(filename, i + 1))
+		{
+#ifndef NDEBUG
+			if(debugLog)
+				Logger::Debug("[SearchFileExt] %s - %d\n", filename, i + 1);
+#endif
+			return i + 1;
+		}
+	}
+#ifndef NDEBUG
+	if (debugLog)
+		Logger::Debug("[SearchFileExt] %s - NOT FOUND\n", filename);
+#endif
+	return 0;
+}
+
 void CLoadingExt::GetFullPaletteName(FString& PaletteName)
 {
 	const int len = PaletteName.GetLength();
@@ -3322,28 +3377,9 @@ void CLoadingExt::GetFullPaletteName(FString& PaletteName)
 		return;
 	}
 
-	switch (this->TheaterIdentifier)
-	{
-	case 'A':
-		PaletteName += "sno.pal";
-		return;
-	case 'U':
-		PaletteName += "urb.pal";
-		return;
-	case 'N':
-		PaletteName += "ubn.pal";
-		return;
-	case 'D':
-		PaletteName += "des.pal";
-		return;
-	case 'L':
-		PaletteName += "lun.pal";
-		return;
-	case 'T':
-	default:
-		PaletteName += "tem.pal";
-		return;
-	}
+	PaletteName += GetTheaterSuffix();
+	PaletteName += ".pal";
+	return;
 }
 
 int CLoadingExt::ColorDistance(const ColorStruct& color1, const ColorStruct& color2)
@@ -3695,18 +3731,14 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, FString PalName, in
 	loadingExt->GetFullPaletteName(PalName);
 	if (auto pal = PalettesManager::LoadPalette(PalName))
 	{
-		int nMix = loadingExt->SearchFile(FileName);
-		if (loadingExt->HasFile(FileName, nMix))
-		{
-			ShapeHeader header;
-			unsigned char* FramesBuffers;
-			if (!CMixFile::LoadSHP(FileName, nMix))
-				return;
-			CShpFile::GetSHPHeader(&header);
-			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal);
-			LoadedObjects.insert(ImageID);
-		}
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		CShpFile::GetSHPHeader(&header);
+		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
+		loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pal);
+		LoadedObjects.insert(ImageID);
 	}
 }
 
@@ -3715,21 +3747,17 @@ void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
 	auto loadingExt = (CLoadingExt*)CLoading::Instance();
 	if (auto pal = PalettesManager::LoadPalette("anim.pal"))
 	{
-		int nMix = loadingExt->SearchFile(FileName);
-		if (loadingExt->HasFile(FileName, nMix))
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		CShpFile::GetSHPHeader(&header);
+		for (int i = 0; i < header.FrameCount; ++i)
 		{
-			ShapeHeader header;
-			unsigned char* FramesBuffers;
-			if (!CMixFile::LoadSHP(FileName, nMix))
-				return;
-			CShpFile::GetSHPHeader(&header);
-			for (int i = 0; i < header.FrameCount; ++i)
-			{
-				loadingExt->LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
-				auto pData = std::make_unique<ImageDataClassSafe>();
-				loadingExt->SetImageDataSafe(FramesBuffers, pData.get(), header.Width, header.Height, pal);
-				DamageFires.push_back(std::move(pData));
-			}
+			loadingExt->LoadSHPFrameSafe(i, 1, &FramesBuffers, header);
+			auto pData = std::make_unique<ImageDataClassSafe>();
+			loadingExt->SetImageDataSafe(FramesBuffers, pData.get(), header.Width, header.Height, pal);
+			DamageFires.push_back(std::move(pData));
 		}
 	}
 }
@@ -3782,18 +3810,14 @@ void CLoadingExt::LoadShp(FString ImageID, FString FileName, Palette* pPal, int 
 	if (pPal)
 	{
 		auto loadingExt = (CLoadingExt*)CLoading::Instance();
-		int nMix = loadingExt->SearchFile(FileName);
-		if (loadingExt->HasFile(FileName, nMix))
-		{
-			ShapeHeader header;
-			unsigned char* FramesBuffers;
-			if (!CMixFile::LoadSHP(FileName, nMix))
-				return;
-			CShpFile::GetSHPHeader(&header);
-			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
-			loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal);
-			LoadedObjects.insert(ImageID);
-		}
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		CShpFile::GetSHPHeader(&header);
+		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
+		loadingExt->SetImageDataSafe(FramesBuffers, ImageID, header.Width, header.Height, pPal);
+		LoadedObjects.insert(ImageID);
 	}
 }
 
@@ -3803,66 +3827,63 @@ void CLoadingExt::LoadShpToSurface(FString ImageID, FString FileName, FString Pa
 	loadingExt->GetFullPaletteName(PalName);
 	if (auto pal = PalettesManager::LoadPalette(PalName))
 	{
-		int nMix = loadingExt->SearchFile(FileName);
-		if (loadingExt->HasFile(FileName, nMix))
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+		ShapeHeader header;
+		unsigned char* FramesBuffers;
+		CShpFile::GetSHPHeader(&header);
+		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
+
+		CBitmap bitmap;
+		if (bitmap.CreateBitmap(header.Width, header.Height, 1, 32, NULL))
 		{
-			ShapeHeader header;
-			unsigned char* FramesBuffers;
-			CMixFile::LoadSHP(FileName, nMix);
-			CShpFile::GetSHPHeader(&header);
-			CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &FramesBuffers, header);
+			CDC memDC;
+			memDC.CreateCompatibleDC(NULL);
+			CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
 
-			CBitmap bitmap;
-			if (bitmap.CreateBitmap(header.Width, header.Height, 1, 32, NULL))
+			LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
+			pLogPalette->palVersion = 0x300;
+			pLogPalette->palNumEntries = 256;
+
+			for (int i = 0; i < 256; i++)
 			{
-				CDC memDC;
-				memDC.CreateCompatibleDC(NULL);
-				CBitmap* pOldBitmap = memDC.SelectObject(&bitmap);
-
-				LOGPALETTE* pLogPalette = (LOGPALETTE*)malloc(sizeof(LOGPALETTE) + 256 * sizeof(PALETTEENTRY));
-				pLogPalette->palVersion = 0x300;
-				pLogPalette->palNumEntries = 256;
-
-				for (int i = 0; i < 256; i++)
+				pLogPalette->palPalEntry[i].peRed = pal->Data[i].R;
+				pLogPalette->palPalEntry[i].peGreen = pal->Data[i].G;
+				pLogPalette->palPalEntry[i].peBlue = pal->Data[i].B;
+				pLogPalette->palPalEntry[i].peFlags = pal->Data[i].Zero;
+			}
+			CPalette paletteObj;
+			paletteObj.CreatePalette(pLogPalette);
+			free(pLogPalette);
+			CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
+			memDC.RealizePalette();
+			for (int y = 0; y < header.Height; y++)
+			{
+				for (int x = 0; x < header.Width; x++)
 				{
-					pLogPalette->palPalEntry[i].peRed = pal->Data[i].R;
-					pLogPalette->palPalEntry[i].peGreen = pal->Data[i].G;
-					pLogPalette->palPalEntry[i].peBlue = pal->Data[i].B;
-					pLogPalette->palPalEntry[i].peFlags = pal->Data[i].Zero;
+					memDC.SetPixel(x, y, PALETTEINDEX(FramesBuffers[y * header.Width + x]));
 				}
-				CPalette paletteObj;
-				paletteObj.CreatePalette(pLogPalette);
-				free(pLogPalette);
-				CPalette* pOldPalette = memDC.SelectPalette(&paletteObj, FALSE);
-				memDC.RealizePalette();
-				for (int y = 0; y < header.Height; y++)
-				{
-					for (int x = 0; x < header.Width; x++)
-					{
-						memDC.SetPixel(x, y, PALETTEINDEX(FramesBuffers[y * header.Width + x]));
-					}
-				}
-				memDC.SelectPalette(pOldPalette, FALSE);
-				memDC.SelectObject(pOldBitmap);
+			}
+			memDC.SelectPalette(pOldPalette, FALSE);
+			memDC.SelectObject(pOldBitmap);
 
-				auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
-				auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
-				pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
+			auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+			auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
+			pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, bitmap);
 
-				DDSURFACEDESC2 desc;
-				memset(&desc, 0, sizeof(DDSURFACEDESC2));
-				desc.dwSize = sizeof(DDSURFACEDESC2);
-				desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
-				pData->lpSurface->GetSurfaceDesc(&desc);
-				pData->FullWidth = desc.dwWidth;
-				pData->FullHeight = desc.dwHeight;
-				pData->Flag = ImageDataFlag::SurfaceData;
+			DDSURFACEDESC2 desc;
+			memset(&desc, 0, sizeof(DDSURFACEDESC2));
+			desc.dwSize = sizeof(DDSURFACEDESC2);
+			desc.dwFlags = DDSD_HEIGHT | DDSD_WIDTH;
+			pData->lpSurface->GetSurfaceDesc(&desc);
+			pData->FullWidth = desc.dwWidth;
+			pData->FullHeight = desc.dwHeight;
+			pData->Flag = ImageDataFlag::SurfaceData;
 
-				CIsoView::SetColorKey(pData->lpSurface, -1);
-				LoadedSurfaceObjects.insert(ImageID);
-				memDC.DeleteDC();
-			}	
-		}
+			CIsoView::SetColorKey(pData->lpSurface, -1);
+			LoadedSurfaceObjects.insert(ImageID);
+			memDC.DeleteDC();
+		}	
 	}
 }
 
@@ -4285,7 +4306,6 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 	FString ArtID;
 	FString ImageID;
 	FString filename;
-	int hMix = 0;
 
 	FString palName = "iso\233AutoTinted";
 	auto const typeData = CMapDataExt::GetOverlayTypeData(nIndex);
@@ -4306,26 +4326,19 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 	ArtID = GetArtID(lpOvrlName);
 	ImageID = CINI::Art->GetString(ArtID, "Image", ArtID);
 
-	if (TheaterIdentifier == 'T') filename = ArtID + ".tem";
-	if (TheaterIdentifier == 'A') filename = ArtID + ".sno";
-	if (TheaterIdentifier == 'U') filename = ArtID + ".urb";
-	if (TheaterIdentifier == 'N') filename = ArtID + ".ubn";
-	if (TheaterIdentifier == 'L') filename = ArtID + ".lun";
-	if (TheaterIdentifier == 'D') filename = ArtID + ".des";
+	filename = ArtID + GetFileExtension();
 
 	bool findFile = false;
-	hMix = SearchFile(filename);
-	findFile = HasFile(filename);
+	findFile = HasFileExt(filename);
 
 	if (!findFile)
 	{
-		auto searchNewTheater = [&findFile, &hMix, this, &filename](char t)
+		auto searchNewTheater = [&findFile, this, &filename](char t)
 			{
 				if (!findFile)
 				{
 					filename.SetAt(1, t);
-					hMix = SearchFile(filename);
-					findFile = HasFile(filename);
+					findFile = HasFileExt(filename);
 				}
 			};
 
@@ -4340,34 +4353,32 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			if (!findFile)
 			{
 				SetTheaterLetter(filename, ExtConfigs::NewTheaterType ? 1 : 0);
-				hMix = SearchFile(filename);
-				findFile = HasFile(filename);
+				findFile = HasFileExt(filename);
 			}
 			searchNewTheater('G');
 			searchNewTheater(ArtID[1]);
 			if (!ExtConfigs::UseStrictNewTheater)
 			{
-				searchNewTheater('T');
-				searchNewTheater('A');
-				searchNewTheater('U');
-				searchNewTheater('N');
-				searchNewTheater('L');
-				searchNewTheater('D');
+				auto& letter = TheaterHelpers::GetFileTheaterLetter();
+				searchNewTheater(letter['T']);
+				searchNewTheater(letter['A']);
+				searchNewTheater(letter['U']);
+				searchNewTheater(letter['N']);
+				searchNewTheater(letter['L']);
+				searchNewTheater(letter['D']);
 			}
 		}
 		else
 		{
-			hMix = SearchFile(filename);
-			findFile = HasFile(filename);
+			findFile = HasFileExt(filename);
 		}
 	}
-	auto searchOtherTheater = [this, &hMix, &filename, &ArtID, &findFile, &palette](const char* theater)
+	auto searchOtherTheater = [this, &filename, &ArtID, &findFile, &palette](const char* theater)
 		{
 			if (!findFile)
 			{
 				filename = ArtID + "." + theater;
-				hMix = SearchFile(filename);
-				findFile = HasFile(filename);
+				findFile = HasFileExt(filename);
 				if (findFile)
 				{
 					FString palName;
@@ -4378,12 +4389,13 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		};
 	if (!findFile)
 	{
-		searchOtherTheater("tem");
-		searchOtherTheater("sno");
-		searchOtherTheater("urb");
-		searchOtherTheater("ubn");
-		searchOtherTheater("lun");
-		searchOtherTheater("des");
+		auto& suffixes = TheaterHelpers::GetFileTheaterSuffix();
+		searchOtherTheater(suffixes['T']);
+		searchOtherTheater(suffixes['A']);
+		searchOtherTheater(suffixes['U']);
+		searchOtherTheater(suffixes['N']);
+		searchOtherTheater(suffixes['L']);
+		searchOtherTheater(suffixes['D']);
 	}
 	if (istiberium || isveinhole || isveins)
 		palette = PalettesManager::LoadPalette("temperat.pal");
@@ -4408,8 +4420,7 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		applyNewTheater = CINI::Art->GetBool(name, "NewTheater", applyNewTheater);
 
 		FString file = name + ".SHP";
-		int nMix = SearchFile(file);
-		int loadedMix = CLoadingExt::HasFileMix(file, nMix);
+		int loadedMix = CLoadingExt::HasFileMix(file);
 		// if anim file in RA2(MD).mix, always use NewTheater = yes
 		if (Ra2dotMixes.find(loadedMix) != Ra2dotMixes.end())
 		{
@@ -4418,31 +4429,28 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 		if (applyNewTheater || forceNewTheater == 1)
 			SetTheaterLetter(file, ExtConfigs::NewTheaterType ? 1 : 0);
-		nMix = SearchFile(file);
-		if (!HasFile(file, nMix))
+		if (!HasFileExt(file))
 		{
 			SetGenericTheaterLetter(file);
-			nMix = SearchFile(file);
-			if (!HasFile(file, nMix))
+			if (!HasFileExt(file))
 			{
 				if (!ExtConfigs::UseStrictNewTheater)
 				{
-					auto searchNewTheater = [&nMix, this, &file](char t)
+					auto searchNewTheater = [this, &file](char t)
 					{
 						if (file.GetLength() >= 2)
 							file.SetAt(1, t);
-						nMix = SearchFile(file);
-						return HasFile(file, nMix);
+						return HasFileExt(file);
 					};
 					file = name + ".SHP";
-					nMix = SearchFile(file);
-					if (!HasFile(file, nMix))
-						if (!searchNewTheater('T'))
-							if (!searchNewTheater('A'))
-								if (!searchNewTheater('U'))
-									if (!searchNewTheater('N'))
-										if (!searchNewTheater('L'))
-											if (!searchNewTheater('D'))
+					auto& letter = TheaterHelpers::GetFileTheaterLetter();
+					if (!HasFileExt(file))
+						if (!searchNewTheater(letter['T']))
+							if (!searchNewTheater(letter['A']))
+								if (!searchNewTheater(letter['U']))
+									if (!searchNewTheater(letter['N']))
+										if (!searchNewTheater(letter['L']))
+											if (!searchNewTheater(letter['D']))
 												return false;
 				}
 				else
@@ -4452,10 +4460,10 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			}
 		}
 
+		if (!CMixFile::LoadSHP(file))
+			return false;
 		ShapeHeader header;
 		unsigned char* pBuffer;
-		if (!CMixFile::LoadSHP(file, nMix))
-			return false;
 		CShpFile::GetSHPHeader(&header);
 		if (header.FrameCount <= nFrame) {
 			nFrame = 0;
@@ -4506,12 +4514,12 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			}
 		}
 
-		ShapeHeader header;
-		unsigned char* FramesBuffers[2]{ 0 };
-		if (CMixFile::LoadSHP(filename, hMix))
+		if (CMixFile::LoadSHP(filename))
 		{
+			ShapeHeader header;
+			unsigned char* FramesBuffers[2]{ 0 };
 			CShpFile::GetSHPHeader(&header);
-			int nCount = std::min(header.FrameCount, (short)60);
+			int nCount = std::min(header.FrameCount, (short)ExtConfigs::OverlayDataLimit);
 
 			for (int i = 0; i < nCount; ++i)
 			{
@@ -4689,6 +4697,10 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 
 void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)
 {
+#ifndef NDEBUG
+	Logger::Debug("Requesting file [%s] in %s... ", filename, fa2path ? "FA2 path" : "Game path");	
+#endif
+
 	using Clock = std::chrono::steady_clock;
 	const uint64_t nowMs =
 		std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -4715,6 +4727,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 			g_cacheTime[fa2path].erase(filename);
 		}
 
+#ifndef NDEBUG
+		Logger::Raw("Loaded from CACHE. Done, dwSize = [%d].\n", src.size());
+#endif
 		return pBuffer;
 	}
 
@@ -4735,6 +4750,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		f.seekg(0, std::ios::beg);
 		std::vector<unsigned char> buffer(size);
 		f.read((char*)buffer.data(), size);
+#ifndef NDEBUG
+		Logger::Raw("Loaded from [%s]. ", path);
+#endif
 		return buffer;
 	};
 
@@ -4766,7 +4784,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		size_t size = 0;
 		auto data = ResourcePackManager::instance().getFileData(filename, &size);
 		if (data && size > 0)
+		{
 			loadedData.assign(data.get(), data.get() + size);
+		}
 	}
 
 	if (loadedData.empty() && ExtConfigs::ExtMixLoader)
@@ -4775,13 +4795,14 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 		size_t sizeM = 0;
 		auto result = manager.LoadFile(filename, &sizeM);
 		if (result && sizeM > 0)
+		{
 			loadedData.assign(result.get(), result.get() + sizeM);
+		}
 	}
 
 	if (loadedData.empty())
 	{
-		auto nMix = CLoading::Instance->SearchFile(filename);
-		if (CMixFile::HasFile(filename, nMix))
+		if (auto nMix = CLoadingExt::GetExtension()->SearchFileExt(filename, false))
 		{
 			Ccc_file file(true);
 			file.open(filename, CMixFile::Array[nMix - 1]);
@@ -4789,6 +4810,9 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 				(unsigned char*)file.get_data(),
 				(unsigned char*)file.get_data() + file.get_size());
 			file.close();
+#ifndef NDEBUG
+			Logger::Raw("Loaded from MixLoader, nMix = [%d]. ", nMix);
+#endif
 		}
 	}
 
@@ -4801,7 +4825,12 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	}
 
 	if (loadedData.empty())
+	{
+#ifndef NDEBUG
+		Logger::Raw("Failed.\n");
+#endif
 		return nullptr;
+	}
 
 	g_cache[fa2path][filename] = loadedData;
 	g_cacheTime[fa2path][filename] = nowMs;
@@ -4827,11 +4856,13 @@ void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2p
 	memcpy(pBuffer, loadedData.data(), loadedData.size());
 	if (pDwSize)
 		*pDwSize = (DWORD)loadedData.size();
-
+#ifndef NDEBUG
+	Logger::Raw("Done, dwSize = [%d].\n", loadedData.size());
+#endif
 	return pBuffer;
 }
 
-bool CLoadingExt::HasFile(ppmfc::CString filename, int nMix)
+bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 {
 	FString filepath;
 	std::ifstream fin;
@@ -4853,9 +4884,7 @@ bool CLoadingExt::HasFile(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	size_t size = 0;
-	auto data = ResourcePackManager::instance().getFileData(filename.m_pchData, &size);
-	if (data && size > 0)
+	if (ResourcePackManager::instance().hasFile(filename.m_pchData))
 	{
 		return true;
 	}
@@ -4870,8 +4899,7 @@ bool CLoadingExt::HasFile(ppmfc::CString filename, int nMix)
 
 	if (nMix == -114)
 	{
-		nMix = CLoading::Instance->SearchFile(filename);
-		if (CMixFile::HasFile(filename, nMix))
+		if (CLoadingExt::GetExtension()->SearchFileExt(filename))
 			return true;
 	}
 	if (CMixFile::HasFile(filename, nMix))

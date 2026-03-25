@@ -19,6 +19,7 @@
 #include <bit>
 #include "Helpers/Translations.h"
 #include "Miscs/DialogStyle.h"
+#include "Helpers/TheaterHelpers.h"
 
 #define ENABLE_VISUAL_STYLE
 static ULONG_PTR ulCookie;
@@ -141,8 +142,10 @@ bool ExtConfigs::PlaceStructureUpgrades;
 bool ExtConfigs::PlaceStructureUpgradeStrength;
 bool ExtConfigs::PlaceStructurePlaceUpgrade;
 bool ExtConfigs::PlaceTileSkipHide;
+bool ExtConfigs::EnableVeinholeLogic;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::LoadGameFromMapFolder_OnInit;
 bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
 bool ExtConfigs::ExtendedValidationAres;
@@ -215,6 +218,7 @@ CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
 std::map<FString, bool> ExtConfigs::SupportedFormats;
+int ExtConfigs::OverlayDataLimit;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
 
@@ -319,6 +323,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::AIRepairDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AIRepairDefaultYes");
 	ExtConfigs::AISellableDefaultYes = CINI::FAData->GetBool("ExtConfigs", "AISellableDefaultYes");
 
+	ExtConfigs::OverlayDataLimit = CINI::FAData->GetInteger("ExtConfigs", "OverlayDataLimit", 60);
+	ExtConfigs::OverlayDataLimit = std::clamp(ExtConfigs::OverlayDataLimit, 1, 256);
 	ExtConfigs::UTF8Support_InferEncoding = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.InferEncoding", true);
 	ExtConfigs::UTF8Support_AlwaysSaveAsUTF8 = CINI::FAData->GetBool("ExtConfigs", "UTF8Support.AlwaysSaveAsUTF8");
 
@@ -442,7 +448,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceStructureUpgradeStrength = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.UpgradeStrength");
 	ExtConfigs::PlaceStructurePlaceUpgrade = CINI::FAData->GetBool("ExtConfigs", "PlaceStructure.PlaceUpgrade");
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
+	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
+	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
 	//ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
 	ExtConfigs::ExtendedValidationAres = CINI::FAData->GetBool("ExtConfigs", "ExtendedValidationAres");
@@ -660,14 +668,14 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.SafeHouses", "Block invalid houses"),
 		.IniKey = "ObjectBrowser.SafeHouses",
 		.Value = &ExtConfigs::ObjectBrowser_SafeHouses,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Foundation", "Group buildings by foundation"),
 		.IniKey = "ObjectBrowser.Foundation",
 		.Value = &ExtConfigs::ObjectBrowser_Foundation,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -681,7 +689,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.Ore.ExtraSupport", "Support vinifera and aboreus ores"),
 		.IniKey = "ObjectBrowser.Ore.ExtraSupport",
 		.Value = &ExtConfigs::ObjectBrowser_Ore_ExtraSupport,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	// Map Display and Rendering
@@ -932,6 +940,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LoadGameFromMapFolder.OnInit", "Load game resources from map folder when directly open map"),
+		.IniKey = "LoadGameFromMapFolder.OnInit",
+		.Value = &ExtConfigs::LoadGameFromMapFolder_OnInit,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SkipTipsOfTheDay", "Skip tips of the day"),
 		.IniKey = "SkipTipsOfTheDay",
 		.Value = &ExtConfigs::SkipTipsOfTheDay,
@@ -957,6 +972,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "PlaceTileSkipHide",
 		.Value = &ExtConfigs::PlaceTileSkipHide,
 		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.EnableVeinholeLogic", "Enable veinhole logic"),
+		.IniKey = "EnableVeinholeLogic",
+		.Value = &ExtConfigs::EnableVeinholeLogic,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1146,7 +1168,7 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.PlayerAtXForTechnos", "Show <Player @ X> options in unit property dialog (Phobos B37+)"),
 		.IniKey = "PlayerAtXForTechnos",
 		.Value = &ExtConfigs::PlayerAtXForTechnos,
-		.Type = ExtConfigs::SpecialOptionType::ReloadMap
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectBrowser
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1310,6 +1332,8 @@ void ExtConfigs::UpdateOptionTranslations()
 			.Type = ExtConfigs::SpecialOptionType::BindFormat
 			});
 	}
+
+	TheaterHelpers::InitTheaterSuffix();
 }
 
 bool FA2sp::IsDarkMode()

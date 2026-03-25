@@ -428,10 +428,14 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 
 		for (const auto& block : *DataExt.Foundations)
 		{
-			LinesX[block.X][block.Y] = !LinesX[block.X][block.Y];
-			LinesX[block.X][block.Y + 1] = !LinesX[block.X][block.Y + 1];
-			LinesY[block.X][block.Y] = !LinesY[block.X][block.Y];
-			LinesY[block.X + 1][block.Y] = !LinesY[block.X + 1][block.Y];
+			int x = std::clamp(block.X, 0, DataExt.Width - 1);
+			int y = std::clamp(block.Y, 0, DataExt.Height - 1);
+
+			LinesX[x][y] = !LinesX[x][y];
+			LinesX[x][y + 1] = !LinesX[x][y + 1];
+
+			LinesY[x][y] = !LinesY[x][y];
+			LinesY[x + 1][y] = !LinesY[x + 1][y];
 		}
 
 		for (size_t y = 0; y < DataExt.Height + 1; ++y)
@@ -788,7 +792,6 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 	}
 
 	return true;
-
 }
 
 void CMapDataExt::SetHeightAt(int x, int y, int height)
@@ -1002,7 +1005,7 @@ std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriInt
 
 LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 {
-	if (tileIndex == 0xFFFF)
+	if (tileIndex >= CMapDataExt::TileDataCount)
 		tileIndex = 0;
 
 	if (TileData[tileIndex].TileSet != ShorePieces && TileData[tileIndex].TileSet == AutoShore_ShoreTileSet)
@@ -1023,7 +1026,24 @@ LandType CMapDataExt::GetAltLandType(int tileIndex, int TileSubIndex)
 		}
 	}
 
-	return TileData[tileIndex].TileBlockDatas[TileSubIndex].TerrainTypeAlt;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].TerrainTypeAlt;
+}
+
+LandType CMapDataExt::GetLandType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		tileIndex = 0;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].TerrainType;
 }
 
 void CMapDataExt::PlaceWallAt(int dwPos, int overlay, int damageStage, bool firstRun)
@@ -1983,50 +2003,83 @@ void CMapDataExt::UpdateAnnotation()
 	}
 }
 
-void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr)
+void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 {
 	if (ovr >= 0xFF && !ExtConfigs::ExtOverlays && NewINIFormat < 5)
 		ovr = 0xFFFF;
 
-	auto pExt = GetExtension();
-	int dwPos = pExt->GetCoordIndex(x, y);
+	int dwPos = GetCoordIndex(x, y);
 	int olyPos = y + x * 512;
 
-	if (olyPos > 262144 || dwPos > pExt->CellDataCount) return;
+	if (olyPos > 262144 || dwPos > CellDataCount) return;
 
-	auto& ovrl = pExt->CellDataExts[dwPos].NewOverlay;
-	auto& ovrld = pExt->CellDatas[dwPos].OverlayData;
+	auto& ovrl = CellDataExts[dwPos].NewOverlay;
+	auto& ovrld = CellDatas[dwPos].OverlayData;
 
-	pExt->DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+	DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
 
-	pExt->NewOverlay[olyPos] = ovr;
-	pExt->Overlay[olyPos] = std::min(ovr, (WORD)0xff);
-	pExt->CellDataExts[dwPos].NewOverlay = ovr;
-	pExt->CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
+	NewOverlay[olyPos] = ovr;
+	Overlay[olyPos] = std::min(ovr, (WORD)0xff);
+	CellDataExts[dwPos].NewOverlay = ovr;
+	CellDatas[dwPos].Overlay = std::min(ovr, (WORD)0xff);
 
-	pExt->OverlayData[olyPos] = 0;
-	pExt->CellDatas[dwPos].OverlayData = 0;
+	OverlayData[olyPos] = 0;
+	CellDatas[dwPos].OverlayData = 0;
 
-	auto& ovrl2 = pExt->CellDataExts[dwPos].NewOverlay;
-	auto& ovrld2 = pExt->CellDatas[dwPos].OverlayData;
-	pExt->AddTiberium(std::min(ovrl2, (word)0xFF), ovrld2);
+	auto& ovrl2 = CellDataExts[dwPos].NewOverlay;
+	auto& ovrld2 = CellDatas[dwPos].OverlayData;
+	AddTiberium(std::min(ovrl2, (word)0xFF), ovrld2);
 
-	int i, e;
-	for (i = -1; i < 2; i++)
-		for (e = -1; e < 2; e++)
-			if (pExt->IsCoordInMap(x + i, y + e))
-				pExt->SmoothTiberium(pExt->GetCoordIndex(x + i, y + e));
+	if (smoothOre)
+	{
+		int i, e;
+		for (i = -1; i < 2; i++)
+			for (e = -1; e < 2; e++)
+				if (IsCoordInMap(x + i, y + e))
+					SmoothTiberium(GetCoordIndex(x + i, y + e));
+	}
 
 	if (!CMapDataExt::SkipUpdateMinimap)
-		pExt->UpdateMapPreviewAt(x, y);
+		UpdateMapPreviewAt(x, y);
 }
 
-void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr)
+void CMapDataExt::SetNewOverlayAt(int pos, WORD ovr, bool smoothOre)
 {
-	auto pExt = GetExtension();
-	int x = pExt->GetXFromCoordIndex(pos);
-	int y = pExt->GetYFromCoordIndex(pos);
-	SetNewOverlayAt(x, y, ovr);
+	int x = GetXFromCoordIndex(pos);
+	int y = GetYFromCoordIndex(pos);
+	SetNewOverlayAt(x, y, ovr, smoothOre);
+}
+
+void CMapDataExt::SetNewOverlayDataAt(int x, int y, byte ovrd, bool smoothOre)
+{
+	int pos = GetCoordIndex(x, y);
+	if (y + x * 512 > 262144 || pos >= CellDataCount) return;
+
+	auto ovrl = GetOverlayAt(pos);
+	auto ovrld = GetOverlayDataAt(pos);
+
+	if (IsOre(ovrl))
+	{
+		if (smoothOre)
+		{
+			return;
+		}
+		else
+		{
+			DeleteTiberium(std::min(ovrl, (word)0xFF), ovrld);
+			AddTiberium(std::min(ovrl, (word)0xFF), ovrd);
+		}
+	}
+
+	OverlayData[y + x * 512] = ovrd;
+	CellDatas[pos].OverlayData = ovrd;
+}
+
+void CMapDataExt::SetNewOverlayDataAt(int pos, byte ovrd, bool smoothOre)
+{
+	int x = GetXFromCoordIndex(pos);
+	int y = GetYFromCoordIndex(pos);
+	SetNewOverlayDataAt(x, y, ovrd, smoothOre);
 }
 
 WORD CMapDataExt::GetOverlayAt(int x, int y)
@@ -3362,6 +3415,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	if (updateMinimap && reloadCellDataExt && reloadImages)
 		CTileSetBrowserFrameExt::TerrainDlgLoaded = false;
 
+	CViewObjectsExt::Redraw_Initialize();
 	CLoadingExt::g_cache[0].clear();
 	CLoadingExt::g_cache[1].clear();
 	CLoadingExt::g_cacheTime[0].clear();
@@ -3506,11 +3560,18 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		theaterIg = "UBN";
 	FString theaterSuffix = theaterIg.Mid(0, 3);
 	FString isoPal;
-	isoPal.Format("iso%s.pal", theaterSuffix);
+	isoPal.Format("iso%s.pal", CLoadingExt::GetExtension()->GetTheaterSuffix());
 	isoPal.MakeUpper();
-	auto pal = PalettesManager::LoadPalette(isoPal);
-	CMapDataExt::Palette_ISO = *pal;
-	CMapDataExt::Palette_ISO_NoTint = *pal;
+	if (auto pal = PalettesManager::LoadPalette(isoPal))
+	{
+		CMapDataExt::Palette_ISO = *pal;
+		CMapDataExt::Palette_ISO_NoTint = *pal;
+	}
+	else
+	{
+		memset(&CMapDataExt::Palette_ISO, 0, sizeof(Palette));
+		memset(&CMapDataExt::Palette_ISO_NoTint, 0, sizeof(Palette));
+	}
 
 	Palette_Shadow.Data[0].R = 255;
 	Palette_Shadow.Data[0].G = 255;
@@ -3859,9 +3920,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 					sectionName.Format("TileSet%04d", index);
 					auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
 					if (customPal == "iso")
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), &Palette_ISO_NoTint, 0);
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), &Palette_ISO_NoTint, 0);
 					else
-						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoading::Instance->GetFileExtension(), customPal, 0);
+						CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), customPal, 0);
 					anim.ImageName = imageName;
 				}
 			}
@@ -3975,6 +4036,20 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 			{
 				if (!Variables::RulesMap.TryGetString(ex, "ExtraUnit.Type"))
 					continue;
+
+				if (auto binds = Variables::RulesMap.TryGetString(ex, "ExtraUnit.BindType"))
+				{
+					auto units = STDHelpers::SplitString(*binds);
+					bool valid = false;
+					for (auto& unit : units)
+					{
+						unit.Trim();
+						if (unit == ID)
+							valid = true;
+					}
+					if (!valid)
+						continue;
+				}
 
 				auto& ret = TechnoAttachments[ID];
 				auto& ta = ret.emplace_back();

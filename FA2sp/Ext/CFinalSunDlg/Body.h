@@ -178,14 +178,14 @@ public:
         Set_Building = 0, Set_Infantry, Set_Vehicle, Set_Aircraft, Set_Count
     };
     enum{
-        RandomRock = 2000, Wall = 2100, WallEnd = 3999, AddOre , ReduceOre
+        RandomRock = 6000, Wall = 6500, WallEnd = 6990, AddOre , ReduceOre
     };
     enum{
         RandomTechno = 9900
     };
 
     enum {
-        RandomTree = 2000
+        RandomTree = 9500
     };
     
     enum {
@@ -229,11 +229,11 @@ public:
     static int RedrawCalledCount;
     static bool IsOpeningAnnotationDlg;
     static int InsertingOverlayData;
+    static std::unordered_set<FString> IgnoreSet;
+    static std::unordered_set<FString> IgnoreOverlaySet;
 
 private:
     static std::array<HTREEITEM, Root_Count> ExtNodes;
-    static std::unordered_set<FString> IgnoreSet;
-    static std::unordered_set<FString> IgnoreOverlaySet;
     static std::unordered_set<FString> ForceName;
     static std::unordered_map<FString, FString> RenameString;
     static std::unordered_set<FString> ExtSets[Set_Count];
@@ -260,7 +260,6 @@ private:
         std::map<int, FString>& subNodeNames,
         std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
         int index, int sideLimit, const FString& display);
-    void Redraw_Initialize();
     void Redraw_MainList();
     void Redraw_Ground();
     void Redraw_Owner();
@@ -405,8 +404,16 @@ public:
     static COLORREF WpColor;
     static COLORREF TagColor;
 
+    static std::map<int, FString> TreeViewIndex_Building;
+    static std::map<int, FString> TreeViewIndex_Infantry;
+    static std::map<int, FString> TreeViewIndex_Vehicle;
+    static std::map<int, FString> TreeViewIndex_Aircraft;
+    static std::map<int, FString> TreeViewIndex_Terrain;
+    static std::map<int, FString> TreeViewIndex_Smudge;
+
     void Redraw();
     bool UpdateEngine(int nData);
+    static void Redraw_Initialize();
     static void OnExeTerminate();
     static void InitializeOnUpdateEngine();
     static void ApplyDragFacing(int X, int Y);
@@ -485,5 +492,4 @@ public:
     /// </param>
     /// <returns>The index of side guessed. -1 if cannot be guessed.</returns>
     static int GuessGenericSide(const char* pRegName, int nType);
-    static int GetFinalAlert2Side(const char* pRegName);
 };
