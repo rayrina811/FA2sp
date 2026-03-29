@@ -399,14 +399,14 @@ ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
     return ret;
 }
 
-std::string STDHelpers::ChineseTraditional_ToSimple(const std::string& _str)
+FString STDHelpers::ChineseTraditional_ToSimple(const FString& _str)
 {
     LPCSTR lpSrcStr = _str.c_str();
     int cchSrc = static_cast<int>(_str.size());
     int cchDest = static_cast<int>(1 + _str.size());
     LPSTR lpDestStr = new CHAR[cchDest]{ 0 };
     LCMapStringA(0x0804, LCMAP_SIMPLIFIED_CHINESE, lpSrcStr, cchSrc, lpDestStr, cchDest);
-    std::string str(lpDestStr);
+    FString str(lpDestStr);
     delete[] lpDestStr;
     lpDestStr = nullptr;
     return str;
@@ -457,6 +457,19 @@ void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, c
         str.replace(pos, oldStr.length(), newStr);
         pos += newStr.length();
     }
+}
+
+std::string STDHelpers::ReplaceEnding(const std::string& str,
+    const std::string& oldSuffix,
+    const std::string& newSuffix)
+{
+    if (!str.ends_with(oldSuffix))
+        return str;
+
+    std::string ret = str;
+    ret.resize(ret.size() - oldSuffix.size());
+    ret += newSuffix;
+    return ret;
 }
 
 FileEncoding STDHelpers::GetFileEncoding(const uint8_t* data, size_t size) {

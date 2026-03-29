@@ -12,6 +12,7 @@
 #include <shlobj.h>
 #include <afxwin.h>
 #include "../../Helpers/STDHelpers.h"
+#include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 
 DEFINE_HOOK(41FAD0, CFinalSunApp_InitInstance, 8)
 {
@@ -22,13 +23,55 @@ DEFINE_HOOK(41FAD0, CFinalSunApp_InitInstance, 8)
 
 DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
 {
-    REF_STACK(LPMSG, lpMsg, 0x8);
     if (!CMapData::Instance->MapWidthPlusHeight) return 0;
-    if (CViewObjectsExt::CurrentConnectedTileType < 0 || CViewObjectsExt::CurrentConnectedTileType > CViewObjectsExt::ConnectedTileSets.size()) return 0;
-    int currentCTtype = CViewObjectsExt::ConnectedTileSets[CViewObjectsExt::CurrentConnectedTileType].Type;
-    if (!CViewObjectsExt::IsInPlaceCliff_OnMouseMove)
+    REF_STACK(LPMSG, lpMsg, 0x8);
+    if (lpMsg->message != WM_KEYDOWN) return 0;
+
+    POINT pt;
+    GetCursorPos(&pt);
+    HWND hTopWnd = WindowFromPoint(pt);
+    if (hTopWnd != CIsoView::GetInstance()->GetSafeHwnd()) return 0;
+
+    if (CViewObjectsExt::CurrentConnectedTileType < 0 
+        || CViewObjectsExt::CurrentConnectedTileType > CViewObjectsExt::ConnectedTileSets.size()
+        || CIsoView::CurrentCommand->Command != 0x1E)
     {
-        if (lpMsg->message == WM_KEYDOWN)
+        auto& gov = GridObjectViewer::Instance;
+        if (gov.IsVisible())
+        {
+            bool changed = false;
+            switch (lpMsg->wParam)
+            {
+            case VK_LEFT:
+                changed = gov.SelectLeft();
+                break;
+            case VK_RIGHT:
+                changed = gov.SelectRight();
+                break;
+            case VK_UP:
+                changed = gov.SelectUp();
+                break;
+            case VK_DOWN:
+                changed = gov.SelectDown();
+                break;
+            }
+            if (changed)
+            {
+                InvalidateRect(gov.GetView(), NULL, TRUE);
+                gov.EnsureVisible(gov.GetSelectedIndex());
+                gov.OnSelChanged(gov.GetSelectedIndex());
+
+                POINT pt;
+                GetCursorPos(&pt);
+                ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+                CIsoView::GetInstance()->OnMouseMove(0, pt);
+            }       
+        }
+    }
+    else
+    {
+        int currentCTtype = CViewObjectsExt::ConnectedTileSets[CViewObjectsExt::CurrentConnectedTileType].Type;
+        if (!CViewObjectsExt::IsInPlaceCliff_OnMouseMove)
         {
             auto point = CIsoView::GetInstance()->GetCurrentMapCoord(CIsoView::GetInstance()->MouseCurrentPosition);
             if (lpMsg->wParam == VK_UP && (currentCTtype == CViewObjectsExt::DirtRoad || currentCTtype == CViewObjectsExt::CityDirtRoad || currentCTtype == CViewObjectsExt::Highway))
@@ -54,7 +97,6 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 {
                     CViewObjectsExt::CliffConnectionHeight++;
                 }
-
             }
             else if (lpMsg->wParam == VK_NEXT)
             {
@@ -64,8 +106,8 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 }
             }
         }
-
     }
+
     return 0;
 }
 

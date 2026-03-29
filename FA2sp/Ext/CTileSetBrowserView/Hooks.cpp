@@ -785,7 +785,11 @@ DEFINE_HOOK(4F1D70, CTileSetBrowserView_OnDraw, 6)
 
         for (int i = 0; i < pThis->TileSurfacesCount; i++)
         {
-            if (!pThis->TileSurfaces[i]) continue;
+            if (!pThis->TileSurfaces[i])
+            {
+                tileIndex++;
+                continue;
+            }
 
             int curwidth, curheight;
             if (pThis->CurrentTileset < 10000)
@@ -1159,6 +1163,8 @@ DEFINE_HOOK(4F22D6, CTileSetBrowserView_OnDraw_OverlayBackground, 6)
 
 DEFINE_HOOK(4F12C0, CTileSetBrowserView_Update_LoadOverlay, 5)
 {
+    CViewObjectsExt::Redraw_Initialize();
+
     HWND hParent = CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->DialogBar.GetSafeHwnd();
     HWND hOverlayComboBox = GetDlgItem(hParent, 1367);
 

@@ -10,6 +10,7 @@
 #include "../../Ext/CFinalSunApp/Body.h"
 #include <shlwapi.h>
 #include <ShlObj.h>
+#include "../../Ext/CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #pragma comment(lib, "shlwapi.lib")
 
 HWND CFA2spOptions::m_hwnd;
@@ -362,11 +363,13 @@ void CFA2spOptions::Update(const char* filter)
     ListView_InsertColumn(hList, 0, &lvc);
 
     int index = 0;
+
+    LabelMatcher matcher(filter);
     for (const auto& opt : ExtConfigs::Options)
     {
         if (filter && strlen(filter))
         {
-            if (!ExtraWindow::IsLabelMatch(opt.DisplayName, filter) && !ExtraWindow::IsLabelMatch(opt.IniKey, filter))
+            if (!matcher.Match(opt.DisplayName) && !matcher.Match(opt.IniKey))
                 continue;
         }
         LVITEM lvi = { 0 };
@@ -448,6 +451,11 @@ BOOL CALLBACK CFA2spOptions::DlgProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM 
                             else if (opt.Type == ExtConfigs::SpecialOptionType::ReloadObjectBrowser)
                             {
                                 ((CViewObjectsExt*)(m_parent->MyViewFrame.pViewObjects))->Redraw();
+                            }
+                            else if (opt.Type == ExtConfigs::SpecialOptionType::ReloadObjectViewer)
+                            {
+                                GridObjectViewer::Instance.UpdateControls();
+                                GridObjectViewer::Instance.UpdateImages();
                             }
                             else if (opt.Type == ExtConfigs::SpecialOptionType::Restart)
                             {

@@ -40,6 +40,7 @@ std::unordered_map<FString, int[10]> CViewObjectsExt::KnownItem;
 std::unordered_map<FString, std::vector<int>[10]> CViewObjectsExt::MultiLayerItem;
 std::unordered_map<FString, int> CViewObjectsExt::Owners;
 std::unordered_set<FString> CViewObjectsExt::AddOnceSet;
+std::vector<int> CViewObjectsExt::WallIndices;
 int CViewObjectsExt::AddedItemCount;
 int CViewObjectsExt::RedrawCalledCount = 0;
 bool CViewObjectsExt::IsOpeningAnnotationDlg = false;
@@ -91,15 +92,15 @@ std::vector<FString> CViewObjectsExt::ObjectFilterCT;
 std::map<int, int> CViewObjectsExt::WallDamageStages;
 
 bool CViewObjectsExt::InitPropertyDlgFromProperty{ false };
-int CViewObjectsExt::PlacingWall;
-int CViewObjectsExt::PlacingRandomRock;
-int CViewObjectsExt::PlacingRandomSmudge;
-int CViewObjectsExt::PlacingRandomTerrain;
-int CViewObjectsExt::PlacingRandomInfantry;
-int CViewObjectsExt::PlacingRandomVehicle;
-int CViewObjectsExt::PlacingRandomStructure;
-int CViewObjectsExt::PlacingRandomAircraft;
-int CViewObjectsExt::PlacingRandomTile;
+int CViewObjectsExt::PlacingWall = -1;
+int CViewObjectsExt::PlacingRandomRock = -1;
+int CViewObjectsExt::PlacingRandomSmudge = -1;
+int CViewObjectsExt::PlacingRandomTerrain = -1;
+int CViewObjectsExt::PlacingRandomInfantry = -1;
+int CViewObjectsExt::PlacingRandomVehicle = -1;
+int CViewObjectsExt::PlacingRandomStructure = -1;
+int CViewObjectsExt::PlacingRandomAircraft = -1;
+int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
@@ -168,6 +169,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (InsertingTileIndex > -1)
             {
                 auto& tile = CMapDataExt::TileData[InsertingTileIndex];
+                if (tile.TileBlockCount == 0)
+                    return item;
                 auto& subTile = tile.TileBlockDatas[0];
 
                 FString fileName;
@@ -200,8 +203,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 data.pPalette = CMapDataExt::TileSetPalettes[CMapDataExt::TileData[InsertingTileIndex].TileSet];
 
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(&data, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(&data);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
                 CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
@@ -229,7 +232,13 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 break;
             case CLoadingExt::ObjectType::Building:
             {
-                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, 0, 0);
+                bool hasTur = Variables::RulesMap.GetBool(InsertingObjectID, "Turret")
+                    || Variables::RulesMap.GetBool(InsertingObjectID, "TurretAnimIsVoxel");
+                int facings = hasTur ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
+                auto itr = CLoadingExt::AvailableFacings.find(InsertingObjectID);
+                if (itr != CLoadingExt::AvailableFacings.end())
+                    facings = itr->second;
+                imageName = CLoadingExt::GetBuildingImageName(InsertingObjectID, facings / 8 * 5, 0);
                 fileID = CLoadingExt::GetExtension()->GetBuildingFileID(InsertingObjectID);
 
                 // some buildings share the same image while have different anims
@@ -308,7 +317,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 }
             }
 
-            if (!CLoadingExt::IsObjectLoaded(InsertingObjectID)
+            if (!CLoadingExt::IsObjectPreviewLoaded(InsertingObjectID) && !CLoadingExt::IsObjectLoaded(InsertingObjectID)
                 && InsertingOverlay < 0 && InsertingTileIndex < 0 && !InsertingSpecialBitmap)
             {
                 bool temp = ExtConfigs::InGameDisplay_Shadow;
@@ -337,8 +346,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (pData && pData->pImageBuffer)
             {
                 CBitmap cBitmap;
-                CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                auto view = CIsoViewExt::MakeImageDataView(pData);
+                CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                 int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                 this->GetTreeCtrl().SetItemImage(item, index, index);
 
@@ -440,6 +449,13 @@ void CViewObjectsExt::UpdateTreeIconsForSubtree(HTREEITEM hItem)
 
 void CViewObjectsExt::Redraw()
 {
+    // first loading is before rules loaded
+    static bool firstRun = true;
+    if (firstRun)
+    {
+        firstRun = false;
+        return;
+    }
     if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
@@ -539,7 +555,6 @@ void CViewObjectsExt::Redraw_Initialize()
 
     auto& fadata = CINI::FAData();
     auto& doc = CINI::CurrentDocument();
-
     if (ExtConfigs::ObjectBrowser_GuessMode == 1)
     {
         auto loadOwner = []()
@@ -1192,10 +1207,13 @@ void CViewObjectsExt::Redraw_Infantry()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hInfantry);
         }
@@ -1356,10 +1374,13 @@ void CViewObjectsExt::Redraw_Vehicle()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hVehicle);
         }
@@ -1520,10 +1541,13 @@ void CViewObjectsExt::Redraw_Aircraft()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hAircraft);
         }
@@ -1687,10 +1711,13 @@ void CViewObjectsExt::Redraw_Building()
     int i = 0;
     if (auto sides = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("Sides")))
     {
+        auto engSide = ExtraWindow::GetTranslatedSectionName("English-Sides");
+        if (!CINI::FAData->SectionExists(engSide))
+            engSide = "Sides";
         for (auto& itr : sides->GetEntities())
         {
             subNodeNames[i] = itr.second;
-            auto engName = fadata.GetValueAt("English-Sides", i);
+            auto engName = fadata.GetValueAt(engSide, i);
             subNodeEngNames[i] = engName.IsEmpty() ? itr.second : engName;
             subNodes[i++] = this->InsertString(itr.second, -1, hBuilding);
         }
@@ -2201,6 +2228,7 @@ void CViewObjectsExt::Redraw_Overlay()
     const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
     int indexWall = Wall;
     CViewObjectsExt::WallDamageStages.clear();
+    CViewObjectsExt::WallIndices.clear();
     for (int i = 0, sz = (ExtConfigs::ExtOverlays || CMapDataExt::NewINIFormat >= 5) ?
         overlays.size() : std::min((UINT)255, overlays.size()); i < sz; ++i)
     {
@@ -2224,19 +2252,19 @@ void CViewObjectsExt::Redraw_Overlay()
                 CViewObjectsExt::WallDamageStages[i] = damageLevel;
                 InsertingOverlay = i;
                 InsertingOverlayData = 5;
+                int wallIndex = CViewObjectsExt::WallIndices.size();
                 auto thisWall = this->InsertString(
                     QueryUIName(value),
-                    Const_Overlay + i * 5 + indexWall,
+                    Const_Overlay + wallIndex * 5 + indexWall,
                     hWalls
                 );
-
                 for (int s = 1; s < damageLevel + 1; s++)
                 {
                     FString damage;
                     damage.Format("WallDamageLevelDes%d", s);
                     this->InsertString(
                         QueryUIName(value) + " " + Translations::TranslateOrDefault(damage, damage),
-                        Const_Overlay + i * 5 + s + indexWall,
+                        Const_Overlay + wallIndex * 5 + s + indexWall,
                         thisWall
                     );
                     InsertingOverlayData += 16;
@@ -2246,9 +2274,10 @@ void CViewObjectsExt::Redraw_Overlay()
                 {
                     this->InsertString(
                         QueryUIName(value) + " " + Translations::TranslateOrDefault("WallDamageLevelDes4", "Random"),
-                        Const_Overlay + i * 5 + 4 + indexWall,
+                        Const_Overlay + wallIndex * 5 + 4 + indexWall,
                         thisWall);
                 }
+                CViewObjectsExt::WallIndices.push_back(i);
             }
 
             for (auto& [_, node] : nodes)
@@ -3795,10 +3824,13 @@ int CViewObjectsExt::GuessGenericSide(const char* pRegName, int nType)
         auto&& owners = STDHelpers::SplitString(Variables::RulesMap.GetString(pRegName, "Owner"));
         if (owners.size() <= 0)
             return -1;
-        auto&& itr = Owners.find(owners[0]);
-        if (itr == Owners.end())
-            return -1;
-        return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        for (auto& o : owners)
+        {
+            auto&& itr = Owners.find(o);
+            if (itr != Owners.end())
+                return itr->second > ExtConfigs::ObjectBrowser_GuessMax ? -1 : itr->second;
+        }
+        return -1;
     }
     }
 }
@@ -3843,6 +3875,7 @@ void CViewObjectsExt::InitializeOnUpdateEngine()
     CViewObjectsExt::NeedChangeTreeViewSelect = true;
     CIsoViewExt::EnableAutoTrack = false;
 
+    CViewObjectsExt::CurrentConnectedTileType = -1;
     CViewObjectsExt::CliffConnectionCoord.X = -1;
     CViewObjectsExt::CliffConnectionCoord.Y = -1;
     CViewObjectsExt::CliffConnectionHeight = -1;
@@ -4177,9 +4210,14 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     {
         if (nData - 3000 >= Wall && nData - 3000 < WallEnd)
         {
-            CIsoView::CurrentCommand->Command = 0x1;
-            PlacingWall = nData - 3000 - Wall;
-            return true;
+            int index = (nData - 3000 - Wall) / 5;
+            int state = (nData - 3000 - Wall) % 5;
+            if (index < WallIndices.size())
+            {
+                CIsoView::CurrentCommand->Command = 0x1;
+                PlacingWall = WallIndices[index] * 5 + state;
+                return true;
+            }
         }
         else if (nData - 3000 == AddOre)
         {

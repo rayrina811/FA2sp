@@ -10,6 +10,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunDlg/Body.h"
+#include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include <random>
 #include <chrono>
 
@@ -17,6 +18,7 @@ std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
 std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
 std::unordered_set<FString> CLoadingExt::LoadedObjects;
+std::unordered_set<FString> CLoadingExt::LoadedPreviewObjects;
 std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
 std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
 std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
@@ -283,6 +285,8 @@ void CLoadingExt::LoadObjects(const FString& ID)
 
 	if (!IsLoadingObjectView)
 		LoadedObjects.insert(ID);
+	else
+		LoadedPreviewObjects.insert(ID);
 
 	auto eItemType = GetItemType(ID);
 	if (eItemType != CLoadingExt::ObjectType::Unknown)
@@ -338,6 +342,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 	{
 		ObjectTypes.clear();
 		LoadedObjects.clear();
+		LoadedPreviewObjects.clear();
 		LoadedOverlays.clear();
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
@@ -346,6 +351,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
+		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
@@ -375,6 +381,11 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 bool CLoadingExt::IsObjectLoaded(const FString& pRegName)
 {
 	return LoadedObjects.find(pRegName) != LoadedObjects.end();
+}
+
+bool CLoadingExt::IsObjectPreviewLoaded(const FString& pRegName)
+{
+	return LoadedPreviewObjects.find(pRegName) != LoadedPreviewObjects.end();
 }
 
 bool CLoadingExt::IsSurfaceObjectLoaded(const FString& pRegName)
@@ -806,7 +817,8 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")) // Voxel turret
 	{
 		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
-		FString BarlName = ID + "barl";
+		TurName.MakeLower();
+		FString BarlName = TurName.ends_with("tur") ? STDHelpers::ReplaceEnding(TurName, "tur", "barl") : ID + "barl";
 		bool hasBarl = false;
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
 
@@ -858,7 +870,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 		for (int i = 0; i < facings; ++i)
 		{
-			if (IsLoadingObjectView && i != 0)
+			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 			memcpy_s(pTempBuf, width * height, pBuffer, width * height);
@@ -939,7 +951,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 		for (int i = 0; i < facings; ++i)
 		{
-			if (IsLoadingObjectView && i != 0)
+			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
 			memcpy_s(pTempBuf, width * height, pBuffer, width * height);
@@ -1253,7 +1265,8 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")) // Voxel turret
 	{
 		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
-		FString BarlName = ID + "barl";
+		TurName.MakeLower();
+		FString BarlName = TurName.ends_with("tur") ? STDHelpers::ReplaceEnding(TurName, "tur", "barl") : ID + "barl";
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
 		bool hasBarl = false;
 
@@ -1386,7 +1399,10 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	}
 	else if (Variables::RulesMap.GetBool(ID, "Turret")) // Shape turret
 	{
-		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
+
+		FString TurName = Variables::RulesMap.GetString(ID, 
+			Variables::RulesMap.KeyExists(ID,"TurretAnimDamaged") ? "TurretAnimDamaged" : "TurretAnim",
+			ID + "tur");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
 		for (int i = 0; i < facings; ++i)

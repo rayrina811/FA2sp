@@ -1115,10 +1115,10 @@ DEFINE_HOOK(45A08A, CIsoView_OnMouseMove_Place, 5)
 			Map->DeleteUnitData(cur_field->Unit);
 
 		if (cur_fieldExt.NewOverlay != oldNewOverlay[ix][ex])
-			Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex]);
+			Map->SetNewOverlayAt(dwPos, oldNewOverlay[ix][ex], false);
 
 		if (cur_field->OverlayData != oldData[ix * TotalSize + ex].OverlayData)
-			Map->SetOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData);
+			Map->SetNewOverlayDataAt(dwPos, oldData[ix * TotalSize + ex].OverlayData, false);
 
 		Map->DeleteTiberium(std::min(cur_fieldExt.NewOverlay, (word)0xFF), cur_field->OverlayData);
 		Map->AssignCellData(Map->CellDatas[dwPos], oldData[ix * TotalSize + ex]);
@@ -1856,4 +1856,37 @@ DEFINE_HOOK(469E70, CIsoView_UpdateStatusBar, 7)
 	CIsoViewExt::SetStatusBarText(statusbar);
 
 	return 0x46AAA1;
+}
+
+DEFINE_HOOK(469470, CIsoView_OnKeyDown, 5)
+{
+	if (!ExtConfigs::EnableMultiSelection)
+		return 0;
+
+	GET(CIsoView*, pThis, ECX);
+	GET_STACK(UINT, nChar, 0x4);
+
+	switch (nChar)
+	{
+	case 'D':
+	{
+		if (MultiSelection::Control_D_IsDown)
+			MultiSelection::Control_D_IsDown = false;
+		else
+		{
+			CFinalSunApp::Instance->FlatToGround = !CFinalSunApp::Instance->FlatToGround;
+			CFinalSunDlgExt::GetExtension()->CheckToolBarButton(40085, CFinalSunApp::Instance->FlatToGround);
+		}
+		pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		break;
+	}
+	case 'A':
+	{
+		pThis->KeyboardAMode = !pThis->KeyboardAMode;
+	}
+	}
+
+	R->EAX(pThis->Default());
+
+	return 0x4694A9;
 }
