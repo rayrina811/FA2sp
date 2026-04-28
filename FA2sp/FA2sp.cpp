@@ -56,6 +56,7 @@ bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
 bool ExtConfigs::UseSequentialIndexing;
+bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
 int ExtConfigs::AdjustDropdownWidth_Factor;
 int ExtConfigs::AdjustDropdownWidth_Max;
@@ -116,6 +117,8 @@ bool ExtConfigs::RandomTerrainObjects;
 unsigned int ExtConfigs::MaxVoxelFacing;
 bool ExtConfigs::DDrawInVideoMem;
 bool ExtConfigs::DDrawEmulation;
+bool ExtConfigs::SecondScreenSupport;
+bool ExtConfigs::SecondScreenSupport_INI;
 bool ExtConfigs::NoHouseNameTranslation;
 bool ExtConfigs::BetterHouseNameTranslation;
 bool ExtConfigs::EnableMultiSelection;
@@ -214,12 +217,13 @@ bool ExtConfigs::UTF8Support_InferEncoding = true;
 bool ExtConfigs::UTF8Support_AlwaysSaveAsUTF8;
 bool ExtConfigs::GridObjectViewer_LoadEditorCategory;
 bool ExtConfigs::GridObjectViewer_LoadForceSides;
+bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
 CAircraftData ExtConfigs::DefaultAircraftProperty;
 CBuildingData ExtConfigs::DefaultBuildingProperty;
-std::map<FString, bool> ExtConfigs::SupportedFormats;
+FMap<bool> ExtConfigs::SupportedFormats;
 int ExtConfigs::OverlayDataLimit;
 
 std::vector<ExtConfigs::DynamicOptions> ExtConfigs::Options;
@@ -242,6 +246,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::ObjectBrowser_Ore_ExtraSupport = CINI::FAData->GetBool("ExtConfigs", "ObjectBrowser.Ore.ExtraSupport");
 	ExtConfigs::GridObjectViewer_LoadEditorCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadEditorCategory", true);
 	ExtConfigs::GridObjectViewer_LoadForceSides = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadForceSides", true);
+	ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory = CINI::FAData->GetBool("ExtConfigs", "GridObjectViewer.LoadObjectBrowserCategory", true);
 	ExtConfigs::LoadCivilianStringtable = CINI::FAData->GetBool("ExtConfigs", "LoadCivilianStringtable");
 	ExtConfigs::PasteShowOutlineDefault = CINI::FAData->GetBool("ExtConfigs", "PasteShowOutline");
 	
@@ -266,6 +271,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
+	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
 	ExtConfigs::AdjustDropdownWidth = CINI::FAData->GetBool("ExtConfigs", "AdjustDropdownWidth");
 	ExtConfigs::AdjustDropdownWidth_Factor = CINI::FAData->GetInteger("ExtConfigs", "AdjustDropdownWidth.Factor", 8);
@@ -384,7 +390,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
-	ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
+	//ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
 	ExtConfigs::SaveMap_AutoSave = CINI::FAData->GetBool("ExtConfigs", "SaveMap.AutoSave");
 	ExtConfigs::SaveMap_AutoSave_Interval = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.AutoSave.Interval", 300);
@@ -426,6 +432,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::DDrawInVideoMem = CINI::FAData->GetBool("ExtConfigs", "DDrawInVideoMem", true);
 	ExtConfigs::DDrawEmulation = CINI::FAData->GetBool("ExtConfigs", "DDrawEmulation");
+	ExtConfigs::SecondScreenSupport_INI = CINI::FAData->GetBool("ExtConfigs", "SecondScreenSupport", true);
 
 	ExtConfigs::NoHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "NoHouseNameTranslation");
 	ExtConfigs::BetterHouseNameTranslation = CINI::FAData->GetBool("ExtConfigs", "BetterHouseNameTranslation");
@@ -548,6 +555,11 @@ void FA2sp::ExtConfigsInitialize()
 
 	CIsoViewExt::PasteShowOutline = ExtConfigs::PasteShowOutlineDefault;
 
+	TheaterHelpers::InitTheaterSuffix();
+
+	ExtConfigs::SecondScreenSupport =
+		ExtConfigs::SecondScreenSupport_INI
+		&& (GetSystemMetrics(SM_CMONITORS) > 1);
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -570,9 +582,16 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers"),
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers and teams"),
 		.IniKey = "UseSequentialIndexing",
 		.Value = &ExtConfigs::UseSequentialIndexing,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UseSeparateIndexing", "Assign independent suffixes to different types (triggers, teams...)"),
+		.IniKey = "UseSeparateIndexing",
+		.Value = &ExtConfigs::UseSeparateIndexing,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -707,6 +726,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadForceSides", "Classify objects in the object viewer based on their ForceSides"),
 		.IniKey = "GridObjectViewer.LoadForceSides",
 		.Value = &ExtConfigs::GridObjectViewer_LoadForceSides,
+		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
+		});
+	
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.GridObjectViewer.LoadObjectBrowserCategory", "Classify smudges/terrains/overlays in the object viewer based on their ObjectBrowser group"),
+		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
+		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
 		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer
 		});
 
@@ -1311,6 +1337,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
+		.IniKey = "SecondScreenSupport",
+		.Value = &ExtConfigs::SecondScreenSupport_INI,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.DDrawScalingBilinear", "Use bilinear scaling (smoother, but slower)"),
 		.IniKey = "DDrawScalingBilinear",
 		.Value = &ExtConfigs::DDrawScalingBilinear,
@@ -1324,12 +1357,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
-		.IniKey = "StringBufferStackAllocation",
-		.Value = &ExtConfigs::StringBufferStackAllocation,
-		.Type = ExtConfigs::SpecialOptionType::None
-		});
+	//ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	//	.DisplayName = Translations::TranslateOrDefault("Options.StringBufferStackAllocation", "Always allocate CString memory in stack"),
+	//	.IniKey = "StringBufferStackAllocation",
+	//	.Value = &ExtConfigs::StringBufferStackAllocation,
+	//	.Type = ExtConfigs::SpecialOptionType::None
+	//	});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.StrictExceptionFilter", "Use strict exception filter (catch C++ EH exceptions)"),
@@ -1350,8 +1383,6 @@ void ExtConfigs::UpdateOptionTranslations()
 			.Type = ExtConfigs::SpecialOptionType::BindFormat
 			});
 	}
-
-	TheaterHelpers::InitTheaterSuffix();
 }
 
 bool FA2sp::IsDarkMode()
@@ -1455,7 +1486,7 @@ DEFINE_HOOK(537129, ExeRun, 9)
 	Logger::Raw("==============================\nCPU Report:\n%s==============================\n", 
 		InstructionSet::Report().c_str());
 
-	ExtConfigs::AVX2_Support = InstructionSet::AVX2();
+	ExtConfigs::AVX2_Support = InstructionSet::AVX2() && InstructionSet::OSXSAVE();
 
 	if (DetachFromDebugger())
 		Logger::Info("Syringe detached!\n");

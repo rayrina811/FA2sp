@@ -115,11 +115,14 @@ public:
     static HGDIOBJ WINAPI MyGetStockObject(int fnObject);
     static HPEN WINAPI MyCreatePen(int iStyle, int cWidth, COLORREF crColor);
     static COLORREF WINAPI MySetTextColor(HDC hdc, COLORREF crColor);
+    static BOOL WINAPI MyGetWindowRect(HWND hWnd, LPRECT lpRect);
 
     static LRESULT CALLBACK HeaderSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
     static LRESULT HandleMenuMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK MenuOverlayProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-    static LRESULT CALLBACK ComboBoxSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+    static LRESULT CALLBACK ComboBoxSubclassProcA(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static BOOL AttachToComboBox(HWND hWndCombo);
+    static void DetachFromComboBox(HWND hWndCombo);
     static LRESULT CALLBACK EditSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
     static LRESULT CALLBACK StaticSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
     static LRESULT CALLBACK DarkButtonSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
@@ -165,4 +168,5 @@ public:
     static std::vector<TopMenuItemInfo> g_menuItems;
     static bool b_isImportingINI;
     static bool b_isSelectingGameFolder;
+    static const wchar_t* const PROP_ORIGINAL_WNDPROC;
 };

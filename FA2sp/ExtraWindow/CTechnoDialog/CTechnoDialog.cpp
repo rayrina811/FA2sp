@@ -164,11 +164,11 @@ BOOL CTechnoDialog::OnInitDialog()
     if (m_hSpotlight)
     {
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 0,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight")));
+            Translations::TranslateOrDefault("StructSpotlight.0", "0 - No spotlight"));
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 1,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting")));
+            Translations::TranslateOrDefault("StructSpotlight.1", "1 - Rules.ini setting"));
         ::SendMessage(m_hSpotlight, CB_INSERTSTRING, 2,
-            reinterpret_cast<LPARAM>(Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction")));
+            Translations::TranslateOrDefault("StructSpotlight.2", "2 - Circle / Direction"));
     }
 
     auto cbbHouse = reinterpret_cast<ppmfc::CComboBox*>(ppmfc::CWnd::FromHandle(m_hHouse));
@@ -188,7 +188,7 @@ BOOL CTechnoDialog::OnInitDialog()
 
     if (m_hState)
     {
-        while (::SendMessage(m_hState, CB_DELETESTRING, 0, NULL) != CB_ERR);
+        ExtraWindow::ClearComboKeepText(m_hState);
 
         for (int i = 0; i < CMapDataExt::TechnoStates.size(); ++i)
         {
@@ -196,7 +196,7 @@ BOOL CTechnoDialog::OnInitDialog()
             FString key = "FootClassStatus.";
             key += state;
             ::SendMessage(m_hState, CB_INSERTSTRING, i, 
-                reinterpret_cast<LPARAM>(Translations::TranslateOrDefault(key, state)));
+                Translations::TranslateOrDefault(key, state));
         }
     }
 
@@ -382,6 +382,36 @@ void CTechnoDialog::ApplyToCurrentTechno(void* pData, CLoadingExt::ObjectType ty
     default:
         break;
     }
+}
+
+bool CTechnoDialog::HasAnyEnabledItem() const
+{
+    if ((m_bEnableHouse && !m_strHouse.IsEmpty()) ||
+        (m_bEnableDirection && !m_strDirection.IsEmpty()) ||
+        (m_bEnableState && !m_strState.IsEmpty()) ||
+        (m_bEnableVeteran && !m_strVeteranLevel.IsEmpty()) ||
+        (m_bEnableGroup && !m_strGroup.IsEmpty()) ||
+        (m_bEnableAboveGround && !m_strAboveGround.IsEmpty()) ||
+        (m_bEnableFollowsIndex && !m_strFollowsIndex.IsEmpty()) ||
+        (m_bEnableAutoNO && !m_strAutoNO_Recruit.IsEmpty()) ||
+        (m_bEnableAutoYES && !m_strAutoYES_Recruit.IsEmpty()) ||
+        (m_bEnableTag && !m_strTag.IsEmpty()) ||
+        (m_bEnableSellable && !m_strSellable.IsEmpty()) ||
+        (m_bEnableRebuild && !m_strRebuild.IsEmpty()) ||
+        (m_bEnablePowered && !m_strPowered.IsEmpty()) ||
+        (m_bEnableUpgradeCount && !m_strUpgradeCount.IsEmpty()) ||
+        (m_bEnableSpotlight && !m_strSpotlight.IsEmpty()) ||
+        (m_bEnableUpgrade1 && !m_strUpgrade1.IsEmpty()) ||
+        (m_bEnableUpgrade2 && !m_strUpgrade2.IsEmpty()) ||
+        (m_bEnableUpgrade3 && !m_strUpgrade3.IsEmpty()) ||
+        (m_bEnableAIRepairs && !m_strAIRepairs.IsEmpty()) ||
+        (m_bEnableNominal && !m_strNominal.IsEmpty()) ||
+        (m_bEnableStrength == TRUE))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void CTechnoDialog::OnOK()

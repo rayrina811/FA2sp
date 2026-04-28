@@ -245,7 +245,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("tile_count", []() { return CMapDataExt::TileDataCount; });
     Lua.set_function("tile_set_count", []() { return CMapDataExt::TileSet_starts.size() - 1; });
     Lua.set_function("tag_count", []() { return CINI::CurrentDocument->GetKeyCount("Tags"); });
-    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").m_pchData; });
+    Lua.set_function("theater", []() {return CINI::CurrentDocument->GetString("Map", "Theater").GetString(); });
     Lua.set_function("is_multiplay", []() {return CMapData::Instance->IsMultiOnly(); });
     Lua.set_function("language", []() {return (std::string)FinalAlertConfig::Language; });
     Lua.set_function("exe_path", []() {return (std::string)CFinalSunAppExt::ExePathExt; });
@@ -669,7 +669,34 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_section", delete_section);
     Lua.set_function("get_free_waypoint", get_free_waypoint);
     Lua.set_function("get_free_key", get_free_key);
-    Lua.set_function("get_free_id", GetAvailableIndex);
+    Lua.set_function("get_free_id", [](int type = 0) {
+        EIndexType t = EIndexType::Generic;
+        switch (type)
+        {
+        case 1:
+            t = EIndexType::Trigger;
+            break;
+        case 2:
+            t = EIndexType::Tag;
+            break;
+        case 3:
+            t = EIndexType::Team;
+            break;
+        case 4:
+            t = EIndexType::Script;
+            break;
+        case 5:
+            t = EIndexType::TaskForce;
+            break;
+        case 6:
+            t = EIndexType::AITrigger;
+            break;
+        default:
+            break;
+        }
+
+        return GetAvailableIndex(t);
+    }); 
     Lua.set_function("split_string", [](std::string str, sol::optional<std::string> delimiter) {
         if (!delimiter) {
             delimiter = ",";

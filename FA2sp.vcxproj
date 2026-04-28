@@ -220,6 +220,7 @@
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CLuaConsole\LuaFunctions.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.cpp" />
+    <ClCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.cpp" />
     <ClCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.cpp" />
@@ -257,6 +258,8 @@
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.ObjectBrowserControl.cpp" />
     <ClCompile Include="FA2sp\Ext\CFinalSunDlg\Hooks.Toolbar.cpp" />
     <ClCompile Include="FA2sp\Ext\CHouses\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CHouses\Hooks.cpp" />
+    <ClCompile Include="FA2sp\Ext\CIsoView\Body.Blit.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.DrawObjects.cpp" />
@@ -312,6 +315,7 @@
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\WaypointSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\FA2Expand.cpp" />
+    <ClCompile Include="FA2sp\Helpers\FString.cpp" />
     <ClCompile Include="FA2sp\Helpers\InstructionSet.cpp" />
     <ClCompile Include="FA2sp\Helpers\MultimapHelper.cpp" />
     <ClCompile Include="FA2sp\Helpers\STDHelpers.cpp" />
@@ -322,6 +326,7 @@
     <ClCompile Include="FA2sp\Miscs\FileWatcher.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Bitmap2MapConverter.cpp" />
     <ClCompile Include="FA2sp\Miscs\DialogStyle.cpp" />
+    <ClCompile Include="FA2sp\Miscs\Hooks.CString.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.DirectDraw.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.ShpLoad.cpp" />
     <ClCompile Include="FA2sp\Miscs\Hooks.Memory.cpp" />
@@ -369,6 +374,7 @@
     <ClInclude Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.h" />
+    <ClInclude Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.h" />
     <ClInclude Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.h" />
@@ -459,6 +465,7 @@
     <ResourceCompile Include="FA2sp\ExtraWindow\CListUInputDlg\CListUInputDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CLuaConsole\CLuaConsole.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMapRendererDlg\CMapRendererDlg.rc" />
+    <ResourceCompile Include="FA2sp\ExtraWindow\CMeasurementToolbox\CMeasurementToolbox.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CMultiSelectionOptionDlg\CMultiSelectionOptionDlg.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewAITrigger\CNewAITrigger.rc" />
     <ResourceCompile Include="FA2sp\ExtraWindow\CNewComboUInputDlg\CNewComboUInputDlg.rc" />

@@ -26,6 +26,11 @@ CINI& CNewScript::map = CINI::CurrentDocument;
 CINI& CNewScript::fadata = CINI::FAData;
 MultimapHelper& CNewScript::rules = Variables::RulesMap;
 
+VirtualComboBoxEx CNewScript::vcbSelectedScript;
+VirtualComboBoxEx CNewScript::vcbActionType;
+VirtualComboBoxEx CNewScript::vcbActionParam;
+VirtualComboBoxEx CNewScript::vcbActionExtraParam;
+
 HWND CNewScript::hSelectedScript;
 HWND CNewScript::hNewScript;
 HWND CNewScript::hDelScript;
@@ -44,19 +49,14 @@ HWND CNewScript::hMoveDown;
 HWND CNewScript::hActionParamDes;
 HWND CNewScript::hActionExtraParamDes;
 HWND CNewScript::hInsert;
+HWND CNewScript::hRenderPath;
 HWND CNewScript::hSearchReference;
 
 int CNewScript::SelectedScriptIndex = -1;
 FString CNewScript::CurrentScriptID;
-std::map<int, FString> CNewScript::ScriptLabels;
-std::map<int, FString> CNewScript::ActionTypeLabels;
-std::map<int, FString> CNewScript::ActionParamLabels;
-std::map<int, FString> CNewScript::ActionExtraParamLabels;
-std::map<FString, bool> CNewScript::ActionHasExtraParam;
-std::map<FString, bool> CNewScript::ActionIsStringParam;
-bool CNewScript::Autodrop;
+FMap<bool> CNewScript::ActionHasExtraParam;
+FMap<bool> CNewScript::ActionIsStringParam;
 bool CNewScript::ParamAutodrop[2];
-bool CNewScript::DropNeedUpdate;
 bool CNewScript::bInsert;
 WNDPROC CNewScript::OriginalListBoxProc;
 HWND CNewScript::hDragPoint;
@@ -117,6 +117,7 @@ void CNewScript::Initialize(HWND& hWnd)
     Translate(6303, "ScriptTypesExtraParam");
     Translate(6305, "ScriptTypesMoveUp");
     Translate(6306, "ScriptTypesMoveDown");
+    Translate(6307, "ScriptTypesRenderPath");
     Translate(1999, "SearchReferenceTitle");
 
     hSelectedScript = GetDlgItem(hWnd, Controls::SelectedScript);
@@ -137,9 +138,11 @@ void CNewScript::Initialize(HWND& hWnd)
     hActionParamDes = GetDlgItem(hWnd, Controls::ActionParamDes);
     hActionExtraParamDes = GetDlgItem(hWnd, Controls::ActionExtraParamDes);
     hInsert = GetDlgItem(hWnd, Controls::Insert);
+    hRenderPath = GetDlgItem(hWnd, Controls::RenderPath);
     hSearchReference = GetDlgItem(hWnd, Controls::SearchReference);
     hDragPoint = GetDlgItem(hWnd, Controls::DragPoint);
     bInsert = false;
+    CIsoViewExt::DrawScriptPath = false;
 
     ExtraWindow::SetEditControlFontSize(hDescription, 1.3f);
     int tabstops[2] = { 80, 100 };
@@ -152,6 +155,13 @@ void CNewScript::Initialize(HWND& hWnd)
     {
         OrigDragDotProc = (WNDPROC)SetWindowLongPtr(hDragPoint, GWLP_WNDPROC, (LONG_PTR)DragDotProc);
     }
+
+    vcbSelectedScript.Attach(hSelectedScript, &ExtConfigs::SortByLabelName_Script, false);
+    vcbActionType.Attach(hActionType);
+    vcbActionParam.Attach(hActionParam);
+    vcbActionParam.SetAutoSearchRestriction(&ParamAutodrop[0]);
+    vcbActionExtraParam.Attach(hActionExtraParam);
+    vcbActionExtraParam.SetAutoSearchRestriction(&ParamAutodrop[1]);
 
     hl.SetBorderColor(ExtConfigs::EnableDarkMode ? RGB(0, 90, 0) : RGB(0, 180, 0));
     hl.SetBorderThickness(3);
@@ -168,11 +178,9 @@ void CNewScript::Update(HWND& hWnd)
     if (ScriptSort::Instance.IsVisible())
         ScriptSort::Instance.LoadAllTriggers();
 
-    DropNeedUpdate = false;
-
     int idx = 0;
     
-    ExtraWindow::SortTeams(hSelectedScript, "ScriptTypes", SelectedScriptIndex);
+    ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex);
 
     int count = SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL);
     if (SelectedScriptIndex < 0)
@@ -182,9 +190,10 @@ void CNewScript::Update(HWND& hWnd)
     SendMessage(hSelectedScript, CB_SETCURSEL, SelectedScriptIndex, NULL);
     
     idx = 0;
-    while (SendMessage(hActionType, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hActionType);
     if (auto pSection = fadata.GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
     {
+        ComboBoxBatchUpdater cbb(hActionType, pSection->GetEntities().size(), false, 256, false);
         for (auto& pair : pSection->GetEntities())
         {
             auto atoms = FString::SplitString(pair.second, 4);
@@ -229,19 +238,22 @@ void CNewScript::Update(HWND& hWnd)
         }
     }
 
-    Autodrop = false;
     OnSelchangeScript();
 }
 
 void CNewScript::Close(HWND& hWnd)
 {
+    if (CIsoViewExt::DrawScriptPath)
+    {
+        CIsoViewExt::DrawScriptPath = false;
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+    }
+
     EndDialog(hWnd, NULL);
 
     CNewScript::m_hwnd = NULL;
     CNewScript::m_parent = NULL;
-
 }
-
 
 LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -447,40 +459,46 @@ LRESULT CALLBACK CNewScript::ListBoxSubclassProc(HWND hWnd, UINT message, WPARAM
     switch (message)
     {
     case WM_MOUSEWHEEL:
-
+    {
         POINT pt;
         GetCursorPos(&pt);
-        ScreenToClient(hWnd, &pt); 
+        ScreenToClient(hWnd, &pt);
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        if (pt.x >= rc.right)
+        if (pt.x >= rc.right - GetSystemMetrics(SM_CXVSCROLL))
         {
             return CallWindowProc(OriginalListBoxProc, hWnd, message, wParam, lParam);
         }
-        else
+
+        int delta = (short)HIWORD(wParam);
+
+        WPARAM keyParam = 0;
+        if (delta > 0)
+            keyParam = VK_UP;
+        else if (delta < 0)
+            keyParam = VK_DOWN;
+
+        if (keyParam != 0)
         {
-            int nCurSel = (int)SendMessage(hWnd, LB_GETCURSEL, 0, 0);
-            int nCount = (int)SendMessage(hWnd, LB_GETCOUNT, 0, 0);
-
-            if (nCurSel != LB_ERR && nCount > 0)
-            {
-                if ((short)HIWORD(wParam) > 0 && nCurSel > 0)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel - 1, 0);
-                }
-                else if ((short)HIWORD(wParam) < 0 && nCurSel < nCount - 1)
-                {
-                    SendMessage(hWnd, LB_SETCURSEL, nCurSel + 1, 0);
-                }
-                OnSelchangeActionListbox();
-
-            }
-            else {
-                SendMessage(hWnd, LB_SETCURSEL, 0, 0);
-            }
-            return TRUE;
+            SendMessage(hWnd, WM_KEYDOWN, keyParam, 0x00000001);
+            SendMessage(hWnd, WM_KEYUP, keyParam, 0xC0000001);
         }
+
+        return TRUE;
+    }
+    case WM_LBUTTONDOWN:
+    {
+        POINT pt = { (int)(short)LOWORD(lParam), (int)(short)HIWORD(lParam) };
+        int index = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+
+        if (HIWORD(index))
+        {
+            return 0;
+        }
+        break;
+    }
     }
     return CallWindowProc(OriginalListBoxProc, hWnd, message, wParam, lParam);
 }
@@ -552,14 +570,6 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         case Controls::SelectedScript:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeScript();
-            else if (CODE == CBN_DROPDOWN)
-                OnSeldropdownScript(hWnd);
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeScript(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupScript();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE)
@@ -571,13 +581,10 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 GetWindowText(hName, buffer, 511);
                 map.WriteString(CurrentScriptID, "Name", buffer);
 
-                DropNeedUpdate = true;
+                FString name = ExtraWindow::FormatTriggerDisplayName(CurrentScriptID, buffer);
 
-                FString name;
-                name.Format("%s (%s)", CurrentScriptID, buffer);
-                SendMessage(hSelectedScript, CB_DELETESTRING, SelectedScriptIndex, NULL);
-                SendMessage(hSelectedScript, CB_INSERTSTRING, SelectedScriptIndex, (LPARAM)(LPCSTR)name);
-                SendMessage(hSelectedScript, CB_SETCURSEL, SelectedScriptIndex, NULL);
+                vcbSelectedScript.ReplaceString(SelectedScriptIndex, name);
+                vcbSelectedScript.SetCurSel(SelectedScriptIndex);
             }
             break;
         case Controls::ActionType:
@@ -585,33 +592,28 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
                 OnSelchangeActionType();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeActionType(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupActionType();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::ActionParam:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionParam();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeActionParam(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupActionParam();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::ActionExtraParam:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeActionExtraParam();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeActionExtraParam(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupActionExtraParam();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Insert:
             bInsert = SendMessage(hInsert, BM_GETCHECK, 0, 0);
+            break;
+        case Controls::RenderPath:
+            CIsoViewExt::DrawScriptPath = SendMessage(hRenderPath, BM_GETCHECK, 0, 0);
+            if (CIsoViewExt::DrawScriptPath)
+                UpdateScriptPath();
+            else
+                ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);           
             break;
         default:
             break;
@@ -628,7 +630,11 @@ BOOL CALLBACK CNewScript::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPa
         Update(hWnd);
         return TRUE;
     }
-
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
+    }
     }
 
     // Process this message through default handler
@@ -649,12 +655,19 @@ void CNewScript::ListBoxProc(HWND hWnd, WORD nCode, LPARAM lParam)
     default:
         break;
     }
+}
 
+FString CNewScript::GetOneBasedIndex(const FString& key)
+{
+    int i = atoi(key) + 1;
+    FString ret;
+    ret.Format("%d", i);
+    return ret;
 }
 
 void CNewScript::OnSelchangeActionListbox()
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0 || SendMessage(hActionsListBox, LB_GETCOUNT, NULL, NULL) <= 0)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0 || SendMessage(hActionsListBox, LB_GETCOUNT, NULL, NULL) <= 0)
     {
         SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
         SendMessage(hActionParam, CB_SETCURSEL, -1, NULL);
@@ -663,7 +676,7 @@ void CNewScript::OnSelchangeActionListbox()
         return;
     }
 
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
     if (idx < 0)
         idx = 0;
     if (idx > 49)
@@ -674,9 +687,9 @@ void CNewScript::OnSelchangeActionListbox()
 
 void CNewScript::OnSelchangeActionExtraParam(bool edited)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
     FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
@@ -684,30 +697,8 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     if (!ActionHasExtraParam[atoms[0]])
         return;
 
-    int curSel = SendMessage(hActionExtraParam, CB_GETCURSEL, NULL, NULL);
-
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionExtraParamLabels.empty())
-        && CNewScript::ParamAutodrop[1])
-    {
-        ExtraWindow::OnEditCComboBox(hActionExtraParam, ActionExtraParamLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hActionExtraParam, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hActionExtraParam, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hActionExtraParam, buffer, 511);
-        text = buffer;
-    }
-
-    if (!text)
+    FString text = vcbActionExtraParam.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     if (ActionIsStringParam[atoms[0]])
@@ -729,7 +720,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
 
         value.Format("%s,%s,%s", atoms[0], param, extraParam);
         map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, extraParam);
+        text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], param, extraParam);
     }
     else
     {
@@ -740,7 +731,7 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
         int newParam = MAKELONG(low, high);
         value.Format("%s,%d", atoms[0], newParam);
         map.WriteString(CurrentScriptID, key, value);
-        text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+        text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
     }
 
     FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), atoms[0], atoms[0] + " - MISSING,0,1,0,MISSING"))[0];
@@ -751,49 +742,22 @@ void CNewScript::OnSelchangeActionExtraParam(bool edited)
     text.Format("%s\t%s", tmp, actionName);
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
-    SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
-}
+    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text); 
+    SetListBoxSel(idx);
 
-void CNewScript::OnCloseupActionExtraParam()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hActionExtraParam, ActionExtraParamLabels))
-    {
-        OnSelchangeActionListbox();
-    }
+    UpdateScriptPath();
 }
 
 void CNewScript::OnSelchangeActionParam(bool edited)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
-        return;
-    int curSel = SendMessage(hActionParam, CB_GETCURSEL, NULL, NULL);
-
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL) > 0 || !ActionParamLabels.empty())
-        && CNewScript::ParamAutodrop[0])
-    {
-        ExtraWindow::OnEditCComboBox(hActionParam, ActionParamLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hActionParam, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hActionParam, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hActionParam, buffer, 511);
-        text = buffer;
-    }
-
-    if (!text)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
 
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    FString text = vcbActionParam.GetSelectedText(edited);
+    if (text.empty())
+        return;
+
+    int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
     FString key;
     key.Format("%d", idx);
     auto value = map.GetString(CurrentScriptID, key);
@@ -816,13 +780,13 @@ void CNewScript::OnSelchangeActionParam(bool edited)
             auto atoms = FString::SplitString(value, 2);
             value.Format("%s,%s,%s", atoms[0], param, atoms[2]);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], param, atoms[2]);
+            text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], param, atoms[2]);
         }
         else
         {
             value.Format("%s,%s", atoms[0], param);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - %s", key, atoms[0], param);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], param);
         }
     }
     else
@@ -836,13 +800,13 @@ void CNewScript::OnSelchangeActionParam(bool edited)
             int newParam = MAKELONG(low, high);
             value.Format("%s,%d", atoms[0], newParam);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+            text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
         }
         else
         {
             value.Format("%s,%d", atoms[0], param);
             map.WriteString(CurrentScriptID, key, value);
-            text.Format("[%s] : %s - %d", key, atoms[0], param);
+            text.Format("[%s] : %s - %d", GetOneBasedIndex(key), atoms[0], param);
         }
     }
 
@@ -854,45 +818,18 @@ void CNewScript::OnSelchangeActionParam(bool edited)
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
-    SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
+    SetListBoxSel(idx);
 
-}
-
-void CNewScript::OnCloseupActionParam()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hActionParam, ActionParamLabels))
-    {
-        OnSelchangeActionListbox();
-    }
+    UpdateScriptPath();
 }
 
 void CNewScript::OnSelchangeActionType(bool edited)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
-    int curSel = SendMessage(hActionType, CB_GETCURSEL, NULL, NULL);
 
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hActionType, CB_GETCOUNT, NULL, NULL) > 0 || !ActionTypeLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hActionType, ActionTypeLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hActionType, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hActionType, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hActionType, buffer, 511);
-        text = buffer;
-    }
-
-    if (!text)
+    FString text = vcbActionType.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -901,7 +838,7 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
     text.Replace(",", "");
 
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+    int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
     FString key;
     key.Format("%d", idx);
     int actionIdx = atoi(text);
@@ -919,11 +856,11 @@ void CNewScript::OnSelchangeActionType(bool edited)
         if (ActionHasExtraParam[atoms[0]])
         {
             auto atoms = FString::SplitString(value, 2);
-            text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+            text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], atoms[1], atoms[2]);
         }
         else
         {
-            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
         }
     }
     else
@@ -933,11 +870,11 @@ void CNewScript::OnSelchangeActionType(bool edited)
             int actionParam = atoi(atoms[1]);
             int low = LOWORD(actionParam);
             int high = HIWORD(actionParam);
-            text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+            text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
         }
         else
         {
-            text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+            text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
         }
     }
 
@@ -949,49 +886,17 @@ void CNewScript::OnSelchangeActionType(bool edited)
 
     SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
     SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
-    SendMessage(hActionsListBox, LB_SETCURSEL, idx, NULL);
+    SetListBoxSel(idx);
 
     UpdateActionAndParam(actionIdx, -1, false);
-}
-
-void CNewScript::OnCloseupActionType()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hActionType, ActionTypeLabels))
-    {
-        OnSelchangeActionListbox();
-    }
-}
-
-void CNewScript::OnSeldropdownScript(HWND& hWnd)
-{
-    if (Autodrop)
-    {
-        Autodrop = false;
-        return;
-    } 
-    if (!DropNeedUpdate)
-        return;
-
-    DropNeedUpdate = false;
-
-    ExtraWindow::SortTeams(hSelectedScript, "ScriptTypes", SelectedScriptIndex, CurrentScriptID);
-
+    UpdateScriptPath();
 }
 
 void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
 {
     char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 || !ScriptLabels.empty()))
-    {
-        Autodrop = true;
-        ExtraWindow::OnEditCComboBox(hSelectedScript, ScriptLabels);
-        return;
-    }
-
-    SelectedScriptIndex = SendMessage(hSelectedScript, CB_GETCURSEL, NULL, NULL);
-    if (SelectedScriptIndex < 0 || SelectedScriptIndex >= SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+    auto clear = []()
     {
         SendMessage(hActionType, CB_SETCURSEL, -1, NULL);
         SendMessage(hActionParam, CB_SETCURSEL, -1, NULL);
@@ -999,6 +904,12 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
         SendMessage(hDescription, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         while (SendMessage(hActionsListBox, LB_DELETESTRING, 0, NULL) != CB_ERR);
+    };
+
+    SelectedScriptIndex = SendMessage(hSelectedScript, CB_GETCURSEL, NULL, NULL);
+    if (SelectedScriptIndex < 0 || SelectedScriptIndex >= SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL))
+    {
+        clear();
         CurrentScriptID = "";
         InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
@@ -1020,7 +931,7 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
     if (auto pScript = map.GetSection(pID))
     {
         auto name = map.GetString(pID, "Name");
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
 
         std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)
@@ -1048,11 +959,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
                 if (ActionHasExtraParam[atoms[0]])
                 {
                     auto atoms = FString::SplitString(value, 2);
-                    text.Format("[%s] : %s - (%s, %s)", key, atoms[0], atoms[1], atoms[2]);
+                    text.Format("[%s] : %s - (%s, %s)", GetOneBasedIndex(key), atoms[0], atoms[1], atoms[2]);
                 }
                 else
                 {
-                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                    text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
                 }
             }
             else
@@ -1062,11 +973,11 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
                     int param = atoi(atoms[1]);
                     int low = LOWORD(param);
                     int high = HIWORD(param);
-                    text.Format("[%s] : %s - (%d, %d)", key, atoms[0], low, high);
+                    text.Format("[%s] : %s - (%d, %d)", GetOneBasedIndex(key), atoms[0], low, high);
                 }
                 else
                 {
-                    text.Format("[%s] : %s - %s", key, atoms[0], atoms[1]);
+                    text.Format("[%s] : %s - %s", GetOneBasedIndex(key), atoms[0], atoms[1]);
                 }
             }
 
@@ -1082,33 +993,30 @@ void CNewScript::OnSelchangeScript(bool edited, int specificIdx)
             i++;
         }
     }
+    else
+    {
+        clear();
+    }
     if (specificIdx > -1)
     {
         while (specificIdx >= SendMessage(hActionsListBox, LB_GETCOUNT, NULL, NULL))
             specificIdx--;
-        SendMessage(hActionsListBox, LB_SETCURSEL, specificIdx, NULL);
+        SetListBoxSel(specificIdx);
     }
     else
         if (SendMessage(hActionsListBox, LB_GETCOUNT, NULL, NULL) > 0)
-            SendMessage(hActionsListBox, LB_SETCURSEL, 0, NULL);
+            SetListBoxSel(0);
 
     OnSelchangeActionListbox();
-    DropNeedUpdate = false;
-}
 
-void CNewScript::OnCloseupScript()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hSelectedScript, ScriptLabels, true))
-    {
-        OnSelchangeScript();
-    }
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickNewScript()
 {
     CNewTeamTypes::ScriptListChanged = true;
     FString key = CINI::GetAvailableKey("ScriptTypes");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
     FString buffer2;
 
     FString newName = "";
@@ -1118,7 +1026,7 @@ void CNewScript::OnClickNewScript()
     map.WriteString("ScriptTypes", key, value);
     map.WriteString(value, "Name", newName);
 
-    ExtraWindow::SortTeams(hSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
+    ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
     OnSelchangeScript();
 }
@@ -1166,7 +1074,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
     if (SendMessage(hSelectedScript, CB_GETCOUNT, NULL, NULL) > 0 && SelectedScriptIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("ScriptTypes");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Script);
 
         CINI::CurrentDocument->WriteString("ScriptTypes", key, value);
 
@@ -1191,7 +1099,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
             copyitem(buffer);
         }
 
-        ExtraWindow::SortTeams(hSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
+        ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
         OnSelchangeScript();
     }
@@ -1210,7 +1118,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
     FString keyThis;
     if (bInsert)
     {
-        int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+        int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
         if (idx >= 0)
         {
             std::vector<FString> sortedList;
@@ -1250,7 +1158,7 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         keyThis.Format("%d", count);
         map.WriteString(CurrentScriptID, keyThis, "0,0");
 
-        text.Format("[%s] : %s - %s", keyThis, "0", "0");
+        text.Format("[%s] : %s - %s", GetOneBasedIndex(keyThis), "0", "0");
         FString actionName = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), "0"))[0];
         actionName = FString::ReplaceSpeicalString(actionName);
         FString::TrimIndexElse(actionName);
@@ -1259,31 +1167,30 @@ void CNewScript::OnClickAddAction(HWND& hWnd)
         text.Format("%s\t%s", tmp, actionName);
 
         SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
-        SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
+        SetListBoxSel(count);
     }
     OnSelchangeActionListbox();
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickCloneAction(HWND& hWnd)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
     int count = SendMessage(hActionsListBox, LB_GETCOUNT, 0, NULL);
     if (count >= 50)
         return;
 
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-    if (idx < 0) return;
-
     char buffer[512]{ 0 };
-    FString text;
-    FString key;
-    FString key2;
-    key.Format("%d", count);
-    key2.Format("%d", idx);
-
     if (bInsert)
     {
+        int idx = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
+        if (idx < 0) return;
+
+        FString text;
+        FString key2;
+        key2.Format("%d", idx);
+
         auto copied = map.GetString(CurrentScriptID, key2, "0,0");
         std::vector<FString> sortedList;
         for (int i = 0; i < 50; i++)
@@ -1318,110 +1225,212 @@ void CNewScript::OnClickCloneAction(HWND& hWnd)
     }
     else
     {
-        map.WriteString(CurrentScriptID, key, map.GetString(CurrentScriptID, key2, "0,0"));
-
-        SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
-        auto atoms = FString::SplitString(buffer, " ");
-        bool first = true;
-        for (auto& atom : atoms)
+        std::vector<int> curSels;
+        GetListBoxSels(curSels);
+        FString value;
+        FString key;
+        FString key2;
+        FString text;
+        std::vector<int> addSels;
+        for (int i = 0; i < curSels.size(); ++i)
         {
-            if (first)
-            {
-                text.Format("[%s]", key);
-                first = false;
-            }
-            else
-                text += " " + atom;
-        }
+            if (count >= 50) break;
+            key.Format("%d", curSels[i]);
+            key2.Format("%d", count);
+            value = map.GetString(CurrentScriptID, key, "0,0");
+            map.WriteString(CurrentScriptID, key2, value);
 
-        SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
-        SendMessage(hActionsListBox, LB_SETCURSEL, count, NULL);
+            SendMessage(hActionsListBox, LB_GETTEXT, curSels[i], (LPARAM)buffer);
+            auto atoms = FString::SplitString(buffer, " ");
+            bool first = true;
+            for (auto& atom : atoms)
+            {
+                if (first)
+                {
+                    text.Format("[%s]", GetOneBasedIndex(key2));
+                    first = false;
+                }
+                else
+                    text += " " + atom;
+            }
+
+            SendMessage(hActionsListBox, LB_INSERTSTRING, count, (LPARAM)(LPCSTR)text);
+            addSels.push_back(count);
+            count++;
+        }
+        SetListBoxSels(addSels);
     }
     OnSelchangeActionListbox();
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickDeleteAction(HWND& hWnd)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCARETINDEX, NULL, NULL) < 0)
         return;
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
-    SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    FString key;
-    key.Format("%d", idx);
-    map.DeleteKey(CurrentScriptID, key);
+    std::vector<int> curSels;
+    GetListBoxSels(curSels);
 
-    OnSelchangeScript(false, idx);
+    int index = 0;
+    for (auto rit = curSels.rbegin(); rit != curSels.rend(); ++rit)
+    {
+        index = *rit;
+        SendMessage(hActionsListBox, LB_DELETESTRING, index, NULL);
+        FString key;
+        key.Format("%d", index);
+        map.DeleteKey(CurrentScriptID, key);
+    }
+
+    OnSelchangeScript(false, index);
+    UpdateScriptPath();
 }
 
 void CNewScript::OnClickMoveupAction(HWND& hWnd, bool reverse)
 {
-    if (SelectedScriptIndex < 0 || SendMessage(hActionsListBox, LB_GETCURSEL, NULL, NULL) < 0)
+    if (SelectedScriptIndex < 0)
         return;
-    int idx = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);    
-    int count = SendMessage(hActionsListBox, LB_GETCOUNT, 0, NULL);
-    
-    if (idx <= 0 && !reverse)
+
+    std::vector<int> sels;
+    GetListBoxSels(sels);
+
+    if (sels.empty())
         return;
-    if (idx >= count - 1 && reverse)
-        return;
+
+    int count = SendMessage(hActionsListBox, LB_GETCOUNT, 0, 0);
+
+    if (!reverse)
+    {
+        if (sels.front() == 0)
+            return;
+    }
+    else
+    {
+        if (sels.back() == count - 1)
+            return;
+    }
 
     char buffer[512]{ 0 };
-    FString text;
-    FString text2;
 
-    int idx2 = idx - 1;
-    if (reverse)
-        idx2 = idx + 1;
-
-    FString key;
-    key.Format("%d", idx);
-    auto value = map.GetString(CurrentScriptID, key);
-    FString key2;
-    key2.Format("%d", idx2);
-    auto value2 = map.GetString(CurrentScriptID, key2);
-    map.WriteString(CurrentScriptID, key, value2);
-    map.WriteString(CurrentScriptID, key2, value);
-
-    SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
-    auto atoms = FString::SplitString(buffer, " ");
-    bool first = true;
-    for (auto& atom : atoms)
+    if (!reverse)
     {
-        if (first)
+        for (size_t i = 0; i < sels.size(); ++i)
         {
-            text.Format("[%s]", key2);
-            first = false;
-        }
-        else
-            text += " " + atom;
-    }
-    SendMessage(hActionsListBox, LB_DELETESTRING, idx2, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx2, (LPARAM)(LPCSTR)text);
+            int idx = sels[i];
+            int idx2 = idx - 1;
 
-    SendMessage(hActionsListBox, LB_GETTEXT, idx2, (LPARAM)buffer);
-    atoms = FString::SplitString(buffer, " ");
-    first = true;
-    for (auto& atom : atoms)
+            FString key, key2;
+            key.Format("%d", idx);
+            key2.Format("%d", idx2);
+
+            auto value = map.GetString(CurrentScriptID, key);
+            auto value2 = map.GetString(CurrentScriptID, key2);
+
+            map.WriteString(CurrentScriptID, key, value2);
+            map.WriteString(CurrentScriptID, key2, value);
+
+            FString text;
+
+            SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
+            auto atoms = FString::SplitString(buffer, " ");
+            bool first = true;
+            for (auto& atom : atoms)
+            {
+                if (first)
+                {
+                    text.Format("[%s]", GetOneBasedIndex(key2));
+                    first = false;
+                }
+                else
+                    text += " " + atom;
+            }
+            SendMessage(hActionsListBox, LB_DELETESTRING, idx2, 0);
+            SendMessage(hActionsListBox, LB_INSERTSTRING, idx2, (LPARAM)(LPCSTR)text);
+
+            SendMessage(hActionsListBox, LB_GETTEXT, idx2 + 1, (LPARAM)buffer);
+            atoms = FString::SplitString(buffer, " ");
+            first = true;
+            for (auto& atom : atoms)
+            {
+                if (first)
+                {
+                    text.Format("[%s]", GetOneBasedIndex(key));
+                    first = false;
+                }
+                else
+                    text += " " + atom;
+            }
+            SendMessage(hActionsListBox, LB_DELETESTRING, idx2 + 1, 0);
+            SendMessage(hActionsListBox, LB_INSERTSTRING, idx2 + 1, (LPARAM)(LPCSTR)text);
+
+            sels[i]--;
+        }
+    }
+    else
     {
-        if (first)
+        for (int i = (int)sels.size() - 1; i >= 0; --i)
         {
-            text.Format("[%s]", key);
-            first = false;
-        }
-        else
-            text += " " + atom;
-    }
-    SendMessage(hActionsListBox, LB_DELETESTRING, idx, NULL);
-    SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
+            int idx = sels[i];
+            int idx2 = idx + 1;
 
-    OnSelchangeScript(false, idx2);
+            FString key, key2;
+            key.Format("%d", idx);
+            key2.Format("%d", idx2);
+
+            auto value = map.GetString(CurrentScriptID, key);
+            auto value2 = map.GetString(CurrentScriptID, key2);
+
+            map.WriteString(CurrentScriptID, key, value2);
+            map.WriteString(CurrentScriptID, key2, value);
+
+            FString text;
+
+            SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
+            auto atoms = FString::SplitString(buffer, " ");
+            bool first = true;
+            for (auto& atom : atoms)
+            {
+                if (first)
+                {
+                    text.Format("[%s]", GetOneBasedIndex(key2));
+                    first = false;
+                }
+                else
+                    text += " " + atom;
+            }
+            SendMessage(hActionsListBox, LB_DELETESTRING, idx2, 0);
+            SendMessage(hActionsListBox, LB_INSERTSTRING, idx2, (LPARAM)(LPCSTR)text);
+
+            SendMessage(hActionsListBox, LB_GETTEXT, idx, (LPARAM)buffer);
+            atoms = FString::SplitString(buffer, " ");
+            first = true;
+            for (auto& atom : atoms)
+            {
+                if (first)
+                {
+                    text.Format("[%s]", GetOneBasedIndex(key));
+                    first = false;
+                }
+                else
+                    text += " " + atom;
+            }
+            SendMessage(hActionsListBox, LB_DELETESTRING, idx, 0);
+            SendMessage(hActionsListBox, LB_INSERTSTRING, idx, (LPARAM)(LPCSTR)text);
+
+            sels[i]++; 
+        }
+    }
+
+    OnSelchangeScript(false, sels.front());
+    SetListBoxSels(sels);
+
+    UpdateScriptPath();
 }
 
 void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, bool changeActionIdx)
 {
     if (listBoxCurChanged < 0)
     {
-        listBoxCurChanged = SendMessage(hActionsListBox, LB_GETCURSEL, 0, NULL);
+        listBoxCurChanged = SendMessage(hActionsListBox, LB_GETCARETINDEX, 0, NULL);
     }
     if (listBoxCurChanged < 0)
         listBoxCurChanged = 0;
@@ -1475,7 +1484,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                 if (param.size() >= 2)
                 {
                     SendMessage(hActionParamDes, WM_SETTEXT, 0, (LPARAM)param[0]);
-                    ExtraWindow::LoadParams(hActionParam, param[1]); 
+                    ExtraWindow::LoadParams(vcbActionParam, param[1]); 
                     if (!ExtConfigs::SearchCombobox_Waypoint && param[1] == "1") // waypoints
                     {
                         CNewScript::ParamAutodrop[0] = false;
@@ -1488,7 +1497,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         auto atoms = FString::SplitString(value, 2);
                         EnableWindow(hActionExtraParam, TRUE);
                         SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
-                        ExtraWindow::LoadParams(hActionExtraParam, param[3]);
+                        ExtraWindow::LoadParams(vcbActionExtraParam, param[3]);
                         if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
                         {
                             CNewScript::ParamAutodrop[1] = false;
@@ -1536,7 +1545,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                     {
                         EnableWindow(hActionExtraParam, TRUE);
                         SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)param[2]);
-                        ExtraWindow::LoadParams(hActionExtraParam, param[3]);
+                        ExtraWindow::LoadParams(vcbActionExtraParam, param[3]);
                         if (!ExtConfigs::SearchCombobox_Waypoint && param[3] == "1") // waypoints
                         {
                             CNewScript::ParamAutodrop[1] = false;
@@ -1588,7 +1597,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
         {
             EnableWindow(hActionParam, TRUE);
             EnableWindow(hActionExtraParam, FALSE);
-            while (SendMessage(hActionParam, CB_DELETESTRING, 0, NULL) != CB_ERR);
+            ExtraWindow::ClearComboKeepText(hActionParam);
             SendMessage(hActionExtraParam, WM_SETTEXT, 0, (LPARAM)"");
             SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)atoms[1]);
             Translations::GetTranslationItem("ScriptTypesActionParam", buffer);
@@ -1607,9 +1616,82 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
             Translations::GetTranslationItem("ScriptTypesExtraParam", buffer);
             SendMessage(hActionExtraParamDes, WM_SETTEXT, 0, (LPARAM)buffer);
         }
-
     }
+}
 
+void CNewScript::UpdateScriptPath()
+{
+    if (!CIsoViewExt::DrawScriptPath
+        ||CurrentScriptID.IsEmpty() 
+        || !CINI::CurrentDocument->SectionExists(CurrentScriptID))
+        return;
+
+    CIsoViewExt::ScriptPath.clear();
+    std::set<int> jumpLines;
+    for (int i = 0; i < 50; i++)
+    {
+        FString key;
+        key.Format("%d", i);
+        auto value = CINI::CurrentDocument->GetString(CurrentScriptID, key);
+        auto atoms = FString::SplitString(value);
+        auto& action = atoms[0];
+        auto& actionParam = atoms[1];
+        if (atoms.size() < 2) break;
+        if (action == "6")
+        {
+            i = atoi(actionParam) - 2;
+            if (jumpLines.contains(i))
+                break;
+
+            jumpLines.insert(i);
+            continue;
+        }
+
+        if (auto pSection = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("ScriptsRA2")))
+        {
+            auto pValue = CINI::FAData->TryGetString(
+                ExtraWindow::GetTranslatedSectionName("ScriptsRA2"),
+                action);
+            if (!pValue)
+                continue;
+            auto atoms2 = FString::SplitString(*pValue, 4);
+            FString name = atoms2[0];
+            auto& paramIdx = atoms2[1];
+            auto& disable = atoms2[2];
+            auto& hasParam = atoms2[3];
+            auto& description = atoms2[4];
+
+            FString::TrimIndex(name);
+            if (hasParam == "1")
+            {
+                if (auto pSectionParam = CINI::FAData->GetSection(ExtraWindow::GetTranslatedSectionName("ScriptParams")))
+                {
+                    auto param = FString::SplitString(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
+                    if (ActionHasExtraParam[name])
+                    {
+                        if (param[3] == "1") // waypoints
+                        {
+                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            int x = pos / 1000;
+                            int y = pos % 1000;
+                            CIsoViewExt::ScriptPath.push_back({ x,y });
+                        }
+                    }
+                    else if (param.size() >= 2)
+                    {
+                        if (param[1] == "1") // waypoints
+                        {
+                            auto pos = CINI::CurrentDocument->GetInteger("Waypoints", actionParam);
+                            int x = pos / 1000;
+                            int y = pos % 1000;
+                            CIsoViewExt::ScriptPath.push_back({ x,y });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->GetSafeHwnd(), 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
 void CNewScript::OnClickSearchReference(HWND& hWnd)
@@ -1632,15 +1714,45 @@ void CNewScript::OnClickSearchReference(HWND& hWnd)
 
 bool CNewScript::OnEnterKeyDown(HWND& hWnd)
 {
-    if (hWnd == hSelectedScript)
-        OnSelchangeScript(true);
-    else if (hWnd == hActionExtraParam)
-        OnSelchangeActionExtraParam(true);
-    else if (hWnd == hActionParam)
-        OnSelchangeActionParam(true);
-    else if (hWnd == hActionType)
-        OnSelchangeActionType(true);
+    return false;
+}
+
+void CNewScript::SetListBoxSel(int index)
+{
+    SendMessage(hActionsListBox, LB_SETSEL, FALSE, -1);
+    if (index >= 0)
+        SendMessage(hActionsListBox, LB_SETSEL, TRUE, index);
+    SendMessage(hActionsListBox, LB_SETCURSEL, index, NULL);
+    SendMessage(hActionsListBox, LB_SETCARETINDEX, index, TRUE);
+}
+
+void CNewScript::SetListBoxSels(std::vector<int>& indices)
+{
+    SendMessage(hActionsListBox, LB_SETSEL, FALSE, -1);
+    for (int idx : indices)
+    {
+        if (idx >= 0 && idx < SendMessage(hActionsListBox, LB_GETCOUNT, 0, 0))
+        {
+            SendMessage(hActionsListBox, LB_SETSEL, TRUE, idx);
+        }
+    }
+    if (!indices.empty())
+    {
+        SendMessage(hActionsListBox, LB_SETCARETINDEX, indices[0], TRUE);
+    }
+}
+
+void CNewScript::GetListBoxSels(std::vector<int>& indices)
+{
+    int numSelected = SendMessage(hActionsListBox, LB_GETSELCOUNT, 0, 0);
+    if (numSelected > 0)
+    {
+        indices.resize(numSelected);
+        SendMessage(hActionsListBox, LB_GETSELITEMS, numSelected, (LPARAM)indices.data());
+        std::sort(indices.begin(), indices.end());
+    }
     else
-        return false;
-    return true;
+    {
+        indices.clear();
+    }
 }

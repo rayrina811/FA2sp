@@ -39,6 +39,7 @@
 #include "../../Miscs/SaveMap.h"
 #include "../../ExtraWindow/CNewTipsOfTheDay/CNewTipsOfTheDay.h"
 #include "../../ExtraWindow/CTechnoDialog/CTechnoDialog.h"
+#include "../../ExtraWindow/CMeasurementToolbox/CMeasurementToolbox.h"
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
@@ -309,106 +310,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 	};
 
-	auto isInChildWindow = [this]()
-		{
-			HWND hWnd = GetActiveWindow();
-			if (hWnd == CNewAITrigger::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewINIEditor::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewINIEditor::GetImporter()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewScript::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewTaskforce::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewTeamTypes::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CTerrainGenerator::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CLuaConsole::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CCsfEditor::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CFA2spOptions::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CNewLocalVariables::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CSearhReference::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CTriggerAnnotation::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CGoBang::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CChineseChess::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == CObjectSearch::GetHandle()) {
-				return TRUE;
-			}
-			else if (hWnd == this->SingleplayerSettings.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->AITriggerTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->AITriggerTypesEnable.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->ScriptTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TriggerFrame.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Tags.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TaskForce.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->TeamTypes.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Houses.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->SpecialFlags.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->Lighting.GetSafeHwnd()) {
-				return TRUE;
-			}
-			else if (hWnd == this->INIEditor.GetSafeHwnd()) {
-				return TRUE;
-			}		
-			else if (hWnd == this->Basic.GetSafeHwnd()) {
-				return TRUE;
-			}	
-			else if (hWnd == this->MapD.GetSafeHwnd()) {
-				return TRUE;
-			}	
-			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
-			{
-				if (hWnd == CNewTrigger::Instance[i].GetHandle())
-					return TRUE;
-			}
-			return FALSE;
-		};
+	auto isInIsoView = []()
+	{
+		POINT pt;
+		GetCursorPos(&pt);
+		HWND hTopWnd = WindowFromPoint(pt);
+		return hTopWnd == CIsoView::GetInstance()->GetSafeHwnd();
+	};
 
 	switch (wmID)
 	{
@@ -699,10 +607,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		return TRUE;
 	}
-	case 40163:
-		SetLayerStatus(40163, CIsoViewExt::EnableDistanceRuler);
-		CIsoViewExt::DistanceRuler.clear();
-		return TRUE;
 	default:
 		break;
 	}
@@ -860,6 +764,18 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		CNewTipsOfTheDay::ShowNewTipsOfTheDay();
 		return TRUE;
 	}
+	if (wmID == 40163)
+	{
+		if (!CMapData::Instance->MapWidthPlusHeight)
+		{
+			this->PlaySound(FASoundType::Error);
+		}
+		else
+		{
+			CMeasurementToolbox::ShowMeasurementToolbox();
+		}
+		return TRUE;
+	}
 	if (wmID == 40158)
 	{
 		if (CLuaConsole::GetHandle() == NULL)
@@ -979,7 +895,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 			if (!CIsoViewExt::RenderInvisibleInGame)
 			{
-				FString ignoreSection = "MapRendererIgnoreObjects";
 				const auto&& buildings = Variables::RulesMap.GetSection("BuildingTypes");
 				for (auto& [_, ID] : buildings)
 				{
@@ -994,7 +909,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			auto pIsoView = CIsoView::GetInstance();
+			auto pIsoView = CIsoViewExt::GetExtension();
 
 			int& height = CMapData::Instance->Size.Height;
 			int& width = CMapData::Instance->Size.Width;
@@ -1055,6 +970,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				CRect r;
 				pIsoView->GetWindowRect(&r);
+				pIsoView->AdaptRectForSecondScreen(&r);
 
 				CRect validRange;
 				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
@@ -1235,7 +1151,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawAircraftsFilter, false);
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawBasenodesFilter, false);
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawCellTagsFilter, false);
-				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableDistanceRuler, false);
+				ADD_TEMP_HOLDER(holders, CIsoViewExt::EnableLiveDistanceRuler, false);
 				ADD_TEMP_HOLDER(holders, ExtConfigs::InGameDisplay_Cloakable, true);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->ShowBuildingCells, FALSE);
 				ADD_TEMP_HOLDER(holders2, CFinalSunApp::Instance->FlatToGround, FALSE);
@@ -1570,7 +1486,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136)
 	{
-		if (isInChildWindow())
+		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1578,18 +1494,11 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		else
 		{
-			CIsoView::CurrentCommand->Command = 0x2; // delete
-			CIsoView::CurrentCommand->Type = 0;
-
 			MessageBeep(MB_ICONWARNING);
 
-			POINT ptScreen;
-			::GetCursorPos(&ptScreen);
-			::ScreenToClient(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, &ptScreen);
-			LPARAM lParam = MAKELPARAM(ptScreen.x, ptScreen.y);
-			WPARAM wParam = 0;
-			::SendMessage(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, WM_MOUSEMOVE, wParam, lParam);
-			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+			auto point = CIsoViewExt::GetExtension()->GetCurrentMapCoord(CIsoViewExt::GetExtension()->MouseCurrentPosition);
+			if (DeleteMousePointedObjects(point.X, point.Y))
+				::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
 
@@ -1692,11 +1601,32 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	// CTRL+C CTRL+V CTRL+Z CTRL+Y CTRL+X
 	if (wmID == 57634 || wmID == 57637 || wmID == 57643 || wmID == 57644 || wmID == 40166)
 	{
-		if (isInChildWindow())
+		if (!isInIsoView())
 			return TRUE;
 	}
+
+	if (wmID == 40169)
+	{
+		auto newParam = MAKELONG(57643, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40170)
+	{
+		auto newParam = MAKELONG(57644, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40171)
+	{
+		auto newParam = MAKELONG(57634, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
+	if (wmID == 40173)
+	{
+		auto newParam = MAKELONG(57637, wmMsg);
+		return this->ppmfc::CDialog::OnCommand(newParam, lParam);
+	}
 	CopyPaste::IsCutting = false;
-	if (wmID == 40166)
+	if (wmID == 40166 || wmID == 40172)
 	{
 		// cutting also uses copying logic
 		CopyPaste::IsCutting = true;
@@ -1834,6 +1764,87 @@ bool CFinalSunDlgExt::CheckProperty_Aircraft(CAircraftData data)
 		return false;
 }
 
+bool CFinalSunDlgExt::DeleteMousePointedObjects(int X, int Y)
+{
+	auto makeOrAppendRecord = [](int recordType)
+	{
+		if (!ObjectRecord::ObjectRecord_HoldingPtr)
+			ObjectRecord::ObjectRecord_HoldingPtr = CMapDataExt::MakeObjectRecord(recordType, true);
+		else
+			ObjectRecord::ObjectRecord_HoldingPtr->appendRecord(recordType);
+	};
+
+	if (!CMapDataExt::IsCoordInFullMap(X, Y))
+		return false;
+
+	auto cell = CMapData::Instance->GetCellAt(X, Y);
+
+	bool deleted = false;
+	int infIndex = CIsoViewExt::GetSelectedSubcellInfantryIdx(X, Y);
+	int infCount = CMapDataExt::GetExtension()->GetInfantryCountAt(CMapData::Instance->GetCoordIndex(X, Y));
+	if (ExtConfigs::InfantrySubCell_Edit && (infCount == 1 || infIndex != -1)
+		&& cell->Structure == -1 && cell->Unit == -1 && cell->Aircraft == -1
+		&& cell->Terrain == -1 && cell->Smudge == -1)
+	{
+		makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+		CMapData::Instance->DeleteInfantryData(infIndex);
+		return true;
+	}
+	else
+	{
+		if (cell->Infantry[0] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[0]);
+			deleted = true;
+		}
+		if (cell->Infantry[1] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[1]);
+			deleted = true;
+		}
+		if (cell->Infantry[2] != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Infantry);
+			CMapData::Instance->DeleteInfantryData(cell->Infantry[2]);
+			deleted = true;
+		}
+		if (cell->Structure != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Building);
+			CMapData::Instance->DeleteBuildingData(cell->Structure);
+			deleted = true;
+		}
+		if (cell->Unit != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Unit);
+			CMapData::Instance->DeleteUnitData(cell->Unit);
+			deleted = true;
+		}
+		if (cell->Aircraft != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Aircraft);
+			CMapData::Instance->DeleteAircraftData(cell->Aircraft);
+			deleted = true;
+		}
+		if (cell->Terrain != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Terrain);
+			CMapData::Instance->DeleteTerrainData(cell->Terrain);
+			deleted = true;
+		}
+		if (cell->Smudge != -1)
+		{
+			makeOrAppendRecord(ObjectRecord::RecordType::Smudge);
+			CMapData::Instance->DeleteSmudgeData(cell->Smudge);
+			deleted = true;
+		}
+	}
+
+	return deleted;
+}
+
 BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 {
 	if (pMsg->message == WM_SYSKEYDOWN || pMsg->message == WM_SYSKEYUP) {
@@ -1853,70 +1864,31 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
 			ExtraWindow::bEnterSearch = true;
-			if (hParent2 == CNewAITrigger::GetHandle()) {
-				if (CNewAITrigger::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
+			
+			if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
-				::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
+				::SendMessage(CObjectSearch::GetHandle(), 114516, 0, 0);
 				ExtraWindow::bEnterSearch = false;
 				return TRUE;
 			}
-			else if (hParent1 == CNewINIEditor::GetHandle()) {
-				if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent1 == CBatchTrigger::GetHandle()) {
-				if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent1 == CCsfEditor::GetHandle()) {
-				if (CCsfEditor::OnEnterKeyDown(hWnd)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewScript::GetHandle()) {
-				if (CNewScript::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewTaskforce::GetHandle()) {
-				if (CNewTaskforce::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CNewTeamTypes::GetHandle()) {
-				if (CNewTeamTypes::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			else if (hParent2 == CTerrainGenerator::GetHandle()) {
-				if (CTerrainGenerator::OnEnterKeyDown(hParent1)) {
-					ExtraWindow::bEnterSearch = false;
-					return TRUE;
-				}
-			}
-			for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
-			{
-				if (hParent2 == CNewTrigger::Instance[i].GetHandle())
-				{
-					if (CNewTrigger::Instance[i].OnEnterKeyDown(hParent1)) {
-						ExtraWindow::bEnterSearch = false;
-						return TRUE;
-					}
-				}
-			}
+			//else if (hParent1 == CNewINIEditor::GetHandle()) {
+			//	if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
+			//else if (hParent1 == CBatchTrigger::GetHandle()) {
+			//	if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
+			//else if (hParent1 == CCsfEditor::GetHandle()) {
+			//	if (CCsfEditor::OnEnterKeyDown(hWnd)) {
+			//		ExtraWindow::bEnterSearch = false;
+			//		return TRUE;
+			//	}
+			//}
 			ExtraWindow::bEnterSearch = false;
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)
@@ -1982,6 +1954,18 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		{
 			CIsoViewExt::Zoom(0.0);
 		}
+		break;
+	}
+	case 114514:
+	{
+		ppmfc::CString caption;
+		CFinalSunDlg::Instance->GetWindowTextA(caption);
+		FString title(caption);
+		title += " - ";
+		title += Translations::TranslateOrDefault("NewVersionAvailable", "New version available:");
+		title += " ";
+		title += CFinalSunAppExt::NewVersion;
+		CFinalSunDlg::Instance->SetWindowTextA(title);
 		break;
 	}
 	}

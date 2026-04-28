@@ -401,7 +401,6 @@ void CFinalSunDlgExt::InitToolbar()
             {30025, (void*)(&CIsoViewExt::DrawFires)},
             {40115, (void*)(&CFinalSunApp::Instance->FrameMode)},
             {40085, (void*)(&CFinalSunApp::Instance->FlatToGround)},
-            {40163, (void*)(&CIsoViewExt::EnableDistanceRuler)},
             {30107, (void*)(&CFinalSunDlgExt::HasMinimap)},
             {40123, (void*)(&CFinalSunApp::Instance->ShowBuildingCells)},
             {40159, (void*)(&ExtConfigs::TreeViewCameo_Display)},
@@ -427,7 +426,7 @@ void CFinalSunDlgExt::InitToolbar()
     RECT rc;
     ::GetClientRect(hReBar, &rc);
     int availableWidth = rc.right - rc.left;
-    const int EXTRA = 0;
+    const int EXTRA = 15;
 
     struct TbItem {
         HWND hTb;

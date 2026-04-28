@@ -4,6 +4,7 @@
 
 #include <CIsoView.h>
 #include "../FA2Expand.h"
+#include "../../FA2sp.h"
 #include "../CFinalSunDlg/Body.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -106,6 +107,17 @@ enum RendererLighting : int
     Dominator,
 };
 
+enum MeasurementTypes : int
+{
+    TwoPointDistance = 0,
+    SetSymmetryAxis,
+    PlaceSymmetricPoint,
+    SetCentralSymmetryCenter,
+    PlaceCentralSymmetricPoint,
+    PlaceCircle,
+    LineSegment,
+};
+
 struct ImageDataView
 {
     int FullWidth;
@@ -114,10 +126,21 @@ struct ImageDataView
     const Palette* pPalette;
 }; 
 
+struct TwoPointStruct
+{
+    MapCoord Point1;
+    MapCoord Point2;
+    bool drawText;
+};
+
 class NOVTABLE CIsoViewExt : public CIsoView
 {
 public:
     static void ProgramStartupInit();
+    static CIsoViewExt* GetExtension()
+    {
+        return (CIsoViewExt*)CIsoView::GetInstance();
+    }
 
     BOOL PreTranslateMessageExt(MSG* pMsg);
 
@@ -127,7 +150,7 @@ public:
     void DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF color, COLORREF colorX, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc, bool onlyX = false);
     void DrawLine(int x1, int y1, int x2, int y2, 
         COLORREF color, bool bUseDot, bool bUsePrimary, 
-        LPDDSURFACEDESC2 lpDesc, bool bDashed = false, int nThickness = 1);
+        LPDDSURFACEDESC2 lpDesc, const RECT& rect, bool bDashed = false, int nThickness = 1);
     void DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord>>& lines, int X, int Y, COLORREF color, bool bUseDot, bool bUsePrimary, LPDDSURFACEDESC2 lpDesc);
     void DrawCelltag(int X, int Y, LPDDSURFACEDESC2 lpDesc);
     void DrawBitmap(FString filename, int X, int Y, LPDDSURFACEDESC2 lpDesc);
@@ -135,7 +158,7 @@ public:
 
     void ConfirmTube(bool addReverse = true);
 
-    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, int width = 2);
+    void DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT& rect, int width = 2);
     void DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1 = true, bool s2 = true, bool s3 = true, bool s4 = true);
     void DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COLORREF color, HDC hdc, HWND hwnd, bool useHeightColor);
     static int GetSelectedSubcellInfantryIdx(int X = -1, int Y = -1, bool getSubcell = false);
@@ -151,9 +174,12 @@ public:
     static void BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1);
     static bool SaveImageDataToBMP(ImageDataClassSafe* pd, const char* outputPath);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal = NULL, 
+        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
     static void BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-        const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false);
+        const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL, 
+        BYTE alpha = 255, COLORREF houseColor = -1, int extraLightType = -1, bool remap = false,
+        std::vector<char>* objectOverlapMask = nullptr);
     static void BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal = NULL,
         BYTE alpha = 255, COLORREF houseColor = -1, COLORREF addOnColor = -1, bool isRubble = false, bool isTerrain = false);
@@ -162,7 +188,9 @@ public:
     static void BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
         const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha = 255,
         std::vector<byte>* mask = nullptr, std::vector<byte>* heightMask = nullptr, byte height = 0,
-        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1);
+        std::vector<int>* cellHeightMask = nullptr, int tileSet = -1, std::vector<char>* objectOverlapMask = nullptr);
+    static void BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
+        int x, int y, CTileBlockClass* subTile, int height);
     static void BlitText(const std::wstring& text, COLORREF textColor, COLORREF bgColor,
         CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
         int x, int y, int fontSize = 20, BYTE alpha = 255, bool bold = false);
@@ -186,18 +214,24 @@ public:
 
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
-    static void DrawMouseMove(HDC hDC);
+    static bool ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT& rect);
+    static void DrawMouseMove(HDC hDC, const RECT& rect);
     static void DrawCopyBound(HDC hDC);
     static void DrawBridgeLine(HDC hDC);
-    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size = 0);
+    static void DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
+    static void DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
+    static void DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size = 0);
     static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
     static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
+    static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
     static void SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw);
     static CRect GetVisibleIsoViewRect();
     static void DrawCreditOnMap(HDC hDC);
-    static void DrawDistanceRuler(HDC hDC);
+    static void DrawDistanceRuler(HDC hDC, const RECT& rect);
+    static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect);
+    static void DrawScriptPaths(HDC hDC, const RECT& rect);
     static void MoveToMapCoord(int X, int Y);
     static void Zoom(double offset);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
@@ -210,8 +244,23 @@ public:
     void PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory);
     static ImageDataView MakeImageDataView(ImageDataClassSafe* p);
     static ImageDataView MakeImageDataView(ImageDataClass* p);
+    static void inline AdaptRectForSecondScreen(LPRECT lpRect)
+    {
+        if (ExtConfigs::SecondScreenSupport)
+            ::OffsetRect(lpRect, -GetSystemMetrics(SM_XVIRTUALSCREEN), -GetSystemMetrics(SM_YVIRTUALSCREEN));
+    }
+    inline MapCoord GetCurrentMapCoord(const CPoint& point)
+    {
+        RECT rect;
+        this->GetWindowRect(&rect);
+        //AdaptRectForSecondScreen(&rect);
+        int x = point.x + rect.left + this->ViewPosition.x;
+        int y = point.y + rect.top + this->ViewPosition.y;
+        ScreenCoord2MapCoord(x, y);
+        return MapCoord{ x,y };
+    }
 
-
+    static bool SkipMapScreenConvert;
     static Bitmap* pFullBitmap;
     static bool DrawStructures;
     static bool DrawInfantries;
@@ -292,8 +341,21 @@ public:
 
     static UINT nFlagsMove;
 
-    static std::vector<MapCoord> DistanceRuler;
-    static bool EnableDistanceRuler;
+    static std::vector<MapCoord> LiveDistanceRuler;
+    static bool EnableLiveDistanceRuler;
+    static bool EnableOtherMeasurementTools;
+    static std::vector<TwoPointStruct> TwoPointDistance;
+    static MapCoord AxialSymmetryLine[2];
+    static MapCoord CentralSymmetryCenter;
+    static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
+    static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+    static std::vector<std::pair<MapCoord, float>> Circles;
+    static float CircleRadius;
+    static bool DrawScriptPath;
+    static std::vector<MapCoord> ScriptPath;
+    static bool OnLButtonDown_CalledFromOnMouseMove;
+    static bool OnMouseMove_CalledFromOnLButtonDown;
+
     static bool ReInitializingDDraw;
 
     static bool CliffBackAlt;

@@ -2,6 +2,7 @@
 
 #include "FA2PP.h"
 #include "../FA2sp/Helpers/FString.h"
+#include <chrono>
 
 class Logger {
 public:
@@ -84,4 +85,84 @@ private:
     static char pBuffer[0x800];
     static FILE* pFile;
     static bool bInitialized;
+};
+
+class ScopedTimer
+{
+public:
+    explicit ScopedTimer(const char* name)
+        : m_baseName(name),
+        m_lastMsg("Start"),
+        m_start(std::chrono::high_resolution_clock::now())
+    {}
+
+    ~ScopedTimer()
+    {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration_ms = std::chrono::duration<double, std::milli>(end - m_start).count();
+
+        Logger::Raw("[Timer] %s %s -> End: %.3f ms\n", m_baseName, m_lastMsg, duration_ms);
+    }
+
+    void printElapsed(const char* msg = nullptr) const
+    {
+        auto now = std::chrono::high_resolution_clock::now();
+        auto duration_ms = std::chrono::duration<double, std::milli>(now - m_start).count();
+
+        if (msg && std::strlen(msg) > 0) {
+            Logger::Raw("[Timer] %s Elapsed (%s): %.3f ms\n", m_baseName, msg, duration_ms);
+        }
+        else {
+            Logger::Raw("[Timer] %s Elapsed: %.3f ms\n", m_baseName, duration_ms);
+        }
+    }
+
+    void printAndReset(const char* msg = nullptr)
+    {
+        auto now = std::chrono::high_resolution_clock::now();
+        auto duration_ms = std::chrono::duration<double, std::milli>(now - m_start).count();
+
+        FString currentMsg = "Segment";
+        if (msg && std::strlen(msg) > 0) {
+            currentMsg = msg;
+        }
+
+        Logger::Raw("[Timer] %s %s -> %s: %.3f ms\n",
+            m_baseName, m_lastMsg, currentMsg, duration_ms);
+
+        m_lastMsg = currentMsg;
+        m_start = now;
+    }
+
+private:
+    FString m_baseName;
+    FString m_lastMsg;
+    std::chrono::high_resolution_clock::time_point m_start;
+};
+
+class FpsCounter {
+public:
+    FpsCounter(const std::string& name = "FPS")
+        : m_name(name), m_frameCount(0) {
+        m_lastTime = std::chrono::steady_clock::now();
+    }
+
+    void update() {
+        m_frameCount++;
+
+        auto currentTime = std::chrono::steady_clock::now();
+        double deltaTime = std::chrono::duration<double>(currentTime - m_lastTime).count();
+
+        if (deltaTime >= 1.0) {
+            Logger::Raw("[Timer] %s: %d fps\n", m_name, m_frameCount);
+
+            m_frameCount = 0;
+            m_lastTime = currentTime;
+        }
+    }
+
+private:
+    FString m_name;
+    int m_frameCount;
+    std::chrono::steady_clock::time_point m_lastTime;
 };

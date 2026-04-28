@@ -1,14 +1,11 @@
 #include "Body.h"
 
 #include "../../FA2sp.h"
-
 #include <WindowsX.h>
 #include <CPalette.h>
-
 #include <CMapData.h>
 #include <Drawing.h>
 #include <CINI.h>
-
 #include <ranges>
 #include "../../Helpers/STDHelpers.h"
 #include "../CMapData/Body.h"
@@ -20,8 +17,10 @@
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
+#include "../../ExtraWindow/CNewScript/CNewScript.h"
 
 Bitmap* CIsoViewExt::pFullBitmap = nullptr;
+bool CIsoViewExt::SkipMapScreenConvert = false;
 bool CIsoViewExt::DrawStructures = true;
 bool CIsoViewExt::DrawInfantries = true;
 bool CIsoViewExt::DrawUnits = true;
@@ -76,12 +75,24 @@ RendererLighting CIsoViewExt::RenderLighing = RendererLighting::Current;
 bool CIsoViewExt::AutoPropertyBrush[4] = { false };
 bool CIsoViewExt::IsPressingALT = false;
 bool CIsoViewExt::IsPressingTube = false;
-bool CIsoViewExt::EnableDistanceRuler = false;
+bool CIsoViewExt::EnableLiveDistanceRuler = false;
+bool CIsoViewExt::EnableOtherMeasurementTools = false;
+std::vector<TwoPointStruct> CIsoViewExt::TwoPointDistance{};
+MapCoord CIsoViewExt::AxialSymmetryLine[2]{};
+MapCoord CIsoViewExt::CentralSymmetryCenter{};
+std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::AxialSymmetricPoints;
+std::vector<std::pair<MapCoord, MapCoord>> CIsoViewExt::CentralSymmetricPoints;
+std::vector<std::pair<MapCoord, float>> CIsoViewExt::Circles;
+float CIsoViewExt::CircleRadius;
+bool CIsoViewExt::DrawScriptPath = false;
 bool CIsoViewExt::ReInitializingDDraw = false;
 bool CIsoViewExt::CliffBackAlt = false;
+bool CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = false;
+bool CIsoViewExt::OnMouseMove_CalledFromOnLButtonDown = false;
 bool CIsoViewExt::HistoryRecord_IsHoldingLButton = false;
 std::vector<MapCoord> CIsoViewExt::TubeNodes;
-std::vector<MapCoord> CIsoViewExt::DistanceRuler;
+std::vector<MapCoord> CIsoViewExt::LiveDistanceRuler;
+std::vector<MapCoord> CIsoViewExt::ScriptPath;
 FString CIsoViewExt::CurrentCellObjectHouse = "";
 int CIsoViewExt::EXTRA_BORDER_BOTTOM = 25;
 Cell3DLocation CIsoViewExt::CurrentDrawCellLocation;
@@ -117,57 +128,13 @@ COLORREF CIsoViewExt::CellHilightColors[16] = {
     RGB(255, 255, 255)	// level 15
 };
 
-static byte oreOpacityTable[13] =
-{
-    177, 166, 154, 143, 131, 119, 108, 96, 85, 73, 61, 50, 38
-};
-
-static byte playerLocationOpacityTable[8] =
-{
-    105, 90, 75, 60, 45, 30, 15, 0
-};
-
-static bool TilePixels[1800] =
-{
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false,
-        false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false,
-        false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false,
-        true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true,
-        false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false,
-        false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false,
-        false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-        false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-};
-
-static BYTE alphaBlendTable[256][256];
-
+constexpr float cellLength = 42.426407f;
 constexpr float kFactor = 0.7f;
 constexpr BYTE MakeValue(int i) {
     int v = static_cast<int>(i * kFactor);
     return v > 255 ? 255 : static_cast<BYTE>(v);
 }
+
 constexpr auto MakeBrightnessLUT() {
     std::array<BYTE, 256> lut{};
     for (int i = 0; i < 256; ++i) {
@@ -176,18 +143,6 @@ constexpr auto MakeBrightnessLUT() {
     return lut;
 }
 constexpr std::array<BYTE, 256> BrightnessLUT = MakeBrightnessLUT();
-
-void CIsoViewExt::InitAlphaTable() {
-    static bool initialized = false;
-    if (!initialized) {
-        for (int i = 0; i < 256; i++) {
-            for (int j = 0; j < 256; j++) {
-                alphaBlendTable[i][j] = static_cast<BYTE>((i * j) >> 8);
-            }
-        }
-        initialized = true;
-    }
-}
 
 void CIsoViewExt::InitGdiplus()
 {
@@ -305,7 +260,7 @@ void CIsoViewExt::DrawLockedCellOutlineX(int X, int Y, int W, int H, COLORREF co
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -557,7 +512,7 @@ void CIsoViewExt::DrawLockedCellOutline(int X, int Y, int W, int H, COLORREF col
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -802,6 +757,7 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
 
     COLORREF heightColor = color;
     if (useHeightColor)
@@ -844,17 +800,14 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
 
     auto DrawLineInner = [hwnd, heightColor, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
-        PAINTSTRUCT ps;
         HPEN hPen;
         HPEN hPenOld;
-        BeginPaint(hwnd, &ps);
         hPen = CreatePen(PS_SOLID, 0, heightColor);
         hPenOld = (HPEN)SelectObject(hdc, hPen);
         MoveToEx(hdc, X1, Y1, NULL);
         LineTo(hdc, X2, Y2);
         SelectObject(hdc, hPenOld);
         DeleteObject(hPen);
-        EndPaint(hwnd, &ps);    
     };
 
     auto ClipAndDrawLine = [&rect, DrawLine, DrawLineInner](int X1, int Y1, int X2, int Y2, int type)
@@ -1004,42 +957,51 @@ void CIsoViewExt::DrawLockedCellOutlinePaintCursor(int X, int Y, int height, COL
     }
 }
 
-void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, int width)
+void CIsoViewExt::DrawEllipsePaint(int X, int Y, int majorRadius, COLORREF color, HDC hdc, const RECT& rect, int width)
 {
+    if (!hdc)
+        return;
+
     X += 30 / CIsoViewExt::ScaledFactor;
     Y -= 15 / CIsoViewExt::ScaledFactor;
     X += 6 / CIsoViewExt::ScaledFactor - 6 + 2;
     Y += 3 / CIsoViewExt::ScaledFactor - 3;
+
     majorRadius /= CIsoViewExt::ScaledFactor;
-    if (!hdc)
+
+    int cx = X - CIsoViewExt::drawOffsetX;
+    int cy = Y - CIsoViewExt::drawOffsetY;
+
+    int left = cx - majorRadius;
+    int right = cx + majorRadius;
+    int top = cy - majorRadius / 2;
+    int bottom = cy + majorRadius / 2;
+
+    RECT ellipseRect = { left, top, right, bottom };
+    RECT tmp;
+    if (!IntersectRect(&tmp, &ellipseRect, &rect))
+    {
         return;
+    }
 
-    PAINTSTRUCT ps;
-    HPEN hPen = nullptr;
-    HPEN hPenOld = nullptr;
-    HBRUSH hBrush = nullptr;
-    HBRUSH hBrushOld = nullptr;
+    HPEN hPen = CreatePen(PS_SOLID, width, color);
+    HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 
-    BeginPaint(this->GetSafeHwnd(), &ps);
+    HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
 
-    hPen = CreatePen(PS_SOLID, width, color);
-    hPenOld = (HPEN)SelectObject(hdc, hPen);
+    int savedDC = SaveDC(hdc);
 
-    hBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
-    hBrushOld = (HBRUSH)SelectObject(hdc, hBrush);
-
-    int left = X - majorRadius;
-    int top = Y - majorRadius / 2;
-    int right = X + majorRadius;
-    int bottom = Y + majorRadius / 2;
+    HRGN rgn = CreateRectRgnIndirect(&rect);
+    SelectClipRgn(hdc, rgn);
 
     Ellipse(hdc, left, top, right, bottom);
 
-    SelectObject(hdc, hPenOld);
-    SelectObject(hdc, hBrushOld);
-    DeleteObject(hPen);
+    RestoreDC(hdc, savedDC);
 
-    EndPaint(this->GetSafeHwnd(), &ps);
+    DeleteObject(rgn);
+    SelectObject(hdc, hOldPen);
+    SelectObject(hdc, hOldBrush);
+    DeleteObject(hPen);
 }
 
 void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORREF color, bool bUseDot, HDC hdc, HWND hwnd, bool s1, bool s2, bool s3, bool s4)
@@ -1057,20 +1019,18 @@ void CIsoViewExt::DrawLockedCellOutlinePaint(int X, int Y, int W, int H, COLORRE
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
 
     auto DrawLine = [hwnd, color, hdc, &rect](int X1, int Y1, int X2, int Y2)
     {
-        PAINTSTRUCT ps;
         HPEN hPen;
         HPEN hPenOld;
-        BeginPaint(hwnd, &ps);
         hPen = CreatePen(PS_SOLID, 0, color);
         hPenOld = (HPEN)SelectObject(hdc, hPen);
         MoveToEx(hdc, X1, Y1, NULL);
         LineTo(hdc, X2, Y2);
         SelectObject(hdc, hPenOld);
         DeleteObject(hPen);
-        EndPaint(hwnd, &ps);
         
     };
     auto ClipAndDrawLine = [&rect, DrawLine](int X1, int Y1, int X2, int Y2)
@@ -1197,6 +1157,7 @@ void CIsoViewExt::DrawLine(
     bool bUseDot,
     bool bUsePrimary,
     LPDDSURFACEDESC2 lpDesc,
+    const RECT& rect,
     bool bDashed,
     int nThickness)
 {
@@ -1206,9 +1167,7 @@ void CIsoViewExt::DrawLine(
     const int surfW = (int)lpDesc->dwWidth;
     const int surfH = (int)lpDesc->dwHeight;
     const int pitch = lpDesc->lPitch;
-    const int bpp = *(int*)0x72A8C0;
-
-    RECT rect = { 0, 0, surfW - 1, surfH - 1 };
+    const int bpp = 4;
 
     ColorStruct* pRGB = (ColorStruct*)&color;
     BGRStruct ddColor{ pRGB->blue, pRGB->green, pRGB->red };
@@ -1369,7 +1328,7 @@ void CIsoViewExt::DrawLockedLines(const std::vector<std::pair<MapCoord, MapCoord
     RECT rect = CIsoViewExt::GetScaledWindowRect();
 
     auto lPitch = lpDesc->lPitch;
-    auto nBytesPerPixel = *(int*)0x72A8C0;
+    const auto nBytesPerPixel = 4;
 
     unsigned char* base = (unsigned char*)lpDesc->lpSurface;
     unsigned char* end = base + lPitch * lpDesc->dwHeight;
@@ -1574,6 +1533,7 @@ int CIsoViewExt::GetSelectedSubcellInfantryIdx(int X, int Y, bool getSubcel)
 
         RECT rect;
         pIsoView->GetWindowRect(&rect);
+        //AdaptRectForSecondScreen(&rect);
         int mouseX = mouse.x + rect.left + pIsoView->ViewPosition.x;
         int mouseY = mouse.y + rect.top + pIsoView->ViewPosition.y;
 
@@ -1734,10 +1694,11 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             match = tileIndex_cell2 == tileIndex_cell && cell2->TileSubIndex == cell->TileSubIndex;
 
             if (ExtConfigs::FillArea_ConsiderLAT && !match) {
-                for (auto& latPair : CMapDataExt::Tile_to_lat)
+                for (const auto& latInfo : CMapDataExt::Tile_to_lat)
                 {
-                    int iSmoothSet = latPair[0];
-                    int iLatSet = latPair[1];
+                    int iSmoothSet = latInfo.SmoothSet;
+                    int iLatSet = latInfo.LatSet;
+
                     if (iLatSet >= 0 && iSmoothSet >= 0 &&
                         iSmoothSet < CMapDataExt::TileSet_starts.size() &&
                         iLatSet < CMapDataExt::TileSet_starts.size() &&
@@ -1856,7 +1817,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
     CIsoView* pThis, void* dst, const RECT& window, const DDBoundary& boundary,
     int x, int y, int fontSize, BYTE alpha, bool bold)
 {
-    int bpp = 4;
+    const int bpp = 4;
 
     TextCacheKey key{ text, textColor, bgColor, fontSize, bold };
     auto it = textCache.find(key);
@@ -1940,7 +1901,7 @@ void CIsoViewExt::BlitText(const std::wstring& text, COLORREF textColor, COLORRE
         for (int yy = 0; yy < sheight; yy++) {
             for (int xx = 0; xx < swidth; xx++) {
                 int srcIndex = (yy + borderWidth) * finalWidth + (xx + borderWidth);
-                int tempIndex = (yy * swidth + xx) * 4;
+                int tempIndex = (yy * swidth + xx) * bpp;
                 src[srcIndex] = BGRStruct(tempPixels[tempIndex + 0], // B
                     tempPixels[tempIndex + 1], // G
                     tempPixels[tempIndex + 2]);// R
@@ -2081,875 +2042,12 @@ IDirectDrawSurface7* CIsoViewExt::BitmapToSurface(IDirectDraw7* pDD, const CBitm
     return pSurface;
 }
 
-void CIsoViewExt::BlitTransparent(LPDIRECTDRAWSURFACE7 pic, int x, int y, int width, int height, BYTE alpha, LPDIRECTDRAWSURFACE7 surface)
-{
-    if (!pic || alpha == 0) {
-        return;
-    }
-
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    auto pThis = CIsoView::GetInstance();
-    RECT windowRect;
-    if (!surface) {
-        windowRect = CIsoViewExt::GetScaledWindowRect();
-        surface = GetBackBuffer();
-    }
-    else if (surface == GetBackBuffer()) {
-        windowRect = CIsoViewExt::GetScaledWindowRect();
-    }
-    else {
-        pThis->GetWindowRect(&windowRect);
-    }
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    if (width == -1 || height == -1) {
-        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
-        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
-            return;
-        }
-        width = ddsd.dwWidth;
-        height = ddsd.dwHeight;
-    }
-
-    if (x + width < 0 || y + height < 0) {
-        return;
-    }
-    if (x > windowRect.right || y > windowRect.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, width, height };
-    RECT destRect = { x, y, x + width, y + height };
-    if (destRect.left < 0) {
-        srcRect.left = -destRect.left;
-        destRect.left = 0;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = -destRect.top;
-        destRect.top = 0;
-    }
-    if (destRect.right > windowRect.right) {
-        srcRect.right = width - (destRect.right - windowRect.right);
-        destRect.right = windowRect.right;
-    }
-    if (destRect.bottom > windowRect.bottom) {
-        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
-        destRect.bottom = windowRect.bottom;
-    }
-
-    DDSURFACEDESC2 destDesc = { sizeof(DDSURFACEDESC2) };
-    DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
-    if (surface->Lock(NULL, &destDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
-        return;
-    }
-    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
-        surface->Unlock(NULL);
-        return;
-    }
-
-    DDCOLORKEY colorKey;
-    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK) {
-        pic->Unlock(NULL);
-        surface->Unlock(NULL);
-        return;
-    }
-    DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
-    DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
-
-    BYTE* destPixels = static_cast<BYTE*>(destDesc.lpSurface);
-    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
-    int destPitch = destDesc.lPitch;
-    int srcPitch = srcDesc.lPitch;
-    int maxDestX = destDesc.dwWidth;
-    int maxDestY = destDesc.dwHeight;
-
-    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
-        LONG dy = destRect.top + row;
-        if (dy < 0 || dy >= maxDestY) {
-            continue;
-        }
-
-        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
-        BYTE* srcLine = srcPixels + row * srcPitch;
-        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
-            LONG dx = destRect.left + col;
-            if (dx < 0 || dx >= maxDestX) {
-                continue;
-            }
-
-            int srcIndex = col * BPP;
-            int destIndex = col * BPP;
-            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
-            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
-                continue;
-            }
-
-            BYTE* destPtr = destLine + destIndex;
-            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                BYTE srcR = srcLine[srcIndex + 2];
-                BYTE srcG = srcLine[srcIndex + 1];
-                BYTE srcB = srcLine[srcIndex];
-                BYTE destR = destPtr[2];
-                BYTE destG = destPtr[1];
-                BYTE destB = destPtr[0];
-
-                destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
-            }
-        }
-    }
-
-    pic->Unlock(NULL);
-    surface->Unlock(NULL);
-}
-
-void CIsoViewExt::BlitTransparentDesc(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-    int x, int y, int width, int height, BYTE alpha)
-{
-    if (!pic || !pDestDesc || alpha == 0) {
-        return;
-    }
-
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    auto pThis = CIsoView::GetInstance();
-    RECT windowRect;
-    if (surface == GetBackBuffer()) {
-        windowRect = CIsoViewExt::GetScaledWindowRect();
-    }
-    else {
-        pThis->GetWindowRect(&windowRect);
-    }
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    if (width == -1 || height == -1) {
-        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
-        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
-            return;
-        }
-        width = ddsd.dwWidth;
-        height = ddsd.dwHeight;
-    }
-
-    if (x + width < 0 || y + height < 0) {
-        return;
-    }
-    if (x > windowRect.right || y > windowRect.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, width, height };
-    RECT destRect = { x, y, x + width, y + height };
-    if (destRect.left < 0) {
-        srcRect.left = -destRect.left;
-        destRect.left = 0;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = -destRect.top;
-        destRect.top = 0;
-    }
-    if (destRect.right > windowRect.right) {
-        srcRect.right = width - (destRect.right - windowRect.right);
-        destRect.right = windowRect.right;
-    }
-    if (destRect.bottom > windowRect.bottom) {
-        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
-        destRect.bottom = windowRect.bottom;
-    }
-
-    DDSURFACEDESC2 srcDesc = { sizeof(DDSURFACEDESC2) };
-    if (pic->Lock(NULL, &srcDesc, DDLOCK_WAIT | DDLOCK_SURFACEMEMORYPTR, NULL) != DD_OK) {
-        return;
-    }
-
-    DDCOLORKEY colorKey;
-    if (pic->GetColorKey(DDCKEY_SRCBLT, &colorKey) != DD_OK) {
-        pic->Unlock(NULL);
-        return;
-    }
-    DWORD colorKeyLow = colorKey.dwColorSpaceLowValue;
-    DWORD colorKeyHigh = colorKey.dwColorSpaceHighValue;
-
-    BYTE* destPixels = static_cast<BYTE*>(pDestDesc->lpSurface);
-    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
-    int destPitch = pDestDesc->lPitch;
-    int srcPitch = srcDesc.lPitch;
-    int maxDestX = pDestDesc->dwWidth;
-    int maxDestY = pDestDesc->dwHeight;
-
-    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
-        LONG dy = destRect.top + row;
-        if (dy < 0 || dy >= maxDestY) {
-            continue;
-        }
-
-        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
-        BYTE* srcLine = srcPixels + row * srcPitch;
-        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
-            LONG dx = destRect.left + col;
-            if (dx < 0 || dx >= maxDestX) {
-                continue;
-            }
-
-            int srcIndex = col * BPP;
-            int destIndex = col * BPP;
-            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
-            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
-                continue;
-            }
-
-            BYTE* destPtr = destLine + destIndex;
-            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                if (alpha == 255)
-                {
-                    memcpy(destPtr, &srcColor, BPP);
-                }
-                else
-                {
-                    BYTE srcR = srcLine[srcIndex + 2];
-                    BYTE srcG = srcLine[srcIndex + 1];
-                    BYTE srcB = srcLine[srcIndex];
-                    BYTE destR = destPtr[2];
-                    BYTE destG = destPtr[1];
-                    BYTE destB = destPtr[0];
-
-                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
-                }
-            }
-        }
-    }
-
-    pic->Unlock(NULL);
-}
-
-void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDRAWSURFACE7 surface, DDSURFACEDESC2* pDestDesc,
-    DDSURFACEDESC2& srcDesc, DDCOLORKEY& srcColorKey, int x, int y, int width, int height, BYTE alpha)
-{
-    if (!pic || !pDestDesc || alpha == 0) {
-        return;
-    }
-
-    const int X_OFFSET = 1;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    auto pThis = CIsoView::GetInstance();
-    RECT windowRect;
-    if (surface == GetBackBuffer()) {
-        windowRect = CIsoViewExt::GetScaledWindowRect();
-    }
-    else {
-        pThis->GetWindowRect(&windowRect);
-    }
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    if (width == -1 || height == -1) {
-        DDSURFACEDESC2 ddsd = { sizeof(DDSURFACEDESC2), DDSD_WIDTH | DDSD_HEIGHT };
-        if (pic->GetSurfaceDesc(&ddsd) != DD_OK) {
-            return;
-        }
-        width = ddsd.dwWidth;
-        height = ddsd.dwHeight;
-    }
-
-    if (x + width < 0 || y + height < 0) {
-        return;
-    }
-    if (x > windowRect.right || y > windowRect.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, width, height };
-    RECT destRect = { x, y, x + width, y + height };
-    if (destRect.left < 0) {
-        srcRect.left = -destRect.left;
-        destRect.left = 0;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = -destRect.top;
-        destRect.top = 0;
-    }
-    if (destRect.right > windowRect.right) {
-        srcRect.right = width - (destRect.right - windowRect.right);
-        destRect.right = windowRect.right;
-    }
-    if (destRect.bottom > windowRect.bottom) {
-        srcRect.bottom = height - (destRect.bottom - windowRect.bottom);
-        destRect.bottom = windowRect.bottom;
-    }
-
-    DWORD& colorKeyLow = srcColorKey.dwColorSpaceLowValue;
-    DWORD& colorKeyHigh = srcColorKey.dwColorSpaceHighValue;
-
-    BYTE* destPixels = static_cast<BYTE*>(pDestDesc->lpSurface);
-    BYTE* srcPixels = static_cast<BYTE*>(srcDesc.lpSurface);
-    int destPitch = pDestDesc->lPitch;
-    int srcPitch = srcDesc.lPitch;
-    int maxDestX = pDestDesc->dwWidth;
-    int maxDestY = pDestDesc->dwHeight;
-
-    for (LONG row = 0; row < srcRect.bottom - srcRect.top; ++row) {
-        LONG dy = destRect.top + row;
-        if (dy < 0 || dy >= maxDestY) {
-            continue;
-        }
-
-        BYTE* destLine = destPixels + dy * destPitch + destRect.left * BPP;
-        BYTE* srcLine = srcPixels + row * srcPitch;
-        for (LONG col = 0; col < srcRect.right - srcRect.left; ++col) {
-            LONG dx = destRect.left + col;
-            if (dx < 0 || dx >= maxDestX) {
-                continue;
-            }
-
-            int srcIndex = col * BPP;
-            int destIndex = col * BPP;
-            DWORD srcColor = *reinterpret_cast<DWORD*>(srcLine + srcIndex);
-            if (srcColor >= colorKeyLow && srcColor <= colorKeyHigh) {
-                continue;
-            }
-
-            BYTE* destPtr = destLine + destIndex;
-            if (destIndex >= 0 && destIndex < maxDestY * destPitch) {
-                if (alpha == 255)
-                {
-                    memcpy(destPtr, &srcColor, BPP);
-                }
-                else
-                {
-                    BYTE srcB = (BYTE)(srcColor & 0xFF);
-                    BYTE srcG = (BYTE)((srcColor >> 8) & 0xFF);
-                    BYTE srcR = (BYTE)((srcColor >> 16) & 0xFF);
-                    BYTE destR = destPtr[2];
-                    BYTE destG = destPtr[1];
-                    BYTE destB = destPtr[0];
-
-                    destPtr[2] = alphaBlendTable[srcR][alpha] + alphaBlendTable[destR][255 - alpha];
-                    destPtr[1] = alphaBlendTable[srcG][alpha] + alphaBlendTable[destG][255 - alpha];
-                    destPtr[0] = alphaBlendTable[srcB][alpha] + alphaBlendTable[destB][255 - alpha];
-                }
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
-{
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
-        return;
-    }
-
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer);
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    if (!newPal) {
-        newPal = pd->pPalette;
-    }
-    bool isMultiSelected = false;
-    RGBClass oreColor;
-    bool isEmphasizingOre = false;
-    byte oreOpacity;
-
-    if (extraLightType == -10 || extraLightType >= 500) {
-        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (extraLightType >= 500) {
-            int overlay = extraLightType - 500;
-            if (overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
-                overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
-                overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
-                (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
-                (overlay >= 0xCD && overlay <= 0xEC)) { // LOBRDGB 1-4
-                isMultiSelected = MultiSelection::IsSelected(
-                    CIsoViewExt::CurrentDrawCellLocation.X + 1,
-                    CIsoViewExt::CurrentDrawCellLocation.Y + 1);
-            }
-
-            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
-            {
-                isEmphasizingOre = true;
-                auto ovrd = CMapData::Instance->GetOverlayDataAt(
-                    CMapData::Instance->GetCoordIndex(
-                        CIsoViewExt::CurrentDrawCellLocation.X,
-                        CIsoViewExt::CurrentDrawCellLocation.Y));
-                oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
-                oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
-            }
-        }
-    }
-
-    BGRStruct color;
-    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-    color.R = pRGB->red;
-    color.G = pRGB->green;
-    color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
-        if (extraLightType >= 500) {
-            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-        }
-        else {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-        }
-    }
-    else {
-        newPal = PalettesManager::GetPalette(newPal, color, remap);
-    }
-
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = pd->pPixelValidRanges[row].First;
-        LONG right = pd->pPixelValidRanges[row].Last;
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
-                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
-                if (isEmphasizingOre)
-                {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
-{
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
-        return;
-    }
-
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    if (!newPal) {
-        newPal = pd->pPalette;
-    }
-    bool isMultiSelected = false;
-    RGBClass oreColor;
-    bool isEmphasizingOre = false;
-    byte oreOpacity;
-    if (extraLightType == -10 || extraLightType >= 500) {
-        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (extraLightType >= 500) {
-            int overlay = extraLightType - 500;
-            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
-            {
-                isEmphasizingOre = true;
-                auto ovrd = CMapData::Instance->GetOverlayDataAt(
-                    CMapData::Instance->GetCoordIndex(
-                        CIsoViewExt::CurrentDrawCellLocation.X,
-                        CIsoViewExt::CurrentDrawCellLocation.Y));
-                oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
-                oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
-            }
-        }
-    }
-
-    BGRStruct color;
-    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-    color.R = pRGB->red;
-    color.G = pRGB->green;
-    color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
-        if (extraLightType >= 500) {
-            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-        }
-        else if (extraLightType <= -100){
-            // do not tint color
-        }
-        else {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-        }
-    }
-    else {
-        if (extraLightType >= 500 
-            && ExtConfigs::InGameDisplay_RemapableOverlay
-            && CViewObjectsExt::WallDamageStages.find(extraLightType - 500) != CViewObjectsExt::WallDamageStages.end())
-        {
-            auto pos = CMapData::Instance->GetCoordIndex(CIsoViewExt::CurrentDrawCellLocation.X,
-                CIsoViewExt::CurrentDrawCellLocation.Y);
-            if (pos < CMapDataExt::CellDataExts.size())
-            {
-                auto pRGB = reinterpret_cast<ColorStruct*>(&CMapDataExt::CellDataExts[pos].RemapableColor);
-                color.R = pRGB->red;
-                color.G = pRGB->green;
-                color.B = pRGB->blue;
-                remap = true;
-            }
-        }
-        newPal = PalettesManager::GetPalette(newPal, color, remap);
-    }
-
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = pd->pPixelValidRanges[row].First;
-        LONG right = pd->pPixelValidRanges[row].Last;
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
-                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
-                if (isEmphasizingOre)
-                {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
-    COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
-{
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
-        return;
-    }
-
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0;
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
-    BYTE* opacity = pd->pOpacity.get();
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    bool hasPerPixelOpacity = (opacity != nullptr);
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    // buildings use pre-calculate palettes
-    if (!newPal) {
-        newPal = pd->pPalette;
-        BGRStruct color;
-        auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-        color.R = pRGB->red;
-        color.G = pRGB->green;
-        color.B = pRGB->blue;
-        if (LightingStruct::CurrentLighting == LightingStruct::NoLighting) {
-            newPal = PalettesManager::GetPalette(newPal, color, !isTerrain && !isRubble);
-        }
-        else {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, !isTerrain && !isRubble,
-                CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
-        }
-    }
-
-    BYTE* srcBase = src;
-    BYTE* opacityBase = opacity;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = pd->pPixelValidRanges[row].First;
-        LONG right = pd->pPixelValidRanges[row].Last;
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        BYTE* opacityPtr = opacityBase ? (opacityBase + row * swidth + left) : NULL;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, ++opacityPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-                BYTE finalAlpha = alpha;
-                if (hasPerPixelOpacity && opacityBase)
-                {
-                    unsigned int temp = (unsigned int)alpha * (*opacityPtr) / 255u;
-                    finalAlpha = (BYTE)temp;
-                    if (finalAlpha == 0) continue;
-                }
-                if (finalAlpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][finalAlpha] + alphaBlendTable[oriColor.B][255 - finalAlpha];
-                    c.G = alphaBlendTable[c.G][finalAlpha] + alphaBlendTable[oriColor.G][255 - finalAlpha];
-                    c.R = alphaBlendTable[c.R][finalAlpha] + alphaBlendTable[oriColor.R][255 - finalAlpha];
-                }
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
-{
-    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
-        return;
-    }
-
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    const int BPP = *(int*)0x72A8C0; 
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = srcRect.left;
-        LONG right = srcRect.right - 1;
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue != 127 && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                BGRStruct c;
-                c.B = std::min(static_cast<int>(oriColor.B * pixelValue * 2 / 256), 255);
-                c.G = std::min(static_cast<int>(oriColor.G * pixelValue * 2 / 256), 255);
-                c.R = std::min(static_cast<int>(oriColor.R * pixelValue * 2 / 256), 255);
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
-{  
-    auto pThis = CIsoView::GetInstance();
-    RECT window = CIsoViewExt::GetScaledWindowRect();
-    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
-    CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
-}
-
-void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
-{  
-    auto pThis = CIsoView::GetInstance();
-    RECT window = CIsoViewExt::GetScaledWindowRect();
-    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
-    CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
-}
-
 bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPath)
 {
     if (!pd || !pd->pImageBuffer || pd->Flag == ImageDataFlag::SurfaceData)
         return false;
 
-    const int BPP = 4; 
+    const int BPP = 4;
 
     int width = pd->FullWidth;
     int height = pd->FullHeight;
@@ -3038,201 +2136,6 @@ bool CIsoViewExt::SaveImageDataToBMP(ImageDataClassSafe* pd,const char* outputPa
     fclose(fp);
 
     return true;
-}
-
-void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, CTileBlockClass* subTile, Palette* pal, BYTE alpha, 
-    std::vector<byte>* mask, std::vector<byte>* heightMask, byte height, std::vector<int>* cellHeightMask, int tileSet)
-{
-    if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
-        return;
-    }
-
-    const int TILE_WIDTH = 60;
-    const int TILE_HEIGHT = 30;
-    const int X_OFFSET = 61;
-    const int Y_OFFSET = 1;
-    const int BPP = *(int*)0x72A8C0;
-    const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    int swidth = subTile->BlockWidth;
-    int sheight = subTile->BlockHeight;
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-
-    srcRect.left = 0;
-    srcRect.top = 0;
-    srcRect.right = swidth;
-    srcRect.bottom = sheight;
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    if (srcRect.right <= srcRect.left || srcRect.bottom <= srcRect.top) {
-        return;
-    }
-
-    Palette* newPal = pal;
-    BGRStruct color;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
-        newPal = PalettesManager::GetObjectPalette(pal, color, false, CIsoViewExt::CurrentDrawCellLocation);
-    }
-    bool multiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-    RGBClass oreColor;
-    bool isEmphasizingOre = false;
-    byte oreOpacity;
-    bool isEmphasizingPlayer = false;
-    byte playerOpacity;
-    if (RenderingMap && RenderEmphasizeOres)
-    {
-        int pos = CMapData::Instance->GetCoordIndex(
-                CIsoViewExt::CurrentDrawCellLocation.X,
-                CIsoViewExt::CurrentDrawCellLocation.Y);
-        auto ovr = CMapDataExt::GetExtension()->GetOverlayAt(pos);
-        if (CMapDataExt::IsOre(ovr))
-        {
-            isEmphasizingOre = true;
-            auto ovrd = CMapData::Instance->GetOverlayDataAt(pos);
-            oreColor = CMapDataExt::GetOverlayTypeData(ovr).RadarColor;
-            oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
-        }
-    }
-    if (RenderingMap && RenderMarkStartings)
-    {
-        int players = CMapDataExt::GetPlayerLocationCountAtCell(
-            CIsoViewExt::CurrentDrawCellLocation.X,
-            CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (players > 0)
-        {
-            isEmphasizingPlayer = true;
-            playerOpacity = playerLocationOpacityTable[players - 1];
-        }
-    }
-
-    BYTE* srcBase = static_cast<BYTE*>(subTile->ImageData);
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = std::max((LONG)subTile->pPixelValidRanges[row].First, srcRect.left);
-        LONG right = std::min((LONG)subTile->pPixelValidRanges[row].Last, srcRect.right - 1);
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround) {
-                int posInTile = col + subTile->XMinusExX + (row + subTile->YMinusExY) * TILE_WIDTH;
-                if (col + subTile->XMinusExX < 0 ||
-                    col + subTile->XMinusExX >= TILE_WIDTH ||
-                    row + subTile->YMinusExY < 0 ||
-                    row + subTile->YMinusExY >= TILE_HEIGHT ||
-                    !TilePixels[posInTile]) {
-                    continue;
-                }
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-
-                if (mask)
-                {
-                    int wy = destRect.top + row;
-                    int wx = destRect.left + col;
-
-                    if (wx >= window.left && wx < window.right &&
-                        wy >= window.top && wy < window.bottom)
-                    {
-                        int index = wx - window.left + (wy - window.top) * (window.right - window.left);
-                        if ((*heightMask)[index] >= height)
-                        {
-                            if (auto shadow = (*mask)[index])
-                            {
-                                BYTE keep = alphaBlendTable[255][127];
-                                BYTE blend = 255 - keep;
-                                c.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[c.R][keep];
-                                c.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[c.G][keep];
-                                c.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[c.B][keep];
-                            }
-                        }
-                    }
-                }
-
-                if (cellHeightMask)
-                {
-                    int wy = destRect.top + row;
-                    int wx = destRect.left + col;
-
-                    if (wx >= window.left && wx < window.right &&
-                        wy >= window.top && wy < window.bottom)
-                    {
-                        int yOffset = 0;
-                        int cellRowIdx = col + subTile->XMinusExX;
-                        if (cellRowIdx >= 0 && cellRowIdx <= 30)
-                            yOffset = (cellRowIdx + 2) / 2;
-                        else if (cellRowIdx > 30 && cellRowIdx <= 60)
-                            yOffset = (60 - cellRowIdx + 1) / 2;
-                        yOffset = std::min(15, yOffset);
-
-                        int offset = (-subTile->YMinusExY - 15 - (row - srcRect.top));
-                        int value = height * 30 - yOffset + (subTile->YMinusExY < 0 ? (offset + 30) : 0) - 2;
-                        value = std::max(0, value);
-                        (*cellHeightMask)[wx - window.left + (wy - window.top) * (window.right - window.left)]
-                            = value;
-                    }
-                }
-
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
-
-                if (multiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
-
-                if (isEmphasizingOre)
-                {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
-
-                if (isEmphasizingPlayer)
-                {
-                    RGBClass* playerColor = reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color);             
-                    c.B = alphaBlendTable[c.B][playerOpacity] + alphaBlendTable[playerColor->B][255 - playerOpacity];
-                    c.G = alphaBlendTable[c.G][playerOpacity] + alphaBlendTable[playerColor->G][255 - playerOpacity];
-                    c.R = alphaBlendTable[c.R][playerOpacity] + alphaBlendTable[playerColor->R][255 - playerOpacity];
-                }
-
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
 }
 
 void CIsoViewExt::ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo, bool trim)
@@ -3589,148 +2492,6 @@ bool CIsoViewExt::LoadAndScaleToBitmap(const ImageDataView* pData,
     return true;
 }
 
-void CIsoViewExt::MaskShadowPixels(const RECT& window, int x, int y, ImageDataClassSafe* pd,
-    std::vector<char>& mask, std::vector<byte>& heightMask, byte height)
-{
-    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || mask.empty()) {
-        return;
-    }
-
-    const int X_OFFSET = 31;
-    const int Y_OFFSET = -29;
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    const int maskWidth = window.right - window.left;
-    const int maskHeight = window.bottom - window.top;
-    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
-        return;
-    }
-
-    BYTE* srcBase = src;
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = std::max(static_cast<LONG>(pd->pPixelValidRanges[row].First), srcRect.left);
-        LONG right = std::min(static_cast<LONG>(pd->pPixelValidRanges[row].Last), srcRect.right - 1);
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        LONG destXBase = destRect.left + left;
-
-        for (LONG col = left; col <= right; ++col, ++srcPtr) {
-            BYTE pixelValue = *srcPtr;
-            if (!pixelValue) {
-                continue;
-            }
-
-            LONG localX = destXBase + (col - left) - window.left;
-            LONG localY = destRect.top + row - window.top;
-
-            if (localX >= 0 && localX < maskWidth && localY >= 0 && localY < maskHeight) {
-                size_t maskIndex = static_cast<size_t>(localY * maskWidth + localX);
-                mask[maskIndex] = 1;
-                heightMask[maskIndex] = height;
-            }
-        }
-    }
-}
-
-void CIsoViewExt::DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
-    const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask)
-{
-    if (!dst || mask.empty()) {
-        return;
-    }
-
-    const int BPP = *(int*)0x72A8C0;
-    const BGRStruct SHADOW_COLOR = { 0, 0, 0 };
-    const BYTE ALPHA = 128;
-    const int maskWidth = window.right - window.left;
-    const int maskHeight = window.bottom - window.top;
-    const int width = boundary.dwWidth;
-    const int height = boundary.dwHeight;
-
-    if (mask.size() < static_cast<size_t>(maskWidth * maskHeight)) {
-        return;
-    }
-
-    BYTE* base = static_cast<BYTE*>(dst);
-    BYTE* surfaceEnd = base + boundary.dpitch * height;
-
-    for (LONG y = 0; y < maskHeight; ++y) {
-        LONG dy = window.top + y;
-        if (dy < 0 || dy >= height) {
-            continue;
-        }
-
-        BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
-        for (LONG x = 0; x < maskWidth; ++x) {
-            int index = y * maskWidth + x;
-            BYTE count = mask[y * maskWidth + x];
-            if (count == 0) {
-                continue;
-            }
-
-            LONG dx = window.left + x;
-            if (dx < 0 || dx >= width) {
-                continue;
-            }
-
-            BYTE* dest = destLine + x * BPP;
-            if (dest + BPP > surfaceEnd) {
-                continue;
-            }
-
-            if (cellHeightMask[index] > 30 * shadowHeightMask[index]) {
-                continue;
-            }
-
-            BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(dest);
-            BGRStruct blended = oriColor;
-
-            BYTE keep = alphaBlendTable[255][255 - ALPHA];
-            BYTE blend = 255 - keep;
-
-            for (BYTE i = 0; i < count; ++i) {
-                blended.R = alphaBlendTable[SHADOW_COLOR.R][blend] + alphaBlendTable[blended.R][keep];
-                blended.G = alphaBlendTable[SHADOW_COLOR.G][blend] + alphaBlendTable[blended.G][keep];
-                blended.B = alphaBlendTable[SHADOW_COLOR.B][blend] + alphaBlendTable[blended.B][keep];
-            }
-
-            memcpy(dest, &blended, BPP);
-        }
-    }
-}
-
 std::vector<MapCoord> CIsoViewExt::GetTubePath(int x1, int y1, int x2, int y2, bool first)
 {
     std::vector<MapCoord> path;
@@ -3838,6 +2599,7 @@ RECT CIsoViewExt::GetScaledWindowRect()
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     rect.right += rect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
     rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
     return rect;
@@ -3915,6 +2677,7 @@ void CIsoViewExt::MapCoord2ScreenCoord(int& X, int& Y, int flatMode)
     CRect rect;
     auto pThis = CIsoView::GetInstance();
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     if (flatMode == 0)
         pThis->MapCoord2ScreenCoord(X, Y);
     else if (flatMode == 1)
@@ -4016,7 +2779,7 @@ bool CIsoViewExt::StretchCopySurfaceBilinear(
 
         int x = 0;
 
-        if (ExtConfigs::AVX2_Support)
+        if (ExtConfigs::AVX2_Support) [[likely]]
         {
             for (; x + 7 < dstW; x += 8) {
                 __m256i outPix;
@@ -4136,13 +2899,14 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
     auto pThis = CIsoView::GetInstance();
     CRect rect;
     pThis->GetWindowRect(&rect);
+    AdaptRectForSecondScreen(&rect);
     int leftIndex = 0;
     int fontSize = ExtConfigs::DisplayTextSize;
-    if (CIsoViewExt::ScaledFactor < 0.75)
-        fontSize += 2;
-    if (CIsoViewExt::ScaledFactor < 0.5)
-        fontSize += 2;
     if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 6;
+    else if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 4;
+    else if (CIsoViewExt::ScaledFactor < 0.75)
         fontSize += 2;
     int lineHeight = fontSize + 2;
     ::SetBkMode(hDC, OPAQUE);
@@ -4176,22 +2940,22 @@ void CIsoViewExt::DrawCreditOnMap(HDC hDC)
                 ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
             }
         }
-    }
-    if (CFinalSunApp::Instance().FlatToGround)
-    {
-        FString buffer;
-        buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
-        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
-    }
-    if (CIsoViewExt::ScaledFactor != 1.0)
-    {
-        FString buffer;
-        buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
-        ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        if (CFinalSunApp::Instance().FlatToGround)
+        {
+            FString buffer;
+            buffer.Format(Translations::TranslateOrDefault("FlatToGroundModeEnabled", "2D Mode Enabled"));
+            ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        }
+        if (CIsoViewExt::ScaledFactor != 1.0)
+        {
+            FString buffer;
+            buffer.Format(Translations::TranslateOrDefault("ScaledFactorText", "Zoom: %.02fx, Middle-click to reset"), 1.0 / CIsoViewExt::ScaledFactor);
+            ::TextOut(hDC, rect.left + 10, rect.top + 10 + lineHeight * leftIndex++, buffer, buffer.GetLength());
+        }
     }
 }
 
-void CIsoViewExt::DrawDistanceRuler(HDC hDC)
+void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT& rect)
 {
     int fontSize = ExtConfigs::DisplayTextSize;
     if (CIsoViewExt::ScaledFactor < 0.75)
@@ -4201,16 +2965,16 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
     if (CIsoViewExt::ScaledFactor < 0.3)
         fontSize += 2;
     int lineHeight = fontSize + 2;
-    if (!CIsoViewExt::DistanceRuler.empty())
+    if (!CIsoViewExt::LiveDistanceRuler.empty())
     {
-        for (int i = 0; i < CIsoViewExt::DistanceRuler.size(); ++i)
+        for (int i = 0; i < CIsoViewExt::LiveDistanceRuler.size(); ++i)
         {
-            int x1 = CIsoViewExt::DistanceRuler[i].X;
-            int y1 = CIsoViewExt::DistanceRuler[i].Y;
+            int x1 = CIsoViewExt::LiveDistanceRuler[i].X;
+            int y1 = CIsoViewExt::LiveDistanceRuler[i].Y;
             int x2, y2 = 0;
-            if (i == CIsoViewExt::DistanceRuler.size() - 1)
+            if (i == CIsoViewExt::LiveDistanceRuler.size() - 1)
             {
-                auto pIsoView = CIsoView::GetInstance();
+                auto pIsoView = CIsoViewExt::GetExtension();
                 auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
                 x2 = point.X;
                 y2 = point.Y;
@@ -4219,8 +2983,8 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
             }
             else
             {
-                x2 = CIsoViewExt::DistanceRuler[i + 1].X;
-                y2 = CIsoViewExt::DistanceRuler[i + 1].Y;
+                x2 = CIsoViewExt::LiveDistanceRuler[i + 1].X;
+                y2 = CIsoViewExt::LiveDistanceRuler[i + 1].Y;
             }
             MapCoord coord1 = { x1,y1 };
             MapCoord coord2 = { x2,y2 };
@@ -4232,16 +2996,16 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
             int drawY = y2 - CIsoViewExt::drawOffsetY - 15;
             if (distance > 0.1)
             {
-                CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, 2);
+                CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 2);
                 int j = 1;
                 std::ostringstream oss;
                 oss.precision(2);
                 oss << std::fixed << distance;
                 buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
-                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+                TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
                 buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
                     coord2.Y, coord2.X, coord2.Y - coord1.Y, coord2.X - coord1.X);
-                ::TextOut(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength());
+                TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
             }
             if (i == 0)
             {
@@ -4249,20 +3013,211 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC)
                 drawY = y1 - CIsoViewExt::drawOffsetY - 15;
                 buffer.Format(Translations::TranslateOrDefault("DistanceRuler.InitCoordinate", "XY: %d, %d"),
                     coord1.Y, coord1.X);
-                ::TextOut(hDC, drawX, drawY + lineHeight * 1, buffer, buffer.GetLength());
+                TextOutClipped(hDC, drawX, drawY + lineHeight * 1, buffer, buffer.GetLength(), rect);
             }
         }
     }
 }
 
+void CIsoViewExt::DrawScriptPaths(HDC hDC, const RECT& rect)
+{
+    for (int i = 1; i < ScriptPath.size(); ++i)
+    {
+        auto& coord1 = ScriptPath[i - 1];
+        auto& coord2 = ScriptPath[i];
+
+        int x1 = coord1.X;
+        int y1 = coord1.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        int x2 = coord2.X;
+        int y2 = coord2.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+        CIsoViewExt::DrawArrowHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 2);
+    }
+}
+
+void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT& rect)
+{
+    int fontSize = ExtConfigs::DisplayTextSize;
+    if (CIsoViewExt::ScaledFactor < 0.3)
+        fontSize += 6;
+    else if (CIsoViewExt::ScaledFactor < 0.5)
+        fontSize += 4;
+    else if (CIsoViewExt::ScaledFactor < 0.75)
+        fontSize += 2;
+    int lineHeight = fontSize + 2;
+    auto reversedColor = RGB(
+        255 - GetRValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetGValue(ExtConfigs::DistanceRuler_Color),
+        255 - GetBValue(ExtConfigs::DistanceRuler_Color)
+    );
+    auto pIsoView = CIsoViewExt::GetExtension();
+    for (auto& twoPoints : TwoPointDistance)
+    {
+        if (twoPoints.Point1 != MapCoord{ 0,0 })
+        {
+            int j = 0;
+            int x1 = twoPoints.Point1.X;
+            int y1 = twoPoints.Point1.Y;
+            FString buffer;
+            CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+            int drawX = x1 - CIsoViewExt::drawOffsetX + 30;
+            int drawY = y1 - CIsoViewExt::drawOffsetY - 15;
+            if (twoPoints.drawText)
+            {
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.InitCoordinate", "XY: %d, %d"),
+                    twoPoints.Point1.Y, twoPoints.Point1.X);
+                TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
+            }
+
+            auto coord2 = twoPoints.Point2;
+            if (twoPoints.Point2 == MapCoord{ 0,0 })
+            {
+                auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+                coord2 = point;
+
+                if (!CMapData::Instance->IsCoordInMap(coord2.X, coord2.Y))
+                    continue;
+            }
+
+            j = 0;
+            int x2 = coord2.X;
+            int y2 = coord2.Y;
+            CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+            drawX = x2 - CIsoViewExt::drawOffsetX + 30;
+            drawY = y2 - CIsoViewExt::drawOffsetY - 15;
+            double distance = sqrt((
+                twoPoints.Point1.X - coord2.X)
+                * (twoPoints.Point1.X - coord2.X)
+                + (twoPoints.Point1.Y - coord2.Y)
+                * (twoPoints.Point1.Y - coord2.Y));
+            CIsoViewExt::DrawLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 2);
+            if (twoPoints.drawText)
+            {
+                std::ostringstream oss;
+                oss.precision(2);
+                oss << std::fixed << distance;
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Distance", "Distance: %s"), oss.str().c_str());
+                TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                    coord2.Y, coord2.X,
+                    coord2.Y - twoPoints.Point1.Y, coord2.X - twoPoints.Point1.X);
+                TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
+            }
+        }
+    }
+    for (auto& [mc, radius] : CIsoViewExt::Circles)
+    {
+        int drawX = mc.X;
+        int drawY = mc.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(drawX, drawY);
+        float rad = radius * cellLength;
+        CIsoViewExt::DrawDashLineHDC(hDC, drawX, drawY, drawX + rad / CIsoViewExt::ScaledFactor, drawY, reversedColor, rect, 1);
+        pIsoView->DrawEllipsePaint(drawX, drawY, rad, ExtConfigs::DistanceRuler_Color, hDC, rect, CIsoViewExt::ScaledFactor < 0.61 ? 4 : 2);
+    }
+    if (AxialSymmetryLine[0] != MapCoord{ 0,0 })
+    {
+        int j = 0;
+        int x1 = AxialSymmetryLine[0].X;
+        int y1 = AxialSymmetryLine[0].Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        auto coord2 = AxialSymmetryLine[1];
+        if (AxialSymmetryLine[1] == MapCoord{ 0,0 })
+        {
+            auto point = pIsoView->GetCurrentMapCoord(pIsoView->MouseCurrentPosition);
+            coord2 = point;
+        }
+        if (CMapData::Instance->IsCoordInMap(coord2.X, coord2.Y))
+        {
+            j = 0;
+            int x2 = coord2.X;
+            int y2 = coord2.Y;
+            CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+            CIsoViewExt::DrawDashLineHDC(hDC, x1, y1, x2, y2, ExtConfigs::DistanceRuler_Color, rect, 3);
+        }
+    }
+    int i = 0;
+    for (auto& [mc1, mc2] : AxialSymmetricPoints)
+    {
+        if (!CMapData::Instance->IsCoordInMap(mc1.X, mc1.Y) || !CMapData::Instance->IsCoordInMap(mc2.X, mc2.Y))
+            continue;
+        FString buffer;
+        int x1 = mc1.X;
+        int y1 = mc1.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        int drawX1 = x1 - CIsoViewExt::drawOffsetX + 26 / CIsoViewExt::ScaledFactor - 6;
+        int drawY1 = y1 - CIsoViewExt::drawOffsetY - 20 / CIsoViewExt::ScaledFactor - 3;
+        int x2 = mc2.X;
+        int y2 = mc2.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+        int drawX2 = x2 - CIsoViewExt::drawOffsetX + 26 / CIsoViewExt::ScaledFactor - 6;
+        int drawY2 = y2 - CIsoViewExt::drawOffsetY - 20 / CIsoViewExt::ScaledFactor - 3;
+        CIsoViewExt::DrawDashLineHDC(hDC, x1, y1, x2, y2, reversedColor, rect, 1);
+        buffer.Format("A%d", i);
+        TextOutClipped(hDC, drawX1, drawY1, buffer, buffer.GetLength(), rect);
+        buffer.Format("B%d", i);
+        TextOutClipped(hDC, drawX2, drawY2, buffer, buffer.GetLength(), rect);
+        ++i;
+    }
+    i = 0;
+    for (auto& [mc1, mc2] : CentralSymmetricPoints)
+    {
+        if (!CMapData::Instance->IsCoordInMap(mc1.X, mc1.Y) || !CMapData::Instance->IsCoordInMap(mc2.X, mc2.Y))
+            continue;
+        FString buffer;
+        int x1 = mc1.X;
+        int y1 = mc1.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
+        int drawX1 = x1 - CIsoViewExt::drawOffsetX + 26 / CIsoViewExt::ScaledFactor - 6;
+        int drawY1 = y1 - CIsoViewExt::drawOffsetY - 20 / CIsoViewExt::ScaledFactor - 3;
+        int x2 = mc2.X;
+        int y2 = mc2.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x2, y2);
+        int drawX2 = x2 - CIsoViewExt::drawOffsetX + 26 / CIsoViewExt::ScaledFactor - 6;
+        int drawY2 = y2 - CIsoViewExt::drawOffsetY - 20 / CIsoViewExt::ScaledFactor - 3;
+        CIsoViewExt::DrawDashLineHDC(hDC, x1, y1, x2, y2, reversedColor, rect, 1);
+        buffer.Format("A%d", i);
+        TextOutClipped(hDC, drawX1, drawY1, buffer, buffer.GetLength(), rect);
+        buffer.Format("B%d", i);
+        TextOutClipped(hDC, drawX2, drawY2, buffer, buffer.GetLength(), rect);
+        ++i;
+    }
+    if (CentralSymmetryCenter != MapCoord{ 0,0 })
+    {
+        FString buffer(Translations::TranslateOrDefault("MeasurementToolbox.CentralSymmetryCenter", "Center"));
+        int x = CentralSymmetryCenter.X;
+        int y = CentralSymmetryCenter.Y;
+        CIsoViewExt::MapCoord2ScreenCoord(x, y);
+        int drawX = x - CIsoViewExt::drawOffsetX + 20 / CIsoViewExt::ScaledFactor - 6;
+        int drawY = y - CIsoViewExt::drawOffsetY - 20 / CIsoViewExt::ScaledFactor - 3;
+        TextOutClipped(hDC, drawX, drawY, buffer, buffer.GetLength(), rect);
+    }
+}
+
 CRect CIsoViewExt::GetVisibleIsoViewRect()
 {
-    auto pThis = CIsoView::GetInstance();
-    CRect rect;
+    auto pThis = CIsoView::GetInstance(); 
+    CRect rect; 
     pThis->GetWindowRect(&rect);
-    CRect screenRect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
-    CRect destRect;
-    destRect.IntersectRect(&rect, &screenRect);
+    AdaptRectForSecondScreen(&rect);
+
+    if (ExtConfigs::SecondScreenSupport)
+    {
+        int vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        CRect virtualRect(0, 0, vw, vh);
+
+        CRect destRect;
+        destRect.IntersectRect(&rect, &virtualRect);
+
+        return destRect;
+    }
+
+    CRect screenRect(0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)); 
+    CRect destRect; 
+    destRect.IntersectRect(&rect, &screenRect); 
+
     return destRect;
 }
 
@@ -4278,8 +3233,8 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         if (pThis->IsScrolling)
         {
             auto point = pThis->MoveCenterPosition;
-            point.x += rect.left - 16 - 18;
-            point.y += rect.top + 14 - 12;
+            point.x += rect.left - 16 - 18 + GetSystemMetrics(SM_XVIRTUALSCREEN);
+            point.y += rect.top + 14 - 12 + GetSystemMetrics(SM_YVIRTUALSCREEN);
             auto cursor = CLoadingExt::GetSurfaceImageDataFromMap("scrollcursor.bmp");
             CIsoViewExt::BlitTransparent(cursor->lpSurface, point.x, point.y, -1, -1, 255, surface);
         }
@@ -4287,20 +3242,28 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-        if (EnableDistanceRuler)
+        if (EnableLiveDistanceRuler)
         {
-            DrawDistanceRuler(hDC);
+            DrawDistanceRuler(hDC, rect);
+        }
+        if (EnableOtherMeasurementTools)
+        {
+            DrawOtherMeasurementTools(hDC, rect);
+        }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC, rect);
         }
         DrawCreditOnMap(hDC);
 
@@ -4315,22 +3278,34 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0,  FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-        if (EnableDistanceRuler)
+        RECT rect;
+        auto pThis = CIsoView::GetInstance();
+        pThis->GetWindowRect(&rect);
+        AdaptRectForSecondScreen(&rect);
+        if (EnableLiveDistanceRuler)
         {
-            DrawDistanceRuler(hDC);
+            DrawDistanceRuler(hDC, rect);
         }
-        DrawMouseMove(hDC);
+        if (EnableOtherMeasurementTools)
+        {
+            DrawOtherMeasurementTools(hDC, rect);
+        }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC, rect);
+        }
+        DrawMouseMove(hDC, rect);
         DrawCreditOnMap(hDC);
 
         SelectObject(hDC, hOldFont);
@@ -4344,20 +3319,32 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
         int fontSize = ExtConfigs::DisplayTextSize;
-        if (CIsoViewExt::ScaledFactor < 0.75)
-            fontSize += 2;
-        if (CIsoViewExt::ScaledFactor < 0.5)
-            fontSize += 2;
         if (CIsoViewExt::ScaledFactor < 0.3)
+            fontSize += 6;
+        else if (CIsoViewExt::ScaledFactor < 0.5)
+            fontSize += 4;
+        else if (CIsoViewExt::ScaledFactor < 0.75)
             fontSize += 2;
         HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
             OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
             DEFAULT_PITCH | FF_DONTCARE, "Cambria");
         HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-        if (EnableDistanceRuler)
+        RECT rect;
+        auto pThis = CIsoView::GetInstance();
+        pThis->GetWindowRect(&rect);
+        AdaptRectForSecondScreen(&rect);
+        if (EnableLiveDistanceRuler)
         {
-            DrawDistanceRuler(hDC);
+            DrawDistanceRuler(hDC, rect);
+        }
+        if (EnableOtherMeasurementTools)
+        {
+            DrawOtherMeasurementTools(hDC, rect);
+        }
+        if (DrawScriptPath)
+        {
+            DrawScriptPaths(hDC, rect);
         }
         DrawCopyBound(hDC);
         DrawCreditOnMap(hDC);
@@ -4372,21 +3359,30 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
         HDC hDC;
         surface->GetDC(&hDC);
 
-        if (EnableDistanceRuler)
+        if (EnableLiveDistanceRuler || EnableOtherMeasurementTools)
         {
             int fontSize = ExtConfigs::DisplayTextSize;
-            if (CIsoViewExt::ScaledFactor < 0.75)
-                fontSize += 2;
-            if (CIsoViewExt::ScaledFactor < 0.5)
-                fontSize += 2;
             if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 6;
+            else if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 4;
+            else if (CIsoViewExt::ScaledFactor < 0.75)
                 fontSize += 2;
             HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
                 DEFAULT_PITCH | FF_DONTCARE, "Cambria");
             HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-            DrawDistanceRuler(hDC);
+            RECT rect;
+            auto pThis = CIsoView::GetInstance();
+            pThis->GetWindowRect(&rect);
+            AdaptRectForSecondScreen(&rect);
+            if (EnableLiveDistanceRuler)
+                DrawDistanceRuler(hDC, rect);
+            if (EnableOtherMeasurementTools)
+                DrawOtherMeasurementTools(hDC, rect);
+            if (DrawScriptPath)
+                DrawScriptPaths(hDC, rect);
 
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
@@ -4397,23 +3393,32 @@ void CIsoViewExt::SpecialDraw(LPDIRECTDRAWSURFACE7 surface, int specialDraw)
     }
     case 4:
     {
-        if (EnableDistanceRuler)
+        if (EnableLiveDistanceRuler || EnableOtherMeasurementTools)
         {
             HDC hDC;
             surface->GetDC(&hDC);
             int fontSize = ExtConfigs::DisplayTextSize;
-            if (CIsoViewExt::ScaledFactor < 0.75)
-                fontSize += 2;
-            if (CIsoViewExt::ScaledFactor < 0.5)
-                fontSize += 2;
             if (CIsoViewExt::ScaledFactor < 0.3)
+                fontSize += 6;
+            else if (CIsoViewExt::ScaledFactor < 0.5)
+                fontSize += 4;
+            else if (CIsoViewExt::ScaledFactor < 0.75)
                 fontSize += 2;
             HFONT hFont = CreateFont(fontSize, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
                 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
                 DEFAULT_PITCH | FF_DONTCARE, "Cambria");
             HFONT hOldFont = (HFONT)SelectObject(hDC, hFont);
 
-            DrawDistanceRuler(hDC);
+            RECT rect;
+            auto pThis = CIsoView::GetInstance();
+            pThis->GetWindowRect(&rect);
+            AdaptRectForSecondScreen(&rect);
+            if (EnableLiveDistanceRuler)
+                DrawDistanceRuler(hDC, rect);
+            if (EnableOtherMeasurementTools)
+                DrawOtherMeasurementTools(hDC, rect);
+            if (DrawScriptPath)
+                DrawScriptPaths(hDC, rect);
 
             SelectObject(hDC, hOldFont);
             DeleteObject(hFont);
@@ -4432,10 +3437,9 @@ void CIsoViewExt::MoveToMapCoord(int X, int Y)
         return;
 
     auto pThis = CIsoView::GetInstance();
-    int nMapCoord = CMapData::Instance->GetCoordIndex(X, Y);
     RECT rect = GetScaledWindowRect();
     int x = 30 * (CMapData::Instance->MapWidthPlusHeight + Y - X) - (rect.right - rect.left) / 2 - rect.left;
-    int y = 15 * (Y + X) - CMapData::Instance->CellDatas[nMapCoord].Height - (rect.bottom - rect.top) / 2 - rect.top;
+    int y = 15 * (Y + X) - CMapData::Instance->TryGetCellAt(X, Y)->Height - (rect.bottom - rect.top) / 2 - rect.top;
     pThis->MoveTo(x, y);
     pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     CFinalSunDlg::Instance->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -4465,10 +3469,19 @@ void CIsoViewExt::Zoom(double offset)
             CRect newRect = GetScaledWindowRect();
             CRect oriRect;
             pThis->GetWindowRect(&oriRect);
+            AdaptRectForSecondScreen(&oriRect);
             double mousePosX;
             double mousePosY;
-            mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x) / oriRect.Width();
-            mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y) / oriRect.Height();
+            if (ExtConfigs::SecondScreenSupport)
+            {
+                mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x + GetSystemMetrics(SM_XVIRTUALSCREEN)) / oriRect.Width();
+                mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y + GetSystemMetrics(SM_YVIRTUALSCREEN)) / oriRect.Height();
+            }
+            else
+            {
+                mousePosX = static_cast<double>(pThis->MouseCurrentPosition.x) / oriRect.Width();
+                mousePosY = static_cast<double>(pThis->MouseCurrentPosition.y) / oriRect.Height();
+            }
 
             pThis->ViewPosition.x += (oldRect.Width() - newRect.Width()) * mousePosX;
             pThis->ViewPosition.y += (oldRect.Height() - newRect.Height()) * mousePosY;
@@ -4624,24 +3637,225 @@ void CIsoViewExt::DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::s
     }
 }
 
-void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, int size)
+void CIsoViewExt::TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect)
 {
-    auto pThis = (CIsoViewExt*)CIsoView::GetInstance();
+    if (!hdc || !text || len <= 0)
+        return;
+
+    if (x < rect.left || x > rect.right ||
+        y < rect.top || y > rect.bottom)
+    {
+        return;
+    }
+
+    ::TextOut(hdc, x, y, text, len);
+}
+
+bool CIsoViewExt::ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT& rect)
+{
+    auto encode = [&rect](int x, int y)
+    {
+        int c = 0;
+        if (x < rect.left)        c |= 1; 
+        else if (x > rect.right)  c |= 2; 
+        if (y > rect.bottom)      c |= 4; 
+        else if (y < rect.top)    c |= 8; 
+        return c;
+    };
+
+    int code1 = encode(x1, y1);
+    int code2 = encode(x2, y2);
+
+    while (code1 || code2)
+    {
+        if (code1 & code2)
+            return false;
+
+        int code = code1 ? code1 : code2;
+
+        int x = 0, y = 0;
+
+        int dx = x2 - x1;
+        int dy = y2 - y1;
+
+        if ((code & 1) && dx != 0)
+        {
+            x = rect.left;
+            y = y1 + dy * (rect.left - x1) / dx;
+        }
+        else if ((code & 2) && dx != 0)
+        {
+            x = rect.right;
+            y = y1 + dy * (rect.right - x1) / dx;
+        }
+        else if ((code & 4) && dy != 0) 
+        {
+            y = rect.bottom;
+            x = x1 + dx * (rect.bottom - y1) / dy;
+        }
+        else if ((code & 8) && dy != 0) 
+        {
+            y = rect.top;
+            x = x1 + dx * (rect.top - y1) / dy;
+        }
+        else
+        {
+            return false;
+        }
+
+        if (code == code1)
+        {
+            x1 = x;
+            y1 = y;
+            code1 = encode(x1, y1);
+        }
+        else
+        {
+            x2 = x;
+            y2 = y;
+            code2 = encode(x2, y2);
+        }
+    }
+
+    return true;
+}
+
+void CIsoViewExt::DrawLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
+{
     x1 += 36 / CIsoViewExt::ScaledFactor - 6;
     x2 += 36 / CIsoViewExt::ScaledFactor - 6;
     y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
     y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
-    PAINTSTRUCT ps;
-    HPEN hPen;
-    HPEN hPenOld;
-    BeginPaint(pThis->m_hWnd, &ps);
-    hPen = CreatePen(PS_SOLID, CIsoViewExt::ScaledFactor < 0.61 ? (2 + size) : size, color);
-    hPenOld = (HPEN)SelectObject(hDC, hPen);
-    MoveToEx(hDC, x1 - CIsoViewExt::drawOffsetX, y1 - CIsoViewExt::drawOffsetY, NULL);
-    LineTo(hDC, x2 - CIsoViewExt::drawOffsetX, y2 - CIsoViewExt::drawOffsetY);
-    SelectObject(hDC, hPenOld);
+
+    x1 -= CIsoViewExt::drawOffsetX;
+    y1 -= CIsoViewExt::drawOffsetY;
+    x2 -= CIsoViewExt::drawOffsetX;
+    y2 -= CIsoViewExt::drawOffsetY;
+
+    if (!ClipLineToRect(x1, y1, x2, y2, rect))
+        return;
+
+    HPEN hPen = CreatePen(
+        PS_SOLID,
+        CIsoViewExt::ScaledFactor < 0.61 ? (2 + size) : size,
+        color
+    );
+
+    HPEN hOld = (HPEN)SelectObject(hDC, hPen);
+
+    MoveToEx(hDC, x1, y1, NULL);
+    LineTo(hDC, x2, y2);
+
+    SelectObject(hDC, hOld);
     DeleteObject(hPen);
-    EndPaint(pThis->m_hWnd, &ps);
+}
+
+void CIsoViewExt::DrawArrowHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
+{
+    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+    y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+
+    int sx1 = x1 - CIsoViewExt::drawOffsetX;
+    int sy1 = y1 - CIsoViewExt::drawOffsetY;
+    int sx2 = x2 - CIsoViewExt::drawOffsetX;
+    int sy2 = y2 - CIsoViewExt::drawOffsetY;
+
+    int cx1 = sx1, cy1 = sy1;
+    int cx2 = sx2, cy2 = sy2;
+
+    if (!ClipLineToRect(cx1, cy1, cx2, cy2, rect))
+        return;
+
+    HPEN hPen = CreatePen(
+        PS_SOLID,
+        CIsoViewExt::ScaledFactor < 0.61 ? (2 + size) : size,
+        color
+    );
+    HPEN hOld = (HPEN)SelectObject(hDC, hPen);
+
+    MoveToEx(hDC, cx1, cy1, NULL);
+    LineTo(hDC, cx2, cy2);
+
+    double dx = sx2 - sx1;
+    double dy = sy2 - sy1;
+    double len = sqrt(dx * dx + dy * dy);
+
+    if (len > 0.0001)
+    {
+        double ux = dx / len;
+        double uy = dy / len;
+
+        double arrowLen = 10.0 / CIsoViewExt::ScaledFactor;
+        double arrowWidth = 5.0 / CIsoViewExt::ScaledFactor;
+
+        double px = -uy;
+        double py = ux;
+
+        POINT pts[3];
+
+        pts[0].x = sx2;
+        pts[0].y = sy2;
+
+        pts[1].x = (LONG)(sx2 - ux * arrowLen + px * arrowWidth);
+        pts[1].y = (LONG)(sy2 - uy * arrowLen + py * arrowWidth);
+
+        pts[2].x = (LONG)(sx2 - ux * arrowLen - px * arrowWidth);
+        pts[2].y = (LONG)(sy2 - uy * arrowLen - py * arrowWidth);
+
+        if (PtInRect(&rect, pts[0]) || PtInRect(&rect, pts[1]) || PtInRect(&rect, pts[2]))
+        {
+            HBRUSH hBrush = CreateSolidBrush(color);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+
+            Polygon(hDC, pts, 3);
+
+            SelectObject(hDC, hOldBrush);
+            DeleteObject(hBrush);
+        }
+    }
+
+    SelectObject(hDC, hOld);
+    DeleteObject(hPen);
+}
+
+void CIsoViewExt::DrawDashLineHDC(HDC hDC, int x1, int y1, int x2, int y2, int color, const RECT& rect, int size)
+{
+    x1 += 36 / CIsoViewExt::ScaledFactor - 6;
+    x2 += 36 / CIsoViewExt::ScaledFactor - 6;
+    y1 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+    y2 -= 12.5 / CIsoViewExt::ScaledFactor + 2.5;
+
+    int sx1 = x1 - CIsoViewExt::drawOffsetX;
+    int sy1 = y1 - CIsoViewExt::drawOffsetY;
+    int sx2 = x2 - CIsoViewExt::drawOffsetX;
+    int sy2 = y2 - CIsoViewExt::drawOffsetY;
+
+    if (!ClipLineToRect(sx1, sy1, sx2, sy2, rect))
+        return;
+
+    LOGBRUSH lb = {};
+    lb.lbStyle = BS_SOLID;
+    lb.lbColor = color;
+
+    DWORD style[] = { 6, 4 };
+
+    HPEN hPen = ExtCreatePen(
+        PS_GEOMETRIC | PS_USERSTYLE | PS_ENDCAP_FLAT,
+        size,
+        &lb,
+        2,
+        style
+    );
+
+    HPEN hOld = (HPEN)SelectObject(hDC, hPen);
+
+    MoveToEx(hDC, sx1, sy1, NULL);
+    LineTo(hDC, sx2, sy2);
+
+    SelectObject(hDC, hOld);
+    DeleteObject(hPen);
 }
 
 std::vector<MapCoord> CIsoViewExt::GetLinePoints(MapCoord mc1, MapCoord mc2)
@@ -4879,16 +4093,17 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
         int startheight = cell->Height + CIsoView::CurrentCommand->Height;
         int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+        int subGround = CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex);
 
-        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[subGround].Height;
 
         if (recordHistory)
             Map->SaveUndoRedoData(TRUE, x - width - 4,
                 y - height - 4,
                 x - width + this->BrushSizeX * width + 7,
                 y - height + this->BrushSizeY * height + 7);
-        int cur_pos = pos;
-        int height_add = height * Map->MapWidthPlusHeight;
+        int ori_x = x - width + 1;
+        int ori_y = y - height + 1;
 
         for (f = 0; f < this->BrushSizeX; f++)
         {
@@ -4901,38 +4116,36 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                     tile = CIsoViewExt::GetRandomTileIndex();
                 }
 
-                cur_pos = pos + f * width + n * height_add;
                 p = 0;
                 for (i = 0; i < tileData.Height; i++)
                 {
                     for (e = 0; e < tileData.Width; e++)
                     {
-                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
-                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        if (tileData.TileBlockDatas[p].ImageData != NULL)
                         {
-                        }
-                        else
-                            if (tileData.TileBlockDatas[p].ImageData != NULL)
+                            int my_x = ori_x + f * width + i;
+                            int my_y = ori_y + n * height + e;
+                            if (!Map->IsCoordInMap(my_x, my_y))
                             {
-                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                auto cell = Map->GetCellAt(mypos);
-
-                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
-                                {
-                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos),
-                                        startheight + tileData.TileBlockDatas[p].Height);
-
-                                    auto tileSet = tileData.TileSet;
-                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
-
-                                    cell->TileIndex = tile;
-                                    cell->TileSubIndex = p;
-                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
-                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos));
-                                }
+                                p++;
+                                continue;
                             }
+                            auto cell = Map->GetCellAt(my_x, my_y);
+
+                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            {
+                                Map->SetHeightAt(my_x, my_y,
+                                    startheight + tileData.TileBlockDatas[p].Height);
+
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+
+                                cell->TileIndex = tile;
+                                cell->TileSubIndex = p;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                                CMapData::Instance->UpdateMapPreviewAt(my_x, my_y);
+                            }
+                        }
                         p++;
                     }
                 }
@@ -4951,15 +4164,18 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 {
                     for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        cur_pos = pos + f * width + n * height_add;
                         p = 0;
                         for (i = -1; i < tileData.Height + 1; i++)
                         {
                             for (e = -1; e < tileData.Width + 1; e++)
                             {
-                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                int my_x = ori_x + f * width + i;
+                                int my_y = ori_y + n * height + e;
+                                if (!Map->IsCoordInMap(my_x, my_y))
+                                {
+                                    continue;
+                                }
+                                Map->SmoothTileAt(my_x, my_y);
                             }
                         }
                     }
@@ -4979,57 +4195,54 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
         int pos = x - width + 1 + (y - height + 1) * Map->MapWidthPlusHeight;
         int startheight = cell->Height + CIsoView::CurrentCommand->Height;
         int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+        int subGround = CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex);
 
-        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[cell->TileSubIndex].Height;
+        startheight -= CMapDataExt::TileData[ground].TileBlockDatas[subGround].Height;
 
         if (recordHistory)
             Map->SaveUndoRedoData(TRUE, x - width - 4,
                 y - height - 4,
                 x - width + this->BrushSizeX * width + 7,
                 y - height + this->BrushSizeY * height + 7);
-        int cur_pos = pos;
-        int height_add = height * Map->MapWidthPlusHeight;
+        int ori_x = x - width + 1;
+        int ori_y = y - height + 1;
 
         for (f = 0; f < this->BrushSizeX; f++)
         {
             for (n = 0; n < this->BrushSizeY; n++)
             {
-                cur_pos = pos + f * width + n * height_add;
                 p = 0;
                 for (i = 0; i < tileData->Height; i++)
                 {
                     for (e = 0; e < tileData->Width; e++)
                     {
-                        if (x - width + 1 + f * width + i >= Map->MapWidthPlusHeight ||
-                            y - height + 1 + n * height + e >= Map->MapWidthPlusHeight)
+                        auto& tile = tileData->TileBlockDatas[p];
+                        auto block = tile.GetTileBlock();
+                        if (block && block->ImageData != NULL)
                         {
-                        }
-                        else
-                        {
-                            auto& tile = tileData->TileBlockDatas[p];
-                            auto block = tile.GetTileBlock();
-                            if (block && block->ImageData != NULL)
+                            int my_x = ori_x + f * width + i;
+                            int my_y = ori_y + n * height + e;
+                            if (!Map->IsCoordInMap(my_x, my_y))
                             {
-                                int mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                auto cell = Map->GetCellAt(mypos);
+                                p++;
+                                continue;
+                            }
+                            auto cell = Map->GetCellAt(my_x, my_y);
 
-                                if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
-                                {
-                                    auto tileData = CMapDataExt::TileData[tile.TileIndex];
-                                    auto tileSet = tileData.TileSet;
-                                    bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
+                            if (!(ExtConfigs::PlaceTileSkipHide && cell->IsHidden()))
+                            {
+                                auto tileData = CMapDataExt::TileData[tile.TileIndex];
+                                auto tileSet = tileData.TileSet;
+                                bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
 
-                                    Map->SetHeightAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos),
-                                        startheight + tile.GetHeight());
+                                Map->SetHeightAt(my_x, my_y,
+                                    startheight + tile.GetHeight());
 
-                                    cell->TileIndex = tile.TileIndex;
-                                    cell->TileSubIndex = tile.SubTileIndex;
-                                    cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
+                                cell->TileIndex = tile.TileIndex;
+                                cell->TileSubIndex = tile.SubTileIndex;
+                                cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
 
-                                    CMapData::Instance->UpdateMapPreviewAt(Map->GetXFromCoordIndex(mypos),
-                                        Map->GetYFromCoordIndex(mypos));
-                                }
+                                CMapData::Instance->UpdateMapPreviewAt(my_x, my_y);
                             }
                         }
                         p++;
@@ -5051,15 +4264,18 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                 {
                     for (n = 0; n < this->BrushSizeY; n++)
                     {
-                        cur_pos = pos + f * width + n * height_add;
                         p = 0;
                         for (i = -1; i < tileData->Height + 1; i++)
                         {
                             for (e = -1; e < tileData->Width + 1; e++)
                             {
-                                auto mypos = cur_pos + i + e * Map->MapWidthPlusHeight;
-                                Map->SmoothTileAt(Map->GetXFromCoordIndex(mypos),
-                                    Map->GetYFromCoordIndex(mypos));
+                                int my_x = ori_x + f * width + i;
+                                int my_y = ori_y + n * height + e;
+                                if (!Map->IsCoordInMap(my_x, my_y))
+                                {
+                                    continue;
+                                }
+                                Map->SmoothTileAt(my_x, my_y);
                             }
                         }
                     }

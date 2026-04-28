@@ -9,6 +9,15 @@
 #include "../../Helpers/FString.h"
 
 #define CUSTOM_TILE_START 100000
+struct TwoPointStruct;
+
+struct LatInfo
+{
+    int SmoothSet;
+    int ClearSet;
+    int LatSet;
+    std::vector<int> IgnoredSets;
+};
 
 struct TerrainGeneratorOverlay
 {
@@ -96,6 +105,8 @@ struct BuildingDataExt
 
     int Width{ 0 };
     int Height{ 0 };
+    int RealWidth{ 0 };
+    int RealHeight{ 0 };
     std::vector<MapCoord>* Foundations{ nullptr };
     std::vector<std::pair<MapCoord, MapCoord>>* LinesToDraw{ nullptr };
     std::vector<POINT> DamageFireOffsets;
@@ -161,7 +172,6 @@ struct BaseNodeDataExt
             House == another.House &&
             ID == another.ID;
     }
-
 };
 
 struct TileAnimation
@@ -231,11 +241,13 @@ struct CellDataExt
 
     std::vector<BaseNodeDataExt> BaseNodes;
     // first = index of StructureIndexMap, second = index in GetBuildingTypeID 
-    std::unordered_map<short, short> Structures;
+    std::vector<std::pair<short, short>> Structures;
 
     // first = index, second = type 
-    std::unordered_map<short, short> Terrains;
-    std::unordered_map<short, short> Smudges;
+    std::vector<std::pair<short, short>> Terrains;
+    std::vector<std::pair<short, short>> Smudges;
+    // stores smudge index for dragging
+    std::vector<short> SmudgeParts;
 
     bool HasAnim = false;
     bool HasAnnotation = false;
@@ -272,6 +284,135 @@ struct CellDataExt
     COLORREF RemapableColor = 0x000000ff;
     int CenterBuildingIndex = -1; 
     int NearestCenterCellIndex = -1; 
+
+    void Structures_insert(short key, short value)
+    {
+        for (auto& p : Structures) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Structures.emplace_back(key, value);
+    }
+
+    short Structures_find(short key)
+    {
+        for (auto& p : Structures) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Structures_erase(short key)
+    {
+        for (auto it = Structures.begin(); it != Structures.end(); ++it) {
+            if (it->first == key) {
+                Structures.erase(it);
+                return;
+            }
+        }
+    }
+
+    void Terrains_insert(short key, short value)
+    {
+        for (auto& p : Terrains) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Terrains.emplace_back(key, value);
+    }
+
+    short Terrains_find(short key)
+    {
+        for (auto& p : Terrains) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Terrains_erase(short key)
+    {
+        for (auto it = Terrains.begin(); it != Terrains.end(); ++it) {
+            if (it->first == key) {
+                Terrains.erase(it);
+                return;
+            }
+        }
+    }
+
+    void Smudges_insert(short key, short value)
+    {
+        for (auto& p : Smudges) {
+            if (p.first == key) {
+                p.second = value;
+                return;
+            }
+        }
+        Smudges.emplace_back(key, value);
+    }
+
+    short Smudges_find(short key)
+    {
+        for (auto& p : Smudges) {
+            if (p.first == key)
+                return p.second;
+        }
+        return -1;
+    }
+
+    void Smudges_erase(short key)
+    {
+        for (auto it = Smudges.begin(); it != Smudges.end(); ++it) {
+            if (it->first == key) {
+                Smudges.erase(it);
+                return;
+            }
+        }
+    }
+
+    void SmudgeParts_insert(short value)
+    {
+        for (auto& v : SmudgeParts) {
+            if (v == value) {
+                return;
+            }
+        }
+        SmudgeParts.push_back(value);
+    }
+
+    short SmudgeParts_find(short value)
+    {
+        for (auto& v : SmudgeParts) {
+            if (v == value)
+                return 1;
+        }
+        return -1;
+    }
+
+    void SmudgeParts_erase(short value)
+    {
+        for (auto it = SmudgeParts.begin(); it != SmudgeParts.end(); ++it) {
+            if (*it == value) {
+                SmudgeParts.erase(it);
+                return;
+            }
+        }
+    }
+};
+
+enum class EIndexType : int {
+    Trigger = 0,
+    Tag,
+    Team,
+    Script,
+    TaskForce,
+    AITrigger,
+    Generic
 };
 
 class HistoryRecord {
@@ -300,6 +441,16 @@ public:
     void recover();
 };
 
+struct MeasurementRecord
+{
+    std::vector<TwoPointStruct> TwoPointDistance;
+    MapCoord AxialSymmetryLine[2];
+    MapCoord CentralSymmetryCenter;
+    std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
+    std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
+    std::vector<std::pair<MapCoord, float>> Circles;
+};
+
 class ObjectRecord : public HistoryRecord {
 public:
     enum RecordType : int
@@ -314,7 +465,8 @@ public:
         Tunnel = 0x00000080,
         Waypoint = 0x00000100,
         Celltag = 0x00000200,
-        Annotation = 0x00000400
+        Annotation = 0x00000400,
+        Measurements = 0x00000800,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -322,14 +474,15 @@ public:
     std::vector<FString> UnitList;
     std::vector<FString> AircraftList;
     std::vector<FString> InfantryList;
-    std::map<FString, FString> TerrainList;
+    FMap<FString> TerrainList;
     std::vector<FString> SmudgeList;
-    std::map<FString, std::vector<FString>> BasenodeList;
+    FMap<std::vector<FString>> BasenodeList;
     std::vector<FString> TunnelList;
-    std::map<FString, FString> WaypointList;
-    std::map<FString, FString> CelltagList;
-    std::map<FString, FString> AnnotationList;
+    FMap<FString> WaypointList;
+    FMap<FString> CelltagList;
+    FMap<FString> AnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
+    std::unique_ptr<MeasurementRecord> MeasurementRecords;
 
     void record(int recordType);
     void appendRecord(int recordType);
@@ -457,6 +610,7 @@ public:
     void PackExt(bool UpdatePreview, bool Description);
     static void UnPackExt(CINI& ini, std::vector<IsoMapPack5Entry>& entry);
     // just alter CellData size for lua.restore_snapshot
+    bool ResizeMap_AllocCellData(MapRect* const pRect);
     bool ResizeMapExt(MapRect* const pRect);
     
     enum OreType { Riparius = 0, Cruentus, Vinifera, Aboreus };
@@ -484,14 +638,22 @@ public:
     static std::shared_ptr<Trigger> GetTrigger(FString id);
     static void DeleteTrigger(FString id);
     static void ReloadTrigger(const FString& id);
-    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, int scale, std::vector<std::pair<std::vector<int>, float>> tiles, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> terrains, bool override, bool multiSelection, bool onlyClear = false);
-    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY, std::vector<std::pair<std::vector<FString>, float>> smudges, bool override, bool multiSelection, bool onlyClear = false);
+    static void CreateRandomGround(int TopX, int TopY, int BottomX, int BottomY, 
+        int scale, std::vector<std::pair<std::vector<int>, float>> tiles,
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomOverlay(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays,
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomTerrain(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<FString>, float>> terrains, 
+        bool override, bool multiSelection, std::vector<MapCoord>& processedTiles, bool onlyClear = false, bool ignoreLandType = false);
+    static void CreateRandomSmudge(int TopX, int TopY, int BottomX, int BottomY,
+        std::vector<std::pair<std::vector<FString>, float>> smudges,
+        bool override, bool multiSelection, bool onlyClear = false, bool ignoreLandType = false);
 
     static unsigned short CurrentRenderBuildingStrength;
     static std::unordered_map<int, BuildingDataExt> BuildingDataExts;
-    static std::unordered_map<FString, int> BuildingTypes;
+    static FHashMap<int> BuildingTypes;
     static std::vector<BuildingRenderData> BuildingRenderDatasFix;
     static std::vector<OverlayTypeData> OverlayTypeDatas;
     static void UpdateFieldStructureData_Optimized();
@@ -504,6 +666,7 @@ public:
     static BuildingPowers GetStructurePower(ppmfc::CString value);
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
     static int GetSafeTileIndex(int idx);
+    static int GetSafeSubTileIndex(int tile, int idx);
 
     // damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
@@ -513,7 +676,7 @@ public:
     static int GetFacing(MapCoord oldMapCoord, MapCoord newMapCoord, int numFacings = 8);
     static int GetFacing4(MapCoord oldMapCoord, MapCoord newMapCoord);
     static bool IsValidTileSet(int tileset, bool allowToPlace = true);
-    static ppmfc::CString GetAvailableIndex();
+    static ppmfc::CString GetAvailableIndex(EIndexType type = EIndexType::Generic);
     static void UpdateMapSectionIndicies(const ppmfc::CString& lpSection);
     inline static bool HasAnnotation(int pos)
     {
@@ -529,6 +692,10 @@ public:
     inline static bool IsCoordInFullMap(int CoordIndex)
     {
         return IsCoordInFullMap(CMapData::Instance->GetXFromCoordIndex(CoordIndex), CMapData::Instance->GetYFromCoordIndex(CoordIndex));
+    }
+    inline static bool IsCoordInFullMap(MapCoord coord)
+    {
+        return IsCoordInFullMap(coord.X, coord.Y);
     }
     static CellData ExtTempCellData;
     inline static CellData* TryGetCellAt(int X, int Y)
@@ -617,13 +784,17 @@ public:
     static void RemapableOverlay_RemoveBuilding(int buildingIndex);
 
     static int OreValue[4];
-    static std::vector<std::vector<int>> Tile_to_lat;
+    static std::vector<LatInfo> Tile_to_lat;
+    static std::set<int> Lat_releated_sets;
+    static std::map<int, std::vector<int>> Same_Smooth_tile_lats;
     static std::vector<int> TileSet_starts;
 
     static CellDataExt CellDataExt_FindCell;
     static std::vector<CellDataExt> CellDataExts;
     //static MapCoord CurrentMapCoord;
     static MapCoord CurrentMapCoordPaste;
+    static std::unordered_map<CTileBlockClass*, std::vector<char>> TileBaseHeightMask;
+    static void BuildBaseHeightMask(CTileBlockClass* subTile);
 
     static CTileTypeClass* TileData;
     static int TileDataCount;
@@ -639,6 +810,7 @@ public:
     static int BridgeSet;
     static int WoodBridgeSet;
     static int HeightBase;
+    static int ClearSet;
     static Palette Palette_ISO;
     static Palette Palette_ISO_NoTint;
     static Palette Palette_Shadow;
@@ -652,14 +824,15 @@ public:
     static float ConditionYellow;
     static float ConditionRed;
     static bool DeleteBuildingByIniID;
-    static std::unordered_map<FString, std::shared_ptr<Trigger>> Triggers;
+    static FHashMap<std::shared_ptr<Trigger>> Triggers;
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
+    static FHashMap<COLORREF> Colors;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, FString> TileSetOriginSetNames[6];
-    static std::unordered_set<FString> TerrainPaletteBuildings;
-    static std::unordered_set<FString> DamagedAsRubbleBuildings;
+    static FHashSet TerrainPaletteBuildings;
+    static FHashSet DamagedAsRubbleBuildings;
     static std::unordered_set<int> RedrawExtraTileSets;
     static std::unordered_set<int> NoHeightRedrawTileSets;
     static std::unordered_map<int, Palette*> TileSetPalettes;
@@ -674,19 +847,20 @@ public:
     static bool IsUTF8File;
     static bool SkipBuildingOverlappingCheck;
     static std::vector<FString> MapIniSectionSorting;
-    static std::map<FString, std::set<FString>> PowersUpBuildings;
-    static std::set<FString> PowersUpBuildingSet;
+    static FMap<FSet> PowersUpBuildings;
+    static FSet PowersUpBuildingSet;
     static bool PlaceStructure_Preview;
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
+    static FMap<std::pair<byte, byte>> SmudgeSizes;
 
     static std::map<int, std::vector<CustomTile>> CustomTiles;
-    static std::map<FString, COLORREF> CustomWaypointColors;
-    static std::map<FString, COLORREF> CustomCelltagColors;
-    static std::map<FString, std::vector<TechnoAttachment>> TechnoAttachments;
-    static std::map<FString, std::map<FString, FString>> MapInlineComments;
-    static std::map<FString, std::map<FString, FString>> MapFrontlineComments;
-    static std::map<FString, FString> MapInsectionComments;
-    static std::map<FString, FString> MapFrontsectionComments;
+    static FMap<COLORREF> CustomWaypointColors;
+    static FMap<COLORREF> CustomCelltagColors;
+    static FMap<std::vector<TechnoAttachment>> TechnoAttachments;
+    static FMap<FMap<FString>> MapInlineComments;
+    static FMap<FMap<FString>> MapFrontlineComments;
+    static FMap<FString> MapInsectionComments;
+    static FMap<FString> MapFrontsectionComments;
     const static std::vector<FString> TechnoStates;
     static bool IsNewMap;
     static bool SkipUpdateMinimap;

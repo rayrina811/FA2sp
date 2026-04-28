@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "CNewTrigger/CNewTrigger.h"
 #include "../Helpers/STDHelpers.h"
+#include "../Helpers/WinVer.h"
 #include "CNewScript/CNewScript.h"
 #include "../Helpers/Translations.h"
 #include "CObjectSearch/CObjectSearch.h"
@@ -11,6 +12,7 @@
 #include <algorithm>
 #include <CFinalSunApp.h>
 #include "../Miscs/StringtableLoader.h"
+#include "../Miscs/DialogStyle.h"
 #include "../Ext/CMapData/Body.h"
 #include "ILexer.h"
 #include "Scintilla.h"
@@ -34,6 +36,7 @@ FString ExtraWindow::GetTeamDisplayName(const char* id)
     name.Format("%s (%s)", id, map.GetString(id, "Name"));
     return name;
 }
+
 FString ExtraWindow::GetAITriggerDisplayName(const char* id)
 {
     FString name = "";
@@ -44,6 +47,7 @@ FString ExtraWindow::GetAITriggerDisplayName(const char* id)
     name.Format("%s (%s)", id, atoms[0]);
     return name;
 }
+
 void ExtraWindow::SetEditControlFontSize(HWND hWnd, float nFontSizeMultiplier, bool richEdit, const char* newFont)
 {
     if (richEdit)
@@ -92,47 +96,40 @@ FString ExtraWindow::FormatTriggerDisplayName(const char* id, const char* name)
 
 FString ExtraWindow::GetTriggerDisplayName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
-    name.Format("%s (%s)", id, atoms[2]);
+    auto name = FString::GetParam(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
+    name.Format("%s (%s)", id, name);
     return name;
 }
 
 FString ExtraWindow::GetTriggerName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
-    return atoms[2];
+    return FString::GetParam(map.GetString("Triggers", id, "Americans,<none>,MISSING,0,1,1,1,0"), 2);
 }
 
 FString ExtraWindow::GetAITriggerName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("AITriggerTypes", id, "MISSING"), size_t(0));
-    return atoms[0];
+    return FString::GetParam(map.GetString("AITriggerTypes", id, "MISSING"), 0);
 }
 
 FString ExtraWindow::GetTagName(const char* id)
 {
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
-    return atoms[1];
+    return FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
 }
 
 FString ExtraWindow::GetTagDisplayName(const char* id)
 {
-    FString name;
     if (strcmp(id, "<none>") == 0)
         return id;
-    auto atoms = FString::SplitString(map.GetString("Tags", id, "0,MISSING,01000000"), 1);
-    name.Format("%s (%s)", id, atoms[1]);
+    FString name;
+    name.Format("%s (%s)", id, FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1));
     return name;
 }
 
@@ -140,7 +137,7 @@ FString ExtraWindow::GetEventDisplayName(const char* id, int index, bool addInde
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"), size_t(0))[0];
+    FString atom = FString::GetParam(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), id, "MISSING"), 0);
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
     if (index >= 0 && addIndex)
@@ -153,7 +150,7 @@ FString ExtraWindow::GetActionDisplayName(const char* id, int index, bool addInd
 {
     FString name;
     FString name2;
-    FString atom = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"), size_t(0))[0];
+    FString atom = FString::GetParam(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), id, "MISSING"), 0);
     atom = FString::ReplaceSpeicalString(atom);
     name.Format("%s %s", id, atom);
     if (index >= 0 && addIndex)
@@ -213,97 +210,107 @@ void ExtraWindow::SyncComboBoxContent(HWND hSource, HWND hTarget, bool addNone)
     char buffer[512]{ 0 };
     GetWindowText(hTarget, buffer, 511);
 
+    SendMessage(hTarget, WM_SETREDRAW, FALSE, 0);
     SendMessage(hTarget, CB_RESETCONTENT, 0, 0);
-    if (addNone)
-        SendMessage(hTarget, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"<none>");
 
     int count = (int)SendMessage(hSource, CB_GETCOUNT, 0, 0);
-    for (int i = 0; i < count; i++)
+    SendMessage(hTarget, CB_INITSTORAGE, count + (addNone ? 1 : 0), 512);
+
+    int insertIndex = 0;
+
+    if (addNone)
     {
-        char buffer[512]{ 0 };
-        SendMessage(hSource, CB_GETLBTEXT, i, (LPARAM)buffer);
-        if (addNone)
-            SendMessage(hTarget, CB_INSERTSTRING, i + 1, (LPARAM)buffer);
-        else
-            SendMessage(hTarget, CB_INSERTSTRING, i, (LPARAM)buffer);
+        SendMessage(hTarget, CB_ADDSTRING, 0, (LPARAM)"<none>");
+        insertIndex = 1;
     }
 
-    int index = SendMessage(hTarget, CB_FINDSTRINGEXACT, 0, (LPARAM)(LPCSTR)buffer);
+    for (int i = 0; i < count; i++)
+    {
+        char buffer2[512]{ 0 };
+        SendMessage(hSource, CB_GETLBTEXT, i, (LPARAM)buffer2);
+        SendMessage(hTarget, CB_ADDSTRING, 0, (LPARAM)buffer2);
+    }
+
+    int index = SendMessage(hTarget, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
     if (index != CB_ERR)
-        SendMessage(hTarget, CB_SETCURSEL, index, NULL);
+        SendMessage(hTarget, CB_SETCURSEL, index, 0);
+
+    SendMessage(hTarget, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hTarget, NULL, TRUE);
 }
 
-void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
+void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* instance)
 {
     FString addonN1 = "-1 - ";
     FString addonN2 = "-2 - ";
     FString addonN3 = "-3 - ";
-
-    while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    
+    FString editText = vcb.GetEditText();
+    vcb.Clear();
+    vcb.SetEditText(editText);
     switch (atoi(idx)) {
     case 1:
-        LoadParam_Waypoints(hWnd);
+        LoadParam_Waypoints(vcb);
         break;
     case 2:
-        LoadParam_ActionList(hWnd);
+        LoadParam_ActionList(vcb);
         break;
     case 3:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_Multi(hWnd);
-
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player")).c_str());
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_Multi(vcb);
+        vcb.AddString(addonN1 + Translations::TranslateOrDefault("NonNeutralrandomhouse", "Non-Neutral random house"));
+        vcb.AddString(addonN2 + Translations::TranslateOrDefault("FirstNeutralhouse", "First Neutral house"));
+        vcb.AddString(addonN3 + Translations::TranslateOrDefault("RandomHumanplayer", "Random Human player"));
         break;
     case 4:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house")).c_str());
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_Multi(vcb);
+        vcb.AddString(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house"));
+        vcb.AddString(addonN2 + Translations::TranslateOrDefault("Triggerhouse", "Trigger house"));
         break;
     case 5:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_Multi(hWnd);
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_Multi(vcb);
         break;
     case 6:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_MultiAres(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house")).c_str());
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_MultiAres(vcb);
+        vcb.AddString(addonN1 + Translations::TranslateOrDefault("Anyhouse", "Any house"));
         break;
     case 7:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_MultiAres(hWnd);
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_MultiAres(vcb);
         break;
     case 8:
-        LoadParam_TechnoTypes(hWnd);
+        LoadParam_TechnoTypes(vcb);
         break;
     case 9:
-        LoadParam_Triggers(hWnd, instance);
+        LoadParam_Triggers(vcb, instance);
         break;
     case 10:
         if (!ExtConfigs::TutorialTexts_Viewer)
-            LoadParam_Stringtables(hWnd);
+            LoadParam_Stringtables(vcb);
         break;
     case 11:
-        LoadParam_Tags(hWnd);
+        LoadParam_Tags(vcb);
         break;
     case 12: // float
         if (instance == &CNewTrigger::Instance[0]) CNewTrigger::Instance[0].ActionParamUsesFloat = true;
         else if (instance == &CNewTrigger::Instance[1]) CNewTrigger::Instance[1].ActionParamUsesFloat = true;
         break;
     case 13:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house")).c_str());
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_Multi(vcb);
+        vcb.AddString(addonN1 + Translations::TranslateOrDefault("Allhouse", "All house"));
         break;
     case 14:
-        LoadParam_CountryList(hWnd);
-        LoadParam_HouseAddon_Multi(hWnd);
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy")).c_str());
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy")).c_str());
+        LoadParam_CountryList(vcb);
+        LoadParam_HouseAddon_Multi(vcb);
+        vcb.AddString(addonN1 + Translations::TranslateOrDefault("CancelForceEnemy", "Cancel force enemy"));
+        vcb.AddString(addonN2 + Translations::TranslateOrDefault("ForceNoEnemy", "Force no enemy"));
         break;
     case 15:
-        LoadParam_Teamtypes(hWnd);
+        LoadParam_Teamtypes(vcb);
         break;
     default:
         if (atoi(idx) >= 500)
@@ -325,8 +332,8 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
 
                 if (useValue == "1")
                 {
-                    int i = 0;
-                    for (auto& kvp : mmh.GetSection(sectionName))
+                    auto section = mmh.GetSection(sectionName);
+                    for (auto& kvp : section)
                     {
                         FString output;
                         output.Format("%s", kvp.second);
@@ -335,12 +342,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
                             FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                             if (uiname != kvp.second && uiname != "")
                             {
-                                FString tmp = output;
-                                output.Format("%s - %s", tmp, uiname);
+                                output.Format("%s - %s", output, uiname);
                             }
                         }
-                        SendMessage(hWnd, CB_INSERTSTRING, i, output);
-                        i++;
+                        vcb.AddString(output);
                     }
                 }
                 else
@@ -365,17 +370,17 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
                                 FString uiname = CViewObjectsExt::QueryUIName(entries[i], true);
                                 if (uiname != entries[i] && uiname != "")
                                 {
-                                    FString tmp = output;
-                                    output.Format("%s - %s", tmp, uiname);
+                                    output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
+                            vcb.AddString(output);
                         }
                     }
                     else
                     {
                         int i = 0;
-                        for (auto& kvp : mmh.GetUnorderedUnionSection(sectionName.c_str()))
+                        auto section = mmh.GetUnorderedUnionSection(sectionName);
+                        for (auto& kvp : section)
                         {
                             FString output;
                             output.Format("%s - %s", kvp.first, kvp.second);
@@ -384,11 +389,10 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
                                 FString uiname = CViewObjectsExt::QueryUIName(kvp.second, true);
                                 if (uiname != kvp.second && uiname != "")
                                 {
-                                    FString tmp = output;
-                                    output.Format("%s - %s", tmp, uiname);
+                                    output.Format("%s - %s", output, uiname);
                                 }
                             }
-                            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
+                            vcb.AddString(output);
                             i++;
                         }
                     }
@@ -399,9 +403,8 @@ void ExtraWindow::LoadParams(HWND& hWnd, FString idx, CNewTrigger* instance)
     }
 }
 
-void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
+void ExtraWindow::LoadParam_Waypoints(VirtualComboBoxEx& vcb)
 {
-    int i = 0;
     if (auto pSection = map.GetSection("Waypoints")) 
     {
         for (auto& kvp : pSection->GetEntities())
@@ -412,14 +415,12 @@ void ExtraWindow::LoadParam_Waypoints(HWND& hWnd)
             int y = point / 1000;
 
             output.Format("%s - (%d, %d)", kvp.first, x, y);
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)output.c_str());
-            i++;
+            vcb.AddString(output);
         }
     }
-
 }
 
-void ExtraWindow::LoadParam_ActionList(HWND& hWnd)
+void ExtraWindow::LoadParam_ActionList(VirtualComboBoxEx& vcb)
 {
     FString key;
     FString text;
@@ -441,18 +442,17 @@ void ExtraWindow::LoadParam_ActionList(HWND& hWnd)
             else
                 text.Format("%s - [%s - %s]", key, atoms[0], atoms[1]);
 
-            SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)text.c_str());
+            vcb.AddString(text);
         }
     }
 }
 
-void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
+void ExtraWindow::LoadParam_CountryList(VirtualComboBoxEx& vcb)
 {
     MultimapHelper mmh;
     mmh.AddINI(&CINI::Rules);
     mmh.AddINI(&CINI::CurrentDocument);
 
-    int idx = 0;
     int rIdx = 0;
     const auto& indicies = Variables::RulesMap.ParseIndicies("Countries", true);
     for (auto& value : indicies)
@@ -462,55 +462,29 @@ void ExtraWindow::LoadParam_CountryList(HWND& hWnd)
             continue;
         }
         FString output;
-            output.Format("%d - %s", rIdx, value);
-            FString uiname = CViewObjectsExt::QueryUIName(value, true);
-            if (uiname != value && uiname != "")
-            {
-                FString tmp = output;
-                output.Format("%s - %s", tmp, uiname);
-            }
+        output.Format("%d - %s", rIdx, value);
+        FString uiname = CViewObjectsExt::QueryUIName(value, true);
+        if (uiname != value && uiname != "")
+        {
+            output.Format("%s - %s", output, uiname);
+        }
 
-        SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
+        vcb.AddString(output);
         rIdx++;
     }
 }
 
-void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style, bool sort)
+void ExtraWindow::LoadParam_TechnoTypes(VirtualComboBoxEx& vcb, int specificType, int style, bool sort)
 {
     int idx = 0;
-
+    std::vector<FString> technos;
     auto addValueList = [&](const char* secName)
+    {
+        for (auto& [key, value] : Variables::RulesMap.GetSection(secName))
         {
-            const auto& indicies = Variables::RulesMap.ParseIndicies(secName, true);
-            for (auto& value : indicies)
-            {
-                FString output;
-                output.Format("%s", value);
-                FString uiname = CViewObjectsExt::QueryUIName(value, true);
-                switch (style)
-                {
-                case 0:
-                {
-                    FString tmp = output;
-                    output.Format("%s - %s", tmp, uiname);
-                }
-                break;
-                case 1:
-                {
-                    FString tmp = output;
-                    output.Format("%s - %s", tmp, uiname);
-                }
-                break;
-                default:
-                    break;
-                }
-
-                if (sort)
-                    SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)output.c_str());
-                else
-                    SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)output.c_str());
-            }
-        };
+            technos.push_back(value);
+        } 
+    };
 
     switch (specificType)
     {
@@ -531,94 +505,115 @@ void ExtraWindow::LoadParam_TechnoTypes(HWND& hWnd, int specificType, int style,
         addValueList("InfantryTypes");
         addValueList("VehicleTypes");
         break;
-    default:        
+    default:
         addValueList("BuildingTypes");
         addValueList("AircraftTypes");
         addValueList("InfantryTypes");
         addValueList("VehicleTypes");
         break;
     }
+
+    vcb.Clear();
+    if (sort)
+        SortRawStrings(technos);
+    for (auto& value : technos)
+    {
+        FString uiname = CViewObjectsExt::QueryUIName(value, true);
+        switch (style)
+        {
+        case 0:
+        {
+            value.Format("%s - %s", value, uiname);
+        }
+        break;
+        case 1:
+        {
+            value.Format("%s - %s", value, uiname);
+        }
+        break;
+        default:
+            break;
+        }
+    }
+
+    vcb.AddStrings(technos);
 }
 
-void ExtraWindow::LoadParam_HouseAddon_Multi(HWND& hWnd)
+void ExtraWindow::LoadParam_HouseAddon_Multi(VirtualComboBoxEx& vcb)
 {
     if (CMapData::Instance->IsMultiOnly())
     {
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4475 - <Player @ A>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4476 - <Player @ B>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4477 - <Player @ C>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4478 - <Player @ D>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4479 - <Player @ E>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4480 - <Player @ F>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4481 - <Player @ G>");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4482 - <Player @ H>");
+        vcb.AddString("4475 - <Player @ A>");
+        vcb.AddString("4476 - <Player @ B>");
+        vcb.AddString("4477 - <Player @ C>");
+        vcb.AddString("4478 - <Player @ D>");
+        vcb.AddString("4479 - <Player @ E>");
+        vcb.AddString("4480 - <Player @ F>");
+        vcb.AddString("4481 - <Player @ G>");
+        vcb.AddString("4482 - <Player @ H>");
     }
 }
 
-void ExtraWindow::LoadParam_HouseAddon_MultiAres(HWND& hWnd)
+void ExtraWindow::LoadParam_HouseAddon_MultiAres(VirtualComboBoxEx& vcb)
 {
     if (CMapData::Instance->IsMultiOnly())
     {
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4475 - <Player @ A> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4476 - <Player @ B> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4477 - <Player @ C> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4478 - <Player @ D> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4479 - <Player @ E> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4480 - <Player @ F> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4481 - <Player @ G> (Ares0.A+)");
-        SendMessage(hWnd, CB_INSERTSTRING, SendMessage(hWnd, CB_GETCOUNT, NULL, NULL), (LPARAM)(LPCSTR)"4482 - <Player @ H> (Ares0.A+)");
+        vcb.AddString("4475 - <Player @ A> (Ares0.A+)");
+        vcb.AddString("4476 - <Player @ B> (Ares0.A+)");
+        vcb.AddString("4477 - <Player @ C> (Ares0.A+)");
+        vcb.AddString("4478 - <Player @ D> (Ares0.A+)");
+        vcb.AddString("4479 - <Player @ E> (Ares0.A+)");
+        vcb.AddString("4480 - <Player @ F> (Ares0.A+)");
+        vcb.AddString("4481 - <Player @ G> (Ares0.A+)");
+        vcb.AddString("4482 - <Player @ H> (Ares0.A+)");
     }
 }
 
-void ExtraWindow::LoadParam_Triggers(HWND& hWnd, CNewTrigger* instance)
+void ExtraWindow::LoadParam_Triggers(VirtualComboBoxEx& vcb, CNewTrigger* instance)
 {
     if (instance)
-        ExtraWindow::SyncComboBoxContent(instance->hSelectedTrigger, hWnd);
+        vcb.CopyFrom(instance->vcbSelectedTrigger);
     else
-        ExtraWindow::SyncComboBoxContent(CNewTrigger::Instance[0].hSelectedTrigger, hWnd);
+        vcb.CopyFrom(CNewTrigger::Instance[0].vcbSelectedTrigger);
 }
 
-void ExtraWindow::LoadParam_Tags(HWND& hWnd)
+void ExtraWindow::LoadParam_Tags(VirtualComboBoxEx& vcb)
 {
     if (auto pSection = CINI::CurrentDocument().GetSection("Tags"))
     {
-        int idx = 0;
+        FString text;
         for (auto& kvp : pSection->GetEntities())
         {
             auto tagAtoms = FString::SplitString(kvp.second);
             if (tagAtoms.size() < 3) continue;
-            FString text;
             text.Format("%s - %s", kvp.first, tagAtoms[1]);
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)text.c_str());
+            vcb.AddString(text);
         }
     }
 }
 
-void ExtraWindow::LoadParam_Teamtypes(HWND& hWnd)
+void ExtraWindow::LoadParam_Teamtypes(VirtualComboBoxEx& vcb)
 {
     if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
-    {
-        int idx = 0;
+    { 
         for (auto& [key, value] : pSection->GetEntities())
         {
             auto name = GetTeamDisplayName(value);
-            SendMessage(hWnd, CB_INSERTSTRING, idx++, name);
+            vcb.AddString(name);
         }
     }
 }
 
-#define MAX_COMBOBOX_STRING_LENGTH 192
-
-void ExtraWindow::LoadParam_Stringtables(HWND& hWnd)
+#define MAX_COMBOBOX_STRING_LENGTH 128
+void ExtraWindow::LoadParam_Stringtables(VirtualComboBoxEx& vcb)
 {
     for (auto& x : StringtableLoader::CSFFiles_Stringtable)
     {
         char buffer[MAX_COMBOBOX_STRING_LENGTH + 1];
         _tcsncpy(buffer, x.first + " - " + x.second, MAX_COMBOBOX_STRING_LENGTH);
         buffer[MAX_COMBOBOX_STRING_LENGTH] = _T('\0');
-        SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)buffer);
+        vcb.AddString(buffer);
     }
-
 }
 
 bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly)
@@ -631,7 +626,7 @@ bool ExtraWindow::OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels,
         SendMessage(hWnd, CB_GETLBTEXT, SendMessage(hWnd, CB_GETCURSEL, NULL, NULL), (LPARAM)buffer);
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
         labels.clear();
         int idx = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)buffer);
         if (idx == CB_ERR)
@@ -673,7 +668,7 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
         while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
         for (auto& pair : labels)
         {
-            SendMessage(hWnd, CB_INSERTSTRING, pair.first, (LPARAM)(LPCSTR)pair.second.c_str());
+            SendMessage(hWnd, CB_INSERTSTRING, pair.first, pair.second);
         }
         labels.clear();
     }
@@ -707,108 +702,270 @@ void ExtraWindow::OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels)
     SetCursor(hCursor);
 }
 
-bool ExtraWindow::SortLabels(FString a, FString b)
+static SortLabelKey BuildKey(const FString& input)
 {
-    if (!ExtConfigs::SortByLabelName) {
-        return a < b;
-    }
-    FString::TrimIndexElse(a);
-    FString::TrimIndexElse(b);
-    a = a.Mid(1, a.GetLength() - 2);
-    b = b.Mid(1, b.GetLength() - 2);
+    SortLabelKey key;
 
-    auto sa = std::string(a);
-    auto sb = std::string(b);
+    FString s = input;
+    FString::TrimIndexElse(s);
+    s = s.Mid(1, s.GetLength() - 2);
 
-    std::regex re("(\\D*)(\\d+)");
-    std::sregex_iterator itA(sa.begin(), sa.end(), re);
-    std::sregex_iterator itB(sb.begin(), sb.end(), re);
-    std::sregex_iterator end;
-    VEHGuard guard(false);
+    key.original = input;
 
-    while (itA != end && itB != end) {
+    const char* str = s.c_str();
+    std::string text;
 
-        std::string prefixA = (*itA)[1].str();
-        std::string prefixB = (*itB)[1].str();
-        if (prefixA != prefixB) return prefixA < prefixB;
-
-        int numA = INT_MAX;
-        int numB = INT_MAX;
-        try {
-            numA = std::stoi((*itA)[2].str());
-        }
-        catch (const std::out_of_range& e)
+    while (*str)
+    {
+        if (*str >= '0' && *str <= '9')
         {
-            UNREFERENCED_PARAMETER(e);
-        }
-        try {
-            numB = std::stoi((*itB)[2].str());
-        }
-        catch (const std::out_of_range& e)
-        {
-            UNREFERENCED_PARAMETER(e);
-        }
-        if (numA != numB) return numA < numB;
+            if (!text.empty())
+            {
+                key.parts.push_back({ text, "", false });
+                text.clear();
+            }
 
-        if (numA == INT_MAX) {
-            std::string suffixA = (*itA)[2].str();
-            std::string suffixB = (*itB)[2].str();
-            if (suffixA != suffixB) return suffixA < suffixB;
+            const char* start = str;
+            while (*str >= '0' && *str <= '9')
+                ++str;
+
+            key.parts.push_back({ "", std::string(start, str - start), true });
         }
-        ++itA;
-        ++itB;
+        else
+        {
+            text += *str;
+            ++str;
+        }
     }
 
-    return sa < sb;
+    if (!text.empty())
+        key.parts.push_back({ text, "", false });
+
+    return key;
 }
 
-bool ExtraWindow::SortRawStrings(std::string sa, std::string sb)
+static int CompareNumber(const std::string& a, const std::string& b)
 {
-    std::regex re("(\\D*)(\\d+)");
-    std::sregex_iterator itA(sa.begin(), sa.end(), re);
-    std::sregex_iterator itB(sb.begin(), sb.end(), re);
-    std::sregex_iterator end;
-    VEHGuard guard(false);
+    size_t i = 0; while (i < a.size() && a[i] == '0') ++i;
+    size_t j = 0; while (j < b.size() && b[j] == '0') ++j;
 
-    while (itA != end && itB != end) {
+    size_t lenA = a.size() - i;
+    size_t lenB = b.size() - j;
 
-        std::string prefixA = (*itA)[1].str();
-        std::string prefixB = (*itB)[1].str();
-        if (prefixA != prefixB) return prefixA < prefixB;
+    if (lenA != lenB)
+        return (lenA < lenB) ? -1 : 1;
 
-        int numA = INT_MAX;
-        int numB = INT_MAX;
-        try {
-            numA = std::stoi((*itA)[2].str());
-        }
-        catch (const std::out_of_range& e)
+    int cmp = std::memcmp(a.data() + i, b.data() + j, lenA);
+    if (cmp < 0) return -1;
+    if (cmp > 0) return 1;
+
+    return 0;
+}
+
+static bool CompareKey(const SortLabelKey& a, const SortLabelKey& b)
+{
+    const auto& pa = a.parts;
+    const auto& pb = b.parts;
+
+    size_t n = std::min(pa.size(), pb.size());
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        const auto& A = pa[i];
+        const auto& B = pb[i];
+
+        if (!A.isNumber && !B.isNumber)
         {
-            UNREFERENCED_PARAMETER(e);
+            if (A.text != B.text)
+                return A.text < B.text;
         }
-        try {
-            numB = std::stoi((*itB)[2].str());
-        }
-        catch (const std::out_of_range& e)
+        else if (A.isNumber && B.isNumber)
         {
-            UNREFERENCED_PARAMETER(e);
+            int cmp = CompareNumber(A.number, B.number);
+            if (cmp != 0)
+                return cmp < 0;
         }
-        if (numA != numB) return numA < numB;
-
-        if (numA == INT_MAX) {
-            std::string suffixA = (*itA)[2].str();
-            std::string suffixB = (*itB)[2].str();
-            if (suffixA != suffixB) return suffixA < suffixB;
+        else
+        {
+            return A.isNumber;
         }
-        ++itA;
-        ++itB;
     }
 
-    return sa < sb;
+    if (pa.size() != pb.size())
+        return pa.size() < pb.size();
+
+    return a.original < b.original;
+}
+
+void ExtraWindow::SortLabels(std::vector<FString>& labels)
+{
+    if (!ExtConfigs::SortByLabelName)
+    {
+        std::sort(labels.begin(), labels.end());
+        return;
+    }
+
+    std::vector<SortLabelKey> keys;
+    keys.reserve(labels.size());
+
+    for (const auto& l : labels)
+        keys.push_back(BuildKey(l));
+
+    std::sort(keys.begin(), keys.end(), CompareKey);
+
+    for (size_t i = 0; i < labels.size(); ++i)
+        labels[i] = std::move(keys[i].original);
+}
+
+void ExtraWindow::SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first)
+{
+    if (!ExtConfigs::SortByLabelName)
+    {
+        std::sort(labels.begin(), labels.end(),
+            [first](const auto& a, const auto& b)
+        {
+            return first ? (a.first < b.first) : (a.second < b.second);
+        });
+        return;
+    }
+
+    std::vector<SortKeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const FString& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const SortKeyIndex& a, const SortKeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<FString, FString>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
+}
+
+static SortLabelKey BuildRawKey(const FString& input)
+{
+    SortLabelKey key;
+
+    key.original = input;
+
+    const char* str = input.c_str();
+    std::string text;
+
+    while (*str)
+    {
+        if (*str >= '0' && *str <= '9')
+        {
+            if (!text.empty())
+            {
+                key.parts.push_back({ text, "", false });
+                text.clear();
+            }
+
+            const char* start = str;
+            while (*str >= '0' && *str <= '9')
+                ++str;
+
+            key.parts.push_back({ "", std::string(start, str - start), true });
+        }
+        else
+        {
+            text += *str;
+            ++str;
+        }
+    }
+
+    if (!text.empty())
+        key.parts.push_back({ text, "", false });
+
+    return key;
+}
+
+void ExtraWindow::SortRawStrings(std::vector<FString>& labels)
+{
+    std::vector<SortLabelKey> keys;
+    keys.reserve(labels.size());
+
+    for (const auto& l : labels)
+        keys.push_back(BuildRawKey(l));
+
+    std::sort(keys.begin(), keys.end(), CompareKey);
+
+    for (size_t i = 0; i < labels.size(); ++i)
+        labels[i] = std::move(keys[i].original);
+}
+
+void ExtraWindow::SortRawStrings(std::vector<std::pair<FString, FString>>& labels, bool first)
+{
+    std::vector<SortKeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const FString& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildRawKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const SortKeyIndex& a, const SortKeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<FString, FString>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
+}
+
+void ExtraWindow::SortRawStrings(std::vector<std::pair<std::string, std::string>>& labels, bool first)
+{
+    std::vector<SortKeyIndex> keys;
+    keys.reserve(labels.size());
+
+    for (size_t i = 0; i < labels.size(); ++i)
+    {
+        const std::string& target = first ? labels[i].first : labels[i].second;
+        keys.push_back({ BuildRawKey(target), i });
+    }
+
+    std::sort(keys.begin(), keys.end(),
+        [](const SortKeyIndex& a, const SortKeyIndex& b)
+    {
+        return CompareKey(a.key, b.key);
+    });
+
+    std::vector<std::pair<std::string, std::string>> temp;
+    temp.reserve(labels.size());
+
+    for (auto& k : keys)
+    {
+        temp.push_back(std::move(labels[k.index]));
+    }
+
+    labels = std::move(temp);
 }
 
 void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FString id)
 {
-    while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hWnd);
     std::vector<FString> labels;
     if (auto pSection = map.GetSection(section)) {
         for (auto& pair : pSection->GetEntities()) {
@@ -825,12 +982,13 @@ void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FSt
     else if (section == "TeamTypes")
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     ExtConfigs::SortByLabelName = tmp;
 
+    ComboBoxBatchUpdater t(hWnd, labels.size(), false, 512, false);
     for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
+        SendMessage(hWnd, CB_ADDSTRING, 0, labels[i]);
     }
     if (id != "") {
         selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetTeamDisplayName(id).c_str());
@@ -838,29 +996,34 @@ void ExtraWindow::SortTeams(HWND& hWnd, FString section, int& selectedIndex, FSt
     }
 }
 
-void ExtraWindow::SortAITriggers(HWND& hWnd, int& selectedIndex, FString id)
+void ExtraWindow::SortTeams(VirtualComboBoxEx& vcb, FString section, int& selectedIndex, FString id, bool clear)
 {
-    while (SendMessage(hWnd, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    if (clear)
+        vcb.Clear();
     std::vector<FString> labels;
-    if (auto pSection = map.GetSection("AITriggerTypes")) {
+    if (auto pSection = map.GetSection(section)) {
         for (auto& pair : pSection->GetEntities()) {
-            labels.push_back(ExtraWindow::GetAITriggerDisplayName(pair.first));
+            labels.push_back(ExtraWindow::GetTeamDisplayName(pair.second));
         }
     }
 
     bool tmp = ExtConfigs::SortByLabelName;
-    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_AITrigger;
+    
+    if (section == "ScriptTypes")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Script;
+    else if (section == "TaskForces")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Taskforce;
+    else if (section == "TeamTypes")
+        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Team;
 
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
+    ExtraWindow::SortLabels(labels);
 
     ExtConfigs::SortByLabelName = tmp;
 
-    for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hWnd, CB_INSERTSTRING, i, (LPARAM)(LPCSTR)labels[i].c_str());
-    }
+    vcb.AddStrings(labels);
     if (id != "") {
-        selectedIndex = SendMessage(hWnd, CB_FINDSTRINGEXACT, 0, (LPARAM)ExtraWindow::GetAITriggerDisplayName(id).c_str());
-        SendMessage(hWnd, CB_SETCURSEL, selectedIndex, NULL);
+        selectedIndex = vcb.FindStringExact(ExtraWindow::GetTeamDisplayName(id));
+        vcb.SetCurSel(selectedIndex);
     }
 }
 
@@ -1039,6 +1202,14 @@ void ExtraWindow::TrimStringIndex(FString& str) {
         str = str.Mid(0, spaceIndex);
     }
     str.Trim();
+}
+
+void ExtraWindow::ClearComboKeepText(HWND hWnd)
+{
+    char buffer[512]{ 0 };
+    GetWindowText(hWnd, buffer, 511);
+    SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
+    SetWindowText(hWnd, buffer);
 }
 
 void ExtraWindow::RegisterDropTarget(HWND hWnd, DropType type, CNewTrigger* trigger)
@@ -1713,4 +1884,1077 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
         compare = pSub + atom.length();
     }
     return true;
+}
+
+#define VCB_TIMER_SELECT  1
+#define VCB_TIMER_RESTORE  2
+#define ITEM_HEIGHT  15
+
+VirtualComboBoxEx::VirtualComboBoxEx() {}
+VirtualComboBoxEx::~VirtualComboBoxEx() { Detach(); }
+
+void VirtualComboBoxEx::Attach(HWND hwnd, bool* sortType, bool allowFreeText)
+{
+    hCombo = hwnd;
+
+    COMBOBOXINFO cbi = { sizeof(cbi) };
+    GetComboBoxInfo(hwnd, &cbi);
+
+    hEdit = cbi.hwndItem;
+    hList = cbi.hwndList;
+
+    SetWindowLongPtr(hCombo, GWLP_USERDATA, (LONG_PTR)this);
+    oldComboProc = (WNDPROC)SetWindowLongPtr(hCombo, GWLP_WNDPROC, (LONG_PTR)ComboProc);
+
+    SetWindowLongPtr(hEdit, GWLP_USERDATA, (LONG_PTR)this);
+    oldEditProc = (WNDPROC)SetWindowLongPtr(hEdit, GWLP_WNDPROC, (LONG_PTR)EditProc);
+
+    SetWindowLongPtr(hList, GWLP_USERDATA, (LONG_PTR)this);
+    oldListProc = (WNDPROC)SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)ListProc);
+
+    EnsureFilteredAll();
+    SyncListCount();
+
+    m_sortByLabelKey = sortType != nullptr;
+    m_sortType = sortType;
+    m_programmaticDropdown = false;
+    m_allowFreeText = allowFreeText;
+}
+
+void VirtualComboBoxEx::SetAutoSearchRestriction(bool* restrict)
+{
+    m_allowFilter = restrict;
+}
+
+void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
+{
+    LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
+    HDC hdc = GetDC(hwnd);
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    ReleaseDC(hwnd, hdc);
+    mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+}
+
+void VirtualComboBoxEx::Detach()
+{
+    if (hCombo && oldComboProc)
+        SetWindowLongPtr(hCombo, GWLP_WNDPROC, (LONG_PTR)oldComboProc);
+
+    if (hEdit && oldEditProc)
+        SetWindowLongPtr(hEdit, GWLP_WNDPROC, (LONG_PTR)oldEditProc);
+
+    if (hList && oldListProc)
+        SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)oldListProc);
+
+    hCombo = hEdit = hList = nullptr;
+}
+
+void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
+    const std::vector<FString>* addToFront,
+    const std::vector<FString>* addToEnd)
+{
+    if (this == &other)
+        return;
+
+    items.clear();
+
+    size_t total =
+        (addToFront ? addToFront->size() : 0) +
+        other.items.size() +
+        (addToEnd ? addToEnd->size() : 0);
+
+    items.reserve(total);
+
+    if (addToFront)
+    {
+        for (auto& s : *addToFront)
+        {
+            VCBItemEntry e;
+            e.text = s; 
+            if (m_sortByLabelKey)
+                e.key = BuildKey(e.text); 
+
+            items.emplace_back(std::move(e));
+        }
+    }
+
+    items.insert(items.end(), other.items.begin(), other.items.end());
+
+    if (addToEnd)
+    {
+        for (auto& s : *addToEnd)
+        {
+            VCBItemEntry e;
+            e.text = s;
+            if (m_sortByLabelKey)
+                e.key = BuildKey(e.text);
+
+            items.emplace_back(std::move(e));
+        }
+    }
+
+    EnsureFilteredAll();
+    m_cachedMaxWidth = other.m_cachedMaxWidth;
+    SyncListCount();
+}
+
+void VirtualComboBoxEx::AddString(const char* str)
+{
+    VCBItemEntry e;
+    e.text = str;
+    if (m_sortByLabelKey)
+        e.key = BuildKey(e.text);
+    items.push_back(std::move(e));
+    filtered.push_back((int)items.size() - 1);
+
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
+    {
+        int thisWidth = CalcItemWidth(items.size() - 1);
+        if (m_cachedMaxWidth < thisWidth)
+        {
+            m_cachedMaxWidth = thisWidth;
+            UpdateDropWidth();
+        }
+    }
+
+    m_nextDropSort = true;
+}
+
+void VirtualComboBoxEx::AddStrings(const std::vector<FString>& ret, const char* oriText)
+{
+    if (ret.empty())
+        return;
+
+    int index = -1;
+
+    items.reserve(items.size() + ret.size());
+    filtered.reserve(filtered.size() + ret.size());
+
+    int base = (int)items.size();
+
+    if (oriText)
+    {
+        for (size_t i = 0; i < ret.size(); ++i)
+        {
+            if (ret[i] == oriText)
+                index = i;
+
+            VCBItemEntry e;
+            e.text = ret[i];
+            if (m_sortByLabelKey)
+                e.key = BuildKey(e.text);
+
+            items.push_back(std::move(e));
+            filtered.push_back(base + (int)i);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < ret.size(); ++i)
+        {
+            VCBItemEntry e;
+            e.text = ret[i];
+            if (m_sortByLabelKey)
+                e.key = BuildKey(e.text);
+
+            items.push_back(std::move(e));
+            filtered.push_back(base + (int)i);
+        }
+    }
+
+    m_cachedMaxWidth = 0;
+    SyncListCount();
+
+    if(oriText)
+        SendMessage(hCombo, CB_SETCURSEL, index, NULL);
+}
+
+int VirtualComboBoxEx::InsertString(int index, const char* str)
+{
+    if (!str)
+        return -1;
+
+    if (index < 0 || index >(int)items.size())
+        index = (int)items.size();
+
+    VCBItemEntry e;
+    e.text = str;
+    if (m_sortByLabelKey)
+        e.key = BuildKey(e.text);
+
+    items.insert(items.begin() + index, std::move(e));
+
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
+    {
+        int thisWidth = CalcItemWidth(items.size() - 1);
+        if (m_cachedMaxWidth < thisWidth)
+        {
+            m_cachedMaxWidth = thisWidth;
+            UpdateDropWidth();
+        }
+    }
+
+    m_nextDropSort = true;
+
+    return index;
+}
+
+int VirtualComboBoxEx::ReplaceString(int index, const char* str)
+{
+    if (!str)
+        return -1;
+
+    if (index < 0 || index >= (int)items.size())
+        return -1;
+
+    VCBItemEntry e;
+    e.text = str;
+    if (m_sortByLabelKey)
+        e.key = BuildKey(e.text);
+
+    items[index] = e;
+
+    if (curSel == index)
+    {
+        SetWindowTextA(hEdit, items[index].text);
+    }
+
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_AutoMax)
+    {
+        int thisWidth = CalcItemWidth(items.size() - 1);
+        if (m_cachedMaxWidth < thisWidth)
+        {
+            m_cachedMaxWidth = thisWidth;
+            UpdateDropWidth();
+        }
+    }
+
+    m_nextDropSort = true;
+
+    return index;
+}
+
+void VirtualComboBoxEx::Clear()
+{
+    items.clear();
+    filtered.clear();
+    curSel = -1;
+    m_cachedMaxWidth = 0;
+    SyncListCount();
+}
+
+int VirtualComboBoxEx::GetCurSel() const
+{
+    return curSel;
+}
+
+void VirtualComboBoxEx::SetCurSel(int idx)
+{
+    SendMessage(hCombo, CB_SETCURSEL, idx, NULL);
+}
+
+void VirtualComboBoxEx::EnsureFilteredAll()
+{
+    filtered.resize(items.size());
+    for (int i = 0; i < (int)items.size(); ++i)
+        filtered[i] = i;
+}
+
+void VirtualComboBoxEx::SyncListCount()
+{
+    int topIndex = (int)SendMessage(hList, LB_GETTOPINDEX, 0, 0);
+
+    SendMessage(hList, WM_SETREDRAW, FALSE, 0);
+    SendMessage(hList, LB_RESETCONTENT, 0, 0);
+
+    SendMessage(hList, LB_INITSTORAGE, filtered.size(), filtered.size() * 32);
+
+    for (size_t i = 0; i < filtered.size(); ++i)
+    {
+        SendMessageA(hList, LB_ADDSTRING, 0, (LPARAM)"");
+    }
+
+    SendMessage(hList, WM_SETREDRAW, TRUE, 0);
+
+    InvalidateRect(hList, nullptr, TRUE);
+    UpdateDropWidth();
+}
+
+void VirtualComboBoxEx::Filter(const char* text)
+{
+    if (m_allowFilter && !*m_allowFilter)
+        return;
+
+    m_filterActive = true;
+    std::vector<int> newFiltered;
+
+    if (!text || !*text)
+    {
+        m_filterActive = false;
+        newFiltered.resize(items.size());
+        for (int i = 0; i < (int)items.size(); ++i)
+            newFiltered[i] = i;
+    }
+    else
+    {
+        LabelMatcher matcher(text);
+        for (int i = 0; i < (int)items.size(); ++i)
+        {
+            if (matcher.Match(items[i].text))
+                newFiltered.push_back(i);
+        }
+    }
+
+    filtered.swap(newFiltered);
+
+    SyncListCount();
+
+    if (!filtered.empty())
+    {
+        m_programmaticDropdown = true;
+        SendMessage(hCombo, CB_SHOWDROPDOWN, TRUE, 0);
+        m_programmaticDropdown = false;
+        HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
+        SetCursor(hCursor);
+    }
+}
+
+int VirtualComboBoxEx::GetCount() const
+{
+    return (int)items.size();
+}
+
+int VirtualComboBoxEx::GetFilteredCount() const
+{
+    return (int)filtered.size();
+}
+
+const char* VirtualComboBoxEx::GetItemText(int index) const
+{
+    if (index < 0 || index >= (int)items.size())
+        return nullptr;
+
+    return items[index].text;
+}
+
+const char* VirtualComboBoxEx::GetEditText() const
+{
+    static char text[512];
+    memset(text, 0, sizeof(text));
+    GetWindowTextA(hEdit, text, sizeof(text));
+    return text;
+}
+
+void VirtualComboBoxEx::SetEditText(const char* text) const
+{
+    SetWindowTextA(hEdit, text);
+}
+
+const char* VirtualComboBoxEx::GetFilteredText(int index) const
+{
+    if (index < 0 || index >= (int)filtered.size())
+        return nullptr;
+
+    return items[filtered[index]].text;
+}
+
+const char* VirtualComboBoxEx::GetSelectedText(bool allowEdit) const
+{
+    if (allowEdit)
+    {
+        return GetEditText();
+    }
+
+    if (curSel < 0 || curSel >= (int)items.size())
+    {
+        return "";
+    }    
+
+    return items[curSel].text;
+}
+
+int VirtualComboBoxEx::FindStringExact(const char* str) const
+{
+    if (!str) return -1;
+
+    for (int i = 0; i < (int)items.size(); ++i)
+    {
+        if (strcmp(items[i].text, str) == 0)
+            return i;
+    }
+    return -1;
+}
+
+int VirtualComboBoxEx::FindString(const char* str) const
+{
+    if (!str) return -1;
+
+    LabelMatcher matcher(str);
+    for (int i = 0; i < (int)items.size(); ++i)
+    {
+        if (matcher.Match(items[i].text))
+            return i;
+    }
+    return -1;
+}
+
+int VirtualComboBoxEx::DeleteString(int index)
+{
+    if (index < 0 || index >= (int)items.size())
+        return -1;
+
+    items.erase(items.begin() + index);
+    m_cachedMaxWidth = 0;
+
+    EnsureFilteredAll();
+    SyncListCount();
+
+    return (int)items.size();
+}
+
+int VirtualComboBoxEx::CalcMaxItemWidth()
+{
+    HDC hdc = GetDC(hCombo);
+
+    HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
+    HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+
+    SIZE sz = {};
+    int maxW = 0;
+
+    for (const auto& s : items)
+    {
+        GetTextExtentPoint32A(hdc, s.text, (int)s.text.length(), &sz);
+        if (sz.cx > maxW)
+            maxW = sz.cx;
+    }
+
+    SelectObject(hdc, oldFont);
+    ReleaseDC(hCombo, hdc);
+
+    maxW += 12;
+    maxW += GetSystemMetrics(SM_CXVSCROLL);
+
+    maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
+
+    return maxW;
+}
+
+int VirtualComboBoxEx::CalcItemWidth(int index)
+{
+    if (index < 0 || index >= (int)items.size())
+        return 0;
+
+    HDC hdc = GetDC(hCombo);
+
+    HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
+    HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+
+    SIZE sz = {};
+    GetTextExtentPoint32A(hdc, items[index].text, (int)items[index].text.length(), &sz);
+    int maxW = sz.cx;
+
+    SelectObject(hdc, oldFont);
+    ReleaseDC(hCombo, hdc);
+
+    maxW += 12;
+    maxW += GetSystemMetrics(SM_CXVSCROLL);
+
+    maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
+
+    return maxW;
+}
+
+void VirtualComboBoxEx::UpdateDropWidth()
+{
+    if (!hCombo) return;
+
+    int width = 0;
+
+    if (m_dropWidthMode == VirtualComboBoxEx::DropWidthMode::DropWidth_FollowCombo)
+    {
+        RECT rc;
+        GetWindowRect(hCombo, &rc);
+        width = rc.right - rc.left;
+    }
+    else
+    {
+        if (m_cachedMaxWidth == 0)
+            m_cachedMaxWidth = CalcMaxItemWidth();
+
+        width = m_cachedMaxWidth;
+    }
+
+    SendMessage(hCombo, CB_SETDROPPEDWIDTH, width, 0);
+}
+
+void VirtualComboBoxEx::SetDropWidthMode(DropWidthMode mode)
+{
+    m_dropWidthMode = mode;
+    UpdateDropWidth();
+}
+
+void VirtualComboBoxEx::SortItems(int* pSelIndex)
+{
+    FString selectedText;
+    bool hasSel = false;
+
+    if (pSelIndex && *pSelIndex >= 0 && *pSelIndex < (int)items.size())
+    {
+        selectedText = items[*pSelIndex].text;
+        hasSel = true;
+    }
+
+    if (m_sortType && *m_sortType)
+    {
+        std::sort(items.begin(), items.end(),
+            [](const VCBItemEntry& a, const VCBItemEntry& b)
+        {
+            return CompareKey(a.key, b.key);
+        });
+    }
+    else
+    {
+        std::sort(items.begin(), items.end(),
+            [](const VCBItemEntry& a, const VCBItemEntry& b)
+        {
+            return a.text < b.text;
+        });
+    }
+
+    EnsureFilteredAll();
+
+    int newIndex = -1;
+
+    if (hasSel)
+    {
+        for (int i = 0; i < (int)items.size(); ++i)
+        {
+            if (items[i].text == selectedText)
+            {
+                newIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (pSelIndex)
+        *pSelIndex = newIndex;
+
+    SyncListCount();
+}
+
+LRESULT VirtualComboBoxEx::OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case CB_GETCURSEL:
+    {
+        return curSel;
+    }
+    case CB_GETCOUNT:
+    {
+        return (LRESULT)items.size();
+    }
+    case CB_GETLBTEXTLEN:
+    {
+        int idx = (int)wParam;
+
+        if (idx < 0 || idx >= (int)items.size())
+            return CB_ERR;
+
+        const auto& s = items[idx].text;
+
+        return (LRESULT)s.length();
+    }
+    case CB_GETLBTEXT:
+    {
+        int idx = (int)wParam;
+        char* buf = (char*)lParam;
+
+        if (!buf || idx < 0 || idx >= (int)items.size())
+            return CB_ERR;
+
+        const auto& s = items[idx];
+
+        strcpy(buf, s.text);
+
+        return (LRESULT)s.text.length();
+    }
+    case CB_FINDSTRING:
+    {
+        const char* str = (const char*)lParam;
+        return FindString(str);
+    }
+    case CB_FINDSTRINGEXACT:
+    {
+        const char* str = (const char*)lParam;
+        return FindStringExact(str);
+    }
+    case CB_RESETCONTENT:
+    {
+        Clear();
+        return 0;
+    }
+    case CB_ADDSTRING:
+    {
+        const char* str = (const char*)lParam;
+
+        AddString(str);
+
+        return items.size() - 1;
+    }
+    case CB_INSERTSTRING:
+    {
+        int idx = (int)wParam;
+        const char* str = (const char*)lParam;
+
+        return InsertString(idx, str);
+    }
+    case CB_DELETESTRING:
+    {
+        int idx = (int)wParam;
+        return DeleteString(idx);
+    }
+    }
+
+    return 0;
+}
+
+LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    switch (msg)
+    {
+    case CB_SETCURSEL:
+    {
+        int idx = (int)wParam;
+
+        if (idx >= 0 && idx < (int)pThis->items.size())
+        {
+            pThis->curSel = idx;
+            SetWindowTextA(pThis->hEdit, pThis->items[idx].text);
+        }
+        else
+        {
+            pThis->curSel = -1;
+            SetWindowTextA(pThis->hEdit, "");
+        }
+
+        LRESULT ret = CallWindowProc(
+            pThis->oldComboProc, hwnd, msg, wParam, lParam);
+
+        return ret;
+    }
+    case CB_GETCURSEL:
+    case CB_GETCOUNT:
+    case CB_GETLBTEXT:
+    case CB_GETLBTEXTLEN:
+    case CB_FINDSTRING:
+    case CB_FINDSTRINGEXACT:
+    case CB_RESETCONTENT:
+    case CB_ADDSTRING:
+    case CB_INSERTSTRING:
+    case CB_DELETESTRING:
+    {
+        return pThis->OnComboMessage(hwnd, msg, wParam, lParam);
+    }
+    }
+    switch (msg)
+    {
+    case WM_COMMAND:
+    {
+        auto CODE = HIWORD(wParam);
+
+        if (CODE == LBN_SELCHANGE)
+        {
+            HWND hList = (HWND)lParam;
+
+            if (hList == pThis->hList)
+            {
+                int sel = (int)SendMessage(hList, LB_GETCURSEL, 0, 0);
+
+                if (sel >= 0 && sel < (int)pThis->filtered.size())
+                {
+                    pThis->m_programmaticDropdown = true;
+                    SendMessage(pThis->hCombo, CB_SHOWDROPDOWN, FALSE, 0);
+                    pThis->m_programmaticDropdown = false;
+
+                    int real = pThis->filtered[sel];
+                    pThis->SetCurSel(real);
+
+                    HWND hParent = GetParent(pThis->hCombo);
+                    SendMessage(hParent,
+                        WM_COMMAND,
+                        MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_SELCHANGE),
+                        (LPARAM)pThis->hCombo);
+                }
+            }
+            return 0;
+        }
+        break;
+    }
+    case WM_MOUSEWHEEL:
+    {
+        int curSel = pThis->curSel;
+        if ((short)HIWORD(wParam) > 0)
+        {
+            curSel--;
+        }
+        else if ((short)HIWORD(wParam) < 0)
+        {
+            curSel++;
+        }
+
+        if (curSel >= 0 && curSel < pThis->items.size())
+        {
+            pThis->SetCurSel(curSel);
+
+            HWND hParent = GetParent(pThis->hCombo);
+            SendMessage(hParent,
+                WM_COMMAND,
+                MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_SELCHANGE),
+                (LPARAM)pThis->hCombo);
+        }
+
+        return 0;
+    }
+    case WM_DRAWITEM:
+    {
+        LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+        auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+        if (!pThis) break;
+
+        HDC hdc = dis->hDC;
+        RECT rc = dis->rcItem;
+
+        HFONT hFont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+        HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+
+        SetBkMode(hdc, TRANSPARENT);
+
+        std::string text;
+
+        if (dis->itemID == (UINT)-1)
+        {
+            if (pThis->curSel >= 0 && pThis->curSel < (int)pThis->items.size())
+                text = pThis->items[pThis->curSel].text;
+        }
+        else if (dis->itemID < pThis->filtered.size())
+        {
+            text = pThis->items[pThis->filtered[dis->itemID]].text;
+        }
+
+        if (dis->itemState & ODS_SELECTED)
+        {
+            FillRect(hdc, &rc, (HBRUSH)(COLOR_HIGHLIGHT + 1));
+            SetTextColor(hdc, ExtConfigs::EnableDarkMode ? 
+                DarkTheme::MyGetSysColor(COLOR_HIGHLIGHTTEXT) :
+                GetSysColor(COLOR_HIGHLIGHTTEXT));
+        }
+        else
+        {
+            FillRect(hdc, &rc, ExtConfigs::EnableDarkMode ?
+                DarkTheme::MyGetSysColorBrush(COLOR_WINDOW) :
+                (HBRUSH)(COLOR_WINDOW + 1));
+            SetTextColor(hdc, ExtConfigs::EnableDarkMode ?
+                DarkTheme::MyGetSysColor(COLOR_WINDOWTEXT) :
+                GetSysColor(COLOR_WINDOWTEXT));
+        }
+
+        rc.left += 4;
+
+        DrawTextA(hdc, text.c_str(), -1, &rc,
+            DT_SINGLELINE | DT_VCENTER | DT_LEFT);
+
+        SelectObject(hdc, oldFont);
+        return TRUE;
+    }
+    case WM_MEASUREITEM:
+    {
+        LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
+        HDC hdc = GetDC(hwnd);
+        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+        ReleaseDC(hwnd, hdc);
+        mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+        return TRUE;
+    }
+    }
+
+    return CallWindowProc(pThis->oldComboProc, hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK VirtualComboBoxEx::EditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+    switch (msg)
+    {
+    case WM_CHAR:
+    {
+        if (wParam == VK_RETURN || GetKeyState(VK_CONTROL) & 0x8000 || (GetKeyState(VK_MENU) & 0x8000))
+            break;
+
+        LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
+
+        char buf[512];
+        GetWindowTextA(hwnd, buf, sizeof(buf));
+        pThis->Filter(buf);
+
+        return ret;
+    }
+    case WM_PASTE:
+    {
+        if ((GetKeyState(VK_MENU) & 0x8000))
+            break;
+
+        LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
+
+        char buf[512];
+        GetWindowTextA(hwnd, buf, sizeof(buf));
+        pThis->Filter(buf);
+
+        return ret;
+    }
+
+    case WM_KEYDOWN:
+    {
+        if (wParam == VK_BACK || wParam == VK_DELETE)
+        {
+            LRESULT ret = CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
+
+            char buf[512];
+            GetWindowTextA(hwnd, buf, sizeof(buf));
+            pThis->Filter(buf);
+
+            return ret;
+        }
+        else if (wParam == VK_DOWN || wParam == VK_UP)
+        {
+            int count = (int)pThis->filtered.size();
+            if (count == 0)
+                return 0;
+
+            int sel = (int)SendMessage(pThis->hList, LB_GETCURSEL, 0, 0);
+
+            if (sel == LB_ERR)
+                sel = -1;
+
+            if (wParam == VK_DOWN)
+                sel = std::min(sel + 1, count - 1);
+            else
+                sel = std::max(sel - 1, 0);
+
+            SendMessage(pThis->hList, LB_SETCURSEL, sel, 0);
+
+            int real = pThis->filtered[sel];
+            pThis->SetCurSel(real);
+
+            HWND hParent = GetParent(pThis->hCombo);
+            SendMessage(hParent,
+                WM_COMMAND,
+                MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_SELCHANGE),
+                (LPARAM)pThis->hCombo);
+
+            SendMessage(pThis->hEdit, EM_SETSEL, 0, -1);
+
+            return 0;
+        }
+        else if (wParam == VK_RETURN)
+        {
+            HWND hParent = GetParent(pThis->hCombo);
+            int sel = (int)SendMessage(pThis->hList, LB_GETCURSEL, 0, 0);
+
+            pThis->m_programmaticDropdown = true;
+            SendMessage(pThis->hCombo, CB_SHOWDROPDOWN, FALSE, 0);
+            pThis->m_programmaticDropdown = false;
+
+            if (sel == -1 && !pThis->m_allowFreeText && pThis->items.size() > 0)
+                sel = 0;
+
+            if (sel != LB_ERR && sel < (int)pThis->filtered.size())
+            {
+                int real = pThis->filtered[sel];
+
+                pThis->SetCurSel(real);
+
+                SendMessage(pThis->hEdit, EM_SETSEL, 0, -1);
+
+                SendMessage(hParent,
+                    WM_COMMAND,
+                    MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_SELCHANGE),
+                    (LPARAM)pThis->hCombo);
+            }
+            else
+            {
+                SendMessage(hParent,
+                    WM_COMMAND,
+                    MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_EDITCHANGE),
+                    (LPARAM)pThis->hCombo);
+            }
+
+            pThis->m_filterActive = false;
+
+            return 0;
+        }
+
+        break;
+    }
+    }
+
+    return CallWindowProc(pThis->oldEditProc, hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    auto* pThis = (VirtualComboBoxEx*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+    if (msg == LB_SETCURSEL && !FA2sp::WinInfo.IsWindowsVistaOrGreater() && pThis)
+    {
+        int newSel = (int)wParam;
+        if (newSel == -1)
+        {
+            if (pThis->curSel >= 0)
+            {
+                return 0;
+            }
+        }
+    }
+
+    switch (msg)
+    {
+    case WM_WINDOWPOSCHANGED:
+    {
+        WINDOWPOS* wp = (WINDOWPOS*)lParam;
+
+        if (wp->flags & SWP_SHOWWINDOW)
+        {
+            if (!pThis->m_programmaticDropdown &&
+                !pThis->m_filterActive)
+            {
+                if (pThis->m_nextDropSort && pThis->m_sortByLabelKey)
+                {
+                    pThis->m_nextDropSort = false;
+                    pThis->SortItems();
+                }
+                else
+                {
+                    pThis->EnsureFilteredAll();
+                    pThis->SyncListCount();
+                }
+
+                char buf[512];
+                GetWindowTextA(pThis->hEdit, buf, sizeof(buf));
+
+                if (buf[0])
+                {
+                    int match = -1;
+                    for (int i = 0; i < (int)pThis->items.size(); ++i)
+                    {
+                        if (strcmp(pThis->items[i].text, buf) == 0)
+                        {
+                            match = i;
+                            break;
+                        }
+                    }
+
+                    if (match >= 0)
+                    {
+                        pThis->pendingSelect = match;
+
+                        SetTimer(hwnd, VCB_TIMER_SELECT, 0, NULL);
+                    }
+                }
+            }
+        }
+        break;
+    }
+    case WM_SHOWWINDOW: 
+    {
+        if (!wParam)
+        {
+            SetTimer(hwnd, VCB_TIMER_RESTORE, 0, NULL);
+            if (pThis->m_programmaticDropdown)
+                pThis->m_programmaticPostDropdown = true;
+
+        }
+        break;
+    }
+    case WM_TIMER:
+    {
+        if (wParam == VCB_TIMER_SELECT)
+        {
+            KillTimer(hwnd, VCB_TIMER_SELECT);
+
+            int match = pThis->pendingSelect;
+
+            if (match >= 0 && match < (int)pThis->items.size())
+            {
+                SendMessage(hwnd, LB_SETCURSEL, match, 0);
+                pThis->curSel = match;
+            }
+            return 0;
+        }
+        else if (wParam == VCB_TIMER_RESTORE)
+        {
+            KillTimer(hwnd, VCB_TIMER_RESTORE);
+
+            pThis->EnsureFilteredAll();
+            pThis->SyncListCount();
+
+            pThis->m_filterActive = false;
+
+            if (pThis->m_programmaticPostDropdown)
+            {
+                pThis->m_programmaticPostDropdown = false;
+                break;
+            }
+
+            char buf[512];
+            GetWindowTextA(pThis->hEdit, buf, sizeof(buf));
+
+            int match = -1;
+
+            if (buf[0])
+            {
+                for (int i = 0; i < (int)pThis->items.size(); ++i)
+                {
+                    const auto& s = pThis->items[i].text;
+
+                    if (_strnicmp(s.c_str(), buf, strlen(buf)) == 0)
+                    {
+                        match = i;
+                        break;
+                    }
+                }
+            }
+
+            HWND hParent = GetParent(pThis->hCombo);
+            if (match == -1 && !pThis->m_allowFreeText && pThis->items.size() > 0)
+                match = 0;
+
+            if (match >= 0)
+            {
+                pThis->SetCurSel(match);
+                SendMessage(hParent,
+                    WM_COMMAND,
+                    MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_SELCHANGE),
+                    (LPARAM)pThis->hCombo);
+            }
+            else
+            {
+                SendMessage(hParent,
+                    WM_COMMAND,
+                    MAKEWPARAM(GetDlgCtrlID(pThis->hCombo), CBN_EDITCHANGE),
+                    (LPARAM)pThis->hCombo);
+            }
+
+            return 0;
+        }
+        break;
+    }
+    }
+
+    return CallWindowProc(pThis->oldListProc, hwnd, msg, wParam, lParam);
 }

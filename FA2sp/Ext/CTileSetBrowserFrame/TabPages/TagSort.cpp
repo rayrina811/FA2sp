@@ -13,16 +13,16 @@
 #include "../../../Miscs/DialogStyle.h"
 
 TagSort TagSort::Instance;
-std::unordered_set<FString> TagSort::attachedTriggers;
-std::unordered_map<FString, std::vector<FString>> TagSort::BuildingTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::AircraftTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::UnitTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::InfantryTags;
-std::unordered_map<FString, FString> TagSort::TagTriggers;
-std::unordered_map<FString, FString> TagSort::TriggerTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::TriggerTagsParent;
-std::unordered_map<FString, std::vector<FString>> TagSort::CellTagTags;
-std::unordered_map<FString, std::vector<FString>> TagSort::TeamTags;
+FHashSet TagSort::attachedTriggers;
+FHashMap<std::vector<FString>> TagSort::BuildingTags;
+FHashMap<std::vector<FString>> TagSort::AircraftTags;
+FHashMap<std::vector<FString>> TagSort::UnitTags;
+FHashMap<std::vector<FString>> TagSort::InfantryTags;
+FHashMap<FString> TagSort::TagTriggers;
+FHashMap<FString> TagSort::TriggerTags;
+FHashMap<std::vector<FString>> TagSort::TriggerTagsParent;
+FHashMap<std::vector<FString>> TagSort::CellTagTags;
+FHashMap<std::vector<FString>> TagSort::TeamTags;
 
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
 void TagSort::LoadAllTriggers()
@@ -183,6 +183,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
     case TVN_SELCHANGED:
         if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), lpNmTreeView->itemNew.hItem))
         {
+            if (data->isParent) break;
             auto& pID = data->param;
             bool finished = false;
             if (strlen(pID) && ExtConfigs::InitializeMap)
@@ -224,7 +225,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        FString space1 = " (";
                 //        FString space2 = ")";
                 //
-                //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).m_pchData);
+                //        int idx = SendMessage(CNewTeamTypes::hTag, CB_FINDSTRINGEXACT, 0, (LPARAM)(pID + space1 + results[1] + space2).GetString());
                 //        if (idx != CB_ERR)
                 //        {
                 //            SendMessage(CNewTeamTypes::hTag, CB_SETCURSEL, idx, NULL);
@@ -244,7 +245,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        pStr = pIDs + " - " + results[1];
                 //        for (int i = 0; i < EVENT_PARAM_COUNT; i++)
                 //        {
-                //            int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                //            int idx = SendMessage(CNewTrigger::hEventParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
                 //            if (idx != CB_ERR)
                 //            {
                 //                SendMessage(CNewTrigger::CNewTrigger::hEventParameter[i], CB_SETCURSEL, idx, NULL);
@@ -254,7 +255,7 @@ BOOL TagSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
                 //        }
                 //        for (int i = 0; i < ACTION_PARAM_COUNT; i++)
                 //        {
-                //            int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.m_pchData);
+                //            int idx = SendMessage(CNewTrigger::hActionParameter[i], CB_FINDSTRINGEXACT, 0, (LPARAM)pStr.GetString());
                 //            if (idx != CB_ERR)
                 //            {
                 //                SendMessage(CNewTrigger::CNewTrigger::hActionParameter[i], CB_SETCURSEL, idx, NULL);
@@ -483,6 +484,7 @@ void TagSort::Menu_AddTrigger()
 {
     HTREEITEM hItem = TreeView_GetSelection(this->GetHwnd());
     FString prefix = "";
+    TreeViewHelper::TreeItemData* data = nullptr;
     if (hItem != NULL)
     {
         const char* pID = nullptr;
@@ -491,7 +493,7 @@ void TagSort::Menu_AddTrigger()
             TVITEM tvi;
             tvi.hItem = hItem;
             TreeView_GetItem(this->GetHwnd(), &tvi);
-            if (auto data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
+            if (data = TreeViewHelper::GetTreeItemData(this->GetHwnd(), tvi.hItem))
             {
                 pID = data->param.c_str();
                 break;
@@ -506,16 +508,31 @@ void TagSort::Menu_AddTrigger()
 
         FString buffer;
         prefix += "[";
-        for (auto& group : this->GetGroup(pID, buffer))
-            prefix += group + ".";
-        if (prefix[prefix.length() - 1] == '.')
+        if (data->isParent)
         {
-            prefix[prefix.length() - 1] = ']';
-            if (prefix.length() == 2)
+            if (strlen(pID) > 0)
+            {
+                prefix += pID;
+                prefix += "]";
+            }
+            else
+            {
                 prefix = "";
+            }
         }
         else
-            prefix = "";
+        {
+            for (auto& group : this->GetGroup(pID, buffer))
+                prefix += group + ".";
+            if (prefix[prefix.length() - 1] == '.')
+            {
+                prefix[prefix.length() - 1] = ']';
+                if (prefix.length() == 2)
+                    prefix = "";
+            }
+            else
+                prefix = "";
+        }
     }
     this->m_strPrefix = prefix;
 }
@@ -659,8 +676,10 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         || TeamTags[id].size() > 0 || CellTagTags[id].size() > 0)
         attached = true;
 
+    std::vector<FString> currentNodes;
     for (auto& node : group)
     {
+        currentNodes.push_back(node);
         if (HTREEITEM hNode = this->FindLabel(hParent, node))
         {
             hParent = hNode;
@@ -668,7 +687,8 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
         }
         else
         {
-            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, "", hParent);
+            FString nodeCombo = FString::Join(currentNodes, ".");
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hParent, true);
         }
     }
 

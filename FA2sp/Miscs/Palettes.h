@@ -30,6 +30,57 @@ public:
 
 };
 
+struct LightingKey
+{
+    const Palette* origin;
+
+    uint16_t rmult;
+    uint16_t gmult;
+    uint16_t bmult;
+
+    uint8_t isObject;
+
+    uint8_t colorR;
+    uint8_t colorG;
+    uint8_t colorB;
+
+    bool operator==(const LightingKey& o) const noexcept
+    {
+        return origin == o.origin &&
+            rmult == o.rmult &&
+            gmult == o.gmult &&
+            bmult == o.bmult &&
+            isObject == o.isObject &&
+            colorR == o.colorR &&
+            colorG == o.colorG &&
+            colorB == o.colorB;
+    }
+};
+
+struct LightingKeyHash
+{
+    size_t operator()(const LightingKey& k) const noexcept
+    {
+        size_t h = 0;
+
+        auto combine = [](size_t& seed, size_t v)
+        {
+            seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        };
+
+        combine(h, std::hash<const void*>()(k.origin));
+        combine(h, k.rmult);
+        combine(h, k.gmult);
+        combine(h, k.bmult);
+        combine(h, k.isObject);
+        combine(h, k.colorR);
+        combine(h, k.colorG);
+        combine(h, k.colorB);
+
+        return h;
+    }
+};
+
 struct LightingStruct
 {
     float Red;
@@ -66,6 +117,20 @@ public:
     static const LightingStruct NoLighting;
 };
 
+class PaletteCache
+{
+public:
+    using CacheMap = std::unordered_map<LightingKey, Palette, LightingKeyHash>;
+
+    static CacheMap Cache;
+    static std::map<BGRStruct, std::array<BGRStruct, 16>> CalculatedRemapableColors;
+
+    static Palette* GetOrCreate(
+        Palette* origin, Palette* remapped,
+        float rMult, float gMult, float bMult, float ambient,
+        bool isObject, uint8_t R, uint8_t G, uint8_t B);
+};
+
 class LightingPalette
 {
 private:
@@ -76,6 +141,7 @@ public:
     float BlueMult;
     float AmbientMult;
     Palette Colors;
+    BGRStruct RemapColor;
     LightingPalette(Palette& originPal);
     // objectType : -1 = others, 0 = unit, 1 = inf, 2 = air, 3 = building, 
     // 4 = building rubble & TerrainPalette building, 5 = custom-palette terrains
@@ -90,7 +156,7 @@ public:
 
 class PalettesManager
 {
-    static std::map<FString, Palette*> OriginPaletteFiles;
+    static FMap<Palette*> OriginPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedPaletteFiles;
     static std::map<Palette*, std::map<std::pair<BGRStruct, LightingStruct>, LightingPalette>> CalculatedDimmedPaletteFiles;
     static std::map<Palette*, std::map<LightingStruct, LightingPalette>> CalculatedPaletteFilesNoRemap;

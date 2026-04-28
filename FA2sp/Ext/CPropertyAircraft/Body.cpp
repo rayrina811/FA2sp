@@ -69,14 +69,14 @@ void CPropertyAircraftExt::StatusUpdate(LPARAM lParam)
 	}
 
 
-	while (::SendMessage(hStatusComboBox, CB_DELETESTRING, 0, NULL) != CB_ERR);
+	ExtraWindow::ClearComboKeepText(hStatusComboBox);
 	for (int i = 0; i < CMapDataExt::TechnoStates.size(); ++i)
 	{
 		const auto& state = CMapDataExt::TechnoStates[i];
 		FString key = "FootClassStatus.";
 		key += state;
 		::SendMessage(hStatusComboBox, CB_INSERTSTRING, i,
-			reinterpret_cast<LPARAM>(Translations::TranslateOrDefault(key, state)));
+			Translations::TranslateOrDefault(key, state));
 	}
 	::SendMessage(hStatusComboBox, CB_SETCURSEL, aNode, 0);
 

@@ -13,35 +13,37 @@
 #include "../CTileSetBrowserFrame/TabPages/GridObjectViewer.h"
 #include <random>
 #include <chrono>
+#include <emmintrin.h>
+#include <immintrin.h>
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-std::unordered_map<FString, CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
-std::unordered_set<FString> CLoadingExt::LoadedObjects;
-std::unordered_set<FString> CLoadingExt::LoadedPreviewObjects;
-std::unordered_set<FString> CLoadingExt::LoadedSurfaceObjects;
-std::unordered_set<FString> CLoadingExt::CustomPaletteTerrains;
-std::unordered_map<FString, int> CLoadingExt::IFVTurrets;
-std::unordered_set<FString> CLoadingExt::InitialOccupiedBuildings;
-std::unordered_map<FString, int> CLoadingExt::AvailableFacings;
-std::unordered_map<FString, int> CLoadingExt::AlphaImageFacings;
+FHashMap<CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+FHashSet CLoadingExt::LoadedObjects;
+FHashSet CLoadingExt::LoadedPreviewObjects;
+FHashSet CLoadingExt::LoadedSurfaceObjects;
+FHashSet CLoadingExt::CustomPaletteTerrains;
+FHashMap<int> CLoadingExt::IFVTurrets;
+FHashSet CLoadingExt::InitialOccupiedBuildings;
+FHashMap<int> CLoadingExt::BioReactors;
+FHashMap<int> CLoadingExt::AvailableFacings;
+FHashMap<int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
 unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
-bool CLoadingExt::IsReloading = false;
-std::unordered_set<FString> CLoadingExt::LoadedOverlays;
-std::unordered_map<FString, InsigniaGrid> CLoadingExt::LoadedInsignias;
+FHashSet CLoadingExt::LoadedOverlays;
+FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
 int CLoadingExt::TallestBuildingHeight = 0;
-
+FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
 std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
 uint64_t CLoadingExt::g_lastCleanup = 0;
 
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
-std::unordered_map<FString, std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
-std::unordered_map<FString, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
+FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
+FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
 std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
@@ -212,6 +214,17 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 		}
 
 	}
+	else if (state == GBIN_GARRISONDAMAGED)
+	{
+		if (bShadow)
+		{
+			ret.Format("%s\233%d\233GARRISONDAMAGEDSHADOW", ID, nFacing);
+		}
+		else
+		{
+			ret.Format("%s\233%d\233GARRISONDAMAGED", ID, nFacing);
+		}
+	}
 	else // GBIN_NORMAL
 	{
 		if (bShadow)
@@ -351,6 +364,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
+		BioReactors.clear();
 		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
@@ -530,9 +544,19 @@ bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 	return true;
 }
 
+bool CLoadingExt::IsBioReactor(const FString& ID)
+{
+	bool isBioReactor = Variables::RulesMap.GetInteger(ID, "Passengers") > 0 
+		&& Variables::RulesMap.GetInteger(ID, "SizeLimit") > 0 
+		&& Variables::RulesMap.GetInteger(ID, "ExtraPower") > 0;
+	if (!isBioReactor) return false;
+
+	return true;
+}
+
 static FString GetFinalLoopAnim(const FString& image)
 {
-	static std::set<FString> visited; 
+	static FSet visited; 
 
 	int loopCount = CINI::Art->GetInteger(image, "LoopCount", 1);
 	if (loopCount < 0)
@@ -575,7 +599,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
 }
 
-void CLoadingExt::LoadBuilding_Normal(const FString& ID)
+void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged)
 {
 	FString ArtID = GetArtID(ID);
 	FString ImageID = GetBuildingFileID(ID);
@@ -585,8 +609,15 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel") 
 		|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
 	if (isPreOccupiedBunker) InitialOccupiedBuildings.insert(ID);
+	auto bioItr = BioReactors.find(ID);
+	bool isBioReactor = bioItr != BioReactors.end();
+	int BioPower = isBioReactor ? bioItr->second : 0;
+	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
+	bool isBunker = Variables::RulesMap.GetBool(ID, "CanOccupyFire");
+	bool hasGarrisonDamagedState = !loadAsGarrisonDamaged && isBunker && techLevel < 0;
 	Palette* pMixedPal = nullptr;
 
 	FString PaletteName = CINI::Art->GetString(ArtID, "Palette", "unit");
@@ -609,7 +640,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		ShapeHeader header;
 		unsigned char* pBuffer;
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (isPowerup ? (header.FrameCount <= nFrame) : (header.FrameCount / 2 <= nFrame)) {
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
@@ -725,7 +756,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	auto loadAnimFrameShape = [&](FString animkey, FString ignorekey = "")
 	{
 		CurrentLoadingAnim = animkey;
-		if (auto pStr = CINI::Art->TryGetString(ArtID, animkey))
+		FString LoadingAnimkey = animkey;
+		if(loadAsGarrisonDamaged)
+			LoadingAnimkey += "Damaged";
+		if (auto pStr = CINI::Art->TryGetString(ArtID, LoadingAnimkey))
 		{
 			if (ignorekey.IsEmpty() || !CINI::FAData->GetBool(ignorekey, ID))
 			{
@@ -749,10 +783,13 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 		}
 	};
 
-	if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+	if (!loadAsGarrisonDamaged)
 	{
-		if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
-			LoadBuilding(*ppPowerUpBld);
+		if (auto ppPowerUpBld = Variables::RulesMap.TryGetString(ID, "PowersUpBuilding")) // Early load
+		{
+			if (!CLoadingExt::IsObjectLoaded(*ppPowerUpBld))
+				LoadBuilding(*ppPowerUpBld);
+		}
 	}
 
 	int nBldStartFrame = CINI::Art->GetInteger(ArtID, "LoopStart", 0) + (isPreOccupiedBunker ? 2 : 0);
@@ -765,8 +802,10 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	FString AnimKeys[9] = 
 	{	
 		"IdleAnim",
-		isPreOccupiedBunker ? "ActiveAnimGarrisoned": "ActiveAnim",
-		"ActiveAnimTwo",
+		(isPreOccupiedBunker && CINI::Art->KeyExists(ArtID, "ActiveAnimGarrisoned")) 
+		? "ActiveAnimGarrisoned" : ((isBioReactor && BioPower > 0) 
+			? "DUMMY" : "ActiveAnim"),
+		isBioReactor ? (BioPower > 0 ? "ActiveAnimTwo" : "DUMMY") : "ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
 		"SuperAnim",
@@ -930,7 +969,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 			}
 			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false, 
 				hasTranspaernt ? &pAlphaImage : nullptr, palette);
-			DictName.Format("%s\233%d", ID, i);
+			DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, i);
 			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
 			if (pAlphaImage)
 				GameDeleteArray(pAlphaImage, width * height);
@@ -938,7 +977,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
-			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 
@@ -946,15 +985,50 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	} 
 	else if (Variables::RulesMap.GetBool(ID, "Turret")) // Shape turret
 	{
-		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
+		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
+
+		bool hasBarl = false;
+		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
+		std::vector<unsigned char*> pBarlImages;
+		std::vector<VoxelRectangle> barlrect;
+		if (Variables::RulesMap.GetBool(ID, "BarrelAnimIsVoxel"))
+		{
+			FString BarlName = Variables::RulesMap.GetString(ID, "VoxelBarrelFile");
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
+
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
+				{
+					hasBarl = true;
+					pBarlImages.resize(facings, nullptr);
+					barlrect.resize(facings);
+					for (int i = 0; i < facings; ++i)
+					{
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
+						if (!result)
+							break;
+					}
+				}
+			}
+		}
+		
 		for (int i = 0; i < facings; ++i)
 		{
 			if (IsLoadingObjectView && i != facings / 8 * 5)
 				continue;
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
-			memcpy_s(pTempBuf, width * height, pBuffer, width * height);
+			memcpy_s(pTempBuf, width* height, pBuffer, width* height);
 			UnionSHP_Add(pTempBuf, width, height);
 
 			if (shadow)
@@ -966,9 +1040,35 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 
 			int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
 			int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
-			loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-				nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			if (!hasBarl || !pBarlImages[i])
+			{
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+			}
+			else
+			{
+				bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
 
+				VXL_Add(pBarlImages[i], barlrect[i].X, barlrect[i].Y, barlrect[i].W, barlrect[i].H);
+				CncImgFree(pBarlImages[i]);
+
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pBarlImages[i], &nW, &nH);
+
+				if (barrelInFront)
+				{
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+				}
+				else
+				{
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+				}
+			}
+			
 			unsigned char* pImage;
 			int width1, height1;
 			unsigned char* pAlphaImage = nullptr;
@@ -980,7 +1080,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 			UnionSHP_GetAndClear(pImage, &width1, &height1, false, false, false,
 				hasTranspaernt ? &pAlphaImage : nullptr, palette);
 
-			DictName.Format("%s\233%d", ID, i);
+			DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, i);
 			ClipAndLoadBuilding(ID, DictName, pImage, width1, height1, palette, pAlphaImage);
 			if (pAlphaImage)
 				GameDeleteArray(pAlphaImage, width * height);
@@ -991,7 +1091,7 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 				unsigned char* pImageShadow;
 				int width1Shadow, height1Shadow;
 				UnionSHP_GetAndClear(pImageShadow, &width1Shadow, &height1Shadow, false, true);
-				DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+				DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, i);
 				SetImageDataSafe(pImageShadow, DictNameShadow, width1Shadow, height1Shadow, &CMapDataExt::Palette_Shadow);
 			}
 		}
@@ -1000,16 +1100,19 @@ void CLoadingExt::LoadBuilding_Normal(const FString& ID)
 	}
 	else // No turret
 	{
-		DictName.Format("%s\233%d", ID, 0);
+		DictName.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGED" : "%s\233%d", ID, 0);
 		ClipAndLoadBuilding(ID, DictName, pBuffer, width, height, palette, pOpacityBuffer);
 		if (bHasShadow && ExtConfigs::InGameDisplay_Shadow)
 		{
-			DictNameShadow.Format("%s\233%d\233SHADOW", ID, 0);
+			DictNameShadow.Format(loadAsGarrisonDamaged ? "%s\233%d\233GARRISONDAMAGEDSHADOW" : "%s\233%d\233SHADOW", ID, 0);
 			SetImageDataSafe(pBufferShadow, DictNameShadow, widthShadow, heightShadow, &CMapDataExt::Palette_Shadow);
 		}
 	}
 	if (pOpacityBuffer)
 		GameDelete(pOpacityBuffer);
+
+	if (hasGarrisonDamagedState)
+		LoadBuilding_Normal(ID, true);
 }
 
 void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
@@ -1022,7 +1125,11 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 		(Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")
 			|| Variables::RulesMap.GetBool(ID, "Turret")) ? (ExtConfigs::ExtFacings ? 32 : 8) : 1;
 	AvailableFacings[ID] = facings;
+	bool isPowerup = CMapDataExt::PowersUpBuildingSet.contains(ID);
 	bool isPreOccupiedBunker = IsPreOccupiedBunker(ID);
+	auto bioItr = BioReactors.find(ID);
+	bool isBioReactor = bioItr != BioReactors.end();
+	int BioPower = isBioReactor ? bioItr->second : 0;
 	int techLevel = Variables::RulesMap.GetInteger(ID, "TechLevel");
 	Palette* pMixedPal = nullptr;
 
@@ -1046,7 +1153,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 		ShapeHeader header;
 		unsigned char* pBuffer;
 		CShpFile::GetSHPHeader(&header);
-		if (header.FrameCount / 2 <= nFrame) {
+		if (isPowerup ? (header.FrameCount <= nFrame) : (header.FrameCount / 2 <= nFrame)) {
 			nFrame = 0;
 		}
 		CLoadingExt::LoadSHPFrameSafe(nFrame, 1, &pBuffer, header);
@@ -1213,8 +1320,8 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	FString AnimKeys[9] =
 	{
 		"IdleAnim",
-		"ActiveAnim",
-		"ActiveAnimTwo",
+		(isBioReactor && BioPower > 0) ? "DUMMY" : "ActiveAnim",
+		isBioReactor ? (BioPower > 0 ? "ActiveAnimTwo" : "DUMMY") : "ActiveAnimTwo",
 		"ActiveAnimThree",
 		"ActiveAnimFour",
 		"SuperAnim",
@@ -1264,7 +1371,7 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 
 	if (Variables::RulesMap.GetBool(ID, "TurretAnimIsVoxel")) // Voxel turret
 	{
-		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "tur");
+		FString TurName = Variables::RulesMap.GetString(ID, "TurretAnim", ID + "TUR");
 		TurName.MakeLower();
 		FString BarlName = TurName.ends_with("tur") ? STDHelpers::ReplaceEnding(TurName, "tur", "barl") : ID + "barl";
 		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
@@ -1399,12 +1506,46 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 	}
 	else if (Variables::RulesMap.GetBool(ID, "Turret")) // Shape turret
 	{
-
 		FString TurName = Variables::RulesMap.GetString(ID, 
 			Variables::RulesMap.KeyExists(ID,"TurretAnimDamaged") ? "TurretAnimDamaged" : "TurretAnim",
-			ID + "tur");
+			ID + "TUR");
 		int nStartFrame = CINI::Art->GetInteger(TurName, "LoopStart");
 		bool shadow = bHasShadow && CINI::Art->GetBool(TurName, "Shadow", true) && ExtConfigs::InGameDisplay_Shadow;
+		int actualFacings = CINI::Art->GetInteger(TurName, "Facings", 32);
+		int idleFrames = Variables::RulesMap.GetInteger(ID, "TurretAnim.IdleFrames", 1);
+
+		bool hasBarl = false;
+		int fireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
+		std::vector<unsigned char*> pBarlImages;
+		std::vector<VoxelRectangle> barlrect;
+		if (Variables::RulesMap.GetBool(ID, "BarrelAnimIsVoxel"))
+		{
+			FString BarlName = Variables::RulesMap.GetString(ID, "VoxelBarrelFile");
+
+			if (!VoxelDrawer::IsVPLLoaded())
+				VoxelDrawer::LoadVPLFile("voxels.vpl");
+
+			FString VXLName = BarlName + ".vxl";
+			FString HVAName = BarlName + ".hva";
+
+			if (VoxelDrawer::LoadVXLFile(VXLName))
+			{
+				if (VoxelDrawer::LoadHVAFile(HVAName))
+				{
+					hasBarl = true;
+					pBarlImages.resize(facings, nullptr);
+					barlrect.resize(facings);
+					for (int i = 0; i < facings; ++i)
+					{
+						bool result = VoxelDrawer::GetImageData((facings + 5 * facings / 8 - i) % facings,
+							pBarlImages[i], barlrect[i], 0, 0, 0, false, fireAngle);
+						if (!result)
+							break;
+					}
+				}
+			}
+		}
+
 		for (int i = 0; i < facings; ++i)
 		{
 			auto pTempBuf = GameCreateArray<unsigned char>(width * height);
@@ -1420,8 +1561,34 @@ void CLoadingExt::LoadBuilding_Damaged(const FString& ID, bool loadAsRubble)
 
 			int deltaX = Variables::RulesMap.GetInteger(ID, "TurretAnimX", 0);
 			int deltaY = Variables::RulesMap.GetInteger(ID, "TurretAnimY", 0);
-			loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
-				nStartFrame + i * 32 / facings, deltaX, deltaY, "", shadow);
+			if (!hasBarl || !pBarlImages[i])
+			{
+				loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+					nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+			}
+			else
+			{
+				bool barrelInFront = IsBarrelInFront((7 * facings / 8 - i + facings) % facings, facings);
+
+				VXL_Add(pBarlImages[i], barlrect[i].X, barlrect[i].Y, barlrect[i].W, barlrect[i].H);
+				CncImgFree(pBarlImages[i]);
+
+				int nW = 0x100, nH = 0x100;
+				VXL_GetAndClear(pBarlImages[i], &nW, &nH);
+
+				if (barrelInFront)
+				{
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+				}
+				else
+				{
+					UnionSHP_Add(pBarlImages[i], 0x100, 0x100, deltaX, deltaY);
+					loadSingleFrameShape(CINI::Art->GetString(TurName, "Image", TurName),
+						nStartFrame + i * actualFacings / facings * idleFrames, deltaX, deltaY, "", shadow);
+				}
+			}
 
 			unsigned char* pImage;
 			int width1, height1;
@@ -1776,9 +1943,9 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 {
 	const char* PaletteName = "palette.pal";
 
-	auto InsigniaRookie = Variables::RulesMap.GetString(ID, "Insignia.Rookie");
-	auto InsigniaVeteran = Variables::RulesMap.GetString(ID, "Insignia.Veteran");
-	auto InsigniaElite = Variables::RulesMap.GetString(ID, "Insignia.Elite");
+	FString InsigniaRookie = Variables::RulesMap.GetString(ID, "Insignia.Rookie");
+	FString InsigniaVeteran = Variables::RulesMap.GetString(ID, "Insignia.Veteran");
+	FString InsigniaElite = Variables::RulesMap.GetString(ID, "Insignia.Elite");
 	int InsigniaIndex = Variables::RulesMap.GetInteger(ID, "InsigniaFrame");
 
 	InsigniaGrid ret;
@@ -2561,6 +2728,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	int validFirstY = FullHeight - 1;
 	int validLastX = 0;
 	int validLastY = 0;
+	pData->IsEmptyImage = true;
 	for (int j = 0; j < FullHeight; ++j)
 	{
 		for (int i = 0; i < FullWidth; ++i)
@@ -2568,6 +2736,7 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 			unsigned char ch = pBuffer[counter++];
 			if (ch != 0)
 			{
+				pData->IsEmptyImage = false;
 				if (i < validFirstX)
 					validFirstX = i;
 				if (j < validFirstY)
@@ -2834,8 +3003,6 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 				unsigned char srcPal = img.pBuffer[j * img.Width + i];
 				if (srcPal == 0) continue;
 
-				//srcPal = 16;
-
 				int dstX = nStartX + i;
 				if (dstX < 0 || dstX >= W) continue;
 
@@ -2843,7 +3010,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 
 				unsigned char& dstPal = pOutBuffer[dstIdx];
 
-				if (alphaBuffer)
+				if (alphaBuffer && !bShadow)
 				{
 					if (alphaTempBuffer)
 					{
@@ -2862,7 +3029,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 					}
 				}
 
-				if (dstPal == 0 || layerOpacity == 255)
+				if (bShadow || dstPal == 0 || layerOpacity == 255)
 				{
 					dstPal = srcPal;
 				}
@@ -2887,7 +3054,7 @@ void CLoadingExt::UnionSHP_GetAndClear(unsigned char*& pOutBuffer,
 							dstPal = srcPal;
 						}
 					}
-					else
+					else if (pPal)
 					{
 						BGRStruct bg = pPal->Data[dstPal]; 
 						float bg_r = bg.R, bg_g = bg.G, bg_b = bg.B;
@@ -2960,31 +3127,6 @@ void CLoadingExt::VXL_Add(unsigned char* pCache, int X, int Y, int Width, int He
 
 void CLoadingExt::VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* OutHeight, bool shadow)
 {
-	/* TODO : Save memory
-	int validFirstX = 0x100 - 1;
-	int validFirstY = 0x100 - 1;
-	int validLastX = 0;
-	int validLastY = 0;
-
-	for (int j = 0; j < 0x100; ++j)
-	{
-		for (int i = 0; i < 0x100; ++i)
-		{
-			unsigned char ch = VXL_Data[j * 0x100 + i];
-			if (ch != 0)
-			{
-				if (i < validFirstX)
-					validFirstX = i;
-				if (j < validFirstY)
-					validFirstY = j;
-				if (i > validLastX)
-					validLastX = i;
-				if (j > validLastY)
-					validLastY = j;
-			}
-		}
-	}
-	*/
 	if (shadow)
 	{
 		pBuffer = GameCreateArray<unsigned char>(0x10000);
@@ -3000,25 +3142,188 @@ void CLoadingExt::VXL_GetAndClear(unsigned char*& pBuffer, int* OutWidth, int* O
 
 }
 
+inline int FindFirstNonZero_SIMD(const unsigned char* data, int width)
+{
+	if (width >= 32)
+	{
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int i = 0; i < width; i += 32)
+		{
+			if (i + 32 <= width)
+			{
+				__m256i v = _mm256_loadu_si256((__m256i*)(data + i));
+				__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+				int mask = _mm256_movemask_epi8(cmp);
+
+				if (mask != 0xFFFFFFFF)
+				{
+					for (int j = 0; j < 32; ++j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = i; j < width; ++j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+				return width - 1;
+			}
+		}
+		return width - 1;
+	}
+	else
+	{
+		__m128i zero = _mm_setzero_si128();
+
+		for (int i = 0; i < width; i += 16)
+		{
+			if (i + 16 <= width)
+			{
+				__m128i v = _mm_loadu_si128((__m128i*)(data + i));
+				__m128i cmp = _mm_cmpeq_epi8(v, zero);
+				int mask = _mm_movemask_epi8(cmp);
+
+				if (mask != 0xFFFF)
+				{
+					for (int j = 0; j < 16; ++j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = i; j < width; ++j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+				return width - 1;
+			}
+		}
+		return width - 1;
+	}
+}
+
+inline int FindLastNonZero_SIMD(const unsigned char* data, int width)
+{
+	if (width >= 32)
+	{
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int i = ((width - 1) / 32) * 32; i >= 0; i -= 32)
+		{
+			int scanEnd = std::min(i + 32, width);
+
+			if (scanEnd - i == 32)
+			{
+				__m256i v = _mm256_loadu_si256((__m256i*)(data + i));
+				__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+				int mask = _mm256_movemask_epi8(cmp);
+
+				if (mask != 0xFFFFFFFF)
+				{
+					for (int j = 31; j >= 0; --j)
+					{
+						if (data[i + j] != 0)
+							return i + j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = scanEnd - 1; j >= i; --j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+			}
+		}
+		return 0;
+	}
+	else
+	{
+		__m128i zero = _mm_setzero_si128();
+
+		for (int i = ((width - 1) / 16) * 16; i >= 0; i -= 16)
+		{
+			int scanEnd = std::min(i + 16, width);
+
+			if (scanEnd - i == 16)
+			{
+				__m128i v = _mm_loadu_si128((__m128i*)(data + i));
+				__m128i cmp = _mm_cmpeq_epi8(v, zero);
+				int mask = _mm_movemask_epi8(cmp);
+
+				if (mask != 0xFFFF)
+				{
+					for (int j = 15; j >= 0; --j)
+					{
+						if (data[i + j] != 0)
+							return j;
+					}
+				}
+			}
+			else
+			{
+				for (int j = scanEnd - 1; j >= i; --j)
+				{
+					if (data[j] != 0)
+						return j;
+				}
+			}
+		}
+		return 0;
+	}
+}
+
+inline void GetSHPValidRange_SIMD(const BYTE* data, int width, int line, int& left, int& right)
+{
+	const BYTE* lpStart = data + (size_t)line * width;
+	left = FindFirstNonZero_SIMD(lpStart, width);
+	right = FindLastNonZero_SIMD(lpStart, width);
+}
+
+void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height)
+{
+	if (!pData || !pData->pImageBuffer || Width <= 0 || Height <= 0)
+		return;
+
+	pData->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(
+		new ImageDataClassSafe::ValidRangeData[Height]);
+
+	ImageDataClassSafe::ValidRangeData* pRanges = pData->pPixelValidRanges.get();
+	unsigned char* pBuffer = pData->pImageBuffer.get();
+
+	for (int i = 0; i < Height; ++i)
+	{
+		int begin, end;
+		if (ExtConfigs::AVX2_Support) [[likely]]
+			GetSHPValidRange_SIMD(pBuffer, Width, i, begin, end);
+		else
+			this->GetSHPValidRange(pBuffer, Width, i, &begin, &end);
+		pRanges[i].First = begin;
+		pRanges[i].Last = end;
+	}
+}
+
 void CLoadingExt::SetValidBuffer(ImageDataClass* pData, int Width, int Height)
 {
 	pData->pPixelValidRanges = GameCreateArray<ImageDataClass::ValidRangeData>(Height);
 	for (int i = 0; i < Height; ++i)
 	{
 		int begin, end;
-		this->GetSHPValidRange(pData->pImageBuffer, Width, i, &begin, &end);
-		pData->pPixelValidRanges[i].First = begin;
-		pData->pPixelValidRanges[i].Last = end;
-	}
-}
-
-void CLoadingExt::SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height)
-{
-	pData->pPixelValidRanges = std::unique_ptr<ImageDataClassSafe::ValidRangeData[]>(new ImageDataClassSafe::ValidRangeData[Height]);
-	for (int i = 0; i < Height; ++i)
-	{
-		int begin, end;
-		this->GetSHPValidRange(pData->pImageBuffer.get(), Width, i, &begin, &end);
+		if (ExtConfigs::AVX2_Support) [[likely]]
+			GetSHPValidRange_SIMD(pData->pImageBuffer, Width, i, begin, end);
+		else
+			this->GetSHPValidRange(pData->pImageBuffer, Width, i, &begin, &end);
 		pData->pPixelValidRanges[i].First = begin;
 		pData->pPixelValidRanges[i].Last = end;
 	}
@@ -3091,87 +3396,443 @@ void CLoadingExt::ScaleImageHalf(ImageDataClassSafe* pData)
 
 void CLoadingExt::TrimImageEdges(ImageDataClassSafe* pData, bool shadow)
 {
-	if (!pData || !pData->pImageBuffer || pData->FullWidth == 0 || pData->FullHeight == 0) return;
+	if (!pData || !pData->pImageBuffer || pData->FullWidth <= 0 || pData->FullHeight <= 0) {
+		return;
+	}
 
-	auto invalidateImage = [&pData]()
+	if (ExtConfigs::AVX2_Support) [[likely]]
 	{
-		pData->pImageBuffer = nullptr;
-		pData->pPixelValidRanges = nullptr;
-		pData->FullWidth = 0;
-		pData->FullHeight = 0;
-		pData->ValidX = 0;
-		pData->ValidY = 0;
-		pData->ValidWidth = 0;
-		pData->ValidHeight = 0;
-	};
+		const int oldW = pData->FullWidth;
+		const int oldH = pData->FullHeight;
+		unsigned char* buffer = pData->pImageBuffer.get();
 
-	const int oldW = pData->FullWidth;
-	const int oldH = pData->FullHeight;
-	unsigned char* buffer = pData->pImageBuffer.get();
-
-	int minX = oldW - 1, minY = oldH - 1;
-	int maxX = 0, maxY = 0;
-
-	for (int y = 0; y < oldH; ++y)
-	{
-		for (int x = 0; x < oldW; ++x)
+		int minY = oldH;
+		int maxY = -1;
+		if (oldW >= 32)
 		{
-			unsigned char px = buffer[y * oldW + x];
-			if (px != 0)
+			__m256i zero = _mm256_setzero_si256();
+
+			for (int y = 0; y < oldH && minY == oldH; ++y)
 			{
-				if (x < minX) minX = x;
-				if (y < minY) minY = y;
-				if (x > maxX) maxX = x;
-				if (y > maxY) maxY = y;
+				const unsigned char* row = buffer + (size_t)y * oldW;
+				int foundInRow = 0;
+
+				for (int x = 0; x < oldW; x += 32)
+				{
+					if (x + 32 <= oldW)
+					{
+						__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+						__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+						int mask = _mm256_movemask_epi8(cmp);
+
+						if (mask != 0xFFFFFFFF)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					else
+					{
+						for (int j = x; j < oldW; ++j)
+						{
+							if (row[j] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+						if (foundInRow) break;
+					}
+				}
+
+				if (foundInRow)
+					minY = y;
+			}
+
+			for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+			{
+				const unsigned char* row = buffer + (size_t)y * oldW;
+				int foundInRow = 0;
+
+				for (int x = 0; x < oldW; x += 32)
+				{
+					if (x + 32 <= oldW)
+					{
+						__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+						__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+						int mask = _mm256_movemask_epi8(cmp);
+
+						if (mask != 0xFFFFFFFF)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					else
+					{
+						for (int j = x; j < oldW; ++j)
+						{
+							if (row[j] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+						if (foundInRow) break;
+					}
+				}
+
+				if (foundInRow)
+					maxY = y;
 			}
 		}
-	}
+		else
+		{
+			__m128i zero = _mm_setzero_si128();
 
-	if (minX > maxX || minY > maxY)
+			for (int y = 0; y < oldH && minY == oldH; ++y)
+			{
+				const unsigned char* row = buffer + (size_t)y * oldW;
+				int foundInRow = 0;
+
+				for (int x = 0; x < oldW; x += 16)
+				{
+					if (x + 16 <= oldW)
+					{
+						__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+						__m128i cmp = _mm_cmpeq_epi8(v, zero);
+						int mask = _mm_movemask_epi8(cmp);
+
+						if (mask != 0xFFFF)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					else
+					{
+						for (int j = x; j < oldW; ++j)
+						{
+							if (row[j] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+						if (foundInRow) break;
+					}
+				}
+
+				if (foundInRow)
+					minY = y;
+			}
+
+			for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+			{
+				const unsigned char* row = buffer + (size_t)y * oldW;
+				int foundInRow = 0;
+
+				for (int x = 0; x < oldW; x += 16)
+				{
+					if (x + 16 <= oldW)
+					{
+						__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+						__m128i cmp = _mm_cmpeq_epi8(v, zero);
+						int mask = _mm_movemask_epi8(cmp);
+
+						if (mask != 0xFFFF)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					else
+					{
+						for (int j = x; j < oldW; ++j)
+						{
+							if (row[j] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+						if (foundInRow) break;
+					}
+				}
+
+				if (foundInRow)
+					maxY = y;
+			}
+		}
+
+		if (minY == oldH || maxY == -1) [[unlikely]] {
+			pData->pImageBuffer = nullptr;
+			pData->pPixelValidRanges = nullptr;
+			pData->FullWidth = 0;
+			pData->FullHeight = 0;
+			pData->ValidX = 0;
+			pData->ValidY = 0;
+			pData->ValidWidth = 0;
+			pData->ValidHeight = 0;
+			return;
+		}
+
+		int minX = oldW;
+		int maxX = -1;
+
+		for (int x = 0; x < oldW && minX == oldW; ++x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (buffer[(size_t)y * oldW + x] != 0)
+				{
+					minX = x;
+					break;
+				}
+			}
+		}
+
+		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (buffer[(size_t)y * oldW + x] != 0)
+				{
+					maxX = x;
+					break;
+				}
+			}
+		}
+
+		if (minX == oldW || maxX == -1) [[unlikely]] {
+			pData->pImageBuffer = nullptr;
+			pData->pPixelValidRanges = nullptr;
+			pData->FullWidth = 0;
+			pData->FullHeight = 0;
+			pData->ValidX = 0;
+			pData->ValidY = 0;
+			pData->ValidWidth = 0;
+			pData->ValidHeight = 0;
+			return;
+		}
+
+		const int validW = maxX - minX + 1;
+		const int validH = maxY - minY + 1;
+
+		const int leftSpace = minX;
+		const int rightSpace = oldW - 1 - maxX;
+		const int topSpace = minY;
+		const int bottomSpace = oldH - 1 - maxY;
+
+		const int cropLR = std::min(leftSpace, rightSpace);
+		const int cropTB = std::min(topSpace, bottomSpace);
+
+		const int newW = oldW - cropLR * 2;
+		const int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0) [[unlikely]] {
+			pData->pImageBuffer = nullptr;
+			pData->pPixelValidRanges = nullptr;
+			pData->FullWidth = 0;
+			pData->FullHeight = 0;
+			pData->ValidX = 0;
+			pData->ValidY = 0;
+			pData->ValidWidth = 0;
+			pData->ValidHeight = 0;
+			return;
+		}
+
+		if (cropLR == 0 && cropTB == 0) [[unlikely]] {
+			pData->ValidX = minX;
+			pData->ValidY = minY;
+			pData->ValidWidth = validW;
+			pData->ValidHeight = validH;
+			if (pData->pPixelValidRanges) {
+				pData->pPixelValidRanges = nullptr;
+			}
+			SetValidBufferSafe(pData, newW, newH);
+			return;
+		}
+
+		std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[static_cast<size_t>(newW) * newH]);
+
+		if (newW >= 32)
+		{
+			const int fullBlocks32 = newW / 32;
+			const int remainBytes = newW % 32;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const int srcY = y + cropTB;
+				const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
+				unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
+
+				for (int block = 0; block < fullBlocks32; ++block)
+				{
+					__m256i data = _mm256_loadu_si256((__m256i*)(srcPtr + block * 32));
+					_mm256_storeu_si256((__m256i*)(dstPtr + block * 32), data);
+				}
+
+				if (remainBytes > 0)
+				{
+					if (remainBytes >= 16)
+					{
+						__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + fullBlocks32 * 32));
+						_mm_storeu_si128((__m128i*)(dstPtr + fullBlocks32 * 32), data);
+
+						if (remainBytes > 16)
+						{
+							std::memcpy(dstPtr + fullBlocks32 * 32 + 16,
+								srcPtr + fullBlocks32 * 32 + 16,
+								remainBytes - 16);
+						}
+					}
+					else
+					{
+						std::memcpy(dstPtr + fullBlocks32 * 32,
+							srcPtr + fullBlocks32 * 32,
+							remainBytes);
+					}
+				}
+			}
+		}
+		else
+		{
+			if (newW >= 16)
+			{
+				const int fullBlocks16 = newW / 16;
+				const int remainBytes = newW % 16;
+
+				for (int y = 0; y < newH; ++y)
+				{
+					const int srcY = y + cropTB;
+					const unsigned char* srcPtr = buffer + (size_t)srcY * oldW + cropLR;
+					unsigned char* dstPtr = newBuffer.get() + (size_t)y * newW;
+
+					for (int block = 0; block < fullBlocks16; ++block)
+					{
+						__m128i data = _mm_loadu_si128((__m128i*)(srcPtr + block * 16));
+						_mm_storeu_si128((__m128i*)(dstPtr + block * 16), data);
+					}
+
+					if (remainBytes > 0)
+					{
+						std::memcpy(dstPtr + fullBlocks16 * 16,
+							srcPtr + fullBlocks16 * 16,
+							remainBytes);
+					}
+				}
+			}
+			else
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const int srcY = y + cropTB;
+					std::memcpy(newBuffer.get() + (size_t)y * newW,
+						buffer + (size_t)srcY * oldW + cropLR,
+						static_cast<size_t>(newW));
+				}
+			}
+		}
+
+		pData->pImageBuffer = std::move(newBuffer);
+		pData->FullWidth = newW;
+		pData->FullHeight = newH;
+		pData->ValidX = minX - cropLR;
+		pData->ValidY = minY - cropTB;
+		pData->ValidWidth = validW;
+		pData->ValidHeight = validH;
+
+		if (pData->pPixelValidRanges) {
+			pData->pPixelValidRanges = nullptr;
+		}
+
+		SetValidBufferSafe(pData, newW, newH);
+	}
+	else
 	{
-		invalidateImage();
-		return;
+		const int oldW = pData->FullWidth;
+		const int oldH = pData->FullHeight;
+		unsigned char* buffer = pData->pImageBuffer.get();
+
+		int minX = oldW - 1, minY = oldH - 1;
+		int maxX = 0, maxY = 0;
+
+		for (int y = 0; y < oldH; ++y)
+		{
+			for (int x = 0; x < oldW; ++x)
+			{
+				unsigned char px = buffer[y * oldW + x];
+				if (px != 0)
+				{
+					if (x < minX) minX = x;
+					if (y < minY) minY = y;
+					if (x > maxX) maxX = x;
+					if (y > maxY) maxY = y;
+				}
+			}
+		}
+
+		if (minX > maxX || minY > maxY)
+		{
+			pData->pImageBuffer = nullptr;
+			pData->pPixelValidRanges = nullptr;
+			pData->FullWidth = 0;
+			pData->FullHeight = 0;
+			pData->ValidX = 0;
+			pData->ValidY = 0;
+			pData->ValidWidth = 0;
+			pData->ValidHeight = 0;
+			return;
+		}
+
+		int validW = maxX - minX + 1;
+		int validH = maxY - minY + 1;
+
+		int leftSpace = minX;
+		int rightSpace = oldW - 1 - maxX;
+		int topSpace = minY;
+		int bottomSpace = oldH - 1 - maxY;
+
+		int cropLR = std::min(leftSpace, rightSpace);
+		int cropTB = std::min(topSpace, bottomSpace);
+
+		int newW = oldW - cropLR * 2;
+		int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0)
+		{
+			pData->pImageBuffer = nullptr;
+			pData->pPixelValidRanges = nullptr;
+			pData->FullWidth = 0;
+			pData->FullHeight = 0;
+			pData->ValidX = 0;
+			pData->ValidY = 0;
+			pData->ValidWidth = 0;
+			pData->ValidHeight = 0;
+			return;
+		}
+
+		std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
+		for (int y = 0; y < newH; ++y)
+		{
+			int srcY = y + cropTB;
+			std::memcpy(&newBuffer[y * newW],
+				&buffer[srcY * oldW + cropLR],
+				newW);
+		}
+
+		pData->pImageBuffer = std::move(newBuffer);
+		pData->FullWidth = newW;
+		pData->FullHeight = newH;
+		pData->ValidX = minX - cropLR;
+		pData->ValidY = minY - cropTB;
+		pData->ValidWidth = validW;
+		pData->ValidHeight = validH;
+		if (pData->pPixelValidRanges)
+			pData->pPixelValidRanges = nullptr;
+		SetValidBufferSafe(pData, newW, newH);
 	}
-
-	int validW = maxX - minX + 1;
-	int validH = maxY - minY + 1;
-
-	int leftSpace = minX;
-	int rightSpace = oldW - 1 - maxX;
-	int topSpace = minY;
-	int bottomSpace = oldH - 1 - maxY;
-
-	int cropLR = std::min(leftSpace, rightSpace);
-	int cropTB = std::min(topSpace, bottomSpace);
-
-	int newW = oldW - cropLR * 2;
-	int newH = oldH - cropTB * 2;
-
-	if (newW <= 0 || newH <= 0)
-	{
-		invalidateImage();
-		return;
-	}
-
-	std::unique_ptr<unsigned char[]> newBuffer(new unsigned char[newW * newH]);
-	for (int y = 0; y < newH; ++y)
-	{
-		int srcY = y + cropTB;
-		std::memcpy(&newBuffer[y * newW],
-			&buffer[srcY * oldW + cropLR],
-			newW);
-	}
-
-	pData->pImageBuffer = std::move(newBuffer);
-	pData->FullWidth = newW;
-	pData->FullHeight = newH;
-	pData->ValidX = minX - cropLR;
-	pData->ValidY = minY - cropTB;
-	pData->ValidWidth = validW;
-	pData->ValidHeight = validH;
-	if (pData->pPixelValidRanges)
-		pData->pPixelValidRanges = nullptr;
-	SetValidBufferSafe(pData, newW, newH);
 }
 
 void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer)
@@ -3179,81 +3840,384 @@ void CLoadingExt::TrimImageEdges(unsigned char*& pBuffer, int& width, int& heigh
 	if (!pBuffer || width <= 0 || height <= 0)
 		return;
 
-	const int oldW = width;
-	const int oldH = height;
-
-	int minX = oldW - 1, minY = oldH - 1;
-	int maxX = 0, maxY = 0;
-
-	for (int y = 0; y < oldH; ++y)
+	if (ExtConfigs::AVX2_Support) [[likely]]
 	{
-		const unsigned char* row = pBuffer + y * oldW;
-		for (int x = 0; x < oldW; ++x)
+		const int oldW = width;
+		const int oldH = height;
+
+		int minY = oldH;
+		int maxY = -1;
+		int minX = oldW;
+		int maxX = -1;
+
+		__m256i zero = _mm256_setzero_si256();
+
+		for (int y = 0; y < oldH && minY == oldH; ++y)
 		{
-			if (row[x] != 0)
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
+
+			for (int x = 0; x < oldW; x += 32)
 			{
-				if (x < minX) minX = x;
-				if (y < minY) minY = y;
-				if (x > maxX) maxX = x;
-				if (y > maxY) maxY = y;
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
+
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
+					int mask = _mm_movemask_epi8(cmp);
+
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+					x += 16;
+
+					if (x < oldW)
+					{
+						for (int i = x; i < oldW; ++i)
+						{
+							if (row[i] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
+
+			if (foundInRow)
+			{
+				minY = y;
 			}
 		}
-	}
 
-	if (minX > maxX || minY > maxY)
-	{
-		return;
-	}
+		if (minY == oldH)
+			return;
 
-	int leftSpace = minX;
-	int rightSpace = oldW - 1 - maxX;
-	int topSpace = minY;
-	int bottomSpace = oldH - 1 - maxY;
+		for (int y = oldH - 1; y >= minY && maxY == -1; --y)
+		{
+			const unsigned char* row = pBuffer + (size_t)y * oldW;
+			int foundInRow = 0;
 
-	int cropLR = std::min(leftSpace, rightSpace);
-	int cropTB = std::min(topSpace, bottomSpace);
+			for (int x = 0; x < oldW; x += 32)
+			{
+				if (x + 32 <= oldW)
+				{
+					__m256i v = _mm256_loadu_si256((__m256i*)(row + x));
+					__m256i cmp = _mm256_cmpeq_epi8(v, zero);
+					int mask = _mm256_movemask_epi8(cmp);
 
-	int newW = oldW - cropLR * 2;
-	int newH = oldH - cropTB * 2;
+					if (mask != 0xFFFFFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+				}
+				else if (x + 16 <= oldW)
+				{
+					__m128i v = _mm_loadu_si128((__m128i*)(row + x));
+					__m128i cmp = _mm_cmpeq_epi8(v, _mm_setzero_si128());
+					int mask = _mm_movemask_epi8(cmp);
 
-	if (newW <= 0 || newH <= 0)
-		return;
+					if (mask != 0xFFFF)
+					{
+						foundInRow = 1;
+						break;
+					}
+					x += 16;
 
-	unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
-	unsigned char* newSecondBuffer = nullptr;
-	if (pSecondBuffer && *pSecondBuffer)
-	{
-		newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
-	}
+					if (x < oldW)
+					{
+						for (int i = x; i < oldW; ++i)
+						{
+							if (row[i] != 0)
+							{
+								foundInRow = 1;
+								break;
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = x; i < oldW; ++i)
+					{
+						if (row[i] != 0)
+						{
+							foundInRow = 1;
+							break;
+						}
+					}
+					if (foundInRow) break;
+				}
+			}
 
-	for (int y = 0; y < newH; ++y)
-	{
-		int srcY = y + cropTB;
-		std::memcpy(
-			newBuffer + y * newW,
-			pBuffer + srcY * oldW + cropLR,
-			newW
-		);
+			if (foundInRow)
+			{
+				maxY = y;
+			}
+		}
+
+		for (int x = 0; x < oldW && minX == oldW; ++x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					minX = x;
+					break;
+				}
+			}
+		}
+
+		for (int x = oldW - 1; x >= minX && maxX == -1; --x)
+		{
+			for (int y = minY; y <= maxY; ++y)
+			{
+				if (pBuffer[(size_t)y * oldW + x] != 0)
+				{
+					maxX = x;
+					break;
+				}
+			}
+		}
+
+		if (minX > maxX || minY > maxY)
+			return;
+
+		int leftSpace = minX;
+		int rightSpace = oldW - 1 - maxX;
+		int topSpace = minY;
+		int bottomSpace = oldH - 1 - maxY;
+
+		int cropLR = std::min(leftSpace, rightSpace);
+		int cropTB = std::min(topSpace, bottomSpace);
+
+		if (cropLR == 0 && cropTB == 0)
+			return;
+
+		int newW = oldW - cropLR * 2;
+		int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0)
+			return;
+
+		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+		unsigned char* newSecondBuffer = nullptr;
+
 		if (pSecondBuffer && *pSecondBuffer)
 		{
+			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
+		}
+
+		if (newW >= 32 && newW % 32 == 0)
+		{
+			const int copySize = newW / 32;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < copySize; ++block)
+				{
+					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < copySize; ++block)
+					{
+						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+					}
+				}
+			}
+		}
+		else if (newW >= 32)
+		{
+			const int fullBlocks = newW / 32;
+			const int remainBytes = newW % 32;
+
+			for (int y = 0; y < newH; ++y)
+			{
+				const unsigned char* srcRow = pBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+				unsigned char* dstRow = newBuffer + (size_t)y * newW;
+
+				for (int block = 0; block < fullBlocks; ++block)
+				{
+					__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+					_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+				}
+
+				if (remainBytes > 0)
+				{
+					std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
+				}
+			}
+
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				for (int y = 0; y < newH; ++y)
+				{
+					const unsigned char* srcRow = *pSecondBuffer + (size_t)(y + cropTB) * oldW + cropLR;
+					unsigned char* dstRow = newSecondBuffer + (size_t)y * newW;
+
+					for (int block = 0; block < fullBlocks; ++block)
+					{
+						__m256i data = _mm256_loadu_si256((__m256i*)(srcRow + block * 32));
+						_mm256_storeu_si256((__m256i*)(dstRow + block * 32), data);
+					}
+
+					if (remainBytes > 0)
+					{
+						std::memcpy(dstRow + fullBlocks * 32, srcRow + fullBlocks * 32, remainBytes);
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int y = 0; y < newH; ++y)
+			{
+				int srcY = y + cropTB;
+				std::memcpy(
+					newBuffer + (size_t)y * newW,
+					pBuffer + (size_t)srcY * oldW + cropLR,
+					newW
+				);
+				if (pSecondBuffer && *pSecondBuffer)
+				{
+					std::memcpy(
+						newSecondBuffer + (size_t)y * newW,
+						*pSecondBuffer + (size_t)srcY * oldW + cropLR,
+						newW
+					);
+				}
+			}
+		}
+
+		GameDeleteArray(pBuffer, oldW * oldH);
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			GameDeleteArray(*pSecondBuffer, oldW * oldH);
+			*pSecondBuffer = newSecondBuffer;
+		}
+
+		pBuffer = newBuffer;
+		width = newW;
+		height = newH;
+	}
+	else
+	{
+		const int oldW = width;
+		const int oldH = height;
+
+		int minX = oldW - 1, minY = oldH - 1;
+		int maxX = 0, maxY = 0;
+
+		for (int y = 0; y < oldH; ++y)
+		{
+			const unsigned char* row = pBuffer + y * oldW;
+			for (int x = 0; x < oldW; ++x)
+			{
+				if (row[x] != 0)
+				{
+					if (x < minX) minX = x;
+					if (y < minY) minY = y;
+					if (x > maxX) maxX = x;
+					if (y > maxY) maxY = y;
+				}
+			}
+		}
+
+		if (minX > maxX || minY > maxY)
+		{
+			return;
+		}
+
+		int leftSpace = minX;
+		int rightSpace = oldW - 1 - maxX;
+		int topSpace = minY;
+		int bottomSpace = oldH - 1 - maxY;
+
+		int cropLR = std::min(leftSpace, rightSpace);
+		int cropTB = std::min(topSpace, bottomSpace);
+
+		int newW = oldW - cropLR * 2;
+		int newH = oldH - cropTB * 2;
+
+		if (newW <= 0 || newH <= 0)
+			return;
+
+		unsigned char* newBuffer = GameCreateArray<unsigned char>(newW * newH);
+		unsigned char* newSecondBuffer = nullptr;
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			newSecondBuffer = GameCreateArray<unsigned char>(newW * newH);
+		}
+
+		for (int y = 0; y < newH; ++y)
+		{
+			int srcY = y + cropTB;
 			std::memcpy(
-				newSecondBuffer + y * newW,
-				*pSecondBuffer + srcY * oldW + cropLR,
+				newBuffer + y * newW,
+				pBuffer + srcY * oldW + cropLR,
 				newW
 			);
+			if (pSecondBuffer && *pSecondBuffer)
+			{
+				std::memcpy(
+					newSecondBuffer + y * newW,
+					*pSecondBuffer + srcY * oldW + cropLR,
+					newW
+				);
+			}
 		}
-	}
 
-	GameDeleteArray(pBuffer, oldW * oldH);
-	if (pSecondBuffer && *pSecondBuffer)
-	{
-		GameDeleteArray(*pSecondBuffer, oldW * oldH);
-		*pSecondBuffer = newSecondBuffer;
-	}
-	pBuffer = newBuffer;
+		GameDeleteArray(pBuffer, oldW * oldH);
+		if (pSecondBuffer && *pSecondBuffer)
+		{
+			GameDeleteArray(*pSecondBuffer, oldW * oldH);
+			*pSecondBuffer = newSecondBuffer;
+		}
+		pBuffer = newBuffer;
 
-	width = newW;
-	height = newH;
+		width = newW;
+		height = newH;
+	}
 }
 
 void CLoadingExt::SetTheaterLetter(FString& string, int mode)
@@ -3359,19 +4323,23 @@ int CLoadingExt::HasFileMix(FString filename, int nMix)
 
 int CLoadingExt::SearchFileExt(const FString& filename, bool debugLog)
 {
-	for (int i = 0; i < CMixFile::ArraySize; ++i)
+	if (!CLoadingExt::NotFoundFiles.contains(filename))
 	{
-		auto& mix = CMixFile::Array[i];
-		if (!mix.is_open())
-			break;
-		if (CMixFile::HasFile(filename, i + 1))
+		for (int i = 0; i < CMixFile::ArraySize; ++i)
 		{
+			auto& mix = CMixFile::Array[i];
+			if (!mix.is_open())
+				break;
+			if (CMixFile::HasFile(filename, i + 1))
+			{
 #ifndef NDEBUG
-			if(debugLog)
-				Logger::Debug("[SearchFileExt] %s - %d\n", filename, i + 1);
+				if (debugLog)
+					Logger::Debug("[SearchFileExt] %s - %d\n", filename, i + 1);
 #endif
-			return i + 1;
+				return i + 1;
+			}
 		}
+		CLoadingExt::NotFoundFiles.insert(filename);
 	}
 #ifndef NDEBUG
 	if (debugLog)
@@ -4505,6 +5473,8 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 		loadSingleFrameShape(CellAnimImageID, nStartFrame, deltaX, deltaY, "", shadow);
 	};
 
+	auto ignoreUnused = CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused");
+
 	if (findFile)
 	{
 		auto customPal = typeData.CustomPaletteName;
@@ -4544,8 +5514,9 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 
 				ShapeImageHeader imageHeader;
 				CShpFile::GetSHPImageHeader(i, &imageHeader);
-
-				if (imageHeader.Unknown == 0 && !CINI::FAData->GetBool("Debug", "IgnoreSHPImageHeadUnused"))
+				
+				// only skip last half
+				if (imageHeader.Unknown == 0 && !ignoreUnused && i >= header.FrameCount / 2)
 					continue;
 
 				FString DictName = GetOverlayName(nIndex, i);
@@ -4900,7 +5871,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 		return true;
 	}
 
-	if (ResourcePackManager::instance().hasFile(filename.m_pchData))
+	if (ResourcePackManager::instance().hasFile(filename.GetString()))
 	{
 		return true;
 	}
@@ -4908,7 +5879,7 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	if (ExtConfigs::ExtMixLoader)
 	{
 		auto& manager = MixLoader::Instance();
-		int result = manager.QueryFileIndex(filename.m_pchData, nMix);
+		int result = manager.QueryFileIndex(filename.GetString(), nMix);
 		if (result >= 0)
 			return true;
 	}

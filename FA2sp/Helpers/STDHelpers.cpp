@@ -161,6 +161,7 @@ std::vector<ppmfc::CString> STDHelpers::SplitString(const ppmfc::CString& pSourc
         nIdx = nPos + strlen(pSplit);
     }
     ret.push_back(pSource.Mid(nIdx));
+
     return ret;
 }
 
@@ -192,6 +193,7 @@ std::vector<ppmfc::CString> STDHelpers::SplitStringMultiSplit(const ppmfc::CStri
     ret.push_back(pSource.Mid(nIdx));
     return ret;
 }
+
 std::pair<ppmfc::CString, ppmfc::CString> STDHelpers::SplitKeyValue(const ppmfc::CString& pSource)
 {
     const char* pSplit = "=";
@@ -389,9 +391,9 @@ ppmfc::CString STDHelpers::GetComboBoxText(const ppmfc::CComboBox& cbb)
     return ret;
 }
 
-ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
+ppmfc::CString STDHelpers::ReplaceSpeicalString(FString_view ori)
 {
-    ppmfc::CString ret = ori;
+    ppmfc::CString ret(ori.c_str());
     ret.Replace("%1", ",");
     ret.Replace("%2", ";");
     ret.Replace("\\t", "\t");
@@ -399,27 +401,53 @@ ppmfc::CString STDHelpers::ReplaceSpeicalString(ppmfc::CString ori)
     return ret;
 }
 
-FString STDHelpers::ChineseTraditional_ToSimple(const FString& _str)
+FString STDHelpers::ChineseTraditional_ToSimple(FString_view str)
 {
-    LPCSTR lpSrcStr = _str.c_str();
-    int cchSrc = static_cast<int>(_str.size());
-    int cchDest = static_cast<int>(1 + _str.size());
-    LPSTR lpDestStr = new CHAR[cchDest]{ 0 };
-    LCMapStringA(0x0804, LCMAP_SIMPLIFIED_CHINESE, lpSrcStr, cchSrc, lpDestStr, cchDest);
-    FString str(lpDestStr);
-    delete[] lpDestStr;
-    lpDestStr = nullptr;
-    return str;
+    if (str.empty())
+        return {};
+
+    int srcLen = (int)str.size();
+
+    int destLen = LCMapStringA(
+        0x0804,
+        LCMAP_SIMPLIFIED_CHINESE,
+        str.data(),
+        srcLen,
+        nullptr,
+        0
+    );
+
+    if (destLen <= 0)
+        return FString(str);
+
+    FString buffer(destLen, 0);
+
+    LCMapStringA(
+        0x0804,
+        LCMAP_SIMPLIFIED_CHINESE,
+        str.data(),
+        srcLen,
+        buffer.data(),
+        destLen
+    );
+
+    return buffer;
 }
 
-std::string STDHelpers::ToUpperCase(const std::string& _str) {
-    std::string upperStr;
-    for (char c : _str) {
-        upperStr += std::toupper(static_cast<unsigned char>(c));
+std::string STDHelpers::ToUpperCase(FString_view str)
+{
+    std::string ret;
+    ret.resize(str.size());
+
+    for (size_t i = 0; i < str.size(); ++i)
+    {
+        ret[i] = static_cast<char>(
+            std::toupper(static_cast<unsigned char>(str[i]))
+            );
     }
-    return upperStr;
-}
 
+    return ret;
+}
 std::string STDHelpers::WStringToString(const std::wstring& wstr) {
 
     int len = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), wstr.size(), nullptr, 0, nullptr, nullptr);
@@ -438,17 +466,36 @@ std::string STDHelpers::WStringToString(const std::wstring& wstr) {
     return result;
 }
 
-std::wstring STDHelpers::StringToWString(const std::string& str) 
+std::wstring STDHelpers::StringToWString(FString_view str)
 {
-    int wideSize = MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, nullptr, 0);
-    if (wideSize == 0) return L"";
+    if (str.empty())
+        return L"";
+
+    int wideSize = MultiByteToWideChar(
+        CP_ACP,
+        0,
+        str.data(),
+        (int)str.size(),
+        nullptr,
+        0
+    );
+
+    if (wideSize <= 0)
+        return L"";
 
     std::wstring wstr(wideSize, 0);
-    MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, &wstr[0], wideSize);
+
+    MultiByteToWideChar(
+        CP_ACP,
+        0,
+        str.data(),
+        (int)str.size(),
+        &wstr[0],
+        wideSize
+    );
 
     return wstr;
 }
-
 void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, const std::wstring& newStr)
 {
     if (oldStr.empty()) return;
@@ -459,16 +506,22 @@ void STDHelpers::WStringReplace(std::wstring& str, const std::wstring& oldStr, c
     }
 }
 
-std::string STDHelpers::ReplaceEnding(const std::string& str,
-    const std::string& oldSuffix,
-    const std::string& newSuffix)
+std::string STDHelpers::ReplaceEnding(FString_view str,
+    FString_view oldSuffix,
+    FString_view newSuffix)
 {
-    if (!str.ends_with(oldSuffix))
-        return str;
+    if (str.size() < oldSuffix.size() ||
+        !str.ends_with(oldSuffix))
+    {
+        return std::string(str);
+    }
 
-    std::string ret = str;
-    ret.resize(ret.size() - oldSuffix.size());
-    ret += newSuffix;
+    std::string ret;
+    ret.reserve(str.size() - oldSuffix.size() + newSuffix.size());
+
+    ret.append(str.data(), str.size() - oldSuffix.size());
+    ret.append(newSuffix.data(), newSuffix.size());
+
     return ret;
 }
 
@@ -526,4 +579,118 @@ FileEncoding STDHelpers::GetFileEncoding(const uint8_t* data, size_t size) {
         return FileEncoding::UTF8_ASCII;
 
     return FileEncoding::UTF8;
+}
+
+int STDHelpers::letter2number(char let) {
+    return let - 'A';
+}
+
+char STDHelpers::number2letter(int let) {
+    return let + 'A';
+}
+
+int STDHelpers::StringToWaypoint(ppmfc::CString str)
+{
+    if (str == "None")
+        return -1;
+    int n = 0;
+    int len = strlen(str);
+    for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+    {
+        int c = toupper(str[i]);
+        if (c < 'A' || c > 'Z') return 0;
+        n += ((int)c - 64) * j;
+    }
+    if (n <= 0)
+        return -1;
+    return n - 1;
+}
+
+ppmfc::CString STDHelpers::StringToWaypointStr(ppmfc::CString str)
+{
+    ppmfc::CString ret;
+    ret.Format("%d", StringToWaypoint(str));
+    if (ret == "-1") ret = "None";
+    return ret;
+}
+
+ppmfc::CString STDHelpers::WaypointToString(int nWaypoint)
+{
+    static char buffer[8]{ '\0' };
+
+    if (nWaypoint < 0)
+        return "0";
+    else if (nWaypoint == INT_MAX)
+        return "FXSHRXX";
+    else
+    {
+        ++nWaypoint;
+        int pos = 7;
+        while (nWaypoint > 0)
+        {
+            --pos;
+            char m = nWaypoint % 26;
+            if (m == 0) m = 26;
+            buffer[pos] = m + '@';
+            nWaypoint = (nWaypoint - m) / 26;
+        }
+        return buffer + pos;
+    }
+}
+
+ppmfc::CString STDHelpers::WaypointToString(ppmfc::CString numStr)
+{
+    int nWaypoint = atoi(numStr);
+    return WaypointToString(nWaypoint);
+}
+
+int STDHelpers::StringToWaypoint(std::string str)
+{
+    if (str == "None")
+        return -1;
+    int n = 0;
+    int len = str.size();
+    for (int i = len - 1, j = 1; i >= 0; i--, j *= 26)
+    {
+        int c = toupper(str[i]);
+        if (c < 'A' || c > 'Z') return 0;
+        n += ((int)c - 64) * j;
+    }
+    if (n <= 0)
+        return -1;
+    return n - 1;
+}
+
+FString STDHelpers::StringToWaypointStr(std::string str)
+{
+    FString ret;
+    ret.Format("%d", StringToWaypoint(str));
+    if (ret == "-1") ret = "None";
+    return ret;
+}
+
+FString STDHelpers::WaypointToString(std::string numStr)
+{
+    int nWaypoint = atoi(numStr.c_str());
+    static char buffer[8]{ '\0' };
+
+    if (nWaypoint < 0)
+        return "0";
+    else if (nWaypoint == INT_MAX)
+        return "FXSHRXX";
+    else
+    {
+        ++nWaypoint;
+        int pos = 7;
+        while (nWaypoint > 0)
+        {
+            --pos;
+            char m = nWaypoint % 26;
+            if (m == 0) m = 26;
+            buffer[pos] = m + '@';
+            nWaypoint = (nWaypoint - m) / 26;
+        }
+        return buffer + pos;
+    }
+    return "0";
 }

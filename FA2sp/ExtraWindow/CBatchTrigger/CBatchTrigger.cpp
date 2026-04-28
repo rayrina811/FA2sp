@@ -59,10 +59,10 @@ bool CBatchTrigger::bUseID = false;
 bool CBatchTrigger::bDisplayID = false;
 static std::vector<ObjInfo> objects;
 std::vector<ObjInfo> CBatchTrigger::objects;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::idIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::triggerNameIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::tagNameIndex;
-std::unordered_map<FString, ObjInfo*> CBatchTrigger::teamNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::idIndex;
+FHashMap<ObjInfo*> CBatchTrigger::triggerNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::tagNameIndex;
+FHashMap<ObjInfo*> CBatchTrigger::teamNameIndex;
 HelpDlg CBatchTrigger::hdHelp;
 
 LRESULT CALLBACK CBatchTrigger::ListViewSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -634,7 +634,7 @@ void CBatchTrigger::AddObject(const FString& id, const FString& name, ObjType ty
 
     idIndex[id] = obj;
 
-    auto& index = [&]() -> std::unordered_map<FString, ObjInfo*>& {
+    auto& index = [&]() -> FHashMap<ObjInfo*>& {
         switch (type)
         {
         case ObjType::Trigger:   return triggerNameIndex;
@@ -722,7 +722,7 @@ void CBatchTrigger::Update(bool afterInit, bool updateTrigger)
         );
 
         CMapDataExt::Triggers.clear();
-        std::map<FString, FString> TagMap;
+        FMap<FString> TagMap;
         if (pTag)
         {
             for (auto& kvp : pTag->GetEntities())
@@ -806,11 +806,14 @@ void CBatchTrigger::UpdateListBox()
     bool tmp = ExtConfigs::SortByLabelName;
     ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
 
-    std::sort(items.begin(), items.end(),
-        [](const auto& a, const auto& b) {
-        return bDisplayID ? ExtraWindow::SortLabels(a.first, b.first) :
-            ExtraWindow::SortRawStrings(a.first, b.first);
-    });
+    if (bDisplayID)
+    {
+        ExtraWindow::SortLabels(items);
+    }
+    else
+    {
+        ExtraWindow::SortRawStrings(items);
+    }
 
     ExtConfigs::SortByLabelName = tmp;
 
@@ -818,6 +821,15 @@ void CBatchTrigger::UpdateListBox()
     SendMessage(hSearch, WM_GETTEXT, (WPARAM)512, (LPARAM)buffer);
 
     ListboxTriggerID.clear();
+
+    SendMessage(hListbox, WM_SETREDRAW, FALSE, 0);
+    SendMessage(hListbox, LB_RESETCONTENT, 0, 0);
+    SendMessage(hListbox, LB_INITSTORAGE, items.size(), 256);
+
+    int MaxWidth = 0;
+    HDC hdc = GetDC(hListbox);
+    HFONT hFont = (HFONT)SendMessage(hListbox, WM_GETFONT, 0, 0);
+    HFONT old = (HFONT)SelectObject(hdc, hFont);
 
     LabelMatcher matcher(buffer);
     for (auto& [label, id] : items)
@@ -827,12 +839,22 @@ void CBatchTrigger::UpdateListBox()
             || matcher.Match(id)
             || matcher.Match(ExtraWindow::GetTriggerName(id)))
         {
-            SendMessage(hListbox, LB_INSERTSTRING, idx, label);
+            SIZE sz{};
+            GetTextExtentPoint32(hdc, label, label.length(), &sz);
+            MaxWidth = std::max(MaxWidth, (int)sz.cx);
+
+            SendMessage(hListbox, LB_ADDSTRING, 0, label);
             SendMessage(hListbox, LB_SETITEMDATA, idx, (LPARAM)&data);
             idx++;
         }
     }
-    ExtraWindow::UpdateListBoxHScroll(hListbox);
+
+    SendMessage(hListbox, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hListbox, NULL, TRUE);
+
+    SelectObject(hdc, old);
+    ReleaseDC(hListbox, hdc);
+    SendMessage(hListbox, LB_SETHORIZONTALEXTENT, MaxWidth + 10, 0);
 }
 
 void CBatchTrigger::OnViewerSelectedChange(LPNMHDR pNMHDR)
@@ -1171,10 +1193,10 @@ void CBatchTrigger::OnClickMove(bool isUp)
 void CBatchTrigger::OnSearchEditChanged()
 {
     if (IsUpdating) return;
-    if (ListboxTriggerID.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
-    {
-        return;
-    }
+    //if (ListboxTriggerID.size() > ExtConfigs::SearchCombobox_MaxCount && !ExtraWindow::bEnterSearch)
+    //{
+    //    return;
+    //}
     UpdateListBox();
 }
 
@@ -1534,7 +1556,9 @@ void CBatchTrigger::SaveTrigger(int row, int col, bool& changed)
         auto o = &CNewTrigger::Instance[i];
         if (o->CurrentTriggerID == trigger->ID && o->GetHandle())
         {
-            TempValueHolder<bool> tmp(o->DropNeedUpdate, true);
+            auto newName = ExtraWindow::FormatTriggerDisplayName(o->CurrentTrigger->ID, o->CurrentTrigger->Name);
+            o->vcbSelectedTrigger.ReplaceString(o->SelectedTriggerIndex, newName);
+            o->vcbSelectedTrigger.SetEditText(newName);
             int indexE = o->SelectedEventIndex;
             int indexA = o->SelectedActionIndex;
             o->OnSelchangeTrigger(false,

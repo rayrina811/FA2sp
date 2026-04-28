@@ -87,7 +87,8 @@ DEFINE_HOOK(428D97, CFinalSunDlg_SaveMap, 7)
     pThis->MyViewFrame.StatusBar.SetWindowText(Translations::TranslateOrDefault("SavingMap", "Saving map..."));
     pThis->MyViewFrame.StatusBar.UpdateWindow();
 
-    SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false);
+    if (SaveMapExt::SaveMap(pINI, pThis, filepath, previewOption, true, false))
+        pThis->AddToRecentFile(filepath);
 
     return 0x42A859;
 }
@@ -324,6 +325,14 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
             auto image = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
             auto imageLocal = std::unique_ptr<unsigned char[]>(new unsigned char[256 * 512 * 3] {0});
 
+            std::unordered_set<ppmfc::CString> IgnoreObjects;
+            const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
+            for (auto& [_, ID] : overlays)
+            {
+                if (Variables::RulesMap.GetBool(ID, "IsRubble"))
+                    IgnoreObjects.insert(ID);
+            }
+
             auto safeColorBtye = [](int x)
             {
                 if (x > 255)
@@ -349,6 +358,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 if (dPows < CMapData::Instance().CellDataCount)
                     return dPows;
                 return 0;
+            };
+            auto isIgnored = [&IgnoreObjects](const char* id)
+            {
+                return IgnoreObjects.find(id) != IgnoreObjects.end();
             };
 
             std::vector<int[2]>playerLocation;
@@ -491,7 +504,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
                             auto overlay = cellExt.NewOverlay;
                             auto overlayD = cell.OverlayData;
-                            if (overlay != 0xFFFF)
+                            if (overlay != 0xFFFF && !isIgnored(Variables::RulesMap.GetValueAt("OverlayTypes", overlay)))
                             {
                                 auto radarColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
                                 if (overlay == 100 || overlay == 101 || overlay == 231 || overlay == 232) //broken bridge
@@ -509,12 +522,12 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(107, 109, 107);
 
                             int type = cell.TerrainType;
-                            std::string name = Variables::RulesMap.GetValueAt("TerrainTypes", type).m_pchData;
-                            if (!name.empty())
+                            auto name = Variables::RulesMap.GetValueAt("TerrainTypes", type);
+                            if (!name.IsEmpty())
                             {
-                                if (name.find("TREE") != std::string::npos)
+                                if (name.Find("TREE") != -1)
                                     color = RGB(0, 194, 0);
-                                else if (name.find("TIBTRE") != std::string::npos)
+                                else if (name.Find("TIBTRE") != -1)
                                     color = RGB(10, 10, 10);
                                 else
                                     color = RGB(69, 68, 69);
@@ -525,11 +538,13 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                                 color = RGB(123, 125, 123);
                             if (cell.Structure != -1)
                             {
-                                CBuildingData data;
-                                CMapData::Instance->GetBuildingData(cell.Structure, data);
-
-                                if (Variables::RulesMap.GetBool(data.TypeID, "NeedsEngineer"))
-                                    color = RGB(215, 215, 215);
+                                auto StrINIIndex = CMapDataExt::StructureIndexMap[cell.Structure];
+                                if (StrINIIndex != -1)
+                                {
+                                    auto& objRender = CMapDataExt::BuildingRenderDatasFix[StrINIIndex];
+                                    if (Variables::RulesMap.GetBool(objRender.ID, "NeedsEngineer"))
+                                        color = RGB(215, 215, 215);
+                                }
                             }
 
                             LightingStruct ret;
@@ -681,10 +696,10 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
                 includeIni = MakeGameUnique<CINIExt>();
                 FString buffer = " \n";
 
-                std::queue<ppmfc::CString> currentIncludeInis;
+                std::vector<std::pair<ppmfc::CString, ppmfc::CString>> currentIncludeInis;
 
                 for (auto& pair : pInclude->GetEntities()) {
-                    currentIncludeInis.push(pair.second);
+                    currentIncludeInis.push_back(pair);
                 }
                 includeIni->LoadINIExt((uint8_t*)buffer.data(), buffer.length(), nullptr, true, true, true, &currentIncludeInis);
             }

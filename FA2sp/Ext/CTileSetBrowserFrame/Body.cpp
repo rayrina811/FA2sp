@@ -96,10 +96,10 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 				TagSort::Instance.Menu_AddTrigger();
 				ppmfc::CString name;
 				ppmfc::CString value;
-				ppmfc::CString key = CMapDataExt::GetAvailableIndex();
+				ppmfc::CString key = CMapDataExt::GetAvailableIndex(EIndexType::Tag);
 				name = (TagSort::Instance.GetCurrentPrefix() + "New Tag").c_str();
 				value.Format("0,%s,%s", name, CINI::CurrentDocument->GetKeyCount("Triggers") > 0 ?
-					CINI::CurrentDocument->GetKeyAt("Triggers", 0).m_pchData : "01000000");
+					CINI::CurrentDocument->GetKeyAt("Triggers", 0).GetString() : "01000000");
 				CINI::CurrentDocument->WriteString("Tags", key, value);
 				CFinalSunDlg::Instance->Tags.UpdateDialog();
 				auto hTag = ::GetDlgItem(CFinalSunDlg::Instance->Tags, 1083);
@@ -465,7 +465,8 @@ void CTileSetBrowserFrameExt::InitTabControl()
 		pitem.mask = TCIF_TEXT;
 		FA2sp::Buffer = lpszDefault;
 		Translations::GetTranslationItem(lpszTranslate, FA2sp::Buffer);
-		pitem.pszText = FA2sp::Buffer.m_pchData;
+		std::string text = FA2sp::Buffer.GetString();
+		pitem.pszText = (char*)text.c_str();
 		TabCtrl_InsertItem(this->hTabCtrl, i++, &pitem);
 	};
 

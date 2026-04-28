@@ -66,6 +66,7 @@ public:
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
     static bool UseSequentialIndexing;
+    static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;
     static int AdjustDropdownWidth_Factor;
     static int AdjustDropdownWidth_Max;
@@ -126,6 +127,8 @@ public:
     static unsigned int MaxVoxelFacing;
     static bool DDrawInVideoMem;
     static bool DDrawEmulation;
+    static bool SecondScreenSupport;
+    static bool SecondScreenSupport_INI;
     static bool NoHouseNameTranslation;
     static bool BetterHouseNameTranslation;
     static bool EnableMultiSelection;
@@ -224,11 +227,12 @@ public:
     static bool UTF8Support_AlwaysSaveAsUTF8;
     static bool GridObjectViewer_LoadEditorCategory;
     static bool GridObjectViewer_LoadForceSides;
+    static bool GridObjectViewer_LoadObjectBrowserCategory;
     static CInfantryData DefaultInfantryProperty;
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
-    static std::map<FString, bool> SupportedFormats;
+    static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
 
     enum SpecialOptionType : char

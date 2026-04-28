@@ -178,6 +178,7 @@ DEFINE_HOOK(45B53E, CIsoView_OnMouseMove_SkipPlaceTileUndoRedo_Notify, 7)
 	R->EDX(R->Stack<int>(STACK_OFFS(0x3D528, -0xC)));
 	R->EAX(R->Stack<int>(STACK_OFFS(0x3D528, -0x8)));
 	R->ECX(R->Stack<int>(STACK_OFFS(0x3D528, -0x4)));
+	CIsoViewExt::OnLButtonDown_CalledFromOnMouseMove = true;
 
 	return 0x45B55D;
 }
@@ -329,8 +330,19 @@ DEFINE_HOOK(461766, CIsoView_OnLButtonDown_DragObjects, 5)
 	}
 	if (CIsoViewExt::DrawSmudges && pThis->CurrentCellObjectIndex < 0)
 	{
-		pThis->CurrentCellObjectIndex = cell->Smudge;
-		pThis->CurrentCellObjectType = 9;
+		if (pos < CMapData::Instance->CellDataCount)
+		{
+			auto& cellExt = CMapDataExt::CellDataExts[pos];
+			pThis->CurrentCellObjectIndex = cellExt.SmudgeParts.empty() ? cell->Smudge : cellExt.SmudgeParts.back();
+			pThis->CurrentCellObjectType = 9;
+
+			if (pThis->CurrentCellObjectIndex > -1)
+			{
+				auto& data = CMapData::Instance->SmudgeDatas[pThis->CurrentCellObjectIndex];
+				pThis->StartCell.X = data.Y;
+				pThis->StartCell.Y = data.X;
+			}
+		}
 	}
 	if (CIsoViewExt::DrawAnnotations && pThis->CurrentCellObjectIndex < 0)
 	{
@@ -970,7 +982,7 @@ DEFINE_HOOK(461A01, CIsoView_OnLButtonDown_PlaceTile, 6)
 	GET_BASE(UINT, nFlags, 0x8);
 	GET(int, x, EDI);
 	GET(int, y, ESI);
-
+	
 	((CIsoViewExt*)CIsoView::GetInstance())->PlaceTileOnMouse(x, y, nFlags, !(IsPlacingTiles && ExtConfigs::UndoRedo_ShiftPlaceTile));
 
 	return 0x4616D8;
@@ -1284,6 +1296,25 @@ DEFINE_HOOK(457223, CIsoView_OnMouseMove_MouseRange_1_DisableIME, 9)
 	{
 		::ImmAssociateContext(pIsoView->GetSafeHwnd(), NULL);
 		::ImmReleaseContext(pIsoView->GetSafeHwnd(), hIMC);
+	}
+
+	if (CIsoView::CurrentCommand->Command != 0x26)
+	{
+		if (!CIsoViewExt::TwoPointDistance.empty())
+		{
+			if (CIsoViewExt::TwoPointDistance.back().Point1 != MapCoord{ 0,0 }
+				&& CIsoViewExt::TwoPointDistance.back().Point2 == MapCoord{ 0,0 })
+			{
+				CIsoViewExt::TwoPointDistance.back().Point1 = MapCoord{ 0,0 };
+				CIsoViewExt::TwoPointDistance.back().Point2 = MapCoord{ 0,0 };
+			}
+		}
+		if (CIsoViewExt::AxialSymmetryLine[0] != MapCoord{ 0,0 }
+			&& CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
+		{
+			CIsoViewExt::AxialSymmetryLine[0] = MapCoord{ 0,0 };
+			CIsoViewExt::AxialSymmetryLine[1] = MapCoord{ 0,0 };
+		}
 	}
 
 	GET(int, command, EDX);

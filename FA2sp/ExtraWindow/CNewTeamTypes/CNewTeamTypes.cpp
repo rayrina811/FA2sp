@@ -76,14 +76,13 @@ bool CNewTeamTypes::TagListChanged = false;
 
 int CNewTeamTypes::SelectedTeamIndex = -1;
 FString CNewTeamTypes::CurrentTeamID;
-std::map<int, FString> CNewTeamTypes::TaskForceLabels;
-std::map<int, FString> CNewTeamTypes::TeamLabels;
-std::map<int, FString> CNewTeamTypes::ScriptLabels;
-std::map<int, FString> CNewTeamTypes::TagLabels;
-std::map<int, FString> CNewTeamTypes::HouseLabels;
-bool CNewTeamTypes::Autodrop;
-bool CNewTeamTypes::WaypointAutodrop;
-bool CNewTeamTypes::DropNeedUpdate;
+VirtualComboBoxEx CNewTeamTypes::vcbSelectedTeam;
+VirtualComboBoxEx CNewTeamTypes::vcbTaskForce;
+VirtualComboBoxEx CNewTeamTypes::vcbScript;
+VirtualComboBoxEx CNewTeamTypes::vcbTag;
+VirtualComboBoxEx CNewTeamTypes::vcbHouse;
+VirtualComboBoxEx CNewTeamTypes::vcbWaypoint;
+VirtualComboBoxEx CNewTeamTypes::vcbTransportWaypoint;
 std::vector<FString> CNewTeamTypes::mindControlDecisions;
 WNDPROC CNewTeamTypes::OrigDragDotProc;
 WNDPROC CNewTeamTypes::OrigDragingDotProc;
@@ -232,6 +231,16 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hl.SetBorderThickness(3);
     hl.SetBorderRadius(0);
 
+    vcbSelectedTeam.Attach(hSelectedTeam, &ExtConfigs::SortByLabelName_Team, false);
+    vcbTaskForce.Attach(hTaskforce);
+    vcbScript.Attach(hScript);
+    vcbTag.Attach(hTag);
+    vcbHouse.Attach(hHouse);
+    vcbWaypoint.Attach(hWaypoint);
+    vcbWaypoint.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_Waypoint);
+    vcbTransportWaypoint.Attach(hTransportWaypoint);
+    vcbTransportWaypoint.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_Waypoint);
+
     Update(hWnd);
 }
 
@@ -242,10 +251,8 @@ void CNewTeamTypes::Update(HWND& hWnd)
 
     if (TeamSort::Instance.IsVisible())
         TeamSort::Instance.LoadAllTriggers();
-    DropNeedUpdate = false;
-    int idx = 0;
 
-    ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex);
+    ExtraWindow::SortTeams(vcbSelectedTeam, "TeamTypes", SelectedTeamIndex);
     int count = SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL);
     if (SelectedTeamIndex < 0)
         SelectedTeamIndex = 0;
@@ -253,20 +260,18 @@ void CNewTeamTypes::Update(HWND& hWnd)
         SelectedTeamIndex = count - 1;
     SendMessage(hSelectedTeam, CB_SETCURSEL, SelectedTeamIndex, NULL);
 
-
-    idx = 0;
-    while (SendMessage(hHouse, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hHouse);
     auto&& entries = rules.ParseIndicies("Countries", true);
     if (CMapData::Instance->IsMultiOnly())
     {
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ A>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ B>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ C>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ D>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ E>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ F>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ G>");
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"<Player @ H>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ A>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ B>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ C>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ D>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ E>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ F>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ G>");
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<Player @ H>");
     }
     for (size_t i = 0, sz = entries.size(); i < sz; ++i)
     {
@@ -274,62 +279,60 @@ void CNewTeamTypes::Update(HWND& hWnd)
         if (country == "GDI" || country == "Nod")
             continue;
         
-        SendMessage(hHouse, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)Translations::ParseHouseName(country, true));
+        SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)Translations::ParseHouseName(country, true));
     }
+    SendMessage(hHouse, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"<all>");
 
     int tmp = 0;
-    ExtraWindow::SortTeams(hTaskforce, "TaskForces", tmp);
-    ExtraWindow::SortTeams(hScript, "ScriptTypes", tmp);
+    ExtraWindow::SortTeams(vcbTaskForce, "TaskForces", tmp);
+    ExtraWindow::SortTeams(vcbScript, "ScriptTypes", tmp);
 
-    idx = 0;
-    while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hTag);
     std::vector<FString> labels;
     if (auto pSection = map.GetSection("Tags")) {
         for (auto& pair : pSection->GetEntities()) {
-            auto atoms = FString::SplitString(pair.second, 1);
-            FString name;
-            name.Format("%s (%s)", pair.first, atoms[1]);
-            labels.push_back(name);
+            labels.emplace_back(ExtraWindow::GetTagDisplayName(pair.first));
         }
     }
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
-    SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
-    for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hTag, CB_INSERTSTRING, i+1, (LPARAM)(LPCSTR)labels[i]);
-    }
+    ExtraWindow::SortLabels(labels);
+    vcbTag.AddString("None");
+    vcbTag.AddStrings(labels);
 
-    idx = 0;
-    while (SendMessage(hVeteranLevel, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"1");
-    SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"2");
-    SendMessage(hVeteranLevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"3");
+    ExtraWindow::ClearComboKeepText(hVeteranLevel);
+    SendMessage(hVeteranLevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"1");
+    SendMessage(hVeteranLevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"2");
+    SendMessage(hVeteranLevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"3");
 
-    idx = 0;
-    while (SendMessage(hTechlevel, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"0");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"1");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"2");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"3");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"4");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"5");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"6");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"7");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"8");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"9");
-    SendMessage(hTechlevel, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"10");
+    ExtraWindow::ClearComboKeepText(hTechlevel);
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"0");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"1");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"2");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"3");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"4");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"5");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"6");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"7");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"8");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"9");
+    SendMessage(hTechlevel, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"10");
 
-    idx = 0;
-    while (SendMessage(hWaypoint, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    while (SendMessage(hTransportWaypoint, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)"None");
+    ExtraWindow::ClearComboKeepText(hWaypoint);
+    ExtraWindow::ClearComboKeepText(hTransportWaypoint);
+    vcbTransportWaypoint.AddString("None");
+
 
     if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
     {
+        FString output;
         for (auto& pair : pSection->GetEntities())
         {
-            SendMessage(hWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
-            idx++;
-            SendMessage(hTransportWaypoint, CB_INSERTSTRING, idx, (LPARAM)(LPCSTR)pair.first.m_pchData);
+            int point = atoi(pair.second);
+            int x = point % 1000;
+            int y = point / 1000;
+
+            output.Format("%s - (%d, %d)", pair.first, x, y);
+            vcbTransportWaypoint.AddString(output);
+            vcbWaypoint.AddString(output);
         }
     }
 
@@ -348,13 +351,10 @@ void CNewTeamTypes::Update(HWND& hWnd)
     while (SendMessage(hGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
     SendMessage(hGroup, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"-1");
 
-    idx = 0;
-    while (SendMessage(hMindControlDecision, CB_DELETESTRING, 0, NULL) != CB_ERR);
+    ExtraWindow::ClearComboKeepText(hMindControlDecision);
     for (auto& decision : mindControlDecisions)
-        SendMessage(hMindControlDecision, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)decision);
+        SendMessage(hMindControlDecision, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)decision);
 
-    Autodrop = false;
-    ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
     OnSelchangeTeamtypes();
 }
 
@@ -782,14 +782,6 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         case Controls::SelectedTeam:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTeamtypes();
-            else if (CODE == CBN_DROPDOWN)
-                OnSeldropdownTeamtypes(hWnd);
-            else if (CODE == CBN_EDITCHANGE)
-                OnSelchangeTeamtypes(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupTeamtypes();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Name:
             if (CODE == EN_CHANGE)
@@ -800,18 +792,14 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 GetWindowText(hName, buffer, 511);
                 map.WriteString(CurrentTeamID, "Name", buffer);
 
-                DropNeedUpdate = true;
                 CNewAITrigger::TeamListChanged = true;
                 CNewTrigger::Instance[0].TeamListChanged = true;
                 CNewTrigger::Instance[1].TeamListChanged = true;
 
-                FString name;
-                name.Format("%s (%s)", CurrentTeamID, buffer);
-                SendMessage(hSelectedTeam, CB_DELETESTRING, SelectedTeamIndex, NULL);
-                SendMessage(hSelectedTeam, CB_INSERTSTRING, SelectedTeamIndex, (LPARAM)(LPCSTR)name);
-                SendMessage(hSelectedTeam, CB_SETCURSEL, SelectedTeamIndex, NULL);
+                FString name = ExtraWindow::FormatTriggerDisplayName(CurrentTeamID, buffer);
 
-                ExtraWindow::AdjustDropdownWidth(hSelectedTeam);
+                vcbSelectedTeam.ReplaceString(SelectedTeamIndex, name);
+                vcbSelectedTeam.SetCurSel(SelectedTeamIndex);
             }
             break;
         case Controls::House:
@@ -819,20 +807,12 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeHouse();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeHouse(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupHouse();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             break;
         case Controls::Taskforce:
             if (CODE == CBN_SELCHANGE)
                 OnSelchangeTaskForce();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTaskForce(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupTaskForce();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN && TaskforceListChanged)
                 OnDropdownTaskForce();
             break;
@@ -841,10 +821,6 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeScript();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeScript(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupScript();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN && ScriptListChanged)
                 OnDropdownScript();
             break;
@@ -853,10 +829,6 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTag();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTag(true);
-            else if (CODE == CBN_CLOSEUP)
-                OnCloseupTag();
-            else if (CODE == CBN_SELENDOK)
-                ExtraWindow::bComboLBoxSelected = true;
             else if (CODE == CBN_DROPDOWN && TagListChanged)
                 OnDropdownTag();
             break;
@@ -1039,7 +1011,11 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         Update(hWnd);
         return TRUE;
     }
-
+    case WM_MEASUREITEM:
+    {
+        VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
+        return TRUE;
+    }
     }
 
     // Process this message through default handler
@@ -1050,15 +1026,12 @@ void CNewTeamTypes::OnSelchangeTransportWaypoint(HWND& hWnd, bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    char buffer[512]{0};
-    SendMessage(hTransportWaypoint,
-        CB_GETLBTEXT,
-        SendMessage(hTransportWaypoint, CB_GETCURSEL, NULL, NULL),
-        (LPARAM)buffer);
-    if (edited)
-        GetWindowText(hTransportWaypoint, buffer, 511);
-    FString text = buffer;
-    text.Trim();
+
+    FString text = vcbTransportWaypoint.GetSelectedText(edited);
+    if (text.empty())
+        return;
+
+    FString::TrimIndex(text);
     if (text == "None")
     {
         map.WriteBool(CurrentTeamID, "UseTransportOrigin", false);
@@ -1073,15 +1046,12 @@ void CNewTeamTypes::OnSelchangeWaypoint(HWND& hWnd, bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    char buffer[512]{0};
-    SendMessage(hWaypoint,
-        CB_GETLBTEXT,
-        SendMessage(hWaypoint, CB_GETCURSEL, NULL, NULL),
-        (LPARAM)buffer);
-    if (edited)
-        GetWindowText(hWaypoint, buffer, 511);
-    FString text = buffer;
-    text.Trim();
+
+    FString text = vcbWaypoint.GetSelectedText(edited);
+    if (text.empty())
+        return;
+
+    FString::TrimIndex(text);
 
     map.WriteString(CurrentTeamID, "Waypoint", STDHelpers::WaypointToString(text));
 }
@@ -1090,29 +1060,11 @@ void CNewTeamTypes::OnSelchangeTaskForce(bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    int curSel = SendMessage(hTaskforce, CB_GETCURSEL, NULL, NULL);
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL) > 0 || !TaskForceLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hTaskforce, TaskForceLabels);
-    }
-
-    if (curSel >= 0 && curSel < SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hTaskforce, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hTaskforce, buffer, 511);
-        text = buffer;
-    }
-
-    if (!text)
+    FString text = vcbTaskForce.GetSelectedText(edited);
+    if (text.empty())
         return;
+
 
     FString::TrimIndex(text);
     if (text == "None")
@@ -1121,38 +1073,13 @@ void CNewTeamTypes::OnSelchangeTaskForce(bool edited)
     map.WriteString(CurrentTeamID, "TaskForce", text);    
 }
 
-void CNewTeamTypes::OnCloseupTaskForce()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hTaskforce, TaskForceLabels))
-    {
-        OnSelchangeTeamtypes();
-    }
-}
-
 void CNewTeamTypes::OnSelchangeScript(bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    int curSel = SendMessage(hScript, CB_GETCURSEL, NULL, NULL);
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hScript, CB_GETCOUNT, NULL, NULL) > 0 || !ScriptLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hScript, ScriptLabels);
-    }
-    if (curSel >= 0 && curSel < SendMessage(hScript, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hScript, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hScript, buffer, 511);
-        text = buffer;
-    }
-    if (!text)
+    FString text = vcbScript.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     FString::TrimIndex(text);
@@ -1162,37 +1089,12 @@ void CNewTeamTypes::OnSelchangeScript(bool edited)
     map.WriteString(CurrentTeamID, "Script", text);
 }
 
-void CNewTeamTypes::OnCloseupScript()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hScript, ScriptLabels))
-    {
-        OnSelchangeTeamtypes();
-    }
-}
-
 void CNewTeamTypes::OnSelchangeTag(bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    int curSel = SendMessage(hTag, CB_GETCURSEL, NULL, NULL);
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hTag, CB_GETCOUNT, NULL, NULL) > 0 || !TagLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hTag, TagLabels);
-    }
-    if (curSel >= 0 && curSel < SendMessage(hTag, CB_GETCOUNT, NULL, NULL))
-    {
-        SendMessage(hTag, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hTag, buffer, 511);
-        text = buffer;
-    }
+    FString text = vcbTag.GetSelectedText(edited);
 
     FString::TrimIndex(text);
     if (text == "None")
@@ -1204,57 +1106,17 @@ void CNewTeamTypes::OnSelchangeTag(bool edited)
         map.WriteString(CurrentTeamID, "Tag", text);
 }
 
-void CNewTeamTypes::OnCloseupTag()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hTag, TagLabels))
-    {
-        OnSelchangeTeamtypes();
-    }
-}
-
 void CNewTeamTypes::OnSelchangeHouse(bool edited)
 {
     if (SelectedTeamIndex < 0)
         return;
-    int curSel = SendMessage(hHouse, CB_GETCURSEL, NULL, NULL);
-    int count = SendMessage(hHouse, CB_GETCOUNT, NULL, NULL);
-    FString text;
-    char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
 
-    if (edited && (SendMessage(hHouse, CB_GETCOUNT, NULL, NULL) > 0 || !HouseLabels.empty()))
-    {
-        ExtraWindow::OnEditCComboBox(hHouse, HouseLabels);
-    }
-    if (curSel >= 0 && curSel < count)
-    {
-        SendMessage(hHouse, CB_GETLBTEXT, curSel, (LPARAM)buffer);
-        text = buffer;
-    }
-    if (edited)
-    {
-        GetWindowText(hHouse, buffer, 511);
-        text = buffer;
-        int idx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(text, true));
-        if (idx != CB_ERR)
-        {
-            SendMessage(hHouse, CB_GETLBTEXT, idx, (LPARAM)buffer);
-            text = buffer;
-        }
-    }
-    if (!text)
+    FString text = vcbHouse.GetSelectedText(edited);
+    if (text.empty())
         return;
 
     text.Trim();
     map.WriteString(CurrentTeamID, "House", Translations::ParseHouseName(text, false));
-}
-
-void CNewTeamTypes::OnCloseupHouse()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hHouse, HouseLabels))
-    {
-        OnSelchangeTeamtypes();
-    }
 }
 
 void CNewTeamTypes::OnDropdownTaskForce()
@@ -1263,10 +1125,13 @@ void CNewTeamTypes::OnDropdownTaskForce()
     char buffer[512]{ 0 };
     GetWindowText(hTaskforce, buffer, 511);
     FString text(buffer);
-
-    int tmp = 0;
-    ExtraWindow::SortTeams(hTaskforce, "TaskForces", tmp);
-    TaskforceListChanged = false;
+    
+    if (TaskforceListChanged)
+    {
+        int tmp = 0;
+        ExtraWindow::SortTeams(vcbTaskForce, "TaskForces", tmp);
+        TaskforceListChanged = false;
+    }
 
     int idx = SendMessage(hTaskforce, CB_FINDSTRINGEXACT, 0, text);
     if (idx != CB_ERR)
@@ -1287,9 +1152,12 @@ void CNewTeamTypes::OnDropdownScript()
     GetWindowText(hScript, buffer, 511);
     FString text(buffer);
 
-    int tmp = 0;
-    ExtraWindow::SortTeams(hScript, "ScriptTypes", tmp);
-    ScriptListChanged = false;
+    if (ScriptListChanged)
+    {
+        int tmp = 0;
+        ExtraWindow::SortTeams(vcbScript, "ScriptTypes", tmp);
+        ScriptListChanged = false;
+    }
 
     int idx = SendMessage(hScript, CB_FINDSTRINGEXACT, 0, text);
     if (idx != CB_ERR)
@@ -1310,22 +1178,19 @@ void CNewTeamTypes::OnDropdownTag()
     GetWindowText(hTag, buffer, 511);
     FString text(buffer);
 
-    while (SendMessage(hTag, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    std::vector<FString> labels;
-    if (auto pSection = map.GetSection("Tags")) {
-        for (auto& pair : pSection->GetEntities()) {
-            auto atoms = FString::SplitString(pair.second, 1);
-            FString name;
-            name.Format("%s (%s)", pair.first, atoms[1]);
-            labels.push_back(name);
+    if (TagListChanged)
+    {
+        vcbTag.Clear();
+        std::vector<FString> labels;
+        if (auto pSection = map.GetSection("Tags")) {
+            for (auto& pair : pSection->GetEntities()) {
+                labels.emplace_back(ExtraWindow::GetTagDisplayName(pair.first));
+            }
         }
+        ExtraWindow::SortLabels(labels);
+        vcbTag.AddString("None");
+        vcbTag.AddStrings(labels);
     }
-    std::sort(labels.begin(), labels.end(), ExtraWindow::SortLabels);
-    SendMessage(hTag, CB_INSERTSTRING, 0, (LPARAM)(LPCSTR)"None");
-    for (size_t i = 0; i < labels.size(); ++i) {
-        SendMessage(hTag, CB_INSERTSTRING, i + 1, (LPARAM)(LPCSTR)labels[i]);
-    }
-    TagListChanged = false;
 
     int idx = SendMessage(hTag, CB_FINDSTRINGEXACT, 0, text);
     if (idx != CB_ERR)
@@ -1528,19 +1393,11 @@ void CNewTeamTypes::OnSeldropdownTeamtypes(HWND& hWnd)
 void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
 {
     char buffer[512]{ 0 };
-    char buffer2[512]{ 0 };
-
-    if (edited && (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 || !TeamLabels.empty()))
-    {
-        Autodrop = true;
-        ExtraWindow::OnEditCComboBox(hSelectedTeam, TeamLabels);
-        return;
-    }
 
     SelectedTeamIndex = SendMessage(hSelectedTeam, CB_GETCURSEL, NULL, NULL);
-    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+
+    auto clear = []()
     {
-        CurrentTeamID = "";
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hName, WM_SETTEXT, 0, (LPARAM)"");
         SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)"");
@@ -1577,6 +1434,12 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, BST_UNCHECKED, 0);
         SendMessage(hSearchReference, BM_SETCHECK, BST_UNCHECKED, 0);
+    };
+
+    if (SelectedTeamIndex < 0 || SelectedTeamIndex >= SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL))
+    {
+        CurrentTeamID = "";
+        clear();
         InvalidateRect(hDragPoint, nullptr, TRUE);
         return;
     }
@@ -1605,13 +1468,13 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         auto waypoint = STDHelpers::StringToWaypointStr(map.GetString(pID, "Waypoint"));
 
 
-        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.m_pchData);
+        SendMessage(hName, WM_SETTEXT, 0, (LPARAM)name.GetString());
 
         int houseidx = SendMessage(hHouse, CB_FINDSTRINGEXACT, 0, (LPARAM)Translations::ParseHouseName(house, true));
         if (houseidx != CB_ERR)
             SendMessage(hHouse, CB_SETCURSEL, houseidx, NULL);
         else
-            SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)house.m_pchData);
+            SendMessage(hHouse, WM_SETTEXT, 0, (LPARAM)house.GetString());
 
         bool found = false;
         for (int idx = 0; idx < SendMessage(hTaskforce, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1630,7 +1493,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (taskforce == "")
             taskforce = "None";
         if (!found)
-            SendMessage(hTaskforce, WM_SETTEXT, 0, (LPARAM)taskforce.m_pchData);
+            SendMessage(hTaskforce, WM_SETTEXT, 0, (LPARAM)taskforce.GetString());
 
         found = false;
         for (int idx = 0; idx < SendMessage(hScript, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1649,7 +1512,7 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (script == "")
             script = "None";
         if (!found)
-            SendMessage(hScript, WM_SETTEXT, 0, (LPARAM)script.m_pchData);
+            SendMessage(hScript, WM_SETTEXT, 0, (LPARAM)script.GetString());
 
         found = false;
         for (int idx = 0; idx < SendMessage(hTag, CB_GETCOUNT, NULL, NULL); idx++)
@@ -1668,9 +1531,9 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (tag == "")
             tag = "None";
         if (!found)
-            SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.m_pchData);
+            SendMessage(hTag, WM_SETTEXT, 0, (LPARAM)tag.GetString());
 
-        auto SetCurSel = [](HWND hwnd, char* text)
+        auto SetCurSel = [](HWND hwnd, const char* text)
         {
             int idx = SendMessage(hwnd, CB_FINDSTRINGEXACT, 0, (LPARAM)text);
             if (idx != CB_ERR)
@@ -1684,18 +1547,19 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         if (!found)
             SendMessage(hParadropAircraft, WM_SETTEXT, 0, (LPARAM)paradropAircraft.m_pchData);
 
-        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").m_pchData);
-        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").m_pchData);
-        SetCurSel(hTransportWaypoint, tWaypoint.m_pchData);
-        SetCurSel(hWaypoint, waypoint.m_pchData);
-        SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").m_pchData);
-        SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").m_pchData);
-        SetCurSel(hGroup, map.GetString(pID, "Group").m_pchData);
-        int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
+        
+        SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").GetString());
+        SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").GetString());
+        SetCurSel(hTransportWaypoint, tWaypoint.GetString());
+        SetCurSel(hWaypoint, waypoint.GetString());
+        SendMessage(hPriority, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Priority").GetString());
+        SendMessage(hMax, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "Max").GetString());
+        SetCurSel(hGroup, map.GetString(pID, "Group").GetString());
+        int idxMCD = SendMessage(hMindControlDecision, CB_FINDSTRING, 0, (LPARAM)map.GetString(pID, "MindControlDecision").GetString());
         if (idxMCD != CB_ERR)
             SendMessage(hMindControlDecision, CB_SETCURSEL, idxMCD, NULL);
         else
-            SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "MindControlDecision").m_pchData);
+            SendMessage(hMindControlDecision, WM_SETTEXT, 0, (LPARAM)map.GetString(pID, "MindControlDecision").GetString());
 
         SendMessage(hCheckBoxLoadable, BM_SETCHECK, map.GetBool(pID, "Loadable"), 0);
         SendMessage(hCheckBoxFull, BM_SETCHECK, map.GetBool(pID, "Full"), 0);
@@ -1734,7 +1598,7 @@ void CNewTeamTypes::OnCloseupTeamtypes()
 {
     if (!ExtraWindow::OnCloseupCComboBox(hSelectedTeam, TeamLabels, true))
     {
-        OnSelchangeTeamtypes();
+        clear();
     }
 }
 
@@ -1798,9 +1662,9 @@ void CNewTeamTypes::OnClickTurnToTag()
     FString::TrimIndex(text);
 
     // actually turn to first trigger with this tag, since tag is not important
-    if (CNewTrigger::Instance[0].GetHandle() == NULL)
-        CNewTrigger::Instance[0].Create(m_parent);
-
+    auto& editor = CNewTrigger::GetFirstValidInstance();
+    if (editor.GetHandle() == NULL)
+        editor.Create(m_parent);
     for (const auto& [ID, trigger] : CMapDataExt::Triggers)
     {
         if (trigger->Tag == text)
@@ -1810,19 +1674,19 @@ void CNewTeamTypes::OnClickTurnToTag()
         }
     }
 
-    auto dlg = GetDlgItem(CNewTrigger::Instance[0].GetHandle(), CNewTrigger::Controls::SelectedTrigger);
+    auto dlg = GetDlgItem(editor.GetHandle(), CNewTrigger::Controls::SelectedTrigger);
     auto idx = SendMessage(dlg, CB_FINDSTRINGEXACT, 0, ExtraWindow::GetTriggerDisplayName(text));
     if (idx == CB_ERR)
         return;
     SendMessage(dlg, CB_SETCURSEL, idx, NULL);
-    CNewTrigger::Instance[0].OnSelchangeTrigger();
-    SetWindowPos(CNewTrigger::Instance[0].GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    editor.OnSelchangeTrigger();
+    SetWindowPos(editor.GetHandle(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 }
 
 void CNewTeamTypes::OnClickNewTeam()
 {
     FString key = CINI::GetAvailableKey("TeamTypes");
-    FString value = CMapDataExt::GetAvailableIndex();
+    FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
     char buffer[512];
     FString buffer2;
 
@@ -1892,7 +1756,7 @@ void CNewTeamTypes::OnClickNewTeam()
     map.WriteString(value, "TransportsReturnOnUnload", "no");
     map.WriteString(value, "AreTeamMembersRecruitable", "no");
 
-    ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
+    ExtraWindow::SortTeams(vcbSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
 
     OnSelchangeTeamtypes();
     CNewAITrigger::TeamListChanged = true;
@@ -1944,7 +1808,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
     if (SendMessage(hSelectedTeam, CB_GETCOUNT, NULL, NULL) > 0 && SelectedTeamIndex >= 0)
     {
         FString key = CINI::GetAvailableKey("TeamTypes");
-        FString value = CMapDataExt::GetAvailableIndex();
+        FString value = CMapDataExt::GetAvailableIndex(EIndexType::Team);
 
         CINI::CurrentDocument->WriteString("TeamTypes", key, value);
 
@@ -1997,7 +1861,7 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("TransportsReturnOnUnload");
         copyitem("AreTeamMembersRecruitable");
 
-        ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
+        ExtraWindow::SortTeams(vcbSelectedTeam, "TeamTypes", SelectedTeamIndex, value);
 
         OnSelchangeTeamtypes();
         CNewAITrigger::TeamListChanged = true;
@@ -2025,17 +1889,5 @@ void CNewTeamTypes::OnClickSearchReference(HWND& hWnd)
 
 bool CNewTeamTypes::OnEnterKeyDown(HWND& hWnd)
 {
-    if (hWnd == hSelectedTeam)
-        OnSelchangeTeamtypes(true);
-    else if (hWnd == hHouse)
-        OnSelchangeHouse(true);
-    else if (hWnd == hTag)
-        OnSelchangeTag(true);
-    else if (hWnd == hTaskforce)
-        OnSelchangeTaskForce(true);
-    else if (hWnd == hScript)
-        OnSelchangeScript(true);
-    else
-        return false;
-    return true;
+    return false;
 }
