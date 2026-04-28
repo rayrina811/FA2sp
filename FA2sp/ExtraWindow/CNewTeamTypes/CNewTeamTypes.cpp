@@ -336,20 +336,18 @@ void CNewTeamTypes::Update(HWND& hWnd)
         }
     }
 
-    idx = 0;
     while (SendMessage(hParadropAircraft, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hParadropAircraft, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"None");
+    SendMessage(hParadropAircraft, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"None");
     if (auto pSection = CINI::FAData->GetSection("ParadropAircrafts"))
     {
         for (auto& pair : pSection->GetEntities())
         {
-            SendMessage(hParadropAircraft, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)pair.second.m_pchData);
+            SendMessage(hParadropAircraft, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)pair.second.m_pchData);
         }
     }
 
-    idx = 0;
     while (SendMessage(hGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hGroup, CB_INSERTSTRING, idx++, (LPARAM)(LPCSTR)"-1");
+    SendMessage(hGroup, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"-1");
 
     ExtraWindow::ClearComboKeepText(hMindControlDecision);
     for (auto& decision : mindControlDecisions)
@@ -1374,22 +1372,6 @@ void CNewTeamTypes::OnSelchangeParadropAircrafts(HWND& hWnd, bool edited)
         map.WriteString(CurrentTeamID, "ParadropAircraft", text);
 }
 
-void CNewTeamTypes::OnSeldropdownTeamtypes(HWND& hWnd)
-{
-    if (Autodrop)
-    {
-        Autodrop = false;
-        return;
-    }
-
-    if (!DropNeedUpdate)
-        return;
-
-    DropNeedUpdate = false;
-
-    ExtraWindow::SortTeams(hSelectedTeam, "TeamTypes", SelectedTeamIndex, CurrentTeamID);
-}
-
 void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
 {
     char buffer[512]{ 0 };
@@ -1582,21 +1564,8 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
         SendMessage(hCheckBoxIsBaseDefense, BM_SETCHECK, map.GetBool(pID, "IsBaseDefense"), 0);
         SendMessage(hCheckBoxOnlyTargetHouseEnemy, BM_SETCHECK, map.GetBool(pID, "OnlyTargetHouseEnemy"), 0);
 
-        if (map.GetBool(pID, "Droppod"))
-        {
-            EnableWindow(hParadropAircraft, TRUE);
-        }
-        else
-        {
-            EnableWindow(hParadropAircraft, FALSE);
-        }
     }
-    DropNeedUpdate = false;
-}
-
-void CNewTeamTypes::OnCloseupTeamtypes()
-{
-    if (!ExtraWindow::OnCloseupCComboBox(hSelectedTeam, TeamLabels, true))
+    else
     {
         clear();
     }
