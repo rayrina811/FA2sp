@@ -51,6 +51,7 @@ bool ExtConfigs::SortByTriggerName;
 bool ExtConfigs::SortByLabelName;
 bool ExtConfigs::SortByLabelName_AITrigger;
 bool ExtConfigs::SortByLabelName_Trigger;
+bool ExtConfigs::SortByLabelName_Tag;
 bool ExtConfigs::SortByLabelName_Team;
 bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
@@ -73,6 +74,8 @@ int ExtConfigs::GapRangeBound_Color;
 int ExtConfigs::SensorsRangeBound_Color;
 int ExtConfigs::CloakRangeBound_Color;
 int ExtConfigs::PsychicRangeBound_Color;
+int ExtConfigs::DesignatorRangeBound_Color;
+int ExtConfigs::InhibitorRangeBound_Color;
 int ExtConfigs::GuardRangeBound_Color;
 int ExtConfigs::SightRangeBound_Color;
 int ExtConfigs::CursorSelectionBound_HeightColor;
@@ -166,8 +169,9 @@ bool ExtConfigs::INIEditor_IgnoreTeams;
 bool ExtConfigs::StringBufferStackAllocation = true;
 int ExtConfigs::RangeBound_MaxRange;
 bool ExtConfigs::RangeBound_DrawEllipse;
-int ExtConfigs::SearchCombobox_MaxCount;
 bool ExtConfigs::SearchCombobox_Waypoint;
+bool ExtConfigs::SearchCombobox_Disabled;
+bool ExtConfigs::SearchCombobox_AllowNonParams;
 bool ExtConfigs::NewTheaterType;
 bool ExtConfigs::IncludeType;
 bool ExtConfigs::InheritType;
@@ -196,7 +200,8 @@ bool ExtConfigs::LightingPreview_MultUnitColor;
 bool ExtConfigs::LightingPreview_TintTileSetBrowserView;
 bool ExtConfigs::DDrawScalingBilinear;
 bool ExtConfigs::DDrawScalingBilinear_OnlyShrink;
-bool ExtConfigs::UseNewToolBarCameo;
+bool ExtConfigs::DirectXRendering;
+bool ExtConfigs::DirectXRendering_INI;
 bool ExtConfigs::DisableDirectoryCheck;
 bool ExtConfigs::ExtOverlays;
 bool ExtConfigs::SaveMap_PreserveINISorting;
@@ -265,6 +270,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SortByLabelName = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName");
 	ExtConfigs::SortByLabelName_AITrigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.AITrigger");
 	ExtConfigs::SortByLabelName_Trigger = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Trigger");
+	ExtConfigs::SortByLabelName_Tag = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Tag");
 	ExtConfigs::SortByLabelName_Team = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Team");
 	ExtConfigs::SortByLabelName_Taskforce = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Taskforce");
 	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
@@ -306,6 +312,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PsychicRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "PsychicRangeBound.Color", 0x00FFFF);
 	ExtConfigs::GuardRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "GuardRangeBound.Color", 0x00FF00);
 	ExtConfigs::SightRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "SightRangeBound.Color", 0xFFFFFF);
+	ExtConfigs::DesignatorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "DesignatorRangeBound.Color", 0x4CB122);
+	ExtConfigs::InhibitorRangeBound_Color = CINI::FAData->GetColor("ExtConfigs", "InhibitorRangeBound.Color", 0x302ECC);
 
 	ExtConfigs::WeaponRangeBound_SubjectToElevation = CINI::FAData->GetBool("ExtConfigs", "WeaponRangeBound.SubjectToElevation");
 
@@ -343,6 +351,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayObjectsOutside = CINI::FAData->GetBool("ExtConfigs", "DisplayObjectsOutside");
 	ExtConfigs::DDrawScalingBilinear = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear", true);
 	ExtConfigs::DDrawScalingBilinear_OnlyShrink = CINI::FAData->GetBool("ExtConfigs", "DDrawScalingBilinear.OnlyShrink", true);
+	ExtConfigs::DirectXRendering_INI = CINI::FAData->GetBool("ExtConfigs", "DirectXRendering");
 
 	ExtConfigs::LightingPreview_MultUnitColor = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.MultUnitColor");
 	ExtConfigs::LightingPreview_TintTileSetBrowserView = CINI::FAData->GetBool("ExtConfigs", "LightingPreview.TintTileSetBrowserView");
@@ -350,7 +359,6 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UseDefaultUnitImage_TechnoAttachment = CINI::FAData->GetBool("ExtConfigs", "UseDefaultUnitImage.TechnoAttachment");
 	ExtConfigs::UseStrictNewTheater = CINI::FAData->GetBool("ExtConfigs", "UseStrictNewTheater");
 	ExtConfigs::DisableDirectoryCheck = CINI::FAData->GetBool("ExtConfigs", "DisableDirectoryCheck");
-	ExtConfigs::UseNewToolBarCameo = CINI::FAData->GetBool("ExtConfigs", "UseNewToolBarCameo", true);
 	ExtConfigs::InGameDisplay_Shadow = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow", true);
 	ExtConfigs::InGameDisplay_Shadow_OnGround = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Shadow.OnGround");
 	ExtConfigs::InGameDisplay_Deploy = CINI::FAData->GetBool("ExtConfigs", "InGameDisplay.Deploy", true);
@@ -378,9 +386,9 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::InheritType = CINI::FAData->GetBool("ExtConfigs", "InheritType");
 	ExtConfigs::IncludeType = CINI::FAData->GetBool("ExtConfigs", "IncludeType");
 	ExtConfigs::SearchCombobox_Waypoint = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Waypoint");
-	ExtConfigs::SearchCombobox_MaxCount = CINI::FAData->GetInteger("ExtConfigs", "SearchCombobox.MaxCount", 1000);
-	if (ExtConfigs::SearchCombobox_MaxCount < 0)
-		ExtConfigs::SearchCombobox_MaxCount = INT_MAX;
+	ExtConfigs::SearchCombobox_Disabled = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.Disabled");
+	ExtConfigs::SearchCombobox_AllowNonParams = CINI::FAData->GetBool("ExtConfigs", "SearchCombobox.AllowNonParams", true);
+
 	ExtConfigs::RangeBound_MaxRange = CINI::FAData->GetInteger("ExtConfigs", "RangeBound.MaxRange", 50);
 	ExtConfigs::UndoRedoLimit = CINI::FAData->GetInteger("ExtConfigs", "UndoRedoLimit", 64);
 	ExtConfigs::UndoRedo_ShiftPlaceTile = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.ShiftPlaceTile", true);
@@ -560,6 +568,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SecondScreenSupport =
 		ExtConfigs::SecondScreenSupport_INI
 		&& (GetSystemMetrics(SM_CMONITORS) > 1);
+
+	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -617,6 +627,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Tag", "Sort Tags by label name, override global setting"),
+		.IniKey = "SortByLabelName.Tag",
+		.Value = &ExtConfigs::SortByLabelName_Tag,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.SortByLabelName.Trigger", "Sort triggers by label name, override global setting"),
 		.IniKey = "SortByLabelName.Trigger",
 		.Value = &ExtConfigs::SortByLabelName_Trigger,
@@ -645,9 +662,23 @@ void ExtConfigs::UpdateOptionTranslations()
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Popup dropdown when editing waypoint params"),
-		.IniKey = "SearchCombobox.Waypoint",
-		.Value = &ExtConfigs::SearchCombobox_Waypoint,
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Disabled", "Disable automatic search for dropdown menus; search only when pressing Enter"),
+		.IniKey = "SearchCombobox.Disabled",
+		.Value = &ExtConfigs::SearchCombobox_Disabled,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+	.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.Waypoint", "Automatically perform search when editing waypoint params"),
+	.IniKey = "SearchCombobox.Waypoint",
+	.Value = &ExtConfigs::SearchCombobox_Waypoint,
+	.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.SearchCombobox.AllowNonParams", "Allow automatic search for non-parameter dropdown menus"),
+		.IniKey = "SearchCombobox.AllowNonParams",
+		.Value = &ExtConfigs::SearchCombobox_AllowNonParams,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -677,13 +708,6 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "EnableDarkMode.DimMap",
 		.Value = &ExtConfigs::EnableDarkMode_DimMap,
 		.Type = ExtConfigs::SpecialOptionType::None
-		});
-
-	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
-		.DisplayName = Translations::TranslateOrDefault("Options.UseNewToolBarCameo", "Use new tool bar cameo"),
-		.IniKey = "UseNewToolBarCameo",
-		.Value = &ExtConfigs::UseNewToolBarCameo,
-		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 
 	// Object Browser Settings
@@ -1340,6 +1364,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.SecondScreenSupport", "Support displaying IsoView on non-primary screens (slower)"),
 		.IniKey = "SecondScreenSupport",
 		.Value = &ExtConfigs::SecondScreenSupport_INI,
+		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DirectXRendering", "Draw using DirectX 11"),
+		.IniKey = "DirectXRendering",
+		.Value = &ExtConfigs::DirectXRendering_INI,
 		.Type = ExtConfigs::SpecialOptionType::Restart
 		});
 

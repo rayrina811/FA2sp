@@ -2,6 +2,7 @@
 
 #include "../../FA2sp.h"
 #include "../CIsoView/Body.h"
+#include "../CIsoView/DirectXCore.h"
 #include "../CMapData/Body.h"
 #include "../CFinalSunApp/Body.h"
 #include <CMapData.h>
@@ -23,6 +24,7 @@
 #include "../../ExtraWindow/CLuaConsole/CLuaConsole.h"
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -617,7 +619,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		if (CLoading::IsFileExists(file.c_str()))
 			this->LoadMap(file.c_str());
 	}
-	if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
@@ -626,12 +628,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 
 	// object search
-	if (wmID == 40134 || wmID == 40161)
+	else if (wmID == 40134 || wmID == 40161)
 	{
 		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
 		pTSB->OnBNSearchClicked();
 	}
-	if (wmID == 30108)
+	else if (wmID == 30108)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -643,13 +645,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			pTSB->OnBNTerrainGeneratorClicked();
 		}
 	}
-
-	if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40137 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		auto pTSB = (CTileSetBrowserFrameExt*)CFinalSunDlg::Instance()->MyViewFrame.pTileSetBrowserFrame;
 		pTSB->OnBNTileManagerClicked();
 	}
-	if (wmID == 40138)
+	else if (wmID == 40138)
 	{
 		if (CNewTeamTypes::GetHandle() == NULL)
 			CNewTeamTypes::Create((CFinalSunDlg*)this);
@@ -659,7 +660,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40139)
+	else if (wmID == 40139)
 	{
 		if (CNewTaskforce::GetHandle() == NULL)
 			CNewTaskforce::Create((CFinalSunDlg*)this);
@@ -669,7 +670,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40150)
+	else if (wmID == 40150)
 	{
 		if (CNewScript::GetHandle() == NULL)
 			CNewScript::Create((CFinalSunDlg*)this);
@@ -679,7 +680,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 
 	}
-	if (wmID == 40151)
+	else if (wmID == 40151)
 	{
 		if (CNewTrigger::Instance[0].GetHandle() == NULL)
 			CNewTrigger::Instance[0].Create((CFinalSunDlg*)this);
@@ -688,7 +689,17 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewTrigger::Instance[0].GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40168)
+	else if (wmID == 40042)
+	{
+		if (CNewTag::GetHandle() == NULL)
+			CNewTag::Create((CFinalSunDlg*)this);
+		else
+		{
+			::SendMessage(CNewTag::GetHandle(), 114514, 0, 0);
+		}
+		return TRUE;
+	}
+	else if (wmID == 40168)
 	{
 		if (CBatchTrigger::GetHandle() == NULL)
 			CBatchTrigger::Create((CFinalSunDlg*)this);
@@ -697,7 +708,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CBatchTrigger::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40154)
+	else if (wmID == 40154)
 	{
 		if (CNewINIEditor::GetHandle() == NULL)
 			CNewINIEditor::Create((CFinalSunDlg*)this);
@@ -706,7 +717,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewINIEditor::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40155)
+	else if (wmID == 40155)
 	{
 		if (CCsfEditor::GetHandle() == NULL)
 			CCsfEditor::Create((CFinalSunDlg*)this);
@@ -715,7 +726,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CCsfEditor::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40156)
+	else if (wmID == 40156)
 	{
 		if (CNewAITrigger::GetHandle() == NULL)
 			CNewAITrigger::Create((CFinalSunDlg*)this);
@@ -724,7 +735,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewAITrigger::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40157)
+	else if (wmID == 40157)
 	{
 		const FString title = Translations::TranslateOrDefault(
 			"Error", "Error"
@@ -759,12 +770,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, title, MB_ICONWARNING);
 		}
 	}
-	if (wmID == 40022)
+	else if (wmID == 40022)
 	{
 		CNewTipsOfTheDay::ShowNewTipsOfTheDay();
 		return TRUE;
 	}
-	if (wmID == 40163)
+	else if (wmID == 40163)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -776,7 +787,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		return TRUE;
 	}
-	if (wmID == 40158)
+	else if (wmID == 40158)
 	{
 		if (CLuaConsole::GetHandle() == NULL)
 			CLuaConsole::Create((CFinalSunDlg*)this);
@@ -785,7 +796,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CLuaConsole::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40160 && CMapData::Instance->MapWidthPlusHeight)
+	else if (wmID == 40160 && CMapData::Instance->MapWidthPlusHeight)
 	{
 		if (CNewLocalVariables::GetHandle() == NULL)
 			CNewLocalVariables::Create((CFinalSunDlg*)this);
@@ -794,7 +805,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewLocalVariables::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40162)
+	else if (wmID == 40162)
 	{
 		if (CFA2spOptions::GetHandle() == NULL)
 			CFA2spOptions::Create((CFinalSunDlg*)this);
@@ -803,7 +814,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CFA2spOptions::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40164)
+	else if (wmID == 40164)
 	{
 		if (CTriggerAnnotation::GetHandle() == NULL)
 			CTriggerAnnotation::Create((CFinalSunDlg*)this);
@@ -812,8 +823,9 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CTriggerAnnotation::GetHandle(), 114514, 0, 0);
 		}
 	}
-	if (wmID == 40165)
+	else if (wmID == 40165)
 	{
+		bool endConfirmDialog = false;
 		auto setLighting = [](int id)
 		{
 			if (CFinalSunDlgExt::CurrentLighting != id)
@@ -972,6 +984,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				pIsoView->GetWindowRect(&r);
 				pIsoView->AdaptRectForSecondScreen(&r);
 
+				// Use client rect dimensions for tile advancement to avoid gaps
+				// caused by scrollbars (DX offscreen texture is client-area sized).
+				CRect cr;
+				pIsoView->GetClientRect(&cr);
+				int tileW = cr.Width();
+				int tileH = cr.Height();
+				if (tileW <= 0 || tileH <= 0) { tileW = r.Width(); tileH = r.Height(); }
+
 				CRect validRange;
 				validRange.left = 30 * (height + width + startY - startX) - (r.right - r.left) / 2 - r.left;
 				validRange.top = 15 * (startY + startX) - (r.bottom - r.top) / 2 - r.top;
@@ -980,8 +1000,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 				pIsoView->ViewPosition.y = validRange.top;
 
-				int totalTileCount = ((validRange.right - validRange.left + r.Width()) / r.Width() + 1)
-					* ((validRange.bottom - validRange.top + r.Height()) / r.Height() + 1) - 1;
+				int totalTileCount = ((validRange.right - validRange.left + tileW) / tileW + 1)
+					* ((validRange.bottom - validRange.top + tileH) / tileH + 1) - 1;
 
 				CUpdateProgress progress(
 					Translations::TranslateOrDefault("MapRendererProgressText",
@@ -996,10 +1016,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				int currentTile = 0;
 				static int renderFailedCount;
 				renderFailedCount = 0;
-				while (pIsoView->ViewPosition.y < validRange.bottom + r.Height())
+				while (pIsoView->ViewPosition.y < validRange.bottom + tileH)
 				{
 					pIsoView->ViewPosition.x = validRange.left;
-					while (pIsoView->ViewPosition.x < validRange.right + r.Width())
+					while (pIsoView->ViewPosition.x < validRange.right + tileW)
 					{
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
 						::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
@@ -1024,14 +1044,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 						Sleep(1);
 
 						if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500) {
-							pIsoView->ViewPosition.x += r.Width();
+							pIsoView->ViewPosition.x += tileW;
 							currentTile++;
 						}
 						else {
 							renderFailedCount++;
 						}
 					}
-					pIsoView->ViewPosition.y += r.Height();
+					pIsoView->ViewPosition.y += tileH;
 				}
 
 				EnableScrollBar(pIsoView->GetSafeHwnd(), SB_BOTH, ESB_ENABLE_BOTH);
@@ -1092,6 +1112,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				FString message;
 				message.Format(templ, path);
 				::MessageBox(CFinalSunDlg::Instance()->MyViewFrame.pIsoView->m_hWnd, message, "FA2sp", MB_ICONINFORMATION);
+				endConfirmDialog = true;
 			}
 
 			CIsoViewExt::pFullBitmap = nullptr;
@@ -1116,10 +1137,15 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			if (!CMapData::Instance->MapWidthPlusHeight && !batchProcess)
 				return TRUE;
 
-			TempValueHolder<double> scaled(CIsoViewExt::ScaledFactor, 1.0);
+			auto tempScaledFactor = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor = 1.0;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
 			std::vector<std::unique_ptr<TempValueHolder<bool>>> holders;
 			std::vector<std::unique_ptr<TempValueHolder<BOOL>>> holders2;
-
+			
 			if (!CIsoViewExt::RenderCurrentLayers)
 			{
 				ADD_TEMP_HOLDER(holders, CIsoViewExt::DrawStructures, true);
@@ -1176,9 +1202,19 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					MyViewFrame.Minimap.Update();
 				}
 			}
+
+			CIsoViewExt::ScaledFactor = tempScaledFactor;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
+		}
+		if(endConfirmDialog)
+		{
+			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
-	if (wmID == 40167)
+	else if (wmID == 40167)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1199,7 +1235,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		}
 		return TRUE;
 	}
-	if (wmID == 30100)
+	else if (wmID == 30100)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1216,7 +1252,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30101)
+	else if (wmID == 30101)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1233,7 +1269,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30102)
+	else if (wmID == 30102)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1250,7 +1286,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30103)
+	else if (wmID == 30103)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1267,7 +1303,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CViewObjectsExt::InitPropertyDlgFromProperty = false;
 		}
 	}
-	if (wmID == 30109)
+	else if (wmID == 30109)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1284,7 +1320,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			}
 		}
 	}
-	if (wmID == 30104)
+	else if (wmID == 30104)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1297,7 +1333,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Param = 1;
 		}
 	}
-	if (wmID == 30105)
+	else if (wmID == 30105)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1309,7 +1345,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Type = 0;
 		}
 	}
-	if (wmID == 30106)
+	else if (wmID == 30106)
 	{
 		if (!CMapData::Instance->MapWidthPlusHeight)
 		{
@@ -1427,7 +1463,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	closeFA2Window(40043, this->Lighting);
 	closeFA2Window(40048, this->AITriggerTypesEnable);
 	closeFA2Window(40037, this->SingleplayerSettings);
-	closeFA2Window(40042, this->Tags);
 
 	if (wmID == 40152)
 	{
@@ -1486,6 +1521,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	//delete objects
 	if (wmID == 40136)
 	{
+		ScopedTimer t("draw");
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+		return TRUE;
+
 		if (!isInIsoView())
 			return TRUE;
 		if (!CMapData::Instance->MapWidthPlusHeight)
@@ -1592,7 +1631,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		refreshFA2Window(40043, this->Lighting);
 		refreshFA2Window(40048, this->AITriggerTypesEnable);
 		refreshFA2Window(40037, this->SingleplayerSettings);
-		refreshFA2Window(40042, this->Tags);
 
 		if (newParam != 0)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
@@ -1863,33 +1901,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
 			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
 			HWND hParent2 = ::GetParent(hParent1);	//			WINDOW
-			ExtraWindow::bEnterSearch = true;
 			
 			if (hWnd == ::GetDlgItem(CObjectSearch::GetHandle(), CObjectSearch::Input)) {
 				::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
 				::SendMessage(CObjectSearch::GetHandle(), 114516, 0, 0);
-				ExtraWindow::bEnterSearch = false;
 				return TRUE;
 			}
-			//else if (hParent1 == CNewINIEditor::GetHandle()) {
-			//	if (CNewINIEditor::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			//else if (hParent1 == CBatchTrigger::GetHandle()) {
-			//	if (CBatchTrigger::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			//else if (hParent1 == CCsfEditor::GetHandle()) {
-			//	if (CCsfEditor::OnEnterKeyDown(hWnd)) {
-			//		ExtraWindow::bEnterSearch = false;
-			//		return TRUE;
-			//	}
-			//}
-			ExtraWindow::bEnterSearch = false;
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)
 		{

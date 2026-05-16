@@ -15,10 +15,14 @@
 #include <chrono>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include <filesystem>
+#include "../CIsoView/RendererTypes.h"
+#include "../CIsoView/DirectXCore.h"
+#include "../CFinalSunApp/Body.h"
 
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHP_Data[2];
 std::vector<CLoadingExt::SHPUnionData> CLoadingExt::UnionSHPShadow_Data[2];
-FHashMap<CLoadingExt::ObjectType> CLoadingExt::ObjectTypes;
+FHashMap<CLoadingExt::GameObjectType> CLoadingExt::ObjectTypes;
 FHashSet CLoadingExt::LoadedObjects;
 FHashSet CLoadingExt::LoadedPreviewObjects;
 FHashSet CLoadingExt::LoadedSurfaceObjects;
@@ -34,6 +38,7 @@ unsigned char CLoadingExt::VXL_Shadow_Data[0x10000] = {0};
 bool CLoadingExt::DrawTurretShadow = false;
 FHashSet CLoadingExt::LoadedOverlays;
 FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
+std::unordered_map<WORD, WORD> CLoadingExt::OverlayDataLimits;
 int CLoadingExt::TallestBuildingHeight = 0;
 FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
@@ -44,11 +49,12 @@ FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::CurrentFrameImageData
 FHashMap<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::ImageDataMap;
 FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::BuildingClipsImageDataMap;
 FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
-std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
-std::map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
+std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
+std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
-std::map<unsigned int, MapCoord> CLoadingExt::TileExtraOffsets;
 unsigned int CLoadingExt::RandomFireSeed = 0;
+
+namespace fs = std::filesystem;
 
 bool CLoadingExt::IsImageLoaded(const FString& name)
 {
@@ -58,35 +64,9 @@ bool CLoadingExt::IsImageLoaded(const FString& name)
 	return itr->second->pImageBuffer != nullptr;
 }
 
-ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name, 
-	ObjectType type, int facing, int totalFacings, bool shadow, bool* isDefault)
+ImageDataClassSafe* CLoadingExt::GetImageDataFromMap(const FString& name)
 {
 	auto itr = ImageDataMap.find(name);
-	if (ExtConfigs::UseDefaultUnitImage &&
-		(itr == ImageDataMap.end() || itr != ImageDataMap.end() && !itr->second->pImageBuffer) &&
-		name.Find("FA2DEFAULT_") == -1)
-	{
-		if (type == ObjectType::Infantry)
-		{
-			if (isDefault) *isDefault = true;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_INFANTRY", facing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-		else if (type == ObjectType::Vehicle)
-		{
-			if (isDefault) *isDefault = true;
-			int newFacing = facing * 32 / totalFacings;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_UNIT", newFacing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-		else if (type == ObjectType::Aircraft)
-		{
-			if (isDefault) *isDefault = true;
-			int newFacing = facing * 32 / totalFacings;
-			const auto& imageName = CLoadingExt::GetImageName("FA2DEFAULT_AIRCRAFT", newFacing, shadow);
-			return GetImageDataFromMap(imageName);
-		}
-	}
 	if (itr == ImageDataMap.end())
 	{
 		auto ret = std::make_unique<ImageDataClassSafe>();
@@ -102,8 +82,6 @@ std::vector<std::unique_ptr<ImageDataClassSafe>>& CLoadingExt::GetBuildingClipIm
 	if (itr == BuildingClipsImageDataMap.end())
 	{
 		auto pEmpty = std::make_unique<ImageDataClassSafe>();
-		pEmpty->Flag = ImageDataFlag::SHP;
-		pEmpty->IsOverlay = false;
 		pEmpty->pPalette = Palette::PALETTE_UNIT;
 		pEmpty->ClipOffsets.FullWidth = 0;
 		pEmpty->ClipOffsets.LeftOffset = 0;
@@ -235,37 +213,37 @@ FString CLoadingExt::GetBuildingImageName(FString ID, int nFacing, int state, bo
 	return ret;
 }
 
-CLoadingExt::ObjectType CLoadingExt::GetItemType(FString ID)
+CLoadingExt::GameObjectType CLoadingExt::GetItemType(FString ID)
 {
 	if (ID == "")
-		return ObjectType::Unknown;
+		return GameObjectType::Unknown;
 	else if (ID == "FA2DEFAULT_INFANTRY")
-		return ObjectType::Infantry;
+		return GameObjectType::Infantry;
 	else if (ID == "FA2DEFAULT_UNIT")
-		return ObjectType::Vehicle;
+		return GameObjectType::Vehicle;
 	else if (ID == "FA2DEFAULT_AIRCRAFT")
-		return ObjectType::Aircraft;
+		return GameObjectType::Aircraft;
 	if (ObjectTypes.size() == 0)
 	{
-		auto load = [](FString type, ObjectType e)
+		auto load = [](FString type, GameObjectType e)
 		{
 			auto section = Variables::RulesMap.GetSection(type);
 			for (auto& pair : section)
 				ObjectTypes[pair.second] = e;
 		};
 
-		load("InfantryTypes", ObjectType::Infantry);
-		load("VehicleTypes", ObjectType::Vehicle);
-		load("AircraftTypes", ObjectType::Aircraft);
-		load("BuildingTypes", ObjectType::Building);
-		load("SmudgeTypes", ObjectType::Smudge);
-		load("TerrainTypes", ObjectType::Terrain);
+		load("InfantryTypes", GameObjectType::Infantry);
+		load("VehicleTypes", GameObjectType::Vehicle);
+		load("AircraftTypes", GameObjectType::Aircraft);
+		load("BuildingTypes", GameObjectType::Building);
+		load("SmudgeTypes", GameObjectType::Smudge);
+		load("TerrainTypes", GameObjectType::Terrain);
 	}
 
 	auto itr = ObjectTypes.find(ID);
 	if (itr != ObjectTypes.end())
 		return itr->second;
-	return ObjectType::Unknown;
+	return GameObjectType::Unknown;
 }
 
 bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
@@ -291,7 +269,7 @@ bool CLoadingExt::ReLoadObjectOrOverlay(const FString& ID)
 	return reloaded;
 }
 
-void CLoadingExt::LoadObjects(const FString& ID)
+void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 {
 	if (ID == "")
 		return;
@@ -301,22 +279,23 @@ void CLoadingExt::LoadObjects(const FString& ID)
 	else
 		LoadedPreviewObjects.insert(ID);
 
-	auto eItemType = GetItemType(ID);
-	if (eItemType != CLoadingExt::ObjectType::Unknown)
+	if (eItemType == CLoadingExt::GameObjectType::Unknown)
+		eItemType = GetItemType(ID);
+	if (eItemType != CLoadingExt::GameObjectType::Unknown)
 		Logger::Debug("CLoadingExt::LoadObjects loading: %s\n", ID);
 
 	switch (eItemType)
 	{
-	case CLoadingExt::ObjectType::Infantry:
+	case CLoadingExt::GameObjectType::Infantry:
 		LoadInfantry(ID);
 		break;
-	case CLoadingExt::ObjectType::Terrain:
+	case CLoadingExt::GameObjectType::Terrain:
 		LoadTerrainOrSmudge(ID, true);
 		break;
-	case CLoadingExt::ObjectType::Smudge:
+	case CLoadingExt::GameObjectType::Smudge:
 		LoadTerrainOrSmudge(ID, false);
 		break;
-	case CLoadingExt::ObjectType::Vehicle:
+	case CLoadingExt::GameObjectType::Vehicle:
 	{
 		LoadVehicleOrAircraft(ID);
 		if (ExtConfigs::InGameDisplay_Deploy)
@@ -337,13 +316,13 @@ void CLoadingExt::LoadObjects(const FString& ID)
 		}
 		break;
 	}
-	case CLoadingExt::ObjectType::Aircraft:
+	case CLoadingExt::GameObjectType::Aircraft:
 		LoadVehicleOrAircraft(ID);
 		break;
-	case CLoadingExt::ObjectType::Building:
+	case CLoadingExt::GameObjectType::Building:
 		LoadBuilding(ID);
 		break;
-	case CLoadingExt::ObjectType::Unknown:
+	case CLoadingExt::GameObjectType::Unknown:
 	default:
 		break;
 	}
@@ -365,12 +344,27 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		IFVTurrets.clear();
 		InitialOccupiedBuildings.clear();
 		BioReactors.clear();
+		OverlayDataLimits.clear();
 		GridObjectViewer::Instance.Clear();
 		CMapDataExt::TerrainPaletteBuildings.clear();
 		CMapDataExt::DamagedAsRubbleBuildings.clear();
 		CMapDataExt::BuildingTypes.clear();
 		BuildingClipsImageDataMap.clear();
 		LoadedInsignias.clear();
+		Renderer::SmudgeTypes.clear();
+		Renderer::TerrainTypes.clear();
+		Renderer::OverlayTypes.clear();
+		Renderer::BuildingTypes.clear();
+		Renderer::InfantryTypes.clear();
+		Renderer::VehicleTypes.clear();
+		Renderer::AircraftTypes.clear();
+		PalettesManager::Release();
+
+		if (CIsoViewExt::DirectXReady())
+		{
+			CIsoViewExt::GetExtension()->g_pDX->ClearTextures();
+		}
+
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -539,7 +533,7 @@ bool CLoadingExt::IsPreOccupiedBunker(const FString& ID)
 	firstInf = types[0];
 
 	auto eItemType = CLoadingExt::GetExtension()->GetItemType(firstInf);
-	if (eItemType != CLoadingExt::ObjectType::Infantry) return false;
+	if (eItemType != CLoadingExt::GameObjectType::Infantry) return false;
 
 	return true;
 }
@@ -596,7 +590,7 @@ void CLoadingExt::LoadBuilding(const FString& ID)
 	LoadBuilding_Rubble(ID);
 
 	LoadInsignia(ID);
-	LoadAlphaImage(ID, CLoadingExt::ObjectType::Building);
+	LoadAlphaImage(ID, CLoadingExt::GameObjectType::Building);
 }
 
 void CLoadingExt::LoadBuilding_Normal(const FString& ID, bool loadAsGarrisonDamaged)
@@ -1925,7 +1919,7 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 
 	if (terrain)
 	{
-		LoadAlphaImage(ID, CLoadingExt::ObjectType::Terrain);
+		LoadAlphaImage(ID, CLoadingExt::GameObjectType::Terrain);
 	}
 }
 
@@ -1977,7 +1971,7 @@ void CLoadingExt::LoadInsignia(const FString& ID)
 	}
 }
 
-void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type)
+void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type)
 {
 	if (!ExtConfigs::InGameDisplay_AlphaImage) return;
 
@@ -1991,7 +1985,7 @@ void CLoadingExt::LoadAlphaImage(const FString& ID, CLoadingExt::ObjectType type
 
 		int facings = std::min(256u, std::bit_floor((UINT)header.FrameCount));
 
-		if (type == CLoadingExt::ObjectType::Terrain)
+		if (type == CLoadingExt::GameObjectType::Terrain)
 			facings = 1;
 		AlphaImageFacings[ID] = facings;
 		FString AIDicName;
@@ -2691,8 +2685,6 @@ ImageDataClassSafe* CLoadingExt::SetBuildingImageDataSafe(unsigned char* pBuffer
 	}
 	else
 	{
-		pData->Flag = ImageDataFlag::SHP;
-		pData->IsOverlay = false;
 		pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
 	}
 	return pData;
@@ -2705,8 +2697,6 @@ void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, ImageDataClassSafe* p
 	if (pData->pPixelValidRanges)
 		pData->pPixelValidRanges = nullptr;
 
-	pData->Flag = ImageDataFlag::SHP;
-	pData->IsOverlay = false;
 	pData->pPalette = pPal ? pPal : Palette::PALETTE_UNIT;
 
 	if (!pBuffer)
@@ -4601,8 +4591,14 @@ void CLoadingExt::LoadSHPFrameSafe(int nFrame, int nFrameCount, unsigned char** 
 	CShpFile::LoadFrame(nFrame, nFrameCount, ppBuffer);
 }
 
-void CLoadingExt::LoadBitMap(FString ImageID, const CBitmap& cBitmap)
+void CLoadingExt::LoadBitMap(FString ImageID, CBitmap& cBitmap)
 {
+	if (ExtConfigs::DirectXRendering)
+	{
+		CIsoViewExt::g_pDX->LoadBitmapTexture(ImageID, cBitmap);
+		return;
+	}
+
 	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
 	auto pData = CLoadingExt::GetSurfaceImageDataFromMap(ImageID);
 	pData->lpSurface = CIsoViewExt::BitmapToSurface(pIsoView->lpDD7, cBitmap);
@@ -5267,11 +5263,7 @@ std::unique_ptr<ImageDataClassSafe> CLoadingExt::BindClippedImages(const std::ve
 			vr.Last = 0;
 		}
 	}
-
-	result->Flag = imgs[0]->Flag;
-	result->IsOverlay = imgs[0]->IsOverlay;
 	result->pPalette = imgs[0]->pPalette;
-	result->BuildingFlag = imgs[0]->BuildingFlag;
 
 	return result;
 }
@@ -5505,7 +5497,13 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 			ShapeHeader header;
 			unsigned char* FramesBuffers[2]{ 0 };
 			CShpFile::GetSHPHeader(&header);
-			int nCount = std::min(header.FrameCount, (short)ExtConfigs::OverlayDataLimit);
+
+			FString ovlIdx;
+			ovlIdx.Format("%d", nIndex);
+			short nDisplayLimit = Variables::RulesMap.GetInteger(pRegName, "OverlayDisplayLimit", ExtConfigs::OverlayDataLimit);
+			nDisplayLimit = CINI::FAData->GetInteger("OverlayDisplayLimit", ovlIdx, nDisplayLimit);
+			int nCount = std::min({ header.FrameCount, (short)ExtConfigs::OverlayDataLimit, nDisplayLimit });
+			int nMaxData = 0;
 
 			for (int i = 0; i < nCount; ++i)
 			{
@@ -5635,7 +5633,10 @@ void CLoadingExt::LoadOverlay(const FString& pRegName, int nIndex)
 						SetImageDataSafe(FramesBuffers[1], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}
 				}
+
+				nMaxData = i;
 			}
+			OverlayDataLimits[nIndex] = nMaxData + 1;
 		}
 
 		GameDeleteArray(pBuffer[0], width * height);
@@ -5654,10 +5655,28 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 	{
 		auto ret = std::make_unique<ImageDataClassSurface>();
 
-		HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-			IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
 		CBitmap cBitmap;
-		cBitmap.Attach(hBmp);
+		std::string pics = CFinalSunAppExt::ExePathExt;
+		if(IsFlag)
+			pics += "\\pics\\waypoint.bmp";
+		else
+			pics += "\\pics\\celltag.bmp";
+		if (fs::exists(pics))
+		{
+			if (!CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
+			{
+				HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+				cBitmap.Attach(hBmp);
+			}
+		}
+		else
+		{
+			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+			cBitmap.Attach(hBmp);
+		}
+
 		auto r = ReplaceBitmapColor(cBitmap, 
 			IsFlag ? (COLORREF)ExtConfigs::DisplayColor_Waypoint 
 			: (COLORREF)ExtConfigs::DisplayColor_Celltag,
@@ -5904,3 +5923,27 @@ bool CLoadingExt::HasFileExt(ppmfc::CString filename, int nMix)
 	return false;
 }
 
+TextureResource* ImageDataClassSafe::GetTexture(Palette* newPal, bool isAlphaImage)
+{
+	if (pImageBuffer)
+	{
+		if (isAlphaImage)
+		{
+			return CIsoViewExt::g_pDX->LoadIndexTexture(CIsoViewExt::MakeImageDataView(this));
+		}
+		else
+		{
+			return CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(this, newPal));
+		}
+	}
+	return nullptr;
+}
+
+TextureResource* ImageDataClassSafe::GetColoredTexture(Palette* coloredPal, BGRStruct color)
+{
+	if (pImageBuffer)
+	{
+		return CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(this, coloredPal), color);
+	}
+	return nullptr;
+}

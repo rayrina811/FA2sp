@@ -101,12 +101,6 @@ public:
     static void LoadParam_Teamtypes(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
-    static bool bComboLBoxSelected;
-    static bool bEnterSearch; 
-    // true means click inside combobox
-    static bool OnCloseupCComboBox(HWND& hWnd, std::map<int, FString>& labels, bool isComboboxSelectOnly = false);
-    static void OnEditCComboBox(HWND& hWnd, std::map<int, FString>& labels);
-
     static void SortLabels(std::vector<FString>& labels);
     static void SortLabels(std::vector<std::pair<FString, FString>>& labels, bool first = true);
     static void SortRawStrings(std::vector<FString>& labels);
@@ -321,6 +315,7 @@ public:
     void SetCurSel(int idx);
     int GetCount() const;
     int GetFilteredCount() const;
+    void AdjustCurSel(int& selectedIndex);
 
     void SetEditText(const char* text) const;
     const char* GetEditText() const;
@@ -329,6 +324,7 @@ public:
     const char* GetSelectedText(bool allowEdit) const;
 
     int FindStringExact(const char* str) const;
+    int FindStringExactStart(const char* str) const;
     int FindString(const char* str) const;
 
     static void SetWindowHeight(HWND hwnd, LPARAM lParam);
@@ -360,6 +356,7 @@ private:
     bool* m_allowFilter = nullptr;
     bool m_needFixSelection = false;
     bool m_inFixSelection = false;
+    bool m_EnterKeyPressed = false;
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;

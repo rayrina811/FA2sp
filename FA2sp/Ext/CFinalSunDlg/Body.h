@@ -257,7 +257,7 @@ private:
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     void LoadMultiLayers(
-        std::vector<std::vector<int>>& multiLayers,
+        std::vector<int>& layers,
         std::map<int, HTREEITEM>& subNodes,
         std::map<int, FString>& subNodeNames,
         std::map<std::array<int, 10>, HTREEITEM>& multiSubNodes,
@@ -313,7 +313,10 @@ public:
         CloakRange,
         PsychicRange,
         GuardRange,
+        DesignatorRange,
+        InhibitorRange,
         SightRange,
+        
         AllRange,
     };
 
@@ -440,6 +443,7 @@ public:
     static void AddAnnotation(int X, int Y);
     static void RemoveAnnotation(int X, int Y);
     static void DeleteTube(int X, int Y);
+    static void DeleteCelltag(int X, int Y);
     static void SetWpTagColor(int X, int Y, bool isWp);
     static void RemoveWpTagColor(int X, int Y, bool isWp);
     static void OpenWpTagColorDlg(bool isWp);

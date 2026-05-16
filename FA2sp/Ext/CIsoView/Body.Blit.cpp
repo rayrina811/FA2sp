@@ -13,11 +13,15 @@
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
 #include "../CLoading/Body.h"
+#include "DirectXCore.h"
+#include "RendererTypes.h"
 #include <immintrin.h>
 #include <mutex>
 #include "../../Miscs/TheaterInfo.h"
 #include <stack>
 #include <array>
+
+constexpr float MULTI_SEL_OPACITY = 0.333f;
 
 static byte oreOpacityTable[13] =
 {
@@ -29,7 +33,7 @@ static byte playerLocationOpacityTable[8] =
     105, 90, 75, 60, 45, 30, 15, 0
 };
 
-static bool TilePixels[1800] =
+bool CIsoViewExt::TilePixels[1800] =
 {
     false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
         false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
@@ -447,155 +451,10 @@ void CIsoViewExt::BlitTransparentDescNoLock(LPDIRECTDRAWSURFACE7 pic, LPDIRECTDR
 }
 
 void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
-    const DDBoundary& boundary, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor, int extraLightType, bool remap)
-{
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst) {
-        return;
-    }
-
-    constexpr int X_OFFSET = 31;
-    constexpr int Y_OFFSET = -29;
-    constexpr int BPP = 4;
-
-    x += X_OFFSET;
-    y += Y_OFFSET;
-
-    BYTE* src = static_cast<BYTE*>(pd->pImageBuffer);
-    int swidth = pd->FullWidth;
-    int sheight = pd->FullHeight;
-
-    if (x + swidth < window.left || y + sheight < window.top) {
-        return;
-    }
-    if (x >= window.right || y >= window.bottom) {
-        return;
-    }
-
-    RECT srcRect = { 0, 0, swidth, sheight };
-    RECT destRect = { x, y, x + swidth, y + sheight };
-    if (destRect.left < 0) {
-        srcRect.left = 1 - destRect.left;
-    }
-    if (destRect.top < 0) {
-        srcRect.top = 1 - destRect.top;
-    }
-    if (x + swidth > window.right) {
-        srcRect.right = swidth - ((x + swidth) - window.right);
-        destRect.right = window.right;
-    }
-    if (y + sheight > window.bottom) {
-        srcRect.bottom = sheight - ((y + sheight) - window.bottom);
-        destRect.bottom = window.bottom;
-    }
-
-    if (!newPal) {
-        newPal = pd->pPalette;
-    }
-    bool isMultiSelected = false;
-    RGBClass oreColor;
-    bool isEmphasizingOre = false;
-    byte oreOpacity;
-
-    if (extraLightType == -10 || extraLightType >= 500) {
-        isMultiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
-        if (extraLightType >= 500) {
-            int overlay = extraLightType - 500;
-            if (overlay == 0x18 || overlay == 0x19 || // BRIDGE1, BRIDGE2
-                overlay == 0x3B || overlay == 0x3C || // RAILBRDG1, RAILBRDG2
-                overlay == 0xED || overlay == 0xEE || // BRIDGEB1, BRIDGEB2
-                (overlay >= 0x4A && overlay <= 0x65) || // LOBRDG 1-28
-                (overlay >= 0xCD && overlay <= 0xEC)) { // LOBRDGB 1-4
-                isMultiSelected = MultiSelection::IsSelected(
-                    CIsoViewExt::CurrentDrawCellLocation.X + 1,
-                    CIsoViewExt::CurrentDrawCellLocation.Y + 1);
-            }
-
-            if (RenderingMap && RenderEmphasizeOres && CMapDataExt::IsOre(overlay))
-            {
-                isEmphasizingOre = true;
-                auto ovrd = CMapData::Instance->GetOverlayDataAt(
-                    CMapData::Instance->GetCoordIndex(
-                        CIsoViewExt::CurrentDrawCellLocation.X,
-                        CIsoViewExt::CurrentDrawCellLocation.Y));
-                oreColor = CMapDataExt::GetOverlayTypeData(overlay).RadarColor;
-                oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
-            }
-        }
-    }
-
-    BGRStruct color;
-    auto pRGB = reinterpret_cast<ColorStruct*>(&houseColor);
-    color.R = pRGB->red;
-    color.G = pRGB->green;
-    color.B = pRGB->blue;
-    if (LightingStruct::CurrentLighting != LightingStruct::NoLighting) {
-        if (extraLightType >= 500) {
-            newPal = PalettesManager::GetOverlayPalette(newPal, CIsoViewExt::CurrentDrawCellLocation, extraLightType - 500);
-        }
-        else {
-            newPal = PalettesManager::GetObjectPalette(newPal, color, remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-        }
-    }
-    else {
-        newPal = PalettesManager::GetPalette(newPal, color, remap);
-    }
-
-    BYTE* srcBase = src;
-    BYTE* destBase = static_cast<BYTE*>(dst) + destRect.top * boundary.dpitch + destRect.left * BPP;
-    BYTE* surfaceEnd = static_cast<BYTE*>(dst) + boundary.dpitch * boundary.dwHeight;
-
-    for (LONG row = srcRect.top; row < srcRect.bottom; ++row) {
-        LONG left = pd->pPixelValidRanges[row].First;
-        LONG right = pd->pPixelValidRanges[row].Last;
-        if (left < srcRect.left) {
-            left = srcRect.left;
-        }
-        if (right >= srcRect.right) {
-            right = srcRect.right - 1;
-        }
-        if (left > right) {
-            continue;
-        }
-
-        BYTE* srcPtr = srcBase + row * swidth + left;
-        BYTE* destPtr = destBase + row * boundary.dpitch + left * BPP;
-        for (LONG col = left; col <= right; ++col, ++srcPtr, destPtr += BPP) {
-            if (destRect.left + col < 0) {
-                continue;
-            }
-
-            BYTE pixelValue = *srcPtr;
-            if (pixelValue && destPtr >= dst && destPtr + BPP <= surfaceEnd) {
-                BGRStruct c = newPal->Data[pixelValue];
-                if (alpha < 255) {
-                    BGRStruct oriColor = *reinterpret_cast<BGRStruct*>(destPtr);
-                    c.B = alphaBlendTable[c.B][alpha] + alphaBlendTable[oriColor.B][255 - alpha];
-                    c.G = alphaBlendTable[c.G][alpha] + alphaBlendTable[oriColor.G][255 - alpha];
-                    c.R = alphaBlendTable[c.R][alpha] + alphaBlendTable[oriColor.R][255 - alpha];
-                }
-                if (isMultiSelected && (!RenderingMap || RenderingMap && RenderCurrentLayers)) {
-                    RGBClass* selColor = reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor);
-                    c.B = (c.B * 2 + selColor->B) / 3;
-                    c.G = (c.G * 2 + selColor->G) / 3;
-                    c.R = (c.R * 2 + selColor->R) / 3;
-                }
-                if (isEmphasizingOre)
-                {
-                    c.B = alphaBlendTable[c.B][oreOpacity] + alphaBlendTable[oreColor.B][255 - oreOpacity];
-                    c.G = alphaBlendTable[c.G][oreOpacity] + alphaBlendTable[oreColor.G][255 - oreOpacity];
-                    c.R = alphaBlendTable[c.R][oreOpacity] + alphaBlendTable[oreColor.R][255 - oreOpacity];
-                }
-                memcpy(destPtr, &c, BPP);
-            }
-        }
-    }
-}
-
-void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
     COLORREF houseColor, int extraLightType, bool remap, std::vector<char>* objectOverlapMask)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (alpha == 0 || !pd || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -754,9 +613,9 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
 
 void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha,
-    COLORREF houseColor, COLORREF addOnColor, bool isRubble, bool isTerrain)
+    COLORREF houseColor, bool isRubble, bool isTerrain)
 {
-    if (alpha == 0 || !pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (alpha == 0 || !pd|| !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -863,10 +722,188 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
     }
 }
 
+void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
+    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    if (!newPal) [[likely]] {
+        newPal = pd->pPalette;
+    }
+    BGRStruct color(houseColor);
+    newPal = PalettesManager::GetColoredPalette(newPal, color);
+    auto colorMult = ColorMults::GetObjectColorMult(!isTerrain && !isRubble, CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
+    auto pTexture = pd->GetColoredTexture(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(alpha)
+        .SetColorMul(colorMult);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    if (!newPal) [[likely]] {
+        newPal = pd->pPalette;
+    }
+
+    BGRStruct color = houseColor;
+
+    if (extraLightType > -100 && remap) {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+    }
+
+    auto colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
+    auto pTexture = pd->GetColoredTexture(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(alpha)
+        .SetColorMul(colorMult);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bool isScreenSpace)
+{
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+    if (auto pTexture = g_pDX->GetBitmapTexture(name))
+    {
+        DrawParams params;
+        params.SetPosition(
+            x + X_OFFSET - pTexture->sourceView.FullWidth / 2,
+            y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
+            .SetOpacity(alpha);
+        if (isScreenSpace)
+            params.SetScreenSpace();
+        g_pDX->DrawTexture(pTexture, params);
+    }
+}
+
+void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    auto pTexture = pd->GetTexture(nullptr, true);
+
+    g_pDX->DrawTexture(pTexture, x, y);
+}
+
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    auto pTexture = pd->GetTexture();
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(0.5f);
+    g_pDX->DrawTexture(pTexture, params);
+}
+
+void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    RGBClass oreColor{};
+    byte oreOpacity = 0;
+
+    bool isEmphasizingOre = false;
+
+    if (RenderingMap && RenderEmphasizeOres) {
+        int overlay = pType->OverlayIndex;
+        if (CMapDataExt::IsOre(pType->OverlayIndex)) {
+            isEmphasizingOre = true;
+            oreColor = pType->TypeData.RadarColor;
+            oreOpacity = oreOpacityTable[std::min(nData, (byte)13)];
+        }
+    }
+
+    auto colorMult = ColorMults::GetOverlayColorMult(CIsoViewExt::CurrentDrawCellLocation, pType);
+
+    Palette* newPal = pd->pPalette;
+    BGRStruct color;
+    if (pType->TypeData.Wall && ExtConfigs::InGameDisplay_RemapableOverlay)
+    {
+        int pos = CMapData::Instance->GetCoordIndex(
+            CIsoViewExt::CurrentDrawCellLocation.X, 
+            CIsoViewExt::CurrentDrawCellLocation.Y);
+
+        if (pos < CMapData::Instance->CellDataCount)
+        {
+            auto& cellExt = CMapDataExt::CellDataExts[pos];
+            color = cellExt.RemapableColor;
+            newPal = PalettesManager::GetColoredPalette(newPal, color);
+        }    
+    }
+
+    const bool doMultiSel = (!RenderingMap || (RenderingMap && RenderCurrentLayers)) 
+        && MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+
+    auto pTexture = newPal == pd->pPalette ? pd->GetTexture(): pd->GetColoredTexture(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetColorMul(colorMult);
+
+    if (isEmphasizingOre)
+        params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
+    if (doMultiSel) {
+        const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
+        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
+    }
+
+    g_pDX->DrawTexture(pTexture, params);
+}
+
 void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, const RECT& window,
     const DDBoundary& boundary, int x, int y, ImageDataClassSafe* pd)
 {
-    if (!pd || pd->Flag == ImageDataFlag::SurfaceData || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
+    if (!pd || !pd->pImageBuffer || !dst || pd->IsEmptyImage) {
         return;
     }
 
@@ -934,14 +971,6 @@ void CIsoViewExt::BlitSHPTransparent_AlphaImage(CIsoView* pThis, void* dst, cons
     }
 }
 
-void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClass* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
-{
-    auto pThis = CIsoView::GetInstance();
-    RECT window = CIsoViewExt::GetScaledWindowRect();
-    DDBoundary boundary{ lpDesc->dwWidth, lpDesc->dwHeight, lpDesc->lPitch };
-    CIsoViewExt::BlitSHPTransparent(pThis, lpDesc->lpSurface, window, boundary, x, y, pd, newPal, alpha, houseColor);
-}
-
 void CIsoViewExt::BlitSHPTransparent(LPDDSURFACEDESC2 lpDesc, int x, int y, ImageDataClassSafe* pd, Palette* newPal, BYTE alpha, COLORREF houseColor)
 {
     auto pThis = CIsoView::GetInstance();
@@ -1004,7 +1033,7 @@ void BlitTerrainImpl(
                     col + subTile->XMinusExX >= TILE_WIDTH ||
                     row + subTile->YMinusExY < 0 ||
                     row + subTile->YMinusExY >= TILE_HEIGHT ||
-                    !TilePixels[posInTile]) {
+                    !CIsoViewExt::TilePixels[posInTile]) {
                     continue;
                 }
             }
@@ -1170,11 +1199,11 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 void CIsoViewExt::BlitCellHeightMask(std::vector<int>& cellHeightMask, const RECT* window,
     int x, int y, CTileBlockClass* subTile, int height)
 {
-    auto itr = CMapDataExt::TileBaseHeightMask.find(subTile);
-    if (itr == CMapDataExt::TileBaseHeightMask.end())
+    auto itr = CMapDataExt::TileBlockDataExt.find(subTile);
+    if (itr == CMapDataExt::TileBlockDataExt.end())
         return;
 
-    const auto& mask = itr->second;
+    const auto& mask = itr->second.HeightMask;
 
     const int swidth = subTile->BlockWidth;
     const int sheight = subTile->BlockHeight;
@@ -1362,3 +1391,117 @@ void CIsoViewExt::DrawShadowMask(
         }
     }
 }
+
+void CIsoViewExt::BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst)
+{
+    HDC srcDC = nullptr;
+    if (FAILED(src->GetDC(&srcDC)))
+        return;
+
+    HDC wndDC = GetDC(hwnd);
+
+    StretchBlt(
+        wndDC,
+        0,
+        0,
+        rcDst->right - rcDst->left,
+        rcDst->bottom - rcDst->top,
+        srcDC,
+        rcSrc->left,
+        rcSrc->top,
+        rcSrc->right - rcSrc->left,
+        rcSrc->bottom - rcSrc->top,
+        SRCCOPY
+    );
+
+    ReleaseDC(hwnd, wndDC);
+    src->ReleaseDC(srcDC);
+}
+
+bool CIsoViewExt::DirectXReady()
+{
+    return g_pDX && g_pDX->IsInitialized();
+}
+
+void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile, 
+    float alpha, byte height, bool onlyExtra)
+{
+    auto& dataExt = CMapDataExt::TileBlockDataExt[subTile];
+    if (!subTile || !subTile->HasValidImage 
+        || !subTile->ImageData || !subTile->pPixelValidRanges
+        || !dataExt.pTexture) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 61;
+    constexpr int Y_OFFSET = 1;
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    auto colorMult = ColorMults::GetTerrainColorMult(CIsoViewExt::CurrentDrawCellLocation);
+    bool multiSelected = MultiSelection::IsSelected(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+    bool isEmphasizingOre = false;
+    RGBClass oreColor{};
+    byte oreOpacity = 0;
+    if (RenderingMap && RenderEmphasizeOres) {
+        int pos = CMapData::Instance->GetCoordIndex(CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+        auto ovr = CMapDataExt::GetExtension()->GetOverlayAt(pos);
+        if (CMapDataExt::IsOre(ovr)) {
+            isEmphasizingOre = true;
+            auto ovrd = CMapData::Instance->GetOverlayDataAt(pos);
+            oreColor = CMapDataExt::GetOverlayTypeData(ovr).RadarColor;
+            oreOpacity = oreOpacityTable[std::min(ovrd, (byte)13)];
+        }
+    }
+    bool isEmphasizingPlayer = false;
+    byte playerOpacity = 0;
+    if (RenderingMap && RenderMarkStartings) {
+        int players = CMapDataExt::GetPlayerLocationCountAtCell(
+            CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y);
+        if (players > 0) {
+            isEmphasizingPlayer = true;
+            playerOpacity = playerLocationOpacityTable[players - 1];
+        }
+    }
+
+    const bool doFlatToGround = ExtConfigs::FlatToGroundHideExtra && CFinalSunApp::Instance->FlatToGround;
+    const bool doMultiSel = multiSelected && (!RenderingMap || (RenderingMap && RenderCurrentLayers));
+    const bool doOre = isEmphasizingOre;
+    const bool doPlayer = isEmphasizingPlayer;
+
+    const RGBClass* selColor = doMultiSel ? reinterpret_cast<RGBClass*>(&ExtConfigs::MultiSelectionColor) : nullptr;
+    const RGBClass* playerColor = doPlayer ? reinterpret_cast<RGBClass*>(&ExtConfigs::PlayerLocation_Color) : nullptr;
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(alpha)
+        .SetColorMul(colorMult);
+    if (doMultiSel)
+        params.SetColorMix(*selColor, MULTI_SEL_OPACITY);
+    if (doPlayer)
+        params.SetColorMix(*playerColor, 1.0f - playerOpacity / 255.0f);
+    if (doOre)
+        params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
+
+    if (onlyExtra)
+    {
+        params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
+        g_pDX->DrawTexture(dataExt.pExtraTexture, params);
+    }
+    else 
+    {
+        g_pDX->DrawTexture(dataExt.pTexture, params);
+
+        if (!doFlatToGround)
+        {
+            params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
+            g_pDX->DrawTexture(dataExt.pExtraTexture, params);
+        }
+    }
+
+    //if (doCellHeight)
+    //{
+    //    BlitCellHeightMask(*cellHeightMask, &window, x, y, subTile, height);
+    //}
+}
+

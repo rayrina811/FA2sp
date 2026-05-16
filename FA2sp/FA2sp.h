@@ -61,6 +61,7 @@ public:
     static bool SortByLabelName;
     static bool SortByLabelName_AITrigger;
     static bool SortByLabelName_Trigger;
+    static bool SortByLabelName_Tag;
     static bool SortByLabelName_Team;
     static bool SortByLabelName_Taskforce;
     static bool SortByLabelName_Script;
@@ -82,6 +83,8 @@ public:
     static int SensorsRangeBound_Color;
     static int CloakRangeBound_Color;
     static int PsychicRangeBound_Color;
+    static int DesignatorRangeBound_Color;
+    static int InhibitorRangeBound_Color;
     static int GuardRangeBound_Color;
     static int SightRangeBound_Color;
     static bool WeaponRangeBound_SubjectToElevation;
@@ -176,8 +179,9 @@ public:
     static bool StringBufferStackAllocation;
     static bool RangeBound_DrawEllipse;
     static int RangeBound_MaxRange;
-    static int SearchCombobox_MaxCount;
     static bool SearchCombobox_Waypoint;
+    static bool SearchCombobox_Disabled;
+    static bool SearchCombobox_AllowNonParams;
     static bool NewTheaterType;
     static bool IncludeType;
     static bool InheritType;
@@ -206,10 +210,11 @@ public:
     static bool LightingPreview_TintTileSetBrowserView;
     static bool DDrawScalingBilinear;
     static bool DDrawScalingBilinear_OnlyShrink;
+    static bool DirectXRendering;
+    static bool DirectXRendering_INI;
     static int DisplayTextSize;
     static int DistanceRuler_Records;
     static bool DisplayObjectsOutside;
-    static bool UseNewToolBarCameo;
     static bool DisableDirectoryCheck;
     static bool ExtOverlays;
     static bool SaveMap_PreserveINISorting;
