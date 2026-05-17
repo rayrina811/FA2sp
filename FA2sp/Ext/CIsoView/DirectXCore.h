@@ -70,6 +70,9 @@ public:
     float mixFactor = 0.0f;
     int drawDepth = -1;
     bool bScreenSpace = false;
+    bool bIsShadow = false;
+    bool bWriteStencil = false;
+    int stencilRef = -1; 
 
     DrawParams& SetPosition(float _x, float _y) { x = _x; y = _y; return *this; }
     DrawParams& SetScale(float sx, float sy) { scaleX = sx; scaleY = sy; return *this; }
@@ -99,6 +102,7 @@ public:
     DrawParams& SetColorMix(RGBClass color, float factor);
     DrawParams& SetScreenSpace() { bScreenSpace = true; return *this; }
     DrawParams& SetDrawDepth(int depth) { drawDepth = depth; return *this; }
+    DrawParams& SetStencilRef(int ref) { stencilRef = ref; return *this; }
 };
 
 struct TextureResource {
@@ -111,6 +115,17 @@ struct TextureResource {
 class DirectXCore
 {
 public:
+    struct DrawCommand {
+        TextureResource* texRes = nullptr;
+        DrawParams params;
+        bool bIsEffect = false;
+        bool bScreenSpace = false;
+        bool bStencilDraw = false; 
+        bool bStencilOnly = false;
+        UINT depth = 0;
+        ID3D11DepthStencilState* pCustomDSState = nullptr; 
+    };
+
     DirectXCore();
     ~DirectXCore();
 
@@ -121,7 +136,7 @@ public:
     void ClearTileTextures();
     void OnResize(HWND hwnd);
 
-    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 });
+    TextureResource* LoadTexture(const ImageDataView& view, BGRStruct color = { 0,0,0 }, bool ignoreTransparent = false);
     TextureResource* LoadTileTexture(CTileBlockClass* tileBlock, const ImageDataView& view);
     TextureResource* LoadIndexTexture(const ImageDataView& view);
     TextureResource* LoadBitmapTexture(FString_view name, CBitmap& bitmap, 
@@ -150,14 +165,12 @@ public:
     // The value is written into the depth buffer so GPU GreaterEqual testing
     // produces correct occlusion automatically.
     UINT GetNextDepth() { return m_globalDepth++; }
+    UINT GetCurrentDepth() const { return m_globalDepth; }
     void SetCurrentDepth(UINT depth) { m_globalDepth = depth; }
     void ResetDepth() { m_globalDepth = 0; }
     int GetClientWidth() const { return m_clientWidth; }
     int GetClientHeight() const { return m_clientHeight; }
 
-    // Darken the offscreen surface by a constant brightness factor.
-    // brightness=1.0f → no change, brightness=0.5f → 50%% brightness, etc.
-    // Must be called after RenderOffscreenContent().
     void DarkenOffscreen(float brightness);
 
     // GPU line batching: DrawShapes pushes LineEntry records here instead of
@@ -167,14 +180,9 @@ public:
                       uint32_t color, float thickness, UINT depth,
                       bool bScreenSpace = false);
 
+    std::vector<DrawCommand>& GetDrawCommandList() { return m_drawCommands; }
+
 private:
-    struct DrawCommand {
-        TextureResource* texRes = nullptr;
-        DrawParams params;
-        bool bIsEffect = false;
-        bool bScreenSpace = false;
-        UINT depth = 0;
-    };
 
     bool CreateDeviceAndSwapChain(HWND hwnd);
     bool CreateShadersAndInputLayout();
@@ -213,6 +221,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerPoint;
     Microsoft::WRL::ComPtr<ID3D11SamplerState>     m_pSamplerNearestNeighbor;
     Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendState;
+    Microsoft::WRL::ComPtr<ID3D11BlendState>       m_pBlendStateNoColor;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pQuadVB;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pConstantBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer>           m_pFullscreenQuadVB;
@@ -259,6 +268,11 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateReadOnlyGE;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateOff;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowWrite;    
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateObjectStencilWrite; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateStencilOnlyWrite; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateTerrainRedraw; 
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState>  m_pDepthStateShadowRedraw; 
 
     std::unordered_map<TextureIndex, std::unique_ptr<TextureResource>> m_textureMap;
     FHashMap<std::unique_ptr<TextureResource>> m_bitmapTextureMap;

@@ -63,6 +63,25 @@ public:
 	}
 	TextureResource* GetTexture(Palette* newPal = nullptr, bool isAlphaImage = false);
 	TextureResource* GetColoredTexture(Palette* newPal, BGRStruct color);
+
+	// Building horizontal slice texture (30px strips, aligned so FullHeight/2 is a cut line)
+	struct BuildingTextureSlice
+	{
+		TextureResource* pTexture;
+		int deltaY;		// Y offset from image top (add to y when rendering)
+		int indexOffset;	// 0 = slice with bottom at FullHeight/2, positive = below, negative = above
+	};
+	std::vector<BuildingTextureSlice> GetBuildingColoredTextures(Palette* coloredPal, BGRStruct color);
+
+private:
+	struct BuildingSliceCacheEntry {
+		std::vector<BuildingTextureSlice> slices;
+		std::vector<std::unique_ptr<int>> sliceKeys;
+	};
+	std::unordered_map<BGRStruct, BuildingSliceCacheEntry> m_buildingSliceCache;
+
+private:
+	std::unique_ptr<unsigned char[]> m_opacityExtractBuffer;
 };
 
 class ImageDataClassSurface
@@ -340,6 +359,8 @@ public:
 	static FHashMap<std::unique_ptr<ImageDataClassSurface>> SurfaceImageDataMap;
 	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomFlagMap;
 	static std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CustomCelltagMap;
+	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomFlagMap;
+	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
 	static unsigned int RandomFireSeed;
 
@@ -349,6 +370,7 @@ public:
 	static bool IsSurfaceImageLoaded(const FString& name);
 	static ImageDataClassSurface* GetSurfaceImageDataFromMap(const FString& name);
 	static ImageDataClassSurface* GetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
+	static TextureResource* DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag);
 	static int GetAvailableFacing(const FString& ID);
 	static int GetAlphaImageFacing(const FString& ID);
 	static void* ReadWholeFile(const char* filename, DWORD* pDwSize = nullptr, bool fa2path = false);

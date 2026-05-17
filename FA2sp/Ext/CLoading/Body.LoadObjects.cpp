@@ -51,6 +51,8 @@ FHashMap<std::vector<std::unique_ptr<ImageDataClassSafe>>> CLoadingExt::Building
 FHashMap<std::unique_ptr<ImageDataClassSurface>> CLoadingExt::SurfaceImageDataMap;
 std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomFlagMap;
 std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt::CustomCelltagMap;
+std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap;
+std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 unsigned int CLoadingExt::RandomFireSeed = 0;
 
@@ -1888,7 +1890,14 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString ImageID = GetTerrainOrSmudgeFileID(ID);
 	FString FileName = ImageID + this->GetFileExtension();
 	if (!CMixFile::LoadSHP(FileName))
-		return;
+	{
+		if (ExtConfigs::UseStrictNewTheater)
+			return;
+
+		FileName = ImageID + ".shp";
+		if (!CMixFile::LoadSHP(FileName))
+			return;
+	}
 	ShapeHeader header;
 	unsigned char* FramesBuffers[1];
 	CShpFile::GetSHPHeader(&header);
@@ -5661,19 +5670,15 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 			pics += "\\pics\\waypoint.bmp";
 		else
 			pics += "\\pics\\celltag.bmp";
-		if (fs::exists(pics))
+		if (!fs::exists(pics) || !CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
 		{
-			if (!CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
-			{
-				HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-					IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
-				cBitmap.Attach(hBmp);
-			}
-		}
-		else
-		{
-			HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
-				IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+			HBITMAP hBmp = (HBITMAP)LoadImage(
+				static_cast<HINSTANCE>(FA2sp::hInstance),
+				MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP,
+				0, 0,
+				LR_CREATEDIBSECTION);
+		
 			cBitmap.Attach(hBmp);
 		}
 
@@ -5699,6 +5704,45 @@ ImageDataClassSurface* CLoadingExt::GetOrLoadFlagOrCelltagFromMap(COLORREF newCo
 
 	}
 	return itr->second.get();
+}
+
+TextureResource* CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(COLORREF newColor, bool IsFlag)
+{
+	auto& map = IsFlag ? DirectXCustomFlagMap : DirectXCustomCelltagMap;
+	auto itr = map.find(newColor);
+	if (itr == map.end())
+	{
+		CBitmap cBitmap;
+		std::string pics = CFinalSunAppExt::ExePathExt;
+		if(IsFlag)
+			pics += "\\pics\\waypoint.bmp";
+		else
+			pics += "\\pics\\celltag.bmp";
+		if (!fs::exists(pics) || !CLoadingExt::LoadBMPToCBitmap(pics, cBitmap))
+		{
+			HBITMAP hBmp = (HBITMAP)LoadImage(
+				static_cast<HINSTANCE>(FA2sp::hInstance),
+				MAKEINTRESOURCE(IsFlag ? 1023 : 1024),
+				IMAGE_BITMAP,
+				0, 0,
+				LR_CREATEDIBSECTION);
+		
+			cBitmap.Attach(hBmp);
+		}
+	
+		auto r = ReplaceBitmapColor(cBitmap, 
+			IsFlag ? (COLORREF)ExtConfigs::DisplayColor_Waypoint 
+			: (COLORREF)ExtConfigs::DisplayColor_Celltag,
+			newColor);
+
+		FString name;
+		name.Format("%d\233%s", newColor, IsFlag ? "FLAG" : "CELLTAG");
+		auto pTexture = CIsoViewExt::g_pDX->LoadBitmapTexture(name, cBitmap);
+
+		auto [it, inserted] = map.emplace(newColor, pTexture);
+		return it->second;
+	}
+	return itr->second;
 }
 
 void* CLoadingExt::ReadWholeFile(const char* filename, DWORD* pDwSize, bool fa2path)
@@ -5946,4 +5990,121 @@ TextureResource* ImageDataClassSafe::GetColoredTexture(Palette* coloredPal, BGRS
 		return CIsoViewExt::g_pDX->LoadTexture(CIsoViewExt::MakeImageDataView(this, coloredPal), color);
 	}
 	return nullptr;
+}
+
+std::vector<ImageDataClassSafe::BuildingTextureSlice> ImageDataClassSafe::GetBuildingColoredTextures(
+	Palette* coloredPal, BGRStruct color)
+{
+	if (!pImageBuffer || FullHeight <= 0 || FullWidth <= 0)
+		return {};
+
+	auto it = m_buildingSliceCache.find(color);
+	if (it != m_buildingSliceCache.end()) {
+		return it->second.slices;
+	}
+
+	if (pOpacity)
+	{
+		const int totalPixels = static_cast<int>(FullWidth) * FullHeight;
+		m_opacityExtractBuffer = std::make_unique<unsigned char[]>(totalPixels);
+		memcpy(m_opacityExtractBuffer.get(), pImageBuffer.get(), totalPixels);
+
+		for (int i = 0; i < totalPixels; ++i)
+		{
+			if (pOpacity[i] == 255)
+			{
+				m_opacityExtractBuffer[i] = 0;
+			}
+		}
+	}
+
+	constexpr int SLICE_HEIGHT = 30;
+	const int halfH = FullHeight / 2;
+
+	std::vector<int> cutLines;
+
+	for (int cut = halfH; cut >= 0; cut -= SLICE_HEIGHT) {
+		cutLines.push_back(cut);
+	}
+	std::reverse(cutLines.begin(), cutLines.end());
+
+	for (int cut = halfH + SLICE_HEIGHT; cut < FullHeight; cut += SLICE_HEIGHT) {
+		cutLines.push_back(cut);
+	}
+
+	if (cutLines.back() < FullHeight) {
+		cutLines.push_back(FullHeight);
+	}
+
+	if (cutLines.front() > 0) {
+		cutLines.insert(cutLines.begin(), 0);
+	}
+
+	int baselineCutIndex = -1;
+	for (size_t i = 0; i < cutLines.size(); i++) {
+		if (cutLines[i] == halfH) {
+			baselineCutIndex = static_cast<int>(i);
+			break;
+		}
+	}
+
+	BuildingSliceCacheEntry entry;
+
+	for (size_t i = 0; i + 1 < cutLines.size(); i++) {
+		int startRow = cutLines[i];
+		int endRow = cutLines[i + 1];
+		int sliceH = endRow - startRow;
+
+		if (sliceH <= 0)
+			continue;
+
+		if (startRow < 0 || startRow >= FullHeight)
+			continue;
+
+		if (endRow > FullHeight)
+			endRow = FullHeight;
+
+		sliceH = endRow - startRow;
+		if (sliceH <= 0)
+			continue;
+
+		auto pKey = std::make_unique<int>(static_cast<int>(i));
+		auto* pKeyPtr = pKey.get();
+		entry.sliceKeys.push_back(std::move(pKey));
+
+		ImageDataView view;
+		view.FullWidth = FullWidth;
+		view.FullHeight = sliceH;
+		view.pImageBuffer = pImageBuffer.get() + startRow * FullWidth;
+		view.pOpacity = pOpacity ? pOpacity.get() + startRow * FullWidth : nullptr;
+		view.pPalette = coloredPal;
+		view.Type = ImageDataView::ImageDataSafe;
+		view.pOriginData = pKeyPtr;
+
+		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color, true);
+		int indexOffset = static_cast<int>(i) - (baselineCutIndex - 1);
+		entry.slices.push_back({ pTexture, startRow, indexOffset });
+	}
+
+	if (m_opacityExtractBuffer)
+	{
+		auto pKey = std::make_unique<int>(114514);
+		auto* pKeyPtr = pKey.get();
+		entry.sliceKeys.push_back(std::move(pKey));
+
+		ImageDataView view;
+		view.FullWidth = FullWidth;
+		view.FullHeight = FullHeight;
+		view.pImageBuffer = m_opacityExtractBuffer.get();
+		view.pOpacity = pOpacity.get();
+		view.pPalette = coloredPal;
+		view.Type = ImageDataView::ImageDataSafe;
+		view.pOriginData = pKeyPtr;
+
+		auto* pTexture = CIsoViewExt::g_pDX->LoadTexture(view, color);
+		entry.slices.push_back({ pTexture, 0, 114514 });
+	}
+
+	auto& ret = m_buildingSliceCache[color] = std::move(entry);
+	return ret.slices;
 }

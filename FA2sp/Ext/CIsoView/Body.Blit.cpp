@@ -458,6 +458,11 @@ void CIsoViewExt::BlitSHPTransparent(CIsoView* pThis, void* dst, const RECT& win
         return;
     }
 
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        objectOverlapMask = nullptr;
+    }
+
     constexpr int X_OFFSET = 31;
     constexpr int Y_OFFSET = -29;
     constexpr int BPP = 4;
@@ -723,7 +728,8 @@ void CIsoViewExt::BlitSHPTransparent_Building(CIsoView* pThis, void* dst, const 
 }
 
 void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain)
+    Palette* newPal, float alpha, COLORREF houseColor, bool isRubble, bool isTerrain,
+    byte stencilHeight)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -741,17 +747,77 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
     BGRStruct color(houseColor);
     newPal = PalettesManager::GetColoredPalette(newPal, color);
     auto colorMult = ColorMults::GetObjectColorMult(!isTerrain && !isRubble, CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
+
+    auto slices = pd->GetBuildingColoredTextures(newPal, color);
+
+    DrawParams params;
+    params.SetPosition(x, y)
+        .SetOpacity(alpha)
+        .SetColorMul(colorMult);
+
+    for (auto& slice : slices) {
+        DrawParams sliceParams = params;
+        sliceParams.SetPosition(x, y + slice.deltaY);
+
+        // transparent anims
+        if (slice.indexOffset == 114514)
+        {       
+            sliceParams.SetOpacity(0.999f);
+            g_pDX->DrawTexture(slice.pTexture, sliceParams);
+            continue;
+        }
+        
+        if (alpha >= 1.0f)
+        {
+            sliceParams.bWriteStencil = true;
+            if (stencilHeight != 0xFF) {
+                int sliceHeight = static_cast<int>(stencilHeight) + 2;
+                if (slice.indexOffset <= 0)
+                {
+                    sliceHeight += (1 - slice.indexOffset) * 2;
+                }
+                sliceParams.SetStencilRef(std::min(sliceHeight, 15));
+            } else {
+                sliceParams.SetStencilRef(15);
+            }
+        }
+
+        g_pDX->DrawTexture(slice.pTexture, sliceParams);
+    }
+}
+
+void CIsoViewExt::DirectXBaseNode(int x, int y, ImageDataClassSafe* pd, 
+    Palette* newPal, float alpha, COLORREF houseColor, bool isTerrain)
+{
+    if (!ImageDataClassSafe::IsVisibleImage(pd)) {
+        return;
+    }
+
+    constexpr int X_OFFSET = 31;
+    constexpr int Y_OFFSET = -29;
+
+    x += X_OFFSET;
+    y += Y_OFFSET;
+
+    if (!newPal) [[unlikely]] {
+        newPal = pd->pPalette;
+    }
+    BGRStruct color(houseColor);
+    newPal = PalettesManager::GetColoredPalette(newPal, color);
+    auto colorMult = ColorMults::GetObjectColorMult(true, CIsoViewExt::CurrentDrawCellLocation, false, isTerrain ? 4 : 3);
     auto pTexture = pd->GetColoredTexture(newPal, color);
 
     DrawParams params;
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
 void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd, 
-    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap)
+    Palette* newPal, float alpha, COLORREF houseColor, int extraLightType, bool remap,
+    byte stencilHeight, bool useStencilLogic)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -780,6 +846,17 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     params.SetPosition(x, y)
         .SetOpacity(alpha)
         .SetColorMul(colorMult);
+
+    if (useStencilLogic && alpha >= 1.0f)
+    {
+        params.bWriteStencil = true;
+        if (stencilHeight != 0xFF) {
+            params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 2, 15));
+        } else {
+            params.SetStencilRef(15);
+        }
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
@@ -794,10 +871,35 @@ void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bo
             x + X_OFFSET - pTexture->sourceView.FullWidth / 2,
             y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
             .SetOpacity(alpha);
+
+        if (alpha >= 1.0f) {           
+            params.bWriteStencil = true;
+            params.SetStencilRef(15);
+        }
+        
         if (isScreenSpace)
             params.SetScreenSpace();
         g_pDX->DrawTexture(pTexture, params);
     }
+}
+
+void CIsoViewExt::DirectXFlagOrCelltag(int x, int y, TextureResource* pTexture, float alpha)
+{
+    constexpr int X_OFFSET = 1;
+    constexpr int Y_OFFSET = -29;
+
+    DrawParams params;
+    params.SetPosition(
+        x + X_OFFSET - pTexture->sourceView.FullWidth / 2,
+        y + Y_OFFSET - pTexture->sourceView.FullHeight / 2)
+        .SetOpacity(alpha);
+
+    if (alpha >= 1.0f) {           
+        params.bWriteStencil = true;
+        params.SetStencilRef(15);
+    }
+    
+    g_pDX->DrawTexture(pTexture, params);
 }
 
 void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
@@ -817,7 +919,7 @@ void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, x, y);
 }
 
-void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -834,10 +936,17 @@ void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd)
     DrawParams params;
     params.SetPosition(x, y)
         .SetOpacity(0.5f);
+
+    if (stencilHeight != 0xFF) {
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 1, 14));
+        params.bIsShadow = true;
+    }
+
     g_pDX->DrawTexture(pTexture, params);
 }
 
-void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer::OverlayType* pType, byte nData)
+void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, 
+    Renderer::OverlayType* pType, CellData* cell, CellDataExt* cellExt, bool isAroundRedrawCell)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -859,7 +968,7 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer:
         if (CMapDataExt::IsOre(pType->OverlayIndex)) {
             isEmphasizingOre = true;
             oreColor = pType->TypeData.RadarColor;
-            oreOpacity = oreOpacityTable[std::min(nData, (byte)13)];
+            oreOpacity = oreOpacityTable[std::min(cell->OverlayData, (byte)13)];
         }
     }
 
@@ -869,16 +978,8 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer:
     BGRStruct color;
     if (pType->TypeData.Wall && ExtConfigs::InGameDisplay_RemapableOverlay)
     {
-        int pos = CMapData::Instance->GetCoordIndex(
-            CIsoViewExt::CurrentDrawCellLocation.X, 
-            CIsoViewExt::CurrentDrawCellLocation.Y);
-
-        if (pos < CMapData::Instance->CellDataCount)
-        {
-            auto& cellExt = CMapDataExt::CellDataExts[pos];
-            color = cellExt.RemapableColor;
-            newPal = PalettesManager::GetColoredPalette(newPal, color);
-        }    
+        color = cellExt->RemapableColor;
+        newPal = PalettesManager::GetColoredPalette(newPal, color); 
     }
 
     const bool doMultiSel = (!RenderingMap || (RenderingMap && RenderCurrentLayers)) 
@@ -889,7 +990,13 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd, Renderer:
     DrawParams params;
     params.SetPosition(x, y)
         .SetColorMul(colorMult);
-
+ 
+    params.bWriteStencil = true;
+    if (isAroundRedrawCell) {
+        params.SetStencilRef(std::min(static_cast<int>(cell->Height) + (pType->IsBridge() ? 3 : 2), 15));
+    } else {
+        params.SetStencilRef(15);
+    }
     if (isEmphasizingOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
     if (doMultiSel) {
@@ -1125,6 +1232,14 @@ void CIsoViewExt::BlitTerrain(CIsoView* pThis, void* dst, const RECT& window,
 {
     if (alpha == 0 || !subTile || !subTile->HasValidImage || !subTile->ImageData || !dst || !subTile->pPixelValidRanges) {
         return;
+    }
+
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        mask = nullptr;
+        heightMask = nullptr;
+        cellHeightMask = nullptr;
+        objectOverlapMask = nullptr;
     }
 
     constexpr int X_OFFSET = 61;
@@ -1424,7 +1539,7 @@ bool CIsoViewExt::DirectXReady()
 }
 
 void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile, 
-    float alpha, byte height, bool onlyExtra)
+    float alpha, char height, bool onlyExtra)
 {
     auto& dataExt = CMapDataExt::TileBlockDataExt[subTile];
     if (!subTile || !subTile->HasValidImage 
@@ -1483,6 +1598,12 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     if (doOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
 
+    int realHeight = height;
+    if (height>= 0)
+    {
+        height += (subTile->YMinusExY < 0 ? ((subTile->YMinusExY) / -30) : 0) + 1;
+    }
+
     if (onlyExtra)
     {
         params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
@@ -1490,18 +1611,21 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     }
     else 
     {
+        if (height>= 0)
+        {
+            params.SetStencilRef(std::min(realHeight + 1, 14));
+        }
         g_pDX->DrawTexture(dataExt.pTexture, params);
 
         if (!doFlatToGround)
         {
+            if (height>= 0)
+            {
+                params.SetStencilRef(std::min(height + 1, 14));
+            }
             params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
             g_pDX->DrawTexture(dataExt.pExtraTexture, params);
         }
     }
-
-    //if (doCellHeight)
-    //{
-    //    BlitCellHeightMask(*cellHeightMask, &window, x, y, subTile, height);
-    //}
 }
 

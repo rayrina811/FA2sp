@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstring>
 #include <string>
+#include <algorithm>
 #include "../CLoading/Body.h"
 #include "Body.h"
 #include "DirectXCore.h"
@@ -516,6 +517,12 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
+    // No-color-output blend state (用于仅更新stencil的pass)
+    D3D11_BLEND_DESC blendNoColor = {};
+    blendNoColor.RenderTarget[0].BlendEnable = FALSE;
+    blendNoColor.RenderTarget[0].RenderTargetWriteMask = 0;
+    m_pDevice->CreateBlendState(&blendNoColor, &m_pBlendStateNoColor);
+
     // Independent-blend state for MRT alpha accumulation:
     // RT0 = normal alpha blending, RT1 = overwrite (ONE, ZERO) with R-only mask.
     D3D11_BLEND_DESC accumBlendDesc = {};
@@ -562,14 +569,81 @@ bool DirectXCore::CreateShadersAndInputLayout()
     dsDesc.StencilEnable = FALSE;
     m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateGE);
 
-    // Read-only depth state for semi-transparent textures:
-    // They still participate in depth testing (get occluded by foreground)
-    // but do NOT write depth, so they don't block things drawn later.
     dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
     m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateReadOnlyGE);
 
     dsDesc.DepthEnable = FALSE;
     m_pDevice->CreateDepthStencilState(&dsDesc, &m_pDepthStateOff);
+
+    D3D11_DEPTH_STENCIL_DESC swDesc = {};
+    swDesc.DepthEnable = TRUE;
+    swDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    swDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    swDesc.StencilEnable = TRUE;
+    swDesc.StencilReadMask = 0xFF;
+    swDesc.StencilWriteMask = 0xF0;
+    swDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+    swDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+    swDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    swDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    swDesc.BackFace = swDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&swDesc, &m_pDepthStateShadowWrite);
+
+    D3D11_DEPTH_STENCIL_DESC owDesc = {};
+    owDesc.DepthEnable = TRUE;
+    owDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    owDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    owDesc.StencilEnable = TRUE;
+    owDesc.StencilReadMask = 0x0F;
+    owDesc.StencilWriteMask = 0x0F;
+    owDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+    owDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+    owDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    owDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    owDesc.BackFace = owDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&owDesc, &m_pDepthStateObjectStencilWrite);
+
+    D3D11_DEPTH_STENCIL_DESC soDesc = {};
+    soDesc.DepthEnable = TRUE;
+    soDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    soDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    soDesc.StencilEnable = TRUE;
+    soDesc.StencilReadMask = 0x0F;
+    soDesc.StencilWriteMask = 0x0F;
+    soDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER;
+    soDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+    soDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    soDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    soDesc.BackFace = soDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&soDesc, &m_pDepthStateStencilOnlyWrite);
+
+    D3D11_DEPTH_STENCIL_DESC trDesc = {};
+    trDesc.DepthEnable = TRUE;
+    trDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    trDesc.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    trDesc.StencilEnable = TRUE;
+    trDesc.StencilReadMask = 0x0F;
+    trDesc.StencilWriteMask = 0x0F;
+    trDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER;
+    trDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+    trDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    trDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    trDesc.BackFace = trDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&trDesc, &m_pDepthStateTerrainRedraw);
+
+    D3D11_DEPTH_STENCIL_DESC srDesc = {};
+    srDesc.DepthEnable = TRUE;
+    srDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    srDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+    srDesc.StencilEnable = TRUE;
+    srDesc.StencilReadMask = 0x0F;
+    srDesc.StencilWriteMask = 0x00;
+    srDesc.FrontFace.StencilFunc = D3D11_COMPARISON_GREATER_EQUAL;
+    srDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    srDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    srDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+    srDesc.BackFace = srDesc.FrontFace;
+    m_pDevice->CreateDepthStencilState(&srDesc, &m_pDepthStateShadowRedraw);
 
     return true;
 }
@@ -957,7 +1031,7 @@ bool DirectXCore::CreateLineShaders()
 {
     // Vertex shader: receives LineVertex { x, y, depth, color } as float4.
     // x,y are already in NDC; depth is the pre-assigned depth value.
-    // Just pass through directly — no matrix transform needed.
+    // Just pass through directly �? no matrix transform needed.
     const char *vsCode = R"(
         struct VSInput {
             float4 pos_depth : POSITION;  // (ndcX, ndcY, depth, colorPacked)
@@ -1134,7 +1208,7 @@ void DirectXCore::RenderOffscreenContent()
         CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
         1.0f};
     m_pContext->ClearRenderTargetView(m_OffscreenRTV.Get(), clearColor);
-    m_pContext->ClearDepthStencilView(m_pOffscreenDSV.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
+    m_pContext->ClearDepthStencilView(m_pOffscreenDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 
     float vw = (float)(m_clientWidth * m_renderScale);
     float vh = (float)(m_clientHeight * m_renderScale);
@@ -1188,14 +1262,34 @@ void DirectXCore::RenderOffscreenContent()
         cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
         cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
         cb.mixFactor = p.mixFactor;
+
+        ID3D11DepthStencilState* prevDSState = nullptr;
+        UINT prevStencilRef = 0;
+        if (cmd.pCustomDSState) {
+            m_pContext->OMGetDepthStencilState(&prevDSState, &prevStencilRef);
+            UINT stencilRef = (p.stencilRef >= 0) ? static_cast<UINT>(p.stencilRef) : 0;
+            m_pContext->OMSetDepthStencilState(cmd.pCustomDSState, stencilRef);
+        }
+
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (FAILED(m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+        {
+            if (cmd.pCustomDSState && prevDSState) {
+                m_pContext->OMSetDepthStencilState(prevDSState, prevStencilRef);
+                prevDSState->Release();
+            }
             return;
+        }
         memcpy(mapped.pData, &cb, sizeof(cb));
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
         m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
         m_pContext->Draw(4, 0);
+
+        if (cmd.pCustomDSState && prevDSState) {
+            m_pContext->OMSetDepthStencilState(prevDSState, prevStencilRef);
+            prevDSState->Release();
+        }
     };
 
     // ====================================================================
@@ -1207,13 +1301,72 @@ void DirectXCore::RenderOffscreenContent()
 
     for (const auto &cmd : m_drawCommands)
     {
-        if (cmd.bIsEffect || cmd.bScreenSpace)
+        if (cmd.bIsEffect || cmd.bScreenSpace || cmd.bStencilDraw)
             continue;
         if (!cmd.texRes || !cmd.texRes->srv || cmd.texRes->bIsIndexTexture)
             continue;
         if (cmd.params.opacity < 1.0f - 1e-6f)
             continue;
         DrawOneTexture(cmd);
+    }
+
+    // ====================================================================
+    // Phase 1.5: Stencil-aware draws 
+    //   Pass A:  shadow stencil-only (bIsShadow && bStencilOnly) 
+    //   Pass A2: object stencil-only (bWriteStencil && bStencilOnly)
+    //   Pass B:  terrain redraw (!bIsShadow && !bWriteStencil)  
+    //   Pass C:  shadow color redraw (bIsShadow && !bStencilOnly) 
+    // ====================================================================
+    if (ExtConfigs::PreciseDepthCalculation) {
+        bool hasStencilDraws = false;
+        for (const auto &cmd : m_drawCommands) {
+            if (cmd.bStencilDraw) { hasStencilDraws = true; break; }
+        }
+
+        if (hasStencilDraws) {
+            // Pass A: Shadow stencil-only
+            m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
+            for (const auto &cmd : m_drawCommands) {
+                if (!cmd.bStencilDraw || !cmd.params.bIsShadow || !cmd.bStencilOnly)
+                    continue;
+                if (!cmd.texRes || !cmd.texRes->srv)
+                    continue;
+                DrawOneTexture(cmd);
+            }
+            m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+
+            // Pass A2: Objects conditional stencil update 
+            m_pContext->OMSetBlendState(m_pBlendStateNoColor.Get(), nullptr, 0xffffffff);
+            for (const auto &cmd : m_drawCommands) {
+                if (!cmd.bStencilDraw || cmd.params.bIsShadow || !cmd.params.bWriteStencil || !cmd.bStencilOnly)
+                    continue;
+                if (!cmd.texRes || !cmd.texRes->srv)
+                    continue;
+                DrawOneTexture(cmd);
+            }
+            m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
+
+            // Pass B: Terrain redraw 
+            for (const auto &cmd : m_drawCommands) {
+                if (!cmd.bStencilDraw || cmd.params.bIsShadow || cmd.params.bWriteStencil)
+                    continue;
+                if (!cmd.texRes || !cmd.texRes->srv)
+                    continue;
+                DrawOneTexture(cmd);
+            }
+
+            // Pass C: Shadow color redraw
+            for (const auto &cmd : m_drawCommands) {
+                if (!cmd.bStencilDraw || !cmd.params.bIsShadow || cmd.bStencilOnly)
+                    continue;
+                if (!cmd.texRes || !cmd.texRes->srv)
+                    continue;
+                DrawOneTexture(cmd);
+            }
+
+            // Restore normal depth state for subsequent phases
+            m_pContext->OMSetDepthStencilState(m_pDepthStateGE.Get(), 0);
+        }
     }
 
     // ====================================================================
@@ -1224,7 +1377,7 @@ void DirectXCore::RenderOffscreenContent()
     bool hasTransparent = false;
     for (const auto &cmd : m_drawCommands)
     {
-        if (cmd.bIsEffect || cmd.bScreenSpace) continue;
+        if (cmd.bIsEffect || cmd.bScreenSpace || cmd.bStencilDraw) continue;
         if (cmd.params.opacity < 1.0f - 1e-6f)
         {
             hasTransparent = true;
@@ -1245,7 +1398,7 @@ void DirectXCore::RenderOffscreenContent()
 
         for (const auto &cmd : m_drawCommands)
         {
-            if (cmd.bIsEffect || cmd.bScreenSpace)
+            if (cmd.bIsEffect || cmd.bScreenSpace || cmd.bStencilDraw)
                 continue;
             if (!cmd.texRes || !cmd.texRes->srv || cmd.texRes->bIsIndexTexture)
                 continue;
@@ -1288,7 +1441,7 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // ====================================================================
-    // Restore state for effects pass
+    // Restore quad pipeline state (Phase 3 changed IA/VS/PS for lines)
     // ====================================================================
     stride = sizeof(QuadVertex);
     offset = 0;
@@ -1299,6 +1452,9 @@ void DirectXCore::RenderOffscreenContent()
     m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
     m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
 
+    // ====================================================================
+    // Phase 4: Effects pass (index textures �� factor �� composite)
+    // ====================================================================
     bool hasEffect = false;
     for (auto &cmd : m_drawCommands)
         if (cmd.bIsEffect)
@@ -1568,7 +1724,7 @@ void DirectXCore::RenderScreenSpaceOnly()
     m_drawCommands.clear();
 }
 
-TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color)
+TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct color, bool ignoreTransparent)
 {
     auto index = TextureIndex{view.pOriginData, color};
     auto [itr, inserted] = m_textureMap.try_emplace(index);
@@ -1590,6 +1746,8 @@ TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct c
         {
             unsigned char idx = view.pImageBuffer[y * w + x];
             unsigned char opacity = idx == 0 ? 0 : (view.pOpacity ? view.pOpacity[y * w + x] : 255);
+            if (opacity < 255 && ignoreTransparent)
+                opacity = 0;
             BGRStruct color = view.pPalette->Data[idx];
             uint32_t rgba = (color.R << 0) | (color.G << 8) | (color.B << 16) | (opacity << 24);
             rgbaData[y * w + x] = rgba;
@@ -1836,11 +1994,23 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
 {
     if (!tex)
         return;
+
     DrawCommand cmd;
     cmd.texRes = tex;
     cmd.params = params;
     cmd.bIsEffect = tex->bIsIndexTexture;
     cmd.bScreenSpace = params.bScreenSpace;
+    if (!ExtConfigs::PreciseDepthCalculation)
+    {
+        cmd.params.bIsShadow = false;
+        cmd.params.bWriteStencil = false;
+        cmd.params.SetStencilRef(-1);
+    }
+    if (cmd.params.bScreenSpace)
+    {
+        cmd.params.bWriteStencil = false;
+        cmd.params.SetStencilRef(-1);
+    }
     if (params.drawDepth != -1)
     {
         cmd.depth = params.drawDepth;
@@ -1849,7 +2019,47 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
     {
         cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     }
-    m_drawCommands.push_back(cmd);
+
+    if (cmd.params.stencilRef >= 0) {
+        if (cmd.params.bIsShadow) {
+            UINT renderDepth = cmd.depth;
+            int shadowVal = std::min(cmd.params.stencilRef, 15);
+
+            DrawCommand stencilCmd = cmd;
+            stencilCmd.bStencilDraw = true;
+            stencilCmd.bStencilOnly = true;
+            stencilCmd.pCustomDSState = m_pDepthStateShadowWrite.Get();
+            stencilCmd.depth = renderDepth;
+            stencilCmd.params.stencilRef = shadowVal << 4; 
+            m_drawCommands.push_back(stencilCmd);
+
+            cmd.bStencilDraw = true;
+            cmd.bStencilOnly = false;
+            cmd.pCustomDSState = m_pDepthStateShadowRedraw.Get();
+            cmd.params.stencilRef = shadowVal; 
+            m_drawCommands.push_back(cmd);
+        } else if (cmd.params.bWriteStencil) {
+            cmd.bStencilDraw = false;
+            cmd.pCustomDSState = nullptr;
+            UINT renderDepth = cmd.depth;
+            m_drawCommands.push_back(cmd);
+
+            DrawCommand stencilCmd = cmd;
+            stencilCmd.bStencilDraw = true;
+            stencilCmd.bStencilOnly = true;
+            stencilCmd.pCustomDSState = m_pDepthStateStencilOnlyWrite.Get();
+            stencilCmd.depth = renderDepth;
+            m_drawCommands.push_back(stencilCmd);
+        } else {
+            cmd.bStencilDraw = true;
+            cmd.pCustomDSState = m_pDepthStateTerrainRedraw.Get();
+            m_drawCommands.push_back(cmd);
+        }
+    } else {
+        cmd.bStencilDraw = false;
+        cmd.pCustomDSState = nullptr;
+        m_drawCommands.push_back(cmd);
+    }
 }
 
 void DirectXCore::AddLineEntry(float x0, float y0, float x1, float y1,
@@ -1933,7 +2143,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
             ny =  dx * invLen * halfT;
         }
 
-        // Pixel → NDC conversion (same math as CalcWorldMatrixNoGlobal)
+        // Pixel �? NDC conversion (same math as CalcWorldMatrixNoGlobal)
         auto toNDC = [&](float px, float py) -> std::pair<float, float>
         {
             return {
@@ -1952,7 +2162,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
         // TRIANGLELIST: two triangles forming the thick line quad
         // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
-        // Triangles: (V0,V1,V2) and (V1,V3,V2) — no shared edges with next line
+        // Triangles: (V0,V1,V2) and (V1,V3,V2) �? no shared edges with next line
         verts.push_back({x0b, y0b, depthZ, le.color});  // V0: left of start
         verts.push_back({x0a, y0a, depthZ, le.color});  // V1: right of start
         verts.push_back({x1b, y1b, depthZ, le.color});  // V2: left of end
@@ -2447,7 +2657,6 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    // ── Border via GPU line batching (supports dashed) ──
     if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;
@@ -2514,7 +2723,6 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
     if (!hasFill && !hasBorder)
         return;
 
-    // ── Fill via CPU canvas ──
     if (hasFill)
     {
         float pad = 2.f;
@@ -2536,7 +2744,6 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
         FlushCanvas(canvas, originX, originY, 1.f, params.bScreenSpace);
     }
 
-    // ── Border via GPU line batching (supports dashed) ──
     if (hasBorder && m_dx)
     {
         ShapeColor bc = params.borderColor;
@@ -2718,7 +2925,14 @@ void TextRenderer::DrawTexts(
     dp.opacity = params.opacity;
 
     if (params.bScreenSpace)
+    {
         dp.SetScreenSpace();
+    }
+    else
+    {
+        dp.bWriteStencil = true;
+        dp.SetStencilRef(255);
+    }
 
     m_dx->DrawTexture(tex, dp);
 }

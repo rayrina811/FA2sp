@@ -369,7 +369,7 @@ static void DrawTechnoAttachments(
 						CIsoViewExt::DirectXShadow(
 							displayX - pData->FullWidth / 2 + mat.OutputX + info.DeltaX,
 							displayY - pData->FullHeight / 2 + mat.OutputY + info.DeltaY,
-							pData);
+							pData, cell ? static_cast<byte>(cell->Height) : 0xFF);
 					}
 					else
 					{
@@ -834,9 +834,13 @@ static void DrawMapDriectDraw()
 		shadowMask_Terrain.assign(shadowMask_size, 0);
 		shadowMask_Overlay.assign(shadowMask_size, 0);
 		shadowMask.assign(shadowMask_size, 0);
-		shadowHeightMask.assign(shadowMask_size, 0);
-		cellHeightMask.assign(shadowMask_size, 0);
-		objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+
+		if (ExtConfigs::PreciseDepthCalculation)
+		{
+			shadowHeightMask.assign(shadowMask_size, 0);
+			cellHeightMask.assign(shadowMask_size, 0);
+			objectOverlapMask.assign(shadowMask_size, CHAR_MIN);
+		}
 	}
 
 	// loop1: tiles
@@ -960,14 +964,14 @@ static void DrawMapDriectDraw()
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXTerrain(x, y,
-													&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
+													&subTile, isCellHidden(cell) ? 0.5f : 1.0f, cell->Height);
 					}
 					else
 					{
 						Palette *pal = CMapDataExt::TileSetPalettes[tileSet];
 						CIsoViewExt::BlitTerrain(pThis, ddsd.lpSurface, window, boundary,
-												 x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
-												 isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
+													x + subTile.XMinusExX, y + subTile.YMinusExY, &subTile, pal,
+													isCellHidden(cell) ? 128 : 255, nullptr, nullptr, cell->Height, &cellHeightMask, tileSetOri);
 					}
 
 					auto &cellExt = CMapDataExt::CellDataExts[CMapData::Instance->GetCoordIndex(X, Y)];
@@ -980,12 +984,13 @@ static void DrawMapDriectDraw()
 							cellExt.HasAnim = true;
 						}
 					}
+
 					if (CMapDataExt::RedrawExtraTileSets.find(tileSet) != CMapDataExt::RedrawExtraTileSets.end())
 						RedrawCoords.push_back(MapCoord{X, Y});
 				}
 			}
 		}
-		else if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
+		if (cell->Flag.RedrawTerrain && !CFinalSunApp::Instance->FlatToGround)
 		{
 			for (int i = 1; i <= 2; i++)
 			{
@@ -1063,10 +1068,15 @@ static void DrawMapDriectDraw()
 
 		if (cell->Flag.RedrawTerrain)
 		{
-			for (int dx = -2; dx <= 2; ++dx)
+			for (int dx = -3; dx <= 3; ++dx)
 			{
-				for (int dy = -2; dy <= 2; ++dy)
+				for (int dy = -3; dy <= 3; ++dy)
 				{
+					if (dx + dy > 0) 
+						continue;
+					if (!isCoordInFullMap(X + dx, Y + dy))
+						continue;
+				
 					int nx = X + dx;
 					int ny = Y + dy;
 					int neighborIndex = coordToIndex[nx][ny];
@@ -1178,7 +1188,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData);
+							pData, nullptr, 1.0f, 0, -1, false, 0xff, false);
 					}
 					else
 					{
@@ -1216,7 +1226,7 @@ static void DrawMapDriectDraw()
 			WaypointsToDraw.push_back(std::make_pair(MapCoord{X, Y},
 													 cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
-		if (cell->Structure > -1 && Renderer::Buildings[cell->Structure].IsVisible())
+		if (cell->Structure > -1)
 		{
 			if (!DrawnBuildings[cell->Structure])
 			{
@@ -1403,7 +1413,7 @@ static void DrawMapDriectDraw()
 					{
 						if (ExtConfigs::DirectXRendering)
 						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 						}
 						else
 						{
@@ -1441,7 +1451,7 @@ static void DrawMapDriectDraw()
 								CIsoViewExt::DirectXShadow(
 									x1 - pUpgData->FullWidth / 2,
 									y1 - pUpgData->FullHeight / 2,
-									pUpgData);
+									pUpgData, cell->Height);
 							}
 							else
 							{
@@ -1519,16 +1529,24 @@ static void DrawMapDriectDraw()
 
 						auto isTerrain = pType->IsTerrainPalette;
 
-						if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+						if (ExtConfigs::DirectXRendering)
 						{
-							pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain);
+							pPal = nullptr;
 						}
 						else
 						{
-							pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain,
-																	 {(short)node.X, (short)node.Y, CMapDataExt::TryGetCellAt(node.X, node.Y)->Height},
-																	 false, isTerrain ? 4 : 3);
+							if (LightingStruct::CurrentLighting == LightingStruct::NoLighting)
+							{
+								pPal = PalettesManager::GetPalette(clips[0]->pPalette, color, !isTerrain);
+							}
+							else
+							{
+								pPal = PalettesManager::GetObjectPalette(clips[0]->pPalette, color, !isTerrain,
+																		 {(short)node.X, (short)node.Y, CMapDataExt::TryGetCellAt(node.X, node.Y)->Height},
+																		 false, isTerrain ? 4 : 3);
+							}
 						}
+
 						for (int i = 0; i < std::min(DataExt.BottomCoords.size(), clips.size()); ++i)
 						{
 							auto pData = clips[i].get();
@@ -1650,7 +1668,7 @@ static void DrawMapDriectDraw()
 					{
 						if (ExtConfigs::DirectXRendering)
 						{
-							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+							CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 						}
 						else
 						{
@@ -1689,7 +1707,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + 15,
-							pData);
+							pData, cell->Height);
 					}
 					else
 					{
@@ -1733,7 +1751,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData);
+							pData, cell->Height);
 					}
 					else
 					{
@@ -1760,7 +1778,7 @@ static void DrawMapDriectDraw()
 
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData);
+						CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
 					}
 					else
 					{
@@ -1874,6 +1892,7 @@ static void DrawMapDriectDraw()
 						x1 -= 60;
 						y1 -= 30;
 
+
 						if (subTile.HasValidImage)
 						{
 							Palette *pal = CMapDataExt::TileSetPalettes[tileSet];
@@ -1881,7 +1900,9 @@ static void DrawMapDriectDraw()
 							if (ExtConfigs::DirectXRendering)
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
-															&subTile, isCellHidden(cell) ? 0.5f : 1.0f);
+															&subTile, isCellHidden(cell) ? 0.5f : 1.0f,
+															cell->Height);			
+													
 							}
 							else
 							{
@@ -1956,7 +1977,8 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData);
+							pData, NULL, 255, -1, -1, false, 
+							info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2016,7 +2038,7 @@ static void DrawMapDriectDraw()
 							CIsoViewExt::DirectXOverlay(
 								x1 - pData->FullWidth / 2,
 								y1 - pData->FullHeight / 2,
-								pData, pNextType, cellNext->OverlayData);
+								pData, pNextType, cellNext, &cellNextExt, info.aroundRedrawCell);
 						}
 						else
 						{
@@ -2061,7 +2083,7 @@ static void DrawMapDriectDraw()
 							CIsoViewExt::DirectXOverlay(
 								x1 - pData->FullWidth / 2,
 								y1 - pData->FullHeight / 2,
-								pData, pType, cell->OverlayData);
+								pData, pType, cell, cellExt, info.aroundRedrawCell);
 						}
 						else
 						{
@@ -2089,7 +2111,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1));
+							pData, NULL, 1.0f, 0, pType->IsTiberiumTree ? 6 : (pType->HasCustomPalette ? 5 : -1), false, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2154,7 +2176,7 @@ static void DrawMapDriectDraw()
 				}
 			}
 
-			if (CIsoViewExt::DrawStructures)
+			if (CIsoViewExt::DrawStructures && pBuilding->IsVisible())
 			{
 				if (ImageDataClassSafe::IsValidImage(part.pData))
 				{
@@ -2164,7 +2186,9 @@ static void DrawMapDriectDraw()
 										!pType->IsDamagedAsRubble && (pType->LeaveRubble || ExtConfigs::HideNoRubbleBuilding);
 						auto isTerrain = pType->IsTerrainPalette;
 						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f, objRender.HouseColor, isRubble, isTerrain);
+													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f,
+													 objRender.HouseColor, isRubble, isTerrain, 
+													 info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
 					}
 					else
 					{
@@ -2187,7 +2211,8 @@ static void DrawMapDriectDraw()
 											x1 - pData->ClipOffsets.FullWidth / 2 + pData->ClipOffsets.LeftOffset,
 											y1 - pData->FullHeight / 2, pData.get(),
 											NULL, isCloakable(pType) ? 0.5f : 1.0f,
-											objRender.HouseColor, false, pType->IsTerrainPalette);
+											objRender.HouseColor, false, pType->IsTerrainPalette, 
+											info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
 									}
 									else
 									{
@@ -2243,7 +2268,7 @@ static void DrawMapDriectDraw()
 									y2 - pUpgData->FullHeight / 2,
 									pUpgData, NULL,
 									isCloakable(pType) ? 0.5f : 1.0f,
-									objRender.HouseColor, false, pType->IsTerrainPalette);
+									objRender.HouseColor, false, pType->IsTerrainPalette, info.aroundRedrawCell ? cell->Height : 0xFF);
 							}
 							else
 							{
@@ -2386,9 +2411,9 @@ static void DrawMapDriectDraw()
 				{
 					if (ExtConfigs::DirectXRendering)
 					{
-						CIsoViewExt::DirectXBuilding(
+						CIsoViewExt::DirectXBaseNode(
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-							part.pData, part.pPal, 0.5f, part.HouseColor);
+							part.pData, nullptr, 0.5f, part.HouseColor);
 					}
 					else
 					{
@@ -2425,9 +2450,21 @@ static void DrawMapDriectDraw()
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-					pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
-									x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-									false, false, &ddsd, window, true);
+				{
+					if(ExtConfigs::DirectXRendering)
+					{
+						pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, true, 1, false);
+					}
+					else
+					{
+						pThis->DrawLine(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
+						x + 30, y + 15 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+						false, false, &ddsd, window, true);
+
+					}
+				}
 
 				auto draw = [&]
 				{
@@ -2437,7 +2474,7 @@ static void DrawMapDriectDraw()
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2 + 15 - (HoveringUnit ? 10 : 0) -
 								(ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" ? 60 : 0),
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true);
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 0, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2493,7 +2530,7 @@ static void DrawMapDriectDraw()
 					{
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2, y - pData->FullHeight / 2 + 15,
-							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true);
+							pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 2, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
 					{
@@ -2548,9 +2585,20 @@ static void DrawMapDriectDraw()
 					y1 -= 60;
 
 				if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
-					pThis->DrawLine(x1 + 30, y1 - 30,
-									x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
-									false, false, &ddsd, window, true);
+				{
+					if(ExtConfigs::DirectXRendering)
+					{
+						pThis->DrawLineRawDirectX(x1 + 30, y1 - 30,
+							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, true, 1, false);
+					}
+					else
+					{
+						pThis->DrawLine(x1 + 30, y1 - 30,
+							x1 + 30, y1 + 60 - 30, ExtConfigs::CursorSelectionBound_HeightColor,
+							false, false, &ddsd, window, true);
+					}
+				}
 
 				auto color = Miscs::GetColorRef(obj.House);
 				if (ImageDataClassSafe::IsValidImage(pData))
@@ -2561,7 +2609,7 @@ static void DrawMapDriectDraw()
 						{
 							CIsoViewExt::DirectXNormal(
 								x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2,
-								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true);
+								pData, NULL, isCloakable(pType) ? 0.5f : 1.0f, color, 1, true, info.aroundRedrawCell ? cell->Height : 0xFF);
 						}
 						else
 						{
@@ -2888,6 +2936,36 @@ static void DrawMapDriectDraw()
 			auto &x = info.screenX;
 			auto &y = info.screenY;
 
+			auto drawCellTagImage = [&](const ppmfc::CString &id)
+			{
+				auto itr = CMapDataExt::CustomCelltagColors.find(id);
+				if (itr != CMapDataExt::CustomCelltagColors.end())
+				{
+					auto pTexture = CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(itr->second, false);
+					CIsoViewExt::DirectXFlagOrCelltag(x + 29, y + 13, pTexture,
+						 ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+				}
+				else
+				{
+					CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
+						ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+				}
+			};
+
+			auto drawWaypointImage = [&](const ppmfc::CString &id)
+			{
+				auto itr = CMapDataExt::CustomWaypointColors.find(id);
+				if (itr != CMapDataExt::CustomWaypointColors.end())
+				{
+					auto pTexture = CLoadingExt::DirectXGetOrLoadFlagOrCelltagFromMap(itr->second, true);
+					CIsoViewExt::DirectXFlagOrCelltag(x + 30, y + 12, pTexture);
+				}
+				else
+				{
+					CIsoViewExt::DirectXBitmap(x + 30, y + 12, "FLAG");
+				}
+			};
+
 			if (cell->CellTag > -1 && cell->CellTag < Celltags.size())
 			{
 				auto id = Celltags[cell->CellTag];
@@ -2899,8 +2977,7 @@ static void DrawMapDriectDraw()
 						{
 							if (name == *id)
 							{
-								CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-														   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+								drawCellTagImage(*id);
 								break;
 							}
 							if (STDHelpers::IsNumber(name))
@@ -2912,17 +2989,15 @@ static void DrawMapDriectDraw()
 									buffer.Format("%08d", n + 1000000);
 									if (buffer == *id)
 									{
-										CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-																   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+										drawCellTagImage(*id);
 										break;
 									}
 								}
 							}
 						}
 					}
-					else
-						CIsoViewExt::DirectXBitmap(x + 29, y + 13, "CELLTAG",
-												   ExtConfigs::DrawCelltagTranslucent ? 0.5f : 1.0f);
+					else					
+						drawCellTagImage(*id);
 				}
 			}
 
@@ -2930,7 +3005,7 @@ static void DrawMapDriectDraw()
 			{
 				auto id = Waypoints[cell->Waypoint];
 				if (id)
-					CIsoViewExt::DirectXBitmap(x + 30, y + 12, "FLAG");
+					drawWaypointImage(*id);
 			}
 
 			if (CIsoViewExt::DrawAnnotations && CMapDataExt::HasAnnotation(pos))
@@ -3581,7 +3656,7 @@ static void DrawMapDriectDraw()
 				D3D11_TEXTURE2D_DESC texDesc;
 				pOffscreenTex->GetDesc(&texDesc);
 
-				// Use client area rect as source â€” the offscreen texture starts at (0,0)
+				// Use client area rect as source â€? the offscreen texture starts at (0,0)
 				// in client coordinates, NOT at the window screen position.
 				int clientW = pDX->GetClientWidth();
 				int clientH = pDX->GetClientHeight();
