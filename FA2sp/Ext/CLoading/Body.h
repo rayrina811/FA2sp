@@ -150,7 +150,6 @@ public:
 	static void ClearItemTypes(bool releaseNonsurfaces = true);
 	void GetFullPaletteName(FString& PaletteName);
 	static void LoadFires(const ppmfc::CString& FileName);
-	static std::vector<ImageDataClassSafe*> GetRandomFire(const MapCoord& coord, int number);
 	static void LoadShp(FString ImageID, FString FileName, FString PalName, int nFrame);
 	static void LoadShp(FString ImageID, FString FileName, Palette* pPal, int nFrame);
 	static void LoadShpToSurface(FString ImageID, FString FileName, FString PalName, int nFrame);
@@ -327,6 +326,7 @@ public:
 	static FHashMap<int> BioReactors;
 	static std::unordered_set<int> Ra2dotMixes;
 	static int TallestBuildingHeight;
+	static bool ObjectsNeedReloaded;
 private:
 
 	void DumpFrameToFile(unsigned char* pBuffer, Palette* pPal, int Width, int Height, FString name);
@@ -362,7 +362,6 @@ public:
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomFlagMap;
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
-	static unsigned int RandomFireSeed;
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

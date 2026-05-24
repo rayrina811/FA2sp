@@ -1934,13 +1934,14 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	const int dx = pt.x - pThis->MouseCenterPosition.x;
 	const int dy = pt.y - pThis->MouseCenterPosition.y;
 	const bool shouldScroll = rightDown && (abs(dx) > 2 || abs(dy) > 2) && pThis->MouseCenterPosition.x != -1919810;
+	const bool highestBit = (nFlags >> 31) & 1u;
 
 	if (shouldScroll)
 	{
 		pThis->IsScrolling = true;
 
-		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
-		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate;
+		int adaptedDx = dx * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
+		int adaptedDy = dy * 20 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
 
 		if (dx > 0)
 			adaptedDx = std::max(1, adaptedDx);
@@ -1974,7 +1975,9 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			pt.y + (ExtConfigs::SecondScreenSupport ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0)
 		);
 
-		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, MK_RBUTTON, lParam);
+		WPARAM wParam = MK_RBUTTON;
+		wParam |= (1u << 31);
+		PostMessage(pThis->GetSafeHwnd(), WM_MOUSEMOVE, wParam, lParam);
 
 		return 0x456EC0;
 	}
@@ -1982,7 +1985,8 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 	{
 		pThis->MouseCenterPosition.x = pt.x;
 		pThis->MouseCenterPosition.y = pt.y;
-		pThis->IsScrolling = FALSE;
+		if (!highestBit)
+			pThis->IsScrolling = FALSE;
 	}
 
 	return 0x456EDB;
@@ -2090,19 +2094,27 @@ DEFINE_HOOK(45EAF0, CIsoView_OnRButtonUp, 6)
 	
 				if (CViewObjectsExt::NeedChangeTreeViewSelect)
 				{
-					auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
-					HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
-					HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
-					HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
-					if (hParent != NULL)
-						TreeView_SelectItem(hWnd, hParent);
-					else if (hPrevSibling != NULL) {
-						TreeView_SelectItem(hWnd, hPrevSibling);
-					}
-					else {
-						HTREEITEM hRoot = TreeView_GetRoot(hWnd);
-						if (hRoot != NULL)
-							TreeView_SelectItem(hWnd, hRoot);
+					// fix wall & view property case
+					for (int i = 0; i < 3; ++i)
+					{
+						auto hWnd = CFinalSunDlg::Instance->MyViewFrame.pViewObjects->m_hWnd;
+						HTREEITEM hSelectedItem = TreeView_GetSelection(hWnd);
+						HTREEITEM hParent = TreeView_GetParent(hWnd, hSelectedItem);
+						HTREEITEM hPrevSibling = TreeView_GetPrevSibling(hWnd, hSelectedItem);
+						if (hParent != NULL)
+							TreeView_SelectItem(hWnd, hParent);
+						else if (hPrevSibling != NULL) {
+							TreeView_SelectItem(hWnd, hPrevSibling);
+						}
+						else {
+							HTREEITEM hRoot = TreeView_GetRoot(hWnd);
+							if (hRoot != NULL)
+								TreeView_SelectItem(hWnd, hRoot);
+						}
+						if (CIsoView::CurrentCommand->Command == 0x0)
+						{
+							break;
+						}
 					}
 				}
 				CViewObjectsExt::NeedChangeTreeViewSelect = false;

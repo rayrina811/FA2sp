@@ -56,6 +56,7 @@ bool ExtConfigs::SortByLabelName_Team;
 bool ExtConfigs::SortByLabelName_Taskforce;
 bool ExtConfigs::SortByLabelName_Script;
 bool ExtConfigs::NewTriggerPlusID;
+bool ExtConfigs::DisplayTriggerEnableInfo;
 bool ExtConfigs::UseSequentialIndexing;
 bool ExtConfigs::UseSeparateIndexing;
 bool ExtConfigs::AdjustDropdownWidth;
@@ -210,6 +211,7 @@ bool ExtConfigs::ExtMixLoader;
 int ExtConfigs::DisplayTextSize;
 int ExtConfigs::DistanceRuler_Records;
 bool ExtConfigs::DisplayObjectsOutside;
+bool ExtConfigs::LoadObjectsOnInit;
 bool ExtConfigs::AVX2_Support;
 bool ExtConfigs::AutoDarkMode;
 double ExtConfigs::AutoDarkMode_SwitchTimeA;
@@ -277,6 +279,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SortByLabelName_Script = CINI::FAData->GetBool("ExtConfigs", "SortByLabelName.Script");
 
 	ExtConfigs::NewTriggerPlusID = CINI::FAData->GetBool("ExtConfigs", "NewTriggerPlusID");
+	ExtConfigs::DisplayTriggerEnableInfo = CINI::FAData->GetBool("ExtConfigs", "DisplayTriggerEnableInfo", true);
 	ExtConfigs::UseSequentialIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSequentialIndexing");
 	ExtConfigs::UseSeparateIndexing = CINI::FAData->GetBool("ExtConfigs", "UseSeparateIndexing");
 
@@ -375,6 +378,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DisplayBridgeOverlay = CINI::FAData->GetBool("ExtConfigs", "DisplayBridgeOverlay");
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
+	ExtConfigs::LoadObjectsOnInit = CINI::FAData->GetBool("ExtConfigs", "LoadObjectsOnInit");
 
 	ExtConfigs::DistanceRuler_Records = CINI::FAData->GetInteger("ExtConfigs", "DistanceRuler.Records", 5);
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
@@ -572,6 +576,8 @@ void FA2sp::ExtConfigsInitialize()
 		&& (GetSystemMetrics(SM_CMONITORS) > 1);
 
 	ExtConfigs::DirectXRendering = ExtConfigs::DirectXRendering_INI;
+	if (ExtConfigs::DirectXRendering)
+		ExtConfigs::SecondScreenSupport = true;
 }
 
 void ExtConfigs::UpdateOptionTranslations()
@@ -618,6 +624,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.AdjustDropdownWidth", "Auto-adjust label width for editors"),
 		.IniKey = "AdjustDropdownWidth",
 		.Value = &ExtConfigs::AdjustDropdownWidth,
+		.Type = ExtConfigs::SpecialOptionType::None
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayTriggerEnableInfo", "Display whether triggers are disabled in the dropdown menu"),
+		.IniKey = "DisplayTriggerEnableInfo",
+		.Value = &ExtConfigs::DisplayTriggerEnableInfo,
 		.Type = ExtConfigs::SpecialOptionType::None
 		});
 
@@ -1211,6 +1224,13 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ExtMixLoader",
 		.Value = &ExtConfigs::ExtMixLoader,
 		.Type = ExtConfigs::SpecialOptionType::Restart
+		});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.LoadObjectsOnInit", "Load all in-map objects during map initialization"),
+		.IniKey = "LoadObjectsOnInit",
+		.Value = &ExtConfigs::LoadObjectsOnInit,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap
 		});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

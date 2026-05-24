@@ -17,6 +17,7 @@
 #include "../CFinalSunDlg/Body.h"
 #include <Miscs/Miscs.h>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
+#include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Miscs/StringtableLoader.h"
 #include "../../Helpers/Helper.h"
@@ -216,7 +217,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
 
         if (ExtConfigs::DirectXRendering)
         {
-            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128));
+            CIsoViewExt::DrawLineDirectX(x1, y1 + 1, x2, y2 + 1, RGB(128, 128, 128), 2);
         }
         else
         {
@@ -2419,10 +2420,12 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT& rect)
         // 0-9: trigger editors
         if (CIsoView::CurrentCommand->Type >= 0
             && CIsoView::CurrentCommand->Type <= 9
-            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger)
+            && CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger
+            || CIsoView::CurrentCommand->Type == 10 && !CNewTag::CurrentTagID.IsEmpty())
         {
             FString line1;
-            FString newTag = CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
+            FString newTag = CIsoView::CurrentCommand->Type == 10 ? CNewTag::CurrentTagID :
+            CNewTrigger::Instance[CIsoView::CurrentCommand->Type].CurrentTrigger->Tag;
             FString currentTag;
             bool hasObject = false;
             if (newTag != "" && newTag != "<none>")

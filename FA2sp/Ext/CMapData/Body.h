@@ -21,6 +21,7 @@ struct TileBlockExt
     std::vector<char> HeightMask{};
     ImageDataClassSafe* pExtraImage = nullptr;
     POINT ExtraOffset{};
+    POINT ExtraSize{};
     TextureResource* pTexture = nullptr;
     TextureResource* pExtraTexture = nullptr;
 };
@@ -329,6 +330,7 @@ struct CellDataExt
     bool HasAnnotation = false;
 
     int RecordMinimapUpdateIndex[3] = { -1 } ;
+    char DamagedFires[8] = { -1 };
 
     struct BuildingRenderPart
     {
@@ -480,6 +482,8 @@ struct CellDataExt
             }
         }
     }
+
+    CellDataExt();
 };
 
 enum class EIndexType : int {
@@ -806,6 +810,7 @@ public:
 
     static void CheckCellLow(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
     static void CheckCellRise(bool steep, int loopCount = 0, bool IgnoreMorphable = false, std::vector<int>* ignoreList = nullptr);
+    static void RefreshAllWindows();
     static void GenerateNoiseSlopeTerrain(
         const std::set<MapCoord>& region,
         int minHeight,
@@ -939,7 +944,7 @@ public:
     static std::map<int, BuildingRenderData> PlaceStructure_OldData;
     static FMap<std::pair<byte, byte>> SmudgeSizes;
 
-    static std::map<ExtraImageInfo, POINT> TileBlockExtraOffsets;
+    static std::map<ExtraImageInfo, std::pair<POINT, POINT>> TileBlockExtraOffsets;
     static std::map<int, std::vector<CustomTile>> CustomTiles;
     static FMap<COLORREF> CustomWaypointColors;
     static FMap<COLORREF> CustomCelltagColors;

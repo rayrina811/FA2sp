@@ -34,8 +34,43 @@ std::vector<ParamAffectedParams> CNewTrigger::EventParamAffectedParams;
 bool CNewTrigger::AvoidInfiLoop = false;
 bool CNewTrigger::SortTriggersExecuted = false;
 bool CNewTrigger::AutoChangeName = false;
+bool CNewTrigger::IsMultiPlay = false;
 static constexpr int DRAG_THRESHOLD = 4;
 static const std::vector<FString> noneLabel = { "<none>" };
+
+static COLORREF GetTriggerBackground(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(40, 40, 40) : RGB(240, 240, 240));
+}
+
+static COLORREF GetTriggerTextColor(bool enabled)
+{
+    return enabled ? CLR_INVALID : (ExtConfigs::EnableDarkMode ? RGB(160, 160, 160) : RGB(72, 72, 72));
+}
+
+using enum SubtextGlyph;
+
+static std::vector<SubtextSegment> GetTriggerEnableText(Trigger* trigger)
+{
+    if (!ExtConfigs::DisplayTriggerEnableInfo)
+        return { };
+    using G = SubtextGlyph;
+    auto circle = [&](bool on) { return on ? G::FilledCircle : G::HollowCircle; };
+    auto rect = trigger->Disabled ? G::BandedCircle : G::AllowCircle;
+
+    if (CNewTrigger::IsMultiPlay)
+    {
+        return {{ rect }};
+    }
+
+    return {
+        { circle(trigger->EasyEnabled) },
+        { circle(trigger->MediumEnabled) },
+        { circle(trigger->HardEnabled) },
+        { G::Space },
+        { rect }
+    };
+}
 
 void CNewTrigger::Create(CFinalSunDlg* pWnd)
 {
@@ -273,7 +308,9 @@ void CNewTrigger::Update(HWND& hWnd, bool UpdateTrigger)
         ShowWindow(m_hwnd, SW_SHOW);
         SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     }
-
+    
+    IsMultiPlay = CMapData::Instance->IsMultiOnly();
+    
     if (UpdateTrigger)
         CMapDataExt::UpdateTriggers();
 
@@ -1614,6 +1651,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->Disabled = SendMessage(hDisabled, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1622,6 +1680,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->EasyEnabled = SendMessage(hEasy, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1630,6 +1709,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->MediumEnabled = SendMessage(hMedium, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -1638,6 +1738,27 @@ BOOL CALLBACK CNewTrigger::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
             if (CODE == BN_CLICKED && CurrentTrigger)
             {
                 CurrentTrigger->HardEnabled = SendMessage(hHard, BM_GETCHECK, 0, 0);
+
+                for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
+                {
+                    auto pThis = &Instance[i];
+                    if (pThis->GetHandle())
+                    {
+                        pThis->vcbSelectedTrigger.ReplaceSubtext(
+                            SelectedTriggerIndex,
+                            GetTriggerEnableText(CurrentTrigger.get()));
+                            pThis->vcbAttachedTrigger.ReplaceSubtext(
+                                SelectedTriggerIndex + 1,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        if (pThis->CurrentTriggerActionParam > -1)
+                        {
+                            pThis->vcbActionParameter[pThis->CurrentTriggerActionParam].ReplaceSubtext(
+                                SelectedTriggerIndex,
+                                GetTriggerEnableText(CurrentTrigger.get()));
+                        }
+                    }
+                }
+                
                 CurrentTrigger->Save();
                 RefreshOtherInstances();
             }
@@ -2112,8 +2233,10 @@ void CNewTrigger::OnSelchangeEventParam(int index, bool edited)
     if (text.empty())
         return;
 
-
-    ExtraWindow::TrimStringIndex(text);
+    if (CurrentTriggerEventParam == index || CurrentTeamEventParam == index)
+        FString::TrimIndex(text);
+    else
+        ExtraWindow::TrimStringIndex(text);
     if (text == "")
         text = "0";
 
@@ -2226,6 +2349,23 @@ void CNewTrigger::UpdateParamAffectedParam_Event(int index)
             {
                 auto paramType = FString::GetParam(CINI::FAData->GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), target.ParamMap[text]), 1);
                 ExtraWindow::LoadParams(vcbEventParameter[target.AffectedParam], paramType, this);
+
+                if (paramType == "10") // stringtables
+                {
+                    CurrentCSFEventParam = target.AffectedParam;
+                }
+                else if (paramType == "9") // triggers
+                {
+                    CurrentTriggerEventParam = target.AffectedParam;
+                }
+                else if (paramType == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        paramType), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = target.AffectedParam;
+                }
 
                 auto& targetText = CurrentTrigger->Events[SelectedEventIndex].Params[EventParamsUsage[target.AffectedParam].second];
                 int paramIdx = ExtraWindow::FindCBStringExactStart(hEventParameter[target.AffectedParam], targetText + " ");
@@ -2946,6 +3086,23 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
                 }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "10") // stringtables
+                {
+                    CurrentCSFEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "9") // triggers
+                {
+                    CurrentTriggerEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second - 1][1] == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[EventParamsUsage[i].second - 1][1]), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = i;
+                }
+
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second - 1][0].c_str());
             }
             else
@@ -2968,6 +3125,22 @@ void CNewTrigger::UpdateEventAndParam(int changedEvent, bool changeCursel)
                 if (pParamTypes[EventParamsUsage[i].second][1] == "1" && !ExtConfigs::SearchCombobox_Waypoint) // waypoints
                 {
                     CNewTrigger::EventParameterAutoDrop[i] = false;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "10") // stringtables
+                {
+                    CurrentCSFEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "9") // triggers
+                {
+                    CurrentTriggerEventParam = i;
+                }
+                else if (pParamTypes[EventParamsUsage[i].second][1] == "15" || FString::GetParam(
+                    fadata.GetString(
+                        "NewParamTypes",
+                        pParamTypes[EventParamsUsage[i].second][1]), 0)
+                    == "TeamTypes")
+                {
+                    CurrentTeamEventParam = i;
                 }
                 SendMessage(hEventParameterDesc[i], WM_SETTEXT, 0, (LPARAM)pParamTypes[EventParamsUsage[i].second][0].c_str());
             }
@@ -3088,6 +3261,9 @@ void CNewTrigger::UpdateActionAndParam(int changedAction, bool changeCursel)
     CurrentCSFActionParam = -1;
     CurrentTriggerActionParam = -1;
     CurrentTeamActionParam = -1;
+    CurrentCSFEventParam = -1;
+    CurrentTriggerEventParam = -1;
+    CurrentTeamEventParam = -1;
     for (int i = 0; i < ACTION_PARAM_COUNT; i++)
     {
         ExtraWindow::ClearComboKeepText(hActionParameter[i]);
@@ -3466,21 +3642,24 @@ void CNewTrigger::SortTriggers(FString id, bool onlySelf)
         SortTriggersExecuted = true;
         TempValueHolder<bool> tmpLoop(AvoidInfiLoop, true);
 
-        std::vector<FString> labels;
+        std::vector<std::pair<FString, Trigger*>> labels;
         for (auto& triggerPair : CMapDataExt::Triggers) {
             auto& trigger = triggerPair.second;
-            labels.push_back(ExtraWindow::GetTriggerDisplayName(trigger->ID));
+            labels.push_back({ExtraWindow::GetTriggerDisplayName(trigger->ID), trigger.get()});
         }
 
         bool tmp = ExtConfigs::SortByLabelName;
         ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Trigger;
-        ExtraWindow::SortLabels(labels);
+        ExtraWindow::SortTriggerLabels(labels);
         ExtConfigs::SortByLabelName = tmp;
 
         auto sort = [&labels](CNewTrigger* pThis, FString id) {
 
             pThis->vcbSelectedTrigger.Clear();
-            pThis->vcbSelectedTrigger.AddStrings(labels);
+            for (auto& [name, trigger] : labels)
+            {
+                pThis->vcbSelectedTrigger.AddSubtextString(name, GetTriggerEnableText(trigger));
+            }
             pThis->vcbAttachedTrigger.CopyFrom(pThis->vcbSelectedTrigger, &noneLabel);
             if (pThis->CurrentTriggerActionParam > -1)
             {

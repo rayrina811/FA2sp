@@ -40,6 +40,7 @@ FHashSet CLoadingExt::LoadedOverlays;
 FHashMap<InsigniaGrid> CLoadingExt::LoadedInsignias;
 std::unordered_map<WORD, WORD> CLoadingExt::OverlayDataLimits;
 int CLoadingExt::TallestBuildingHeight = 0;
+bool CLoadingExt::ObjectsNeedReloaded = true;
 FHashSet CLoadingExt::NotFoundFiles;
 std::unordered_map<std::string, std::vector<unsigned char>> CLoadingExt::g_cache[2];
 std::unordered_map<std::string, uint64_t> CLoadingExt::g_cacheTime[2];
@@ -54,7 +55,6 @@ std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap;
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
-unsigned int CLoadingExt::RandomFireSeed = 0;
 
 namespace fs = std::filesystem;
 
@@ -367,6 +367,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 			CIsoViewExt::GetExtension()->g_pDX->ClearTextures();
 		}
 
+		CLoadingExt::ObjectsNeedReloaded = true;
 		Logger::Debug("CLoadingExt: Clearing loaded objects.\n");
 	}							    
 	else {						    
@@ -1891,9 +1892,6 @@ void CLoadingExt::LoadTerrainOrSmudge(const FString& ID, bool terrain)
 	FString FileName = ImageID + this->GetFileExtension();
 	if (!CMixFile::LoadSHP(FileName))
 	{
-		if (ExtConfigs::UseStrictNewTheater)
-			return;
-
 		FileName = ImageID + ".shp";
 		if (!CMixFile::LoadSHP(FileName))
 			return;
@@ -4749,40 +4747,6 @@ void CLoadingExt::LoadFires(const ppmfc::CString& FileName)
 			DamageFires.push_back(std::move(pData));
 		}
 	}
-}
-
-std::vector<ImageDataClassSafe*> CLoadingExt::GetRandomFire(const MapCoord& coord, int number)
-{
-	if (DamageFires.empty()) return {};
-	if (number == 0) return {};
-
-	size_t h1 = std::hash<int>{}(coord.X);
-	size_t h2 = std::hash<int>{}(coord.Y);
-	auto hash = h1 ^ (h2 << 1);
-	std::mt19937 rng(static_cast<unsigned int>(hash ^ RandomFireSeed));
-
-	std::vector<ImageDataClassSafe*> shuffled;
-	for (const auto& f : DamageFires)
-		shuffled.push_back(f.get());
-
-	std::shuffle(shuffled.begin(), shuffled.end(), rng);
-
-	std::vector<ImageDataClassSafe*> result;
-	result.reserve(number);
-
-	if (shuffled.size() >= number) {
-		result.insert(result.end(), shuffled.begin(), shuffled.begin() + number);
-	}
-	else {
-		while (result.size() < number) {
-			size_t remain = number - result.size();
-			if (remain >= shuffled.size())
-				result.insert(result.end(), shuffled.begin(), shuffled.end());
-			else
-				result.insert(result.end(), shuffled.begin(), shuffled.begin() + remain);
-		}
-	}
-	return result;
 }
 
 bool CLoadingExt::IsBarrelInFront(int curFacing, int totFacing)

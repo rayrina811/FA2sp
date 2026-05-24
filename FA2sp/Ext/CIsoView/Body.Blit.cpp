@@ -745,10 +745,19 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
         newPal = pd->pPalette;
     }
     BGRStruct color(houseColor);
-    newPal = PalettesManager::GetColoredPalette(newPal, color);
-    auto colorMult = ColorMults::GetObjectColorMult(!isTerrain && !isRubble, CIsoViewExt::CurrentDrawCellLocation, false, isRubble || isTerrain ? 4 : 3);
-
-    auto slices = pd->GetBuildingColoredTextures(newPal, color);
+    bool remap = !isTerrain && !isRubble;
+    ColorMults colorMult{};
+    std::vector<ImageDataClassSafe::BuildingTextureSlice> slices;
+    if (remap)
+    {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+        colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, remap ? 3 : 4);  
+    }
+    else
+    {
+        colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, remap ? 3 : 4);  
+    }
+    slices = pd->GetBuildingColoredTextures(newPal, color);
 
     DrawParams params;
     params.SetPosition(x, y)
@@ -771,14 +780,14 @@ void CIsoViewExt::DirectXBuilding(int x, int y, ImageDataClassSafe* pd,
         {
             sliceParams.bWriteStencil = true;
             if (stencilHeight != 0xFF) {
-                int sliceHeight = static_cast<int>(stencilHeight) + 2;
+                int sliceHeight = static_cast<int>(stencilHeight) + 3;
                 if (slice.indexOffset <= 0)
                 {
                     sliceHeight += (1 - slice.indexOffset) * 2;
                 }
-                sliceParams.SetStencilRef(std::min(sliceHeight, 15));
+                sliceParams.SetStencilRef(std::min(sliceHeight, 127));
             } else {
-                sliceParams.SetStencilRef(15);
+                sliceParams.SetStencilRef(127);
             }
         }
 
@@ -803,8 +812,16 @@ void CIsoViewExt::DirectXBaseNode(int x, int y, ImageDataClassSafe* pd,
         newPal = pd->pPalette;
     }
     BGRStruct color(houseColor);
-    newPal = PalettesManager::GetColoredPalette(newPal, color);
-    auto colorMult = ColorMults::GetObjectColorMult(true, CIsoViewExt::CurrentDrawCellLocation, false, isTerrain ? 4 : 3);
+    ColorMults colorMult{};
+    if (!isTerrain)
+    {
+        newPal = PalettesManager::GetColoredPalette(newPal, color);
+        colorMult = ColorMults::GetObjectColorMult(!isTerrain, CIsoViewExt::CurrentDrawCellLocation, false, !isTerrain ? 3 : 4);  
+    }
+    else
+    {
+        colorMult = ColorMults::GetObjectColorMult(!isTerrain, CIsoViewExt::CurrentDrawCellLocation, false, !isTerrain ? 3 : 4);  
+    }
     auto pTexture = pd->GetColoredTexture(newPal, color);
 
     DrawParams params;
@@ -840,7 +857,7 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     }
 
     auto colorMult = ColorMults::GetObjectColorMult(remap, CIsoViewExt::CurrentDrawCellLocation, false, extraLightType);
-    auto pTexture = pd->GetColoredTexture(newPal, color);
+    auto pTexture = remap ? pd->GetColoredTexture(newPal, color) : pd->GetTexture();
 
     DrawParams params;
     params.SetPosition(x, y)
@@ -851,10 +868,15 @@ void CIsoViewExt::DirectXNormal(int x, int y, ImageDataClassSafe* pd,
     {
         params.bWriteStencil = true;
         if (stencilHeight != 0xFF) {
-            params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 2, 15));
+            params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 3, 127));
         } else {
-            params.SetStencilRef(15);
+            params.SetStencilRef(127);
         }
+    }
+    else if (!useStencilLogic)
+    {
+        params.bWriteStencil = true;
+        params.SetStencilRef(0);
     }
 
     g_pDX->DrawTexture(pTexture, params);
@@ -874,7 +896,7 @@ void CIsoViewExt::DirectXBitmap(int x, int y, FString_view name, float alpha, bo
 
         if (alpha >= 1.0f) {           
             params.bWriteStencil = true;
-            params.SetStencilRef(15);
+            params.SetStencilRef(127);
         }
         
         if (isScreenSpace)
@@ -896,7 +918,7 @@ void CIsoViewExt::DirectXFlagOrCelltag(int x, int y, TextureResource* pTexture, 
 
     if (alpha >= 1.0f) {           
         params.bWriteStencil = true;
-        params.SetStencilRef(15);
+        params.SetStencilRef(127);
     }
     
     g_pDX->DrawTexture(pTexture, params);
@@ -919,7 +941,7 @@ void CIsoViewExt::DirectXAlphaImage(int x, int y, ImageDataClassSafe* pd)
     g_pDX->DrawTexture(pTexture, x, y);
 }
 
-void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight)
+void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stencilHeight, bool overlap)
 {
     if (!ImageDataClassSafe::IsVisibleImage(pd)) {
         return;
@@ -936,10 +958,11 @@ void CIsoViewExt::DirectXShadow(int x, int y, ImageDataClassSafe* pd, byte stenc
     DrawParams params;
     params.SetPosition(x, y)
         .SetOpacity(0.5f);
-
+    
     if (stencilHeight != 0xFF) {
-        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 1, 14));
+        params.SetStencilRef(std::min(static_cast<int>(stencilHeight) + 1, 127));
         params.bIsShadow = true;
+        params.bIsOverlapShadow = overlap;
     }
 
     g_pDX->DrawTexture(pTexture, params);
@@ -993,9 +1016,9 @@ void CIsoViewExt::DirectXOverlay(int x, int y, ImageDataClassSafe* pd,
  
     params.bWriteStencil = true;
     if (isAroundRedrawCell) {
-        params.SetStencilRef(std::min(static_cast<int>(cell->Height) + (pType->IsBridge() ? 3 : 2), 15));
+        params.SetStencilRef(std::min(static_cast<int>(cell->Height) + (pType->IsBridge() ? 3 : 2), 127));
     } else {
-        params.SetStencilRef(15);
+        params.SetStencilRef(127);
     }
     if (isEmphasizingOre)
         params.SetColorMix(oreColor,  1.0f - oreOpacity / 255.0f);
@@ -1379,7 +1402,9 @@ void CIsoViewExt::MaskShadowPixels(
     std::vector<byte>& heightMask,
     byte height)
 {
-    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges || pd->IsEmptyImage || mask.empty()) {
+    if (!pd || !pd->pImageBuffer || !pd->pPixelValidRanges ||
+         pd->IsEmptyImage || mask.empty())
+    {
         return;
     }
 
@@ -1413,33 +1438,65 @@ void CIsoViewExt::MaskShadowPixels(
 
     BYTE* src = static_cast<BYTE*>(pd->pImageBuffer.get());
 
-    for (int row = srcRect.top; row < srcRect.bottom; ++row)
+    if (ExtConfigs::PreciseDepthCalculation)
     {
-        auto& range = pd->pPixelValidRanges[row];
-
-        int left = std::max<int>(range.First, srcRect.left);
-        int right = std::min<int>(range.Last, srcRect.right - 1);
-        if (left > right) continue;
-
-        BYTE* srcPtr = src + row * swidth + left;
-
-        int dy = destRect.top + row - window.top;
-        int dxBase = destRect.left + left - window.left;
-
-        BYTE* maskPtr = reinterpret_cast<BYTE*>(mask.data()) + dy * maskWidth + dxBase;
-        BYTE* heightPtr = heightMask.data() + dy * maskWidth + dxBase;
-
-        for (int col = left; col <= right; ++col)
+        for (int row = srcRect.top; row < srcRect.bottom; ++row)
         {
-            BYTE pixel = *srcPtr++;
-            if (!pixel) {
-                ++maskPtr;
-                ++heightPtr;
-                continue;
+            auto& range = pd->pPixelValidRanges[row];
+    
+            int left = std::max<int>(range.First, srcRect.left);
+            int right = std::min<int>(range.Last, srcRect.right - 1);
+            if (left > right) continue;
+    
+            BYTE* srcPtr = src + row * swidth + left;
+    
+            int dy = destRect.top + row - window.top;
+            int dxBase = destRect.left + left - window.left;
+    
+            BYTE* maskPtr = reinterpret_cast<BYTE*>(mask.data()) + dy * maskWidth + dxBase;
+            BYTE* heightPtr = heightMask.data() + dy * maskWidth + dxBase;
+    
+            for (int col = left; col <= right; ++col)
+            {
+                BYTE pixel = *srcPtr++;
+                if (!pixel) {
+                    ++maskPtr;
+                    ++heightPtr;
+                    continue;
+                }
+    
+                *maskPtr++ = 1;
+                *heightPtr++ = height;
             }
-
-            *maskPtr++ = 1;
-            *heightPtr++ = height;
+        }
+    }
+    else
+    {
+        for (int row = srcRect.top; row < srcRect.bottom; ++row)
+        {
+            auto& range = pd->pPixelValidRanges[row];
+    
+            int left = std::max<int>(range.First, srcRect.left);
+            int right = std::min<int>(range.Last, srcRect.right - 1);
+            if (left > right) continue;
+    
+            BYTE* srcPtr = src + row * swidth + left;
+    
+            int dy = destRect.top + row - window.top;
+            int dxBase = destRect.left + left - window.left;
+    
+            BYTE* maskPtr = reinterpret_cast<BYTE*>(mask.data()) + dy * maskWidth + dxBase;
+    
+            for (int col = left; col <= right; ++col)
+            {
+                BYTE pixel = *srcPtr++;
+                if (!pixel) {
+                    ++maskPtr;
+                    continue;
+                }
+    
+                *maskPtr++ = 1;
+            }
         }
     }
 }
@@ -1476,35 +1533,70 @@ void CIsoViewExt::DrawShadowMask(
         return factors;
     }();
 
-    for (int y = 0; y < maskHeight; ++y)
+    if (ExtConfigs::PreciseDepthCalculation)
     {
-        int dy = window.top + y;
-        if (static_cast<unsigned>(dy) >= static_cast<unsigned>(height)) continue;
-
-        BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
-        const BYTE* maskPtr = mask.data() + y * maskWidth;
-        const BYTE* shadowPtr = shadowHeightMask.data() + y * maskWidth;
-        const int* cellPtr = cellHeightMask.data() + y * maskWidth;
-
-        for (int x = 0; x < maskWidth; ++x)
+        for (int y = 0; y < maskHeight; ++y)
         {
-            BYTE count = maskPtr[x];
-            if (count == 0) continue;
-
-            int dx = window.left + x;
-            if (static_cast<unsigned>(dx) >= static_cast<unsigned>(width)) continue;
-
-            if (cellPtr[x] > 30 * shadowPtr[x]) continue;
-
-            BYTE* dest = destLine + x * BPP;
-            BGRStruct* color = reinterpret_cast<BGRStruct*>(dest);
-
-            unsigned short factor = attenuationFactors[count];
-            color->R = (color->R * factor) >> 8;
-            color->G = (color->G * factor) >> 8;
-            color->B = (color->B * factor) >> 8;
+            int dy = window.top + y;
+            if (static_cast<unsigned>(dy) >= static_cast<unsigned>(height)) continue;
+    
+            BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
+            const BYTE* maskPtr = mask.data() + y * maskWidth;
+            const BYTE* shadowPtr = shadowHeightMask.data() + y * maskWidth;
+            const int* cellPtr = cellHeightMask.data() + y * maskWidth;
+    
+            for (int x = 0; x < maskWidth; ++x)
+            {
+                BYTE count = maskPtr[x];
+                if (count == 0) continue;
+    
+                int dx = window.left + x;
+                if (static_cast<unsigned>(dx) >= static_cast<unsigned>(width)) continue;
+    
+                if (cellPtr[x] > 30 * shadowPtr[x] + 30) 
+                {
+                    continue;
+                }
+    
+                BYTE* dest = destLine + x * BPP;
+                BGRStruct* color = reinterpret_cast<BGRStruct*>(dest);
+    
+                unsigned short factor = attenuationFactors[count];
+                color->R = (color->R * factor) >> 8;
+                color->G = (color->G * factor) >> 8;
+                color->B = (color->B * factor) >> 8;
+            }
         }
     }
+    else
+    {        
+        for (int y = 0; y < maskHeight; ++y)
+        {
+            int dy = window.top + y;
+            if (static_cast<unsigned>(dy) >= static_cast<unsigned>(height)) continue;
+    
+            BYTE* destLine = base + dy * boundary.dpitch + window.left * BPP;
+            const BYTE* maskPtr = mask.data() + y * maskWidth;
+    
+            for (int x = 0; x < maskWidth; ++x)
+            {
+                BYTE count = maskPtr[x];
+                if (count == 0) continue;
+    
+                int dx = window.left + x;
+                if (static_cast<unsigned>(dx) >= static_cast<unsigned>(width)) continue;
+    
+                BYTE* dest = destLine + x * BPP;
+                BGRStruct* color = reinterpret_cast<BGRStruct*>(dest);
+    
+                unsigned short factor = attenuationFactors[count];
+                color->R = (color->R * factor) >> 8;
+                color->G = (color->G * factor) >> 8;
+                color->B = (color->B * factor) >> 8;
+            }
+        }
+    }
+
 }
 
 void CIsoViewExt::BltToWindow(HWND hwnd, LPDIRECTDRAWSURFACE7 src, const RECT* rcSrc, const RECT* rcDst)
@@ -1601,27 +1693,34 @@ void CIsoViewExt::DirectXTerrain(int x, int y, CTileBlockClass* subTile,
     int realHeight = height;
     if (height>= 0)
     {
-        height += (subTile->YMinusExY < 0 ? ((subTile->YMinusExY) / -30) : 0) + 1;
+        if (subTile->YMinusExY < 0 && subTile->YMinusExY + dataExt.ExtraSize.y <= 15)
+        {
+            height += (subTile->YMinusExY - 29) / -30;
+        }
     }
 
-    if (onlyExtra)
-    {
+    if (onlyExtra && dataExt.pExtraTexture)
+    {            
+        if (height>= 0)
+        {
+            params.SetStencilRef(std::min(static_cast<int>(height + 1), 127));
+        }
         params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
         g_pDX->DrawTexture(dataExt.pExtraTexture, params);
     }
-    else 
+    else if (!onlyExtra)
     {
         if (height>= 0)
         {
-            params.SetStencilRef(std::min(realHeight + 1, 14));
+            params.SetStencilRef(std::min(realHeight + 1, 127));
         }
         g_pDX->DrawTexture(dataExt.pTexture, params);
 
-        if (!doFlatToGround)
+        if (!doFlatToGround && dataExt.pExtraTexture)
         {
             if (height>= 0)
             {
-                params.SetStencilRef(std::min(height + 1, 14));
+                params.SetStencilRef(std::min(static_cast<int>(height + 1), 127));
             }
             params.SetPosition(x + dataExt.ExtraOffset.x, y + dataExt.ExtraOffset.y);
             g_pDX->DrawTexture(dataExt.pExtraTexture, params);

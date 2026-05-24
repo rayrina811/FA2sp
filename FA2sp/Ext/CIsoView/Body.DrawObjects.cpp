@@ -21,6 +21,7 @@
 #include <codecvt>
 #include <functional>
 #include <thread>
+#include <CUpdateProgress.h>
 
 static CRect window;
 static MapCoord VisibleCoordTL;
@@ -50,6 +51,7 @@ static std::vector<std::pair<MapCoord, FString>> WaypointsToDraw;
 static std::vector<std::pair<MapCoord, FString>> OverlayTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> TerrainTextsToDraw;
 static std::vector<std::pair<MapCoord, FString>> SmudgeTextsToDraw;
+static std::vector<std::pair<MapCoord, FString>> BaseNodeTextsToDraw;
 static std::vector<std::pair<MapCoord, DrawBuildings>> BuildingsToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> AlphaImagesToDraw;
 static std::vector<std::pair<MapCoord, ImageDataClassSafe *>> FiresToDraw;
@@ -246,11 +248,6 @@ static void DrawTechnoAttachments(
 			if (redrawIndex > 0 && i == redrawIndex)
 			{
 				originalDraw();
-			}
-
-			if (!CLoadingExt::IsObjectLoaded(info.ID))
-			{
-				CLoadingExt::GetExtension()->LoadObjects(info.ID);
 			}
 
 			auto eItemType = CLoadingExt::GetExtension()->GetItemType(info.ID);
@@ -517,7 +514,140 @@ static void DrawTechnoAttachments(
 	}
 }
 
-static void DrawMapDriectDraw()
+static void InitAllObjects()
+{
+	CMapDataExt::RefreshAllWindows();
+
+	if (!ExtConfigs::LoadObjectsOnInit)
+		return;
+
+	auto keepAlive = []()
+	{
+		MSG msg;
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		Sleep(1);
+	};
+
+	std::set<WORD> overlays;
+	std::vector<BaseNodeDataExt*> baseNodes;
+	for (auto& cellExt: CMapDataExt::CellDataExts)
+	{
+		if (cellExt.NewOverlay != 0xffff)
+		{
+			overlays.insert(cellExt.NewOverlay);
+		}
+		for (auto &node : cellExt.BaseNodes)
+		{
+			baseNodes.push_back(&node);
+		}
+	}
+	int count = CMapDataExt::BuildingDatasExt.size() 
+	+ CMapDataExt::UnitDatasExt.size()
+	+ CMapDataExt::AircraftDatasExt.size()
+	+ CMapData::Instance->InfantryDatas.size()
+	+ CMapData::Instance->TerrainDatas.size()
+	+ CMapData::Instance->SmudgeDatas.size()
+	+ overlays.size() + baseNodes.size();
+
+	int currentPos = 0;
+
+	CUpdateProgress progress(
+		Translations::TranslateOrDefault("InitAllObjectsProgressText",
+			"Loading objects, please wait..."), NULL);
+	progress.ShowWindow(SW_SHOW);
+	progress.UpdateWindow();
+	progress.ProgressBar.SetRange(0, count);
+	progress.ProgressBar.SetPos(0);
+
+	for (int i = 0; i < CMapDataExt::BuildingDatasExt.size(); ++i)
+	{
+		Renderer::Buildings[i].Reload(i);	
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapDataExt::UnitDatasExt.size(); ++i)
+	{
+		Renderer::Vehicles[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapDataExt::AircraftDatasExt.size(); ++i)
+	{
+		Renderer::Aircrafts[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->InfantryDatas.size(); ++i)
+	{
+		Renderer::Infantries[i].Reload(i);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->TerrainDatas.size(); ++i)
+	{
+		auto &obj = CMapData::Instance->TerrainDatas[i].TypeID;
+		auto pType = Renderer::GetOrCreateTerrain(obj);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (int i = 0; i < CMapData::Instance->SmudgeDatas.size(); ++i)
+	{
+		auto &obj = CMapData::Instance->SmudgeDatas[i].TypeID;
+		auto pType = Renderer::GetOrCreateSmudge(obj);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (auto nOvr : overlays)
+	{
+		auto pType = Renderer::GetOrCreateOverlay(nOvr);
+		progress.ProgressBar.SetPos(++currentPos);
+		progress.ProgressBar.UpdateWindow();
+	}
+	keepAlive();
+	for (auto& node : baseNodes)
+	{
+		auto pType = Renderer::GetOrCreateBuilding(node->ID);
+		if (ExtConfigs::DirectXRendering)
+		{
+			auto HouseColor = Miscs::GetColorRef(node->House);
+			BGRStruct color(HouseColor);
+			bool bunker = pType->CanOccupyFire && pType->TechLevel < 0;
+			for (int i = 0; i < pType->FacingCount; ++i)
+			{
+				for (int j = 0; j < (bunker ? 4 : 3); ++j)
+				{
+					auto clips = pType->GetImageData(i, j);
+					for (auto &pData : *clips)
+					{
+						if (ImageDataClassSafe::IsValidImage(pData.get()))
+						{                   
+							auto newPal = PalettesManager::GetColoredPalette(pData->pPalette, color);
+							pData->GetBuildingColoredTextures(newPal, color);
+						}
+					}
+	
+					auto pData = pType->GetShadowData(i, j);
+					if (ImageDataClassSafe::IsValidImage(pData))
+					{                   
+						pData->GetTexture();
+					}
+				}
+			}
+		}
+	}
+}
+
+static void DrawMap()
 {
 	auto pThis = CIsoViewExt::GetExtension();
 	auto pMap = CMapDataExt::GetExtension();
@@ -568,6 +698,12 @@ static void DrawMapDriectDraw()
 
 	// clear static containers, init some game logics
 	{
+		if (CLoadingExt::ObjectsNeedReloaded)
+		{
+			InitAllObjects();
+			CLoadingExt::ObjectsNeedReloaded = false;
+		}
+
 		PalettesManager::CalculatedObjectPaletteFiles.clear();
 		CIsoViewExt::VisibleStructures.clear();
 		CIsoViewExt::VisibleInfantries.clear();
@@ -581,6 +717,7 @@ static void DrawMapDriectDraw()
 		BuildingsToDraw.clear();
 		AlphaImagesToDraw.clear();
 		FiresToDraw.clear();
+		BaseNodeTextsToDraw.clear();
 		DrawVeterancies.clear();
 		visibleCells.clear();
 		memset(coordToIndex, 0, sizeof(coordToIndex));
@@ -1223,7 +1360,7 @@ static void DrawMapDriectDraw()
 
 		if (cell->Waypoint != -1 && CIsoViewExt::DrawWaypoints)
 		{
-			WaypointsToDraw.push_back(std::make_pair(MapCoord{X, Y},
+			WaypointsToDraw.push_back(std::make_pair(MapCoord{x, y},
 													 cell->Waypoint < Waypoints.size() ? Waypoints[cell->Waypoint]->GetString() : ""));
 		}
 		if (cell->Structure > -1)
@@ -1511,6 +1648,10 @@ static void DrawMapDriectDraw()
 						x1 -= DrawOffsetX;
 						y1 -= DrawOffsetY;
 
+						FString text;
+						text.Format("%03d", node.BasenodeID);
+						BaseNodeTextsToDraw.push_back(std::make_pair( MapCoord{x1 + 30, y1 - 15}, text));
+
 						MapCoord buildingOrigin{node.X, node.Y};
 						if (!IsCoordInWindow(node.X, node.Y))
 						{
@@ -1707,7 +1848,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXShadow(
 							x1 - pData->FullWidth / 2,
 							y1 - pData->FullHeight / 2 + 15,
-							pData, cell->Height);
+							pData, cell->Height, true);
 					}
 					else
 					{
@@ -1901,7 +2042,7 @@ static void DrawMapDriectDraw()
 							{
 								CIsoViewExt::DirectXTerrain(x1, y1,
 															&subTile, isCellHidden(cell) ? 0.5f : 1.0f,
-															cell->Height);			
+															cell->Height);										
 													
 							}
 							else
@@ -1977,7 +2118,7 @@ static void DrawMapDriectDraw()
 						CIsoViewExt::DirectXNormal(
 							x - pData->FullWidth / 2,
 							y - pData->FullHeight / 2,
-							pData, NULL, 255, -1, -1, false, 
+							pData, NULL, 1.0f, 0, -1, false, 
 							info.aroundRedrawCell ? cell->Height : 0xFF);
 					}
 					else
@@ -2305,10 +2446,10 @@ static void DrawMapDriectDraw()
 
 				if (firstDraw && CIsoViewExt::DrawFires && part.hasFire && DataExt.DamageFireOffsets.size() > 0)
 				{
-					auto fires = CLoadingExt::GetRandomFire({objRender.X, objRender.Y}, DataExt.DamageFireOffsets.size());
-					for (int i = 0; i < fires.size(); ++i)
+					for (int i = 0; i < DataExt.DamageFireOffsets.size(); ++i)
 					{
-						const auto &fire = fires[i];
+						if (cellExt->DamagedFires[i] < 0) break;
+						const auto &fire = CLoadingExt::DamageFires[cellExt->DamagedFires[i]].get();
 						if (ImageDataClassSafe::IsValidImage(fire))
 						{
 							FiresToDraw.push_back(std::make_pair(
@@ -2413,7 +2554,7 @@ static void DrawMapDriectDraw()
 					{
 						CIsoViewExt::DirectXBaseNode(
 							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
-							part.pData, nullptr, 0.5f, part.HouseColor);
+							part.pData, nullptr, 0.5f, part.HouseColor, part.pType->IsTerrainPalette);
 					}
 					else
 					{
@@ -2445,7 +2586,7 @@ static void DrawMapDriectDraw()
 			auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 
 			bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
-			auto color = Miscs::GetColorRef(obj.House);
+			auto color = Renderer::Vehicles[cell->Unit].GetHouseColor();
 
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
@@ -2521,7 +2662,7 @@ static void DrawMapDriectDraw()
 			auto pType = Renderer::Aircrafts[cell->Aircraft].GetType();
 			auto pData = pType->GetImageData(obj);
 
-			auto color = Miscs::GetColorRef(obj.House);
+			auto color = Renderer::Aircrafts[cell->Aircraft].GetHouseColor();
 			if (ImageDataClassSafe::IsValidImage(pData))
 			{
 				auto draw = [&]
@@ -2600,7 +2741,7 @@ static void DrawMapDriectDraw()
 					}
 				}
 
-				auto color = Miscs::GetColorRef(obj.House);
+				auto color = Renderer::Infantries[cell->Infantry[i]].GetHouseColor();
 				if (ImageDataClassSafe::IsValidImage(pData))
 				{
 					auto draw = [&]
@@ -3173,7 +3314,7 @@ static void DrawMapDriectDraw()
 		SetTextColor(hDC, RGB(0, 0, 0));
 
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold()
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop()
 		.SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(0, 0, 0))).SetPadding(0, 0);
 
 		if (CIsoViewExt::DrawOverlays)
@@ -3244,7 +3385,7 @@ static void DrawMapDriectDraw()
 	if (CIsoViewExt::DrawBaseNodeIndex)
 	{		
 		TextParams param;
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
 		SetColor(ShapeColor::FromCOLORREF(ExtConfigs::BaseNodeIndex_Color)).
 		SetAlignCenter().SetPadding(0, 0);
 		SetTextColor(hDC, ExtConfigs::BaseNodeIndex_Color);
@@ -3258,46 +3399,15 @@ static void DrawMapDriectDraw()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		auto &ini = CMapData::Instance->INI;
-		if (auto pSection = ini.GetSection("Houses"))
+		for (const auto &[coord, index] : BaseNodeTextsToDraw)
 		{
-			for (auto &pair : pSection->GetEntities())
+			if (ExtConfigs::DirectXRendering)
 			{
-				int nodeCount = ini.GetInteger(pair.second, "NodeCount", 0);
-				if (nodeCount > 0)
-				{
-					for (int i = 0; i < nodeCount; i++)
-					{
-						char key[10];
-						sprintf(key, "%03d", i);
-						auto value = ini.GetString(pair.second, key, "");
-						if (value == "")
-							continue;
-						auto atoms = STDHelpers::SplitString(value);
-						if (atoms.size() < 3)
-							continue;
-
-						int x = atoi(atoms[2]);
-						int y = atoi(atoms[1]);
-
-						if (IsCoordInWindow(x, y))
-						{
-							CIsoView::MapCoord2ScreenCoord(x, y);
-
-							int ndrawX = x - DrawOffsetX + 30;
-							int ndrawY = y - DrawOffsetY - 15;
-
-							if (ExtConfigs::DirectXRendering)
-							{
-								pThis->g_pTR->DrawTexts(ndrawX, ndrawY, key, param);
-							}
-							else
-							{
-								TextOut(hDC, ndrawX, ndrawY, key, strlen(key));
-							}
-						}
-					}
-				}
+				pThis->g_pTR->DrawTexts(coord.X, coord.Y, index, param);
+			}
+			else
+			{
+				TextOut(hDC, coord.X, coord.Y, index, strlen(index));
 			}
 		}
 	}
@@ -3316,26 +3426,21 @@ static void DrawMapDriectDraw()
 			SetBkMode(hDC, TRANSPARENT);
 		SetTextAlign(hDC, TA_CENTER);
 
-		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().
+		param.SetFont("MS Sans Serif").SetFontSize(14).SetBold().SetAlwaysOnTop().
 		SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(ExtConfigs::Waypoint_Color)).SetPadding(0, 0);
 
 		for (const auto &[coord, index] : WaypointsToDraw)
 		{
-			if (IsCoordInWindow(coord.X, coord.Y))
-			{
-				MapCoord mc = coord;
-				CIsoView::MapCoord2ScreenCoord(mc.X, mc.Y);
-				int drawX = mc.X - DrawOffsetX + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
-				int drawY = mc.Y - DrawOffsetY - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
+			int drawX = coord.X + 30 + ExtConfigs::Waypoint_Text_ExtraOffset.x;
+			int drawY = coord.Y - 15 + ExtConfigs::Waypoint_Text_ExtraOffset.y;
 
-				if (ExtConfigs::DirectXRendering)
-				{
-					pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
-				}
-				else
-				{
-					TextOut(hDC, drawX, drawY, index, strlen(index));
-				}
+			if (ExtConfigs::DirectXRendering)
+			{
+				pThis->g_pTR->DrawTexts(drawX, drawY, index, param);
+			}
+			else
+			{
+				TextOut(hDC, drawX, drawY, index, strlen(index));
 			}
 		}
 	}
@@ -3408,7 +3513,10 @@ static void DrawMapDriectDraw()
 					TextParams param;
 					if (folded ? false : bold)
 						param.SetBold();
-					param.SetFontSize(fontSize).SetColor(ShapeColor::FromCOLORREF(textColor)).SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).SetBorder().SetPadding(3, 3);
+					param.SetFontSize(fontSize).SetAlwaysOnTop().
+					SetColor(ShapeColor::FromCOLORREF(textColor)).
+					SetBgColor(ShapeColor::FromRGBA(GetRValue(bgColor), GetGValue(bgColor), GetBValue(bgColor), 128)).
+					SetBorder().SetPadding(3, 3);
 
 					pThis->g_pTR->DrawTexts(x, y, text, param);
 				}
@@ -3508,10 +3616,6 @@ static void DrawMapDriectDraw()
 
 	if (CIsoViewExt::DrawBounds)
 	{
-		auto &map = CINI::CurrentDocument();
-		auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-		auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
-
 		const int &mapwidth = CMapData::Instance->Size.Width;
 		const int &mapheight = CMapData::Instance->Size.Height;
 
@@ -3541,11 +3645,11 @@ static void DrawMapDriectDraw()
 				if (ExtConfigs::DirectXRendering)
 				{
 					LineParams param;
-					param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(0, 0, 255)).SetAntiAlias(false);
+					param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(0, 0, 255)).SetAntiAlias(false).SetAlwaysOnTop();
 
-					pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 3, y1, param);
+					pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 2, y1, param);
 					pThis->g_pSP->DrawLine(x4, y1, x4, y4, param);
-					pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 3, y4, param);
+					pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 2, y4, param);
 					pThis->g_pSP->DrawLine(x1, y4, x1, y1, param);
 
 					// thin blue bound on top
@@ -3587,11 +3691,11 @@ static void DrawMapDriectDraw()
 			if (ExtConfigs::DirectXRendering)
 			{
 				LineParams param;
-				param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(255, 0, 0)).SetAntiAlias(false);
+				param.SetThickness(5.0f).SetColor(ShapeColor::FromRGBA(255, 0, 0)).SetAntiAlias(false).SetAlwaysOnTop();
 
-				pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 3, y1, param);
+				pThis->g_pSP->DrawLine(x1 - 3, y1, x4 + 2, y1, param);
 				pThis->g_pSP->DrawLine(x4, y1, x4, y4, param);
-				pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 3, y4, param);
+				pThis->g_pSP->DrawLine(x1 - 3, y4, x4 + 2, y4, param);
 				pThis->g_pSP->DrawLine(x1, y4, x1, y1, param);
 			}
 			else
@@ -3793,7 +3897,7 @@ DEFINE_HOOK(46DE00, CIsoView_Draw, 7)
 	auto start = std::chrono::high_resolution_clock::now();
 	static float smoothedFps = (float)CFinalSunAppExt::ScreenRefreshRate;
 
-	DrawMapDriectDraw();
+	DrawMap();
 
 	auto end = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
