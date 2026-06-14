@@ -14,6 +14,9 @@ struct TextureResource;
 namespace Renderer {
     class BuildingType;
     class Building;
+    class Infantry;
+    class Unit;
+    class Aircraft;
 }
 
 struct TileBlockExt
@@ -313,7 +316,10 @@ struct CellDataExt
     // for line tool
     bool LineToolProcessed = false;
 
-    // for lighting preview
+    // for paste
+	bool IsPasteCell = false;
+
+	// for lighting preview
     LightingSourceTint Lighting = { 0.0f , 0.0f , 0.0f , 0.0f };
 
     std::vector<BaseNodeDataExt> BaseNodes;
@@ -362,9 +368,16 @@ struct CellDataExt
     // remapable overlay
     COLORREF RemapableColor = 0x000000ff;
     int CenterBuildingIndex = -1; 
-    int NearestCenterCellIndex = -1; 
+    int NearestCenterCellIndex = -1;
 
-    void Structures_insert(short key, short value)
+	const char* PasteInfantry[3];
+    const char* PasteBuilding;
+    const char* PasteUnit;
+    const char* PasteAircraft;
+    const char* PasteSmudge;
+    const char* PasteTerrain;
+
+	void Structures_insert(short key, short value)
     {
         for (auto& p : Structures) {
             if (p.first == key) {
@@ -548,6 +561,8 @@ public:
         Celltag = 0x00000200,
         Annotation = 0x00000400,
         Measurements = 0x00000800,
+        GeometricAnnotation = 0x00001000,
+        LocalSize = 0x00002000,
     };
     int recordFlags = 0;
     int recordedFlages = 0;
@@ -562,10 +577,18 @@ public:
     FMap<FString> WaypointList;
     FMap<FString> CelltagList;
     FMap<FString> AnnotationList;
+    FMap<FString> GeometricAnnotationList;
     std::vector<EditedMarks> DrawEditedMarkList;
     std::unique_ptr<MeasurementRecord> MeasurementRecords;
+    struct bounds
+    {
+		short left;
+		short top;
+		short width;
+		short height;
+	} bound;
 
-    void record(int recordType);
+	void record(int recordType);
     void appendRecord(int recordType);
     void recover();
 
@@ -765,6 +788,7 @@ public:
         return CMapDataExt::CellDataExts[pos].HasAnnotation;
     }
     static void UpdateAnnotation();
+    static void UpdateGeometricAnnotation();
     inline static bool IsCoordInFullMap(int X, int Y)
         {
             return X >= 0 && Y >= 0 &&
@@ -869,7 +893,8 @@ public:
     static void GetBuildingDataFS(const char* str, CBuildingDataFS& data);
     static void GetUnitDataFS(const char* str, CUnitDataFS& data);
     static void GetAircraftDataFS(const char* str, CAircraftDataFS& data);
-    static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
+	static void GetInfantryData(const char* str, CInfantryData& data);
+	static CBuildingDataFS& GetBuildingDataFsFromMap(size_t index);
     static CUnitDataFS& GetUnitDadaFsFromMap(size_t index);
     static CAircraftDataFS& GetAircraftDataFsFromMap(size_t index);
     static CInfantryData& GetInfantryDataFromMap(size_t index);
@@ -886,8 +911,13 @@ public:
     static MapCoord CurrentMapCoordPaste;
     static std::unordered_map<CTileBlockClass*, TileBlockExt> TileBlockDataExt;
     static void BuildBaseHeightMask(CTileBlockClass* subTile);
+    // 0 = not bound, 1 = left, 2 = top, 3 = right, 4 = bottom
+    // 5 = top-left, 6 = top-right, 7 = bottom-left, 8 = bottom-right
+	static int IsBlueMapBound(int x, int y);
+	static int IsBlueMapBound();
+	static bool CellCannotDrag(int x, int y);
 
-    static CTileTypeClass* TileData;
+	static CTileTypeClass* TileData;
     static int TileDataCount;
     static int CurrentTheaterIndex;
 

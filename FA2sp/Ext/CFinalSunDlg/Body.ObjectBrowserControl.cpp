@@ -106,6 +106,7 @@ int CViewObjectsExt::PlacingRandomTile = -1;
 bool CViewObjectsExt::PlacingRandomRandomFacing;
 bool CViewObjectsExt::PlacingRandomStructureAIRepairs;
 bool CViewObjectsExt::NeedChangeTreeViewSelect = true;
+bool CViewObjectsExt::Initialized = false;
 MoveBaseNode CViewObjectsExt::MoveBaseNode_SelectedObj = { "","","",-1,-1 };
 
 const char* playersAtX[8]
@@ -135,34 +136,38 @@ struct TempOtherInfo
 };
 
 HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
-    HTREEITEM hParent, HTREEITEM hInsertAfter)
+    HTREEITEM hParent, HTREEITEM hInsertAfter, const char* pOriString)
 {
     AddedItemCount++;
     auto item =  this->GetTreeCtrl().InsertItem(TVIF_TEXT | TVIF_PARAM, pString, 0, 0, 0, 0, dwItemData, hParent, hInsertAfter);
     
     if (ExtConfigs::TreeViewCameo_Display)
     {
-        std::string pics = CFinalSunAppExt::ExePathExt;
-        pics += "\\pics";
-        if (fs::exists(pics) && fs::is_directory(pics))
+        if (pOriString)
         {
-            pics += "\\";
-            pics += pString;
-            pics += ".bmp";
-            if (fs::exists(pics))
+            std::string pics = CFinalSunAppExt::ExePathExt;
+            pics += "\\pics";
+            if (fs::exists(pics) && fs::is_directory(pics))
             {
-                CBitmap cBitmap;
-                if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                pics += "\\";
+                pics += pOriString;
+                pics += ".bmp";
+                if (fs::exists(pics))
                 {
-                    int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
-                    this->GetTreeCtrl().SetItemImage(item, index, index);
-                    return item;
+                    CBitmap cBitmap;
+                    if (CLoadingExt::LoadBMPToCBitmap(pics.c_str(), cBitmap))
+                    {
+                        int index = m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
+                        this->GetTreeCtrl().SetItemImage(item, index, index);
+                        return item;
+                    }
                 }
-            }
-        }       
+            }   
+        }
+    
         if (InsertingSpecialBitmap)
         {
-            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255), true, false);
+            CIsoViewExt::ScaleBitmap(&SpecialBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 255, 255), true, false);
             int index = m_ImageList.Add(&SpecialBitmap, RGB(255, 255, 255));
             this->GetTreeCtrl().SetItemImage(item, index, index);
             return item;
@@ -309,11 +314,10 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 if (ImageDataClassSafe::IsVisibleImage(pData))
                 {
                     CBitmap cBitmap;
-                    CLoadingExt::LoadShpToBitmap(pData, cBitmap);
-                    CIsoViewExt::ScaleBitmap(&cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
+                    auto view = CIsoViewExt::MakeImageDataView(pData);
+                    CIsoViewExt::LoadAndScaleToBitmap(&view, cBitmap, ExtConfigs::TreeViewCameo_Size, RGB(255, 0, 255));
                     int index = m_ImageList.Add(&cBitmap, RGB(255, 0, 255));
                     this->GetTreeCtrl().SetItemImage(item, index, index);
-
                     CLoadingExt::SaveCBitmapToFile(&cBitmap, path.c_str(), RGB(255, 0, 255));
 
                     return item;
@@ -379,7 +383,7 @@ HTREEITEM CViewObjectsExt::InsertTranslatedString(const char* pOriginString, DWO
 {
     FString buffer;
     bool result = Translations::GetTranslationItem(pOriginString, buffer);
-    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter);
+    return InsertString(result ? buffer.c_str() : pOriginString, dwItemData, hParent, hInsertAfter, pOriginString);
 }
 
 FString CViewObjectsExt::QueryUIName(const char* pRegName, bool bOnlyOneLine)
@@ -471,7 +475,8 @@ void CViewObjectsExt::Redraw()
         firstRun = false;
         return;
     }
-    if (ExtConfigs::TreeViewCameo_Display)
+
+	if (ExtConfigs::TreeViewCameo_Display)
     {
         if (m_ImageList.GetSafeHandle())
             m_ImageList.DeleteImageList();
@@ -484,14 +489,14 @@ void CViewObjectsExt::Redraw()
         m_ImageList.Add(&cBitmap, RGB(255, 255, 255));
         this->GetTreeCtrl().SetImageList(&m_ImageList, TVSIL_NORMAL);
    
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 300 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
     else
     {
         this->GetTreeCtrl().SetImageList(NULL, TVSIL_NORMAL);
-        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200, 10);
+        CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.SetColumnInfo(0, 200 * CFinalSunAppExt::ProgramScaleFactor, 10);
         CFinalSunDlg::Instance->MyViewFrame.SplitterWnd.RecalcLayout();
         CFinalSunDlg::Instance->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
@@ -550,6 +555,72 @@ void CViewObjectsExt::Redraw()
         ::SendMessage(CObjectSearch::GetHandle(), 114515, 0, 0);
         ::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
     }
+
+    if (!Initialized)
+    {
+		CRect rcFrame;
+		CFinalSunDlg::Instance->MyViewFrame.pRightFrame->GetClientRect(&rcFrame);
+
+        auto clampPercent = [](float val) -> float
+        {
+            if (val < 0.0f)
+                return 0.0f;
+            if (val > 1.0f)
+                return 1.0f;
+            return val;
+        };
+
+        if (ExtConfigs::VerticalLayout)
+        {
+			int totalWidth = rcFrame.Width() - GetSystemMetrics(SM_CXVSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewWidthPercentage);
+            int isoWidth = static_cast<int>(totalWidth * percent);
+            int tileWidth = totalWidth - isoWidth;
+
+            const int minIso = 20;
+            const int minTile = 20;
+            if (isoWidth < minIso)
+                isoWidth = minIso;
+            if (tileWidth < minTile)
+                tileWidth = minTile;
+            if (isoWidth + tileWidth > totalWidth)
+            {
+                tileWidth = std::max(minTile, totalWidth - isoWidth);
+                if (isoWidth + tileWidth > totalWidth)
+                    isoWidth = totalWidth - tileWidth;
+            }
+
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(0, isoWidth, minIso);
+			CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetColumnInfo(1, tileWidth, minTile);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+        else
+        {
+			int totalHeight = rcFrame.Height() - GetSystemMetrics(SM_CYHSCROLL);
+			float percent = clampPercent(ExtConfigs::IsoViewHeightPercentage);
+            int isoHeight = static_cast<int>(totalHeight * percent);
+            int tileHeight = totalHeight - isoHeight;
+
+            const int minIsoH = 20;
+            const int minTileH = 20;
+            if (isoHeight < minIsoH)
+                isoHeight = minIsoH;
+            if (tileHeight < minTileH)
+                tileHeight = minTileH;
+            if (isoHeight + tileHeight > totalHeight)
+            {
+                tileHeight = std::max(minTileH, totalHeight - isoHeight);
+                if (isoHeight + tileHeight > totalHeight)
+                    isoHeight = totalHeight - tileHeight;
+            }
+
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(0, isoHeight, minIsoH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.SetRowInfo(1, tileHeight, minTileH);
+            CFinalSunDlg::Instance->MyViewFrame.pRightFrame->CSplitter.RecalcLayout();
+        }
+
+		Initialized = true;
+	}
 }
 
 void CViewObjectsExt::Redraw_Initialize()
@@ -714,9 +785,22 @@ void CViewObjectsExt::Redraw_Initialize()
 void CViewObjectsExt::Redraw_MainList()
 {
     auto LoadNodeWithCameo = [this](int node, int index, const char* name, int bmp)
-        {    
-            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
-            IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+        {
+            // Select the closest matching icon size based on TreeViewCameo_Size
+            int cameoSize = ExtConfigs::TreeViewCameo_Size;
+            int selectedBmp = bmp;
+            if (cameoSize > 56)
+                selectedBmp = bmp + 2000;  // 64px
+            else if (cameoSize > 40)
+                selectedBmp = bmp + 1000;  // 48px
+
+            HBITMAP hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(selectedBmp),
+                IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
+            if (!hBmp && selectedBmp != bmp)
+                hBmp = (HBITMAP)LoadImage(static_cast<HINSTANCE>(FA2sp::hInstance), MAKEINTRESOURCE(bmp),
+                    IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+
             SpecialBitmap.Attach(hBmp);
             InsertingSpecialBitmap = true;
             ExtNodes[node] = this->InsertTranslatedString(name, index);
@@ -894,6 +978,12 @@ void CViewObjectsExt::Redraw_Owner()
 {
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
+
+    HTREEITEM hChild;
+    while ((hChild = this->GetTreeCtrl().GetChildItem(hOwner)) != nullptr)
+    {
+        this->GetTreeCtrl().DeleteItem(hChild);
+    }
 
     auto&& countries = Variables::Rules.GetSection("Countries");
     FString translated;
@@ -2410,7 +2500,7 @@ void CViewObjectsExt::Redraw_Overlay()
                     if (value.Find(match.c_str()) >= 0)
                     {
                         InsertingOverlay = i;
-                        if (CMapDataExt::IsOre((byte)i))
+                        if (CMapDataExt::IsOre(i))
                             InsertingOverlayData = 11;
                         else
                             InsertingOverlayData = 0;
@@ -2430,7 +2520,7 @@ void CViewObjectsExt::Redraw_Overlay()
                 if (!node.insertedObjects.contains(value))
                 {
                     InsertingOverlay = i;
-                    if (CMapDataExt::IsOre((byte)i))
+                    if (CMapDataExt::IsOre(i))
                         InsertingOverlayData = 11;
                     else
                         InsertingOverlayData = 0;
@@ -2466,7 +2556,7 @@ void CViewObjectsExt::Redraw_Overlay()
         FString id;
         id.Format("%03d %s", i, buffer);
         InsertingOverlay = i;
-        if (CMapDataExt::IsOre((byte)i))
+        if (CMapDataExt::IsOre(i))
             InsertingOverlayData = 11;
         else
             InsertingOverlayData = 0;
@@ -2610,6 +2700,9 @@ void CViewObjectsExt::Redraw_Annotation()
     HTREEITEM& hAnnotation = ExtNodes[Root_Annotation];
     if (hAnnotation == NULL)    return;
     this->InsertTranslatedString("AnnotationObListAddChange", Const_Annotation + AnnotationsAdd, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddLineSegment", Const_Annotation +  MeasurementTypes::LineSegment_Annotation, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddArrow", Const_Annotation +  MeasurementTypes::ArrowSegment_Annotation, hAnnotation);
+    this->InsertTranslatedString("AnnotationObListAddCircle", Const_Annotation +  MeasurementTypes::PlaceCircle_Annotation, hAnnotation);
     this->InsertTranslatedString("AnnotationObListDelete", Const_Annotation + AnnotationsRemove, hAnnotation);
 }
 
@@ -2943,6 +3036,8 @@ void CViewObjectsExt::AddAnnotation(int X, int Y)
 
 void CViewObjectsExt::RemoveAnnotation(int X, int Y)
 {
+    bool deleteAnnotation = false;
+    bool deleteGeometricAnnotation = false;
     FString key;
     key.Format("%d", X * 1000 + Y);
 
@@ -2950,8 +3045,76 @@ void CViewObjectsExt::RemoveAnnotation(int X, int Y)
     cellExt.HasAnnotation = false;
     if (CINI::CurrentDocument->KeyExists("Annotations", key))
     {
-        CMapDataExt::MakeObjectRecord(ObjectRecord::RecordType::Annotation);
-        CINI::CurrentDocument->DeleteKey("Annotations", key);
+        deleteAnnotation = true;
+    }
+    for (size_t i = CIsoViewExt::TwoPointDistance_Annotation.size(); i > 0; --i)
+    {
+        auto& lines = CIsoViewExt::TwoPointDistance_Annotation[i - 1];
+    
+        if ((lines.Point1.X == X && lines.Point1.Y == Y) ||
+            (lines.Point2.X == X && lines.Point2.Y == Y))
+        {
+            deleteGeometricAnnotation = true;
+
+            CIsoViewExt::TwoPointDistance_Annotation.erase(
+                CIsoViewExt::TwoPointDistance_Annotation.begin() + (i - 1)
+            );
+        }
+    }   
+    for (size_t i = CIsoViewExt::Circles_Annotation.size(); i > 0; --i)
+    {
+        auto& [center, radius] = CIsoViewExt::Circles_Annotation[i - 1];
+    
+        if (center.X == X && center.Y == Y)
+        {
+            deleteGeometricAnnotation = true;
+    
+            CIsoViewExt::Circles_Annotation.erase(
+                CIsoViewExt::Circles_Annotation.begin() + (i - 1)
+            );
+        }
+    }
+
+    if (deleteAnnotation || deleteGeometricAnnotation)
+    {
+        int type = 0;
+        if (deleteAnnotation) type |= ObjectRecord::RecordType::Annotation;
+        if (deleteGeometricAnnotation) type |= ObjectRecord::RecordType::GeometricAnnotation;
+        CMapDataExt::MakeObjectRecord(type);
+
+        if (deleteAnnotation)
+        {
+            CINI::CurrentDocument->DeleteKey("Annotations", key);
+        }
+        if (deleteGeometricAnnotation)
+        {
+            if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+            {
+                std::vector<FString> keysToDelete;
+                for (auto& [key, value] : pSection->GetEntities())
+                {
+                    auto atoms = STDHelpers::SplitString(value, 4);
+                    int x = atoi(atoms[1]);
+                    int y = atoi(atoms[2]);
+                    int x2 = atoi(atoms[3]);
+                    int y2 = atoi(atoms[4]);
+                    if ((x == X && y == Y))
+                    {
+                        keysToDelete.push_back(key);
+                    }
+                    else if (x2 == X && y2 == Y && atoms[0][0] != 'C')
+                    {
+                        keysToDelete.push_back(key);
+                    }
+                }
+        
+                for (const auto& key : keysToDelete)
+                {
+                    CINI::CurrentDocument->DeleteKey("GeometricAnnotations", key);
+                }
+            }
+        }
+
         ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     }
 
@@ -4933,8 +5096,17 @@ bool CViewObjectsExt::UpdateEngine(int nData)
     }
     if (nCode == 15) // Annotation
     {
-        CIsoView::CurrentCommand->Command = 0x21; // Annotation
-        CIsoView::CurrentCommand->Type = nData;
+        if (nData <= AnnotationsRemove)
+        {
+            CIsoView::CurrentCommand->Command = 0x21; // Annotation
+            CIsoView::CurrentCommand->Type = nData;
+        }
+        else
+        {
+            CIsoView::CurrentCommand->Command = 0x26; // Measurement Toolbox
+            CIsoView::CurrentCommand->Type = nData;
+        }
+
         return true;
     }
  

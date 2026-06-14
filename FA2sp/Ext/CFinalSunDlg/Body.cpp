@@ -26,6 +26,7 @@
 #include "../../ExtraWindow/CNewLocalVariables/CNewLocalVariables.h"
 #include "../../ExtraWindow/CFA2spOptions/CFA2spOptions.h"
 #include "../../ExtraWindow/CNewTag/CNewTag.h"
+#include "../../ExtraWindow/CMiscSettings/CMiscSettings.h"
 #include "../../Helpers/STDHelpers.h"
 
 #include "../../Helpers/Translations.h"
@@ -46,9 +47,11 @@
 namespace fs = std::filesystem;
 
 bool CFinalSunDlgExt::HasMinimap = false;
+bool CFinalSunDlgExt::MapValidatorAlive = false;
 int CFinalSunDlgExt::CurrentLighting = 31000;
 std::pair<FString, int> CFinalSunDlgExt::SearchObjectIndex("", -1);
 std::map<UINT, CheckButtonInfo> CFinalSunDlgExt::CheckButtonMap;
+int CFinalSunDlgExt::CurrentToolbarIconSize = 16;
 std::unique_ptr<CTechnoDialog> CFinalSunDlgExt::TechnoDialog = nullptr;
 int CFinalSunDlgExt::SearchObjectType = -1;
 enum FindType { Aircraft = 0, Infantry, Structure, Unit };
@@ -67,6 +70,24 @@ public:
 		DarkTheme::EnableOwnerDrawMenu(hMenu);
 	};
 	HMENU hMenu;
+};
+
+static void ChangeBrushSize(int index)
+{
+	auto pSection = CINI::FAData().GetSection("BrushSizes");
+	if (pSection && pSection->GetEntities().size() > index && index >= 0)
+	{
+		auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
+		auto value = pSection->GetValueAt(index);
+		auto bs = STDHelpers::SplitString(*value, 1, "x");
+		pIsoView->BrushSizeX = atoi(bs[1]);
+		pIsoView->BrushSizeY = atoi(bs[0]);
+
+		POINT pt;
+        GetCursorPos(&pt);
+		ScreenToClient(pIsoView->GetSafeHwnd(), &pt);
+		pIsoView->OnMouseMove(0, pt);
+	}
 };
 
 void CFinalSunDlgExt::CheckToolBarButton(UINT dwID, bool check)
@@ -281,7 +302,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				}
 			}
 			LightingSourceTint::CalculateMapLamps();
-
+			
+			CIsoViewExt::MouseCenterPosition = {-1919810, -1919810};
 			this->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 			auto tmp = CIsoView::CurrentCommand->Command;
@@ -297,19 +319,6 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				::SendMessage(hParent, WM_COMMAND, MAKEWPARAM(1367, CBN_SELCHANGE), (LPARAM)hOverlayComboBox);
 				CIsoView::CurrentCommand->Command = tmp;
 			}
-		}
-	};
-
-	auto changeBrushSize = [](int index)
-	{
-		auto pSection = CINI::FAData().GetSection("BrushSizes");
-		if (pSection && pSection->GetEntities().size() > index && index >= 0)
-		{
-			auto pIsoView = (CIsoViewExt*)CIsoView::GetInstance();
-			auto value = pSection->GetValueAt(index);
-			auto bs = STDHelpers::SplitString(*value, 1, "x");
-			pIsoView->BrushSizeX = atoi(bs[1]);
-			pIsoView->BrushSizeY = atoi(bs[0]);
 		}
 	};
 
@@ -445,7 +454,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
 		int index = std::max(pBrushSize->GetCurSel() - 1, 0);
 		pBrushSize->SetCurSel(index);
-		changeBrushSize(index);
+		ChangeBrushSize(index);		
 		return TRUE;
 	}
 	case 30055:
@@ -453,7 +462,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 		auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
 		int index = std::min(pBrushSize->GetCurSel() + 1, pBrushSize->GetCount() - 1);
 		pBrushSize->SetCurSel(index);
-		changeBrushSize(index);
+		ChangeBrushSize(index);
 		return TRUE;
 	}
 	case 30056:
@@ -616,18 +625,37 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	if (wmID >= 40140 && wmID < 40149)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		auto& file = CFinalSunAppExt::RecentFilesExt[wmID - 40140];
 		if (CLoading::IsFileExists(file.c_str()))
 			this->LoadMap(file.c_str());
 	}
 	else if (wmID == 40018 && CMapData::Instance->MapWidthPlusHeight)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		ppmfc::CString buffer;
 		buffer = CFinalSunApp::MapPath;
 		if (CLoading::IsFileExists(buffer))
 			this->LoadMap(CFinalSunApp::MapPath);
 	}
-
+	else if (wmID == 40001 || wmID == 57600 || wmID == 57603 || wmID == 40002 || wmID == 40025) // open map related buttons
+	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+	}
 	// object search
 	else if (wmID == 40134 || wmID == 40161)
 	{
@@ -836,6 +864,12 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wmID == 40165)
 	{
+		if (MapValidatorAlive)
+		{
+			this->PlaySound(FASoundType::Error);
+			return TRUE;
+		}
+
 		bool endConfirmDialog = false;
 		auto setLighting = [](int id)
 		{
@@ -1211,6 +1245,7 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					renderMap(p, true);
 					MyViewFrame.Minimap.Update();
+					endConfirmDialog = true;
 				}
 			}
 
@@ -1220,14 +1255,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 			}
 		}
-		if(endConfirmDialog)
+		if (endConfirmDialog)
 		{
 			::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 		}
 	}
 	else if (wmID == 40167)
 	{
-		if (!CMapData::Instance->MapWidthPlusHeight)
+		if (!CMapData::Instance->MapWidthPlusHeight || MapValidatorAlive)
 		{
 			this->PlaySound(FASoundType::Error);
 		}
@@ -1368,6 +1403,21 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			CIsoView::CurrentCommand->Type = CViewObjectsExt::ObjectTerrainType::All;
 		}
 	}
+	else if (wmID == 40038)
+	{
+		CMiscSettings::InitNewSpecialFlags();
+		return TRUE;
+	}
+	else if (wmID == 40037)
+	{
+		CMiscSettings::InitNewSinglePlayer();
+		return TRUE;
+	}
+	else if (wmID == 40036)
+	{
+		CMiscSettings::InitNewBasic();
+		return TRUE;
+	}
 	for (auto& [id, info] : CheckButtonMap)
 	{
 		if (wmID == id)
@@ -1469,11 +1519,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 	closeFA2Window(40040, this->MapD);
 	closeFA2Window(40039, this->Houses);
-	closeFA2Window(40036, this->Basic);
-	closeFA2Window(40038, this->SpecialFlags);
 	closeFA2Window(40043, this->Lighting);
 	closeFA2Window(40048, this->AITriggerTypesEnable);
-	closeFA2Window(40037, this->SingleplayerSettings);
 
 	if (wmID == 40152)
 	{
@@ -1620,6 +1667,18 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 			::SendMessage(CNewHouse::GetHandle(), 114514, 0, 0);
 			return TRUE;
 		}
+		else if (hWnd == CMiscSettings::NewSpecialFlags.m_hWnd) {
+			CMiscSettings::InitNewSpecialFlags();
+			return TRUE;
+		}
+		else if (hWnd == CMiscSettings::NewBasic.m_hWnd) {
+			CMiscSettings::InitNewBasic();
+			return TRUE;
+		}
+		else if (hWnd == CMiscSettings::NewSinglePlayer.m_hWnd) {
+			CMiscSettings::InitNewSinglePlayer();
+			return TRUE;
+		}
 		for (int i = 0; i < TRIGGER_EDITOR_MAX_COUNT; ++i)
 		{
 			if (hWnd == CNewTrigger::Instance[i].GetHandle()) {
@@ -1641,11 +1700,8 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 		refreshFA2Window(40040, this->MapD);
 		refreshFA2Window(40039, this->Houses);
-		refreshFA2Window(40036, this->Basic);
-		refreshFA2Window(40038, this->SpecialFlags);
 		refreshFA2Window(40043, this->Lighting);
 		refreshFA2Window(40048, this->AITriggerTypesEnable);
-		refreshFA2Window(40037, this->SingleplayerSettings);
 
 		if (newParam != 0)
 			return this->ppmfc::CDialog::OnCommand(newParam, lParam);
@@ -1948,18 +2004,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 
 		break;
 	case WM_MOUSEWHEEL:
-	{
+	{		        
 		if (GetKeyState(VK_CONTROL) & 0x8000)
 		{
-			HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
-			HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
-			if (hParent1 != CNewINIEditor::GetHandle()
-				&& hParent1 != CCsfEditor::GetHandle()
-				&& hParent1 != CNewINIEditor::GetImporter()
-				&& hParent1 != CLuaConsole::GetHandle()
-				&& hParent1 != CTriggerAnnotation::GetHandle()
-				&& !CViewObjectsExt::IsOpeningAnnotationDlg
-				)
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
 			{
 				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
 				if (zDelta < 0) {
@@ -1970,25 +2020,32 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				}
 			}
 		}
+		else if (GetKeyState(VK_MENU) & 0x8000)
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+			{
+				int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+				auto pBrushSize = (ppmfc::CComboBox*)CFinalSunDlg::Instance->BrushSize.GetDlgItem(1377);
+				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta > 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
+				pBrushSize->SetCurSel(index);
+				ChangeBrushSize(index);
+			}
+		}
 		break;
 	}
 	case WM_MBUTTONUP:
 	{
-		HWND hWnd = GetFocus();					// EDIT		COMBOBOX_DROPDOWN
-		HWND hParent1 = ::GetParent(hWnd);		// WINDOW	COMBOBOX
-		if (hParent1 != CNewINIEditor::GetHandle()
-			&& hParent1 != CCsfEditor::GetHandle()
-			&& hParent1 != CNewINIEditor::GetImporter()
-			&& hParent1 != CLuaConsole::GetHandle()
-			&& hParent1 != CTriggerAnnotation::GetHandle()
-			&& !CViewObjectsExt::IsOpeningAnnotationDlg
-			)
+		POINT pt;
+		GetCursorPos(&pt);
+		if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
 		{
 			CIsoViewExt::Zoom(0.0);
 		}
 		break;
 	}
-	case 114514:
+	case 1145141:
 	{
 		ppmfc::CString caption;
 		CFinalSunDlg::Instance->GetWindowTextA(caption);

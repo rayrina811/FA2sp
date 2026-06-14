@@ -19,6 +19,7 @@
 #include "../../ExtraWindow/CNewTag/CNewTag.h"
 #include "../../ExtraWindow/CNewHouse/CNewHouse.h"
 #include "../../ExtraWindow/CNewINIEditor/CNewINIEditor.h"
+#include "../../ExtraWindow/CMiscSettings/CMiscSettings.h"
 #include "../../ExtraWindow/CSearhReference/CSearhReference.h"
 #include "../../ExtraWindow/CCsfEditor/CCsfEditor.h"
 #include "../../ExtraWindow/CBatchTrigger/CBatchTrigger.h"
@@ -415,6 +416,26 @@ void CMapDataExt::GetAircraftDataFS(const char* str, CAircraftDataFS& data)
 			start = p + 1;
 		}
 	}
+}
+
+void CMapDataExt::GetInfantryData(const char* str, CInfantryData& data)
+{
+	auto splits = STDHelpers::SplitString(str, 13);
+
+	data.House = splits[0];
+	data.TypeID = splits[1];
+	data.Health = splits[2];
+	data.Y = splits[3];
+	data.X = splits[4];
+	data.SubCell = splits[5];
+	data.Status = splits[6];
+	data.Facing = splits[7];
+	data.Tag = splits[8];
+	data.VeterancyPercentage = splits[9];
+	data.Group = splits[10];
+	data.IsAboveGround = splits[11];
+	data.AutoNORecruitType = splits[12];
+	data.AutoYESRecruitType = splits[13];
 }
 
 CBuildingDataFS& CMapDataExt::GetBuildingDataFsFromMap(size_t index)
@@ -2375,6 +2396,43 @@ void CMapDataExt::UpdateAnnotation()
 	}
 }
 
+void CMapDataExt::UpdateGeometricAnnotation()
+{
+	CIsoViewExt::TwoPointDistance_Annotation.clear();
+	CIsoViewExt::Circles_Annotation.clear();
+	CIsoViewExt::TempCircle_Annotation[0] = { 0, 0 };
+	CIsoViewExt::TempCircle_Annotation[1] = { 0, 0 };
+	if (auto pSection = CINI::CurrentDocument->GetSection("GeometricAnnotations"))
+	{
+		for (const auto& [key, value] : pSection->GetEntities())
+		{
+			auto atoms = STDHelpers::SplitString(value, 4);
+			auto& type = atoms[0];
+			MapCoord point1{ atoi(atoms[1]), atoi(atoms[2]) };
+			MapCoord point2{ atoi(atoms[3]), atoi(atoms[4]) };
+
+			if (type == "LineSegment")
+			{
+				CIsoViewExt::TwoPointDistance_Annotation.push_back(TwoPointStruct(point1, point2, false, false));
+			}
+			if (type == "ArrowSegment")
+			{
+				CIsoViewExt::TwoPointDistance_Annotation.push_back(TwoPointStruct(point1, point2, false, true));
+			}
+			else if (type == "Circle")
+			{
+				double circleRadius = sqrt((
+					point1.X - point2.X)
+					* (point1.X - point2.X)
+					+ (point1.Y - point2.Y)
+					* (point1.Y - point2.Y));
+
+				CIsoViewExt::Circles_Annotation.push_back(std::make_pair(point1, circleRadius));
+			}
+		}
+	}
+}
+
 void CMapDataExt::SetNewOverlayAt(int x, int y, WORD ovr, bool smoothOre)
 {
 	if (ovr >= 0xFF && !ExtConfigs::ExtOverlays && NewINIFormat < 5)
@@ -2768,6 +2826,19 @@ void ObjectRecord::record(int recordType)
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
 	}
+	if (recordType & RecordType::GeometricAnnotation)
+	{
+		recordedFlages |= RecordType::GeometricAnnotation;
+		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
+	}
+	if (recordType & RecordType::LocalSize)
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
+	}
 	if (recordType & RecordType::Measurements)
 	{
 		recordedFlages |= RecordType::Measurements;
@@ -2897,6 +2968,19 @@ void ObjectRecord::appendRecord(int recordType)
 	{
 		recordedFlages |= RecordType::Annotation;
 		recordIniMap("Annotations", AnnotationList);
+	}
+	if (recordType & RecordType::GeometricAnnotation && !(recordedFlages & RecordType::GeometricAnnotation))
+	{
+		recordedFlages |= RecordType::GeometricAnnotation;
+		recordIniMap("GeometricAnnotations", GeometricAnnotationList);
+	}
+	if (recordType & RecordType::LocalSize && !(recordedFlages & RecordType::LocalSize))
+	{
+		recordedFlages |= RecordType::LocalSize;		
+		bound.left = CMapData::Instance->LocalSize.Left;
+		bound.top = CMapData::Instance->LocalSize.Top;
+		bound.width = CMapData::Instance->LocalSize.Width;
+		bound.height = CMapData::Instance->LocalSize.Height;
 	}
 	if (recordType & RecordType::Measurements && !(recordedFlages & RecordType::Measurements))
 	{
@@ -3064,6 +3148,27 @@ void ObjectRecord::recover()
 	{
 		recoverIniMap("Annotations", AnnotationList);
 		CMapDataExt::UpdateAnnotation();
+	}
+	if (recordFlags & RecordType::GeometricAnnotation)
+	{
+		recoverIniMap("GeometricAnnotations", GeometricAnnotationList);
+		CMapDataExt::UpdateGeometricAnnotation();
+	}
+	if (recordFlags & RecordType::LocalSize)
+	{
+		CMapData::Instance->LocalSize.Left = bound.left;
+		CMapData::Instance->LocalSize.Top = bound.top;
+		CMapData::Instance->LocalSize.Width = bound.width;
+		CMapData::Instance->LocalSize.Height = bound.height;
+
+		FString size;
+		size.Format("%d,%d,%d,%d", bound.left, bound.top, bound.width, bound.height);
+		CINI::CurrentDocument->WriteString("Map", "LocalSize", size);
+		if (IsWindowVisible(CFinalSunDlg::Instance->MapD))
+		{
+			auto dlg = GetDlgItem(CFinalSunDlg::Instance->MapD, 1045);
+			SetWindowText(dlg, size);
+		}
 	}
 	if ((recordFlags & RecordType::Measurements) && MeasurementRecords)
 	{
@@ -3516,6 +3621,8 @@ void CMapDataExt::InitializeTileDataInfo()
 				anim.AnimName = CINI::CurrentTheater->GetString(setName, Anim);
 				anim.XOffset = CINI::CurrentTheater->GetInteger(setName, XOffset);
 				anim.YOffset = CINI::CurrentTheater->GetInteger(setName, YOffset);
+				anim.XOffset += CINI::Art->GetInteger(anim.AnimName, "XDrawOffset");
+				anim.YOffset += CINI::Art->GetInteger(anim.AnimName, "YDrawOffset");
 				anim.AttachedSubTile = CINI::CurrentTheater->GetInteger(setName, AttachesTo);
 				anim.ZAdjust = CINI::CurrentTheater->GetInteger(setName, ZAdjust);
 				FString imageName;
@@ -3727,6 +3834,113 @@ void CMapDataExt::BuildBaseHeightMask(CTileBlockClass* subTile)
 			mask[row * swidth + col] = std::clamp(base, 0, 255);
 		}
 	}
+}
+
+int CMapDataExt::IsBlueMapBound(int x, int y)
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	if (x1 - y1 > x4 - y4 && x1 + y1 < x4 + y4)
+	{
+		int x2 = (x1 + y1 + x4 - y4) / 2;
+		int y2 = (x1 + y1 - x4 + y4) / 2;
+		int x3 = (x4 + y4 + x1 - y1) / 2;
+		int y3 = (x4 + y4 - x1 + y1) / 2;
+
+		if (x + y == x1 + y1 && x - y <= x1 - y1 && x - y > x2 - y2)
+			return 2;
+		else if (x + y == x3 + y3 && x - y <= x3 - y3 && x - y > x4 - y4)
+			return 4;
+		else if (x - y == x1 + 1 - y1 && x + y >= x1 + 1 + y1 && x + y <= x3 + y3 - 1)
+			return 1;
+		else if (x - y == x2 + 1 - y2 && x + y >= x2 + 1 + y2 && x + y <= x4 + y4 - 1)
+			return 3;
+	}
+	return 0;
+}
+
+int CMapDataExt::IsBlueMapBound()
+{
+	const int& mapwidth = CMapData::Instance->Size.Width;
+	const int& mapheight = CMapData::Instance->Size.Height;
+
+	const int& mpL = CMapData::Instance->LocalSize.Left;
+	const int& mpT = CMapData::Instance->LocalSize.Top;
+	const int& mpW = CMapData::Instance->LocalSize.Width;
+	const int& mpH = CMapData::Instance->LocalSize.Height;
+
+	int y1 = mpT + mpL - 2;
+	int x1 = mapwidth + mpT - mpL - 3;
+
+	int y4 = mpT + mpL + mpW - 2 + mpH + 4;
+	int x4 = mapwidth - mpL - mpW + mpT - 3 + mpH + 4;
+
+	CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+	CIsoViewExt::MapCoord2ScreenCoord(x4, y4, 1);
+
+	CRect rect;
+	CIsoView::GetInstance()->GetWindowRect(&rect);
+
+	x1 -= CIsoViewExt::drawOffsetX;
+	x4 -= CIsoViewExt::drawOffsetX;
+	y1 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+	y4 -= CIsoViewExt::drawOffsetY + 15 / CIsoViewExt::ScaledFactor;
+
+	if (!ExtConfigs::DirectXRendering)
+	{
+		x1 -= rect.left;
+		x4 -= rect.left;
+		y1 -= rect.top;
+		y4 -= rect.top;
+	}
+
+	auto mouse = CIsoView::GetInstance()->MouseCurrentPosition;
+
+	if (y4 > y1 && x4 > x1)
+	{
+		if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 5;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 6;
+		else if (abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 7;
+		else if (abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 8;
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y1) <= 15 / CIsoViewExt::ScaledFactor)
+			return 2;
+		else if (mouse.x >= x1 && mouse.x <= x4 && abs(mouse.y - y4) <= 15 / CIsoViewExt::ScaledFactor)
+			return 4;
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x1) <= 30 / CIsoViewExt::ScaledFactor)
+			return 1;
+		else if (mouse.y >= y1 && mouse.y <= y4 && abs(mouse.x - x4) <= 30 / CIsoViewExt::ScaledFactor)
+			return 3;
+	}
+	return 0;
+}
+
+bool CMapDataExt::CellCannotDrag(int x, int y)
+{
+	auto pIsoView = reinterpret_cast<CFinalSunDlg*>(CFinalSunApp::Instance->m_pMainWnd)->MyViewFrame.pIsoView;
+	auto cellpos = Instance->GetCoordIndex(x, y);
+	if (cellpos >= Instance->CellDataCount)
+		cellpos = 0;
+
+	auto cell = Instance->GetCellAt(cellpos);
+	auto& cellExt = CellDataExts[cellpos];
+
+	return !pIsoView->Drag && CIsoView::CurrentCommand->Command == 0 && cell->Aircraft == -1 && cell->Unit == -1 && cell->Structure == -1 && cell->Terrain == -1 && cell->Smudge == -1 && cell->Waypoint == -1 && cell->CellTag == -1 && cell->Infantry[0] == -1 && cell->Infantry[1] == -1 && cell->Infantry[2] == -1 && cell->Infantry[2] == -1 && cellExt.BaseNodes.empty() && cellExt.SmudgeParts.empty() && !CMapDataExt::HasAnnotation(cellpos);
 }
 
 void CustomTileBlock::SetTileBlock(int tile, int subtile, int height)
@@ -4257,6 +4471,15 @@ void CMapDataExt::RefreshAllWindows()
 	if (CNewScript::GetHandle())
 	{
 		::SendMessage(CNewScript::GetHandle(), 114514, 0, 0);
+	}
+	if (CMiscSettings::NewSpecialFlags.m_hWnd) {
+		CMiscSettings::InitNewSpecialFlags();
+	}
+	if (CMiscSettings::NewBasic.m_hWnd) {
+		CMiscSettings::InitNewBasic();
+	}
+	if (CMiscSettings::NewSinglePlayer.m_hWnd) {
+		CMiscSettings::InitNewSinglePlayer();
 	}
 
 	bool noEditor = true;
@@ -4826,6 +5049,7 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		}
 	}
 	UpdateAnnotation();
+	UpdateGeometricAnnotation();
 	CIsoViewExt::LiveDistanceRuler.clear();
 
 	CustomWaypointColors.clear();
@@ -4875,6 +5099,21 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 
 	Colors.clear();
 	if (auto pSection = CINI::Rules->GetSection("Colors"))
+	{
+		for (auto& [key, value] : pSection->GetEntities())
+		{
+			HSVClass hsv{ 0,0,0 };
+			sscanf_s(value, "%hhu,%hhu,%hhu", &hsv.H, &hsv.S, &hsv.V);
+			RGBClass rgb;
+			if (!ExtConfigs::UseRGBHouseColor)
+				rgb = hsv;
+			else
+				rgb = { hsv.H,hsv.S,hsv.V };
+
+			Colors[key] = (COLORREF)rgb;
+		}
+	}
+	if (auto pSection = CINI::FAData->GetSection("Colors"))
 	{
 		for (auto& [key, value] : pSection->GetEntities())
 		{

@@ -14,6 +14,7 @@
 #include "../Miscs/StringtableLoader.h"
 #include "../Miscs/DialogStyle.h"
 #include "../Ext/CMapData/Body.h"
+#include "../Ext/CFinalSunApp/Body.h"
 #include "ILexer.h"
 #include "Scintilla.h"
 #include "SciLexer.h"
@@ -166,8 +167,14 @@ FString ExtraWindow::GetTranslatedSectionName(const char* section)
 
 int ExtraWindow::FindCBStringExactStart(HWND hComboBox, const char* searchText)
 {
-    int itemCount = SendMessage(hComboBox, CB_GETCOUNT, 0, 0);
-    for (int i = 0; i < itemCount; ++i) {
+	auto itr = VirtualComboBoxEx::VirtualComboBoxExMap.find(hComboBox);
+	if (itr != VirtualComboBoxEx::VirtualComboBoxExMap.end())
+    {
+		return itr->second->FindStringExactStart(searchText);
+	}
+
+	int itemCount = SendMessage(hComboBox, CB_GETCOUNT, 0, 0);
+	for (int i = 0; i < itemCount; ++i) {
         char buffer[256]{ 0 };
         SendMessage(hComboBox, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(buffer));
 
@@ -1262,6 +1269,7 @@ void ExtraWindow::UnregisterDropTargetsOfWindow(HWND hMainWnd)
 
 bool ExtraWindow::IsPointOnIsoViewAndNotCovered(POINT ptScreen)
 {
+    if (!CFinalSunDlg::Instance) return false;
     auto hIsoView = CIsoView::GetInstance()->GetSafeHwnd();
     RECT rc;
     GetWindowRect(hIsoView, &rc);
@@ -1839,6 +1847,8 @@ bool LabelMatcher::MatchPattern(const FString& target, const Pattern& pattern) c
 #define VCB_TIMER_RESTORE  2
 #define ITEM_HEIGHT  15
 
+int VirtualComboBoxEx::m_itemHeight = ITEM_HEIGHT;
+std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxEx::VirtualComboBoxExMap;
 VirtualComboBoxEx::VirtualComboBoxEx() {}
 VirtualComboBoxEx::~VirtualComboBoxEx() { Detach(); }
 
@@ -1868,6 +1878,8 @@ void VirtualComboBoxEx::Attach(HWND hwnd, bool* sortType, bool allowFreeText)
     m_sortType = sortType;
     m_programmaticDropdown = false;
     m_allowFreeText = allowFreeText;
+
+	VirtualComboBoxExMap[hCombo] = this;
 }
 
 void VirtualComboBoxEx::SetAutoSearchRestriction(bool* restrict)
@@ -1875,13 +1887,16 @@ void VirtualComboBoxEx::SetAutoSearchRestriction(bool* restrict)
     m_allowFilter = restrict;
 }
 
+void VirtualComboBoxEx::SetSpecialKeysFirst()
+{
+    m_SpecialKeysFirst = true;
+}
+
 void VirtualComboBoxEx::SetWindowHeight(HWND hwnd, LPARAM lParam)
 {
     LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
-    HDC hdc = GetDC(hwnd);
-    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    ReleaseDC(hwnd, hdc);
-    mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+    mis->itemHeight = ITEM_HEIGHT * CFinalSunAppExt::ProgramScaleFactor;
+    m_itemHeight = mis->itemHeight;
 }
 
 void VirtualComboBoxEx::Detach()
@@ -1890,6 +1905,12 @@ void VirtualComboBoxEx::Detach()
     {
         DeleteObject(m_hCurBrush);
         m_hCurBrush = nullptr;
+    }
+
+    if (m_hGlyphFont)
+    {
+        DeleteObject(m_hGlyphFont);
+        m_hGlyphFont = nullptr;
     }
 
     if (hCombo && oldComboProc)
@@ -1901,7 +1922,9 @@ void VirtualComboBoxEx::Detach()
     if (hList && oldListProc)
         SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)oldListProc);
 
-    hCombo = hEdit = hList = nullptr;
+	VirtualComboBoxExMap.erase(hCombo);
+
+	hCombo = hEdit = hList = nullptr;
 }
 
 void VirtualComboBoxEx::CopyFrom(const VirtualComboBoxEx& other,
@@ -2099,15 +2122,17 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
     if (index < 0 || index >= (int)items.size())
         return -1;
 
+    auto& oldItem = items[index];
     VCBItemEntry e;
     e.text = str;
     e.textColor = textColor;
     e.backgroundColor = backgroundColor;
     e.leftSideBackground = leftSideBackground;
+    e.subtextSegments = oldItem.subtextSegments;
     if (m_sortByLabelKey)
         e.key = BuildKey(e.text);
 
-    items[index] = e;
+    oldItem = e;
 
     if (curSel == index)
     {
@@ -2288,6 +2313,8 @@ void VirtualComboBoxEx::Filter(const char* text)
         HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
         SetCursor(hCursor);
     }
+    else if (!IsWindowVisible(hList))
+        m_filterActive = false;
 }
 
 int VirtualComboBoxEx::GetCount() const
@@ -2412,20 +2439,42 @@ int VirtualComboBoxEx::CalcMaxItemWidth()
     HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
     HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
 
-    SIZE sz = {};
-    int maxW = 0;
+    float scale = CFinalSunAppExt::ProgramScaleFactor;
+
+    TEXTMETRIC tm;
+    GetTextMetrics(hdc, &tm);
+	int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
+	int glyphGap = 1;
+
+	SIZE sz = {};
+	int maxW = 0;
 
     for (const auto& s : items)
     {
         GetTextExtentPoint32A(hdc, s.text, (int)s.text.length(), &sz);
-        if (sz.cx > maxW)
-            maxW = sz.cx;
+        int itemW = sz.cx;
+
+        if (!s.subtextSegments.empty())
+        {
+            int subWidth = 0;
+            for (size_t i = 0; i < s.subtextSegments.size(); ++i)
+            {
+                int w = (s.subtextSegments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
+                if (i + 1 < s.subtextSegments.size())
+                    w += glyphGap;
+                subWidth += w;
+            }
+            itemW += subWidth + (int)(10 * scale);
+        }
+
+        if (itemW > maxW)
+            maxW = itemW;
     }
 
     SelectObject(hdc, oldFont);
     ReleaseDC(hCombo, hdc);
 
-    maxW += 12;
+    maxW += (int)(12 * scale);
     maxW += GetSystemMetrics(SM_CXVSCROLL);
 
     maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
@@ -2443,6 +2492,8 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
     HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
     HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
 
+    float scale = CFinalSunAppExt::ProgramScaleFactor;
+
     SIZE sz = {};
     GetTextExtentPoint32A(hdc, items[index].text, (int)items[index].text.length(), &sz);
     int maxW = sz.cx;
@@ -2452,24 +2503,25 @@ int VirtualComboBoxEx::CalcItemWidth(int index)
     {
         TEXTMETRIC tm;
         GetTextMetrics(hdc, &tm);
-        int glyphSize = std::max(6, (int)(tm.tmHeight * 3) / 5);
-        int glyphGap =  std::max(1, (int)glyphSize / 8);
+		int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
+		float scale = CFinalSunAppExt::ProgramScaleFactor;
+		int glyphGap = 1;
 
-        int subWidth = 0;
-        for (size_t i = 0; i < segments.size(); ++i)
+		int subWidth = 0;
+		for (size_t i = 0; i < segments.size(); ++i)
         {
             int w = (segments[i].type == SubtextGlyph::Space) ? (glyphSize / 2) : glyphSize;
             if (i + 1 < segments.size())
                 w += glyphGap;
             subWidth += w;
         }
-        maxW += subWidth + 10;
+        maxW += subWidth + (int)(10 * scale);
     }
 
     SelectObject(hdc, oldFont);
     ReleaseDC(hCombo, hdc);
 
-    maxW += 12;
+    maxW += (int)(12 * scale);
     maxW += GetSystemMetrics(SM_CXVSCROLL);
 
     maxW = std::min(maxW, ExtConfigs::AdjustDropdownWidth_Max);
@@ -2520,16 +2572,38 @@ void VirtualComboBoxEx::SortItems(int* pSelIndex)
     if (m_sortType && *m_sortType)
     {
         std::sort(items.begin(), items.end(),
-            [](const VCBItemEntry& a, const VCBItemEntry& b)
+            [&](const VCBItemEntry& a, const VCBItemEntry& b)
         {
+            if (m_SpecialKeysFirst)
+            {
+                const bool aSpecial = !a.text.empty() && a.text[0] == '<';
+                const bool bSpecial = !b.text.empty() && b.text[0] == '<';
+        
+                if (aSpecial != bSpecial) [[unlikely]] 
+                {
+                    return aSpecial;
+                }
+            }
+            
             return CompareKey(a.key, b.key);
         });
     }
     else
     {
         std::sort(items.begin(), items.end(),
-            [](const VCBItemEntry& a, const VCBItemEntry& b)
+            [&](const VCBItemEntry& a, const VCBItemEntry& b)
         {
+            if (m_SpecialKeysFirst)
+            {
+                const bool aSpecial = !a.text.empty() && a.text[0] == '<';
+                const bool bSpecial = !b.text.empty() && b.text[0] == '<';
+        
+                if (aSpecial != bSpecial) [[unlikely]] 
+                {
+                    return aSpecial;
+                }
+            }
+
             return a.text < b.text;
         });
     }
@@ -2646,12 +2720,7 @@ static bool NeedVScrollBar(HWND window, HWND hList)
     if (listHeight <= 0)
         return false;
 
-    HDC hdc = GetDC(window);
-    int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    ReleaseDC(window, hdc);
-    int itemHeight = ITEM_HEIGHT * dpi / 96.0f;
-
-    int visible = listHeight / itemHeight;
+    int visible = listHeight / VirtualComboBoxEx::m_itemHeight;
 
     return total > visible;
 };
@@ -2847,7 +2916,8 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             TEXTMETRIC tm;
             GetTextMetrics(hdc, &tm);
             int glyphSize = std::max(6, int(tm.tmHeight * 3) / 5);
-            int glyphGap = std::max(1, (int)glyphSize / 8);
+            float scale = CFinalSunAppExt::ProgramScaleFactor;
+            int glyphGap = 1;
 
             // Calculate total subtext width
             int totalSubWidth = 0;
@@ -2860,10 +2930,10 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             }
 
             RECT rcText = rc;
-            rcText.left += 4;
+            rcText.left += (int)(4 * scale);
             if (item->leftSideBackground)
-                rcText.left += ITEM_HEIGHT;
-            rcText.right = rc.right - totalSubWidth - 10;
+                rcText.left += m_itemHeight;
+            rcText.right = rc.right - totalSubWidth - (int)(10 * scale);
             DrawTextA(hdc, *text, -1, &rcText,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
 
@@ -2874,12 +2944,12 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
         
-                int padding = ITEM_HEIGHT / 7;
+                int padding = m_itemHeight / 7;
                 RECT rcRight = {};        
                 SelectObject(hdc, solidBrush);
                 SelectObject(hdc, hollowPen);
                 Rectangle(hdc, rc.left + padding - 4, rc.top + padding, 
-                    rc.left + ITEM_HEIGHT - padding - 4, rc.bottom - padding);
+                    rc.left + m_itemHeight - padding - 4, rc.bottom - padding);
                     
                 SelectObject(hdc, oldPen);
                 SelectObject(hdc, oldBrush);
@@ -2890,7 +2960,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             // Draw GDI glyphs
             int rcHeight = rc.bottom - rc.top;
             int top = rc.top + (rcHeight - glyphSize) / 2;
-            int x = rc.right - 4 - totalSubWidth;
+            int x = rc.right - (int)(4 * scale) - totalSubWidth;
 
             COLORREF curColor = GetTextColor(hdc);
             HPEN hollowPen = CreatePen(PS_SOLID, 1, curColor);
@@ -2909,6 +2979,48 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 case SubtextGlyph::Space:
                     // draw nothing, just advance
                     break;
+				case SubtextGlyph::Character:
+				{
+					if (!pThis->m_hGlyphFont)
+					{
+						HFONT hMainFont = (HFONT)SendMessage(pThis->hCombo, WM_GETFONT, 0, 0);
+						if (hMainFont)
+						{
+							LOGFONTA lf = {};
+							GetObjectA(hMainFont, sizeof(lf), &lf);
+                            if (CFinalSunAppExt::ProgramScaleFactor > 1.25f)
+							    lf.lfHeight *= 0.8f;
+							else
+                                lf.lfHeight *= 0.9f;
+							pThis->m_hGlyphFont = CreateFontIndirectA(&lf);
+						}
+					}
+
+					HFONT oldGlyphFont = pThis->m_hGlyphFont
+											 ? (HFONT)SelectObject(hdc, pThis->m_hGlyphFont)
+											 : nullptr;
+
+					char ch[2] = {segments[i].character, '\0'};
+
+					SIZE sz{};
+					GetTextExtentPoint32A(hdc, ch, 1, &sz);
+
+					RECT rcChar = {
+						x + (glyphSize - sz.cx) / 2,
+						top + (glyphSize - sz.cy) / 2 - (CFinalSunAppExt::ProgramScaleFactor > 1.25f ? 1 : 0),
+						x + (glyphSize - sz.cx) / 2 + sz.cx,
+						top + (glyphSize - sz.cy) / 2 + sz.cy};
+
+					SetTextColor(hdc, curColor);
+					SetBkMode(hdc, TRANSPARENT);
+
+					DrawTextA(hdc, ch, 1, &rcChar,
+							  DT_SINGLELINE | DT_LEFT | DT_TOP);
+
+					if (oldGlyphFont)
+						SelectObject(hdc, oldGlyphFont);
+				}
+				break;
 
                 case SubtextGlyph::FilledCircle:
                     SelectObject(hdc, solidBrush);
@@ -3004,9 +3116,10 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
         }
         else
         {
-            rc.left += 4;
+            float scale = CFinalSunAppExt::ProgramScaleFactor;
+            rc.left += (int)(4 * scale);
             if (item->leftSideBackground)
-                rc.left += ITEM_HEIGHT;
+                rc.left += m_itemHeight;
 
             DrawTextA(hdc, *text, -1, &rc,
                 DT_SINGLELINE | DT_VCENTER | DT_LEFT);
@@ -3018,12 +3131,12 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
                 HPEN oldPen = (HPEN)SelectObject(hdc, hollowPen);
                 HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, solidBrush);
         
-                int padding = ITEM_HEIGHT / 7;
+                int padding = m_itemHeight / 7;
                 RECT rcRight = {};        
                 SelectObject(hdc, solidBrush);
                 SelectObject(hdc, hollowPen);
-                Rectangle(hdc, rc.left - ITEM_HEIGHT - 4 + padding, rc.top + padding, 
-                    rc.left + ITEM_HEIGHT - padding - ITEM_HEIGHT - 4, rc.bottom - padding);
+                Rectangle(hdc, rc.left - m_itemHeight - 4 + padding, rc.top + padding, 
+                    rc.left + m_itemHeight - padding - m_itemHeight - 4, rc.bottom - padding);
 
                 SelectObject(hdc, oldPen);
                 SelectObject(hdc, oldBrush);
@@ -3038,10 +3151,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
     case WM_MEASUREITEM:
     {
         LPMEASUREITEMSTRUCT mis = (LPMEASUREITEMSTRUCT)lParam;
-        HDC hdc = GetDC(hwnd);
-        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
-        ReleaseDC(hwnd, hdc);
-        mis->itemHeight = ITEM_HEIGHT * dpi / 96.0f;
+        mis->itemHeight = m_itemHeight;
         return TRUE;
     }
     }
@@ -3351,4 +3461,169 @@ LRESULT CALLBACK VirtualComboBoxEx::ListProc(HWND hwnd, UINT msg, WPARAM wParam,
     }
 
     return CallWindowProc(pThis->oldListProc, hwnd, msg, wParam, lParam);
+}
+
+void CINIDialog::ShowDialog()
+{
+    if (::IsWindow(GetSafeHwnd()))
+    {
+        DestroyWindow();
+    }
+    if (!Create(m_dialogResource, CFinalSunDlg::Instance)) 
+    {
+        Logger::Error("Failed to create CINIDialog.\n");
+        return;
+    }
+	ShowWindow(SW_SHOW);    
+	::SetWindowPos(GetSafeHwnd(), HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+}
+
+void CINIDialog::SetControlInfo(int id, const ControlInfo& info)
+{
+	m_controlInfos[id] = info;
+}
+
+void CINIDialog::DisableControl(int id)
+{
+	m_disabledControls.push_back(id);
+}
+
+void CINIDialog::Translate(int id, const FString& text)
+{
+	m_controlTranslations[id] = text;
+}
+
+void CINIDialog::TranslateTitle(const FString& text)
+{
+	m_title = text;
+}
+
+CINIDialog::CINIDialog(int resource)
+{
+	m_dialogResource = resource;
+}
+
+BOOL CINIDialog::OnInitDialog()
+{
+	CDialog::OnInitDialog();
+	FString buffer;
+
+	auto translate = [&buffer, this](int nItem, const char* lpLabel)
+	{
+		if (Translations::GetTranslationItem(lpLabel, buffer))
+			GetDlgItem(nItem)->SetWindowTextA(buffer);
+	};
+
+    for (auto& [id, text] : m_controlTranslations)   
+        translate(id, text);
+
+	if (Translations::GetTranslationItem(m_title, buffer))
+		SetWindowTextA(buffer);
+
+    for (const auto& [id, info] : m_controlInfos)
+    {
+        if (info.Type == ControlType::CheckBox)
+        {
+            CheckDlgButton(GetSafeHwnd(), id, CINI::CurrentDocument->GetBool(info.IniSection, info.IniKey) ? BST_CHECKED : BST_UNCHECKED); 
+        }
+        else if (info.Type == ControlType::Edit)
+        {
+            GetDlgItem(id)->SetWindowText(CINI::CurrentDocument->GetString(info.IniSection, info.IniKey));
+        }
+        else if (info.Type == ControlType::Combobox)
+        {
+            ppmfc::CComboBox* box = (ppmfc::CComboBox*)GetDlgItem(id);
+            for (const auto& label : info.Labels)
+            {
+				box->AddString(label);
+			}
+			auto text = CINI::CurrentDocument->GetString(info.IniSection, info.IniKey);
+			int idx = box->FindStringExact(0, text);
+            if (idx != CB_ERR)
+            {
+				box->SetCurSel(idx);
+			}
+            else
+            {               
+                box->SetWindowText(text);
+            }
+        }
+    }
+
+    for (const auto& id : m_disabledControls)
+    {
+		GetDlgItem(id)->EnableWindow(FALSE);
+	}
+
+	return TRUE;
+}
+
+BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+    WORD nID = LOWORD(wParam);
+    WORD nNotify = HIWORD(wParam);
+
+	auto itr = m_controlInfos.find(nID);
+	if (itr != m_controlInfos.end())
+	{
+		const auto& info = itr->second;
+		if (info.Type == ControlType::CheckBox && nNotify == BN_CLICKED)
+        {
+            bool checked = (IsDlgButtonChecked(GetSafeHwnd(), nID) == BST_CHECKED);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, checked ? "yes" : "no");
+			info.CallBack();
+		}
+		else if (info.Type == ControlType::Edit && nNotify == EN_CHANGE)
+        {
+			ppmfc::CString buffer;
+			GetDlgItem(nID)->GetWindowText(buffer);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+		else if (info.Type == ControlType::Combobox && nNotify == CBN_SELCHANGE)
+        {
+            ppmfc::CComboBox* box = (ppmfc::CComboBox*)GetDlgItem(nID);
+			ppmfc::CString buffer;
+			int idx = box->GetCurSel();
+            if (idx != CB_ERR)
+            {
+				box->GetLBText(idx, buffer);
+			}
+            else
+            {
+                box->GetWindowText(buffer);
+            }
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+		else if (info.Type == ControlType::Combobox && nNotify == CBN_EDITCHANGE)
+        {
+			ppmfc::CString buffer;
+			GetDlgItem(nID)->GetWindowText(buffer);
+            CINI::CurrentDocument->WriteString(info.IniSection, info.IniKey, buffer);
+			info.CallBack();
+        }
+	}
+
+    return CDialog::OnCommand(wParam, lParam);
+}
+
+void CINIDialog::DoDataExchange(ppmfc::CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+}
+
+void CINIDialog::OnClose()
+{
+	m_controlTranslations.clear();
+	m_controlInfos.clear();    
+    if (::IsWindow(GetSafeHwnd()))
+    {
+        DestroyWindow();
+    }
+}
+
+void CINIDialog::OnCancel()
+{
+	OnClose();
 }

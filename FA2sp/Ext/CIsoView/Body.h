@@ -126,8 +126,13 @@ enum MeasurementTypes : int
     PlaceSymmetricPoint,
     SetCentralSymmetryCenter,
     PlaceCentralSymmetricPoint,
+    PlaceCircleCenter,
     PlaceCircle,
     LineSegment,
+    //ArrowSegment,
+    PlaceCircle_Annotation,
+    LineSegment_Annotation,
+    ArrowSegment_Annotation,
 };
 
 struct TwoPointStruct
@@ -135,6 +140,7 @@ struct TwoPointStruct
     MapCoord Point1;
     MapCoord Point2;
     bool drawText;
+    bool hasArrow;
 };
 
 class NOVTABLE CIsoViewExt : public CIsoView
@@ -219,6 +225,7 @@ public:
     static void DrawShadowMask(void* dst, const DDBoundary& boundary, const RECT& window, 
         const std::vector<byte>& mask, const std::vector<byte>& shadowHeightMask, const std::vector<int>& cellHeightMask);
     static void ScaleBitmap(CBitmap* pBitmap, int maxSize, COLORREF bgColor, bool removeHalo = true, bool trim = true);
+    static HRESULT ScaleSurface(LPDIRECTDRAWSURFACE7* lpSurface, float scaleFactor);
     static bool LoadAndScaleToBitmap(const ImageDataView* pData,
         CBitmap& outBitmap,
         int maxSize,
@@ -244,13 +251,13 @@ public:
     static void DrawLineDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
     static void DrawArrowDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
     static void DrawDashLineDirectX(int x1, int y1, int x2, int y2, int color, int size = 1, bool bScreenSpace = true);
-    static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0);
-    static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color);
-    static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color);
-    static void DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coords, COLORREF color, bool bScreenSpace = true);
-    static void DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0, bool bScreenSpace = true);
-    static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
-    static void TextOutDirectX(int x, int y, const FString& text, int fontsize, bool bScreenSpace = true, int texAlign = 0);
+	static void DrawMultiMapCoordBorders(HDC hDC, const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0, bool allowFullMap = false);
+	static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::vector<MapCoord>& coords, COLORREF color, bool allowFullMap = false);
+	static void DrawMultiMapCoordBorders(LPDDSURFACEDESC2 lpDesc, const std::set<MapCoord>& coords, COLORREF color, bool allowFullMap = false);
+	static void DirectXDrawMultiMapCoordBorders(const std::set<MapCoord>& coords, COLORREF color, bool bScreenSpace = true, bool allowFullMap = false);
+	static void DirectXDrawMultiMapCoordBorders(const std::vector<MapCoord>& coords, COLORREF color, int offsetX = 0, int offsetY = 0, bool bScreenSpace = true, bool allowFullMap = false);
+	static void TextOutClipped(HDC hdc, int x, int y, const char* text, int len, const RECT& rect);
+	static void TextOutDirectX(int x, int y, const FString& text, int fontsize, bool bScreenSpace = true, int texAlign = 0);
     static void TextOutDirectX(int x, int y, const FString& text, int fontsize, COLORREF colorText, COLORREF colorBg, bool bScreenSpace = true, int texAlign = 0);
     static void TextOutDirectX(int x, int y, const FString& text, int fontsize, COLORREF colorText, bool bScreenSpace = true, int texAlign = 0);
     static bool StretchCopySurfaceBilinear(LPDIRECTDRAWSURFACE7 srcSurface, CRect srcRect, LPDIRECTDRAWSURFACE7 dstSurface, CRect dstRect);
@@ -261,9 +268,10 @@ public:
     static void DrawCreditOnMap(HDC hDC, bool bScreenSpace = true);
     static void DrawDistanceRuler(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawOtherMeasurementTools(HDC hDC, const RECT& rect, bool bScreenSpace = true);
+    static void DrawGeometricAnnotations(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void DrawScriptPaths(HDC hDC, const RECT& rect, bool bScreenSpace = true);
     static void MoveToMapCoord(int X, int Y);
-    static void Zoom(double offset);
+    static void Zoom(double offset, bool bForce = false);
     static std::vector<MapCoord> GetLinePoints(MapCoord mc1, MapCoord mc2);
     static std::vector<MapCoord> GetLineRectangles(MapCoord start, MapCoord end, int width, int height);
     static void InitAlphaTable();
@@ -381,11 +389,16 @@ public:
     static bool EnableLiveDistanceRuler;
     static bool EnableOtherMeasurementTools;
     static std::vector<TwoPointStruct> TwoPointDistance;
+    static std::vector<TwoPointStruct> TwoPointDistance_Annotation;
     static MapCoord AxialSymmetryLine[2];
+    static MapCoord TempCircle[2];
+    static MapCoord TempCircle_Annotation[2];
     static MapCoord CentralSymmetryCenter;
+    static MapCoord DragCell;
     static std::vector<std::pair<MapCoord, MapCoord>> AxialSymmetricPoints;
     static std::vector<std::pair<MapCoord, MapCoord>> CentralSymmetricPoints;
     static std::vector<std::pair<MapCoord, float>> Circles;
+    static std::vector<std::pair<MapCoord, float>> Circles_Annotation;
     static float CircleRadius;
     static bool DrawScriptPath;
     static std::vector<MapCoord> ScriptPath;

@@ -7,10 +7,21 @@
 #include "Body.h"
 #include "DirectXCore.h"
 #include "../../Miscs/Palettes.h"
+#include <glad/glad.h>
+
+// WGL extension types (not provided by glad)
+typedef HGLRC(WINAPI *PFNWGLCREATECONTEXTATTRIBSARBPROC)(HDC hDC, HGLRC hShareContext, const int *attribList);
+typedef BOOL(WINAPI *PFNWGLCHOOSEPIXELFORMATARBPROC)(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+
+// glBlendFunci - ARB_draw_buffers_blend (GL 3.3 extension, core in 4.0)
+typedef void(APIENTRYP PFNGLBLENDFUNCIPROC)(GLuint buf, GLenum src, GLenum dst);
+static PFNGLBLENDFUNCIPROC glad_glBlendFunci = nullptr;
+#define glBlendFunci glad_glBlendFunci
 
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "opengl32.lib")
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -53,6 +64,53 @@ DrawParams &DrawParams::SetColorMix(RGBClass color, float factor)
 DirectXCore::DirectXCore() = default;
 DirectXCore::~DirectXCore() { Cleanup(); }
 
+void GetDriverVersionFromRegistry()
+{
+    HKEY hKey;
+    if (RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}",
+            0,
+            KEY_READ,
+            &hKey) != ERROR_SUCCESS)
+    {
+        return;
+    }
+
+    WCHAR subKeyName[256];
+    DWORD index = 0;
+    DWORD size = 256;
+
+    while (RegEnumKeyExW(hKey, index, subKeyName, &size,
+                         nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS)
+    {
+        WCHAR path[512];
+        swprintf_s(path,
+                   L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\%s",
+                   subKeyName);
+
+        HKEY subKey;
+        if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+        {
+            CHAR driverVer[128];
+            DWORD sz = sizeof(driverVer);
+
+            if (RegQueryValueEx(subKey, "DriverVersion", nullptr, nullptr,
+                                (LPBYTE)driverVer, &sz) == ERROR_SUCCESS)
+            {
+                Logger::Raw("[DX] DriverVersion: %s\n", driverVer);
+            }
+
+            RegCloseKey(subKey);
+        }
+
+        size = 256;
+        index++;
+    }
+
+    RegCloseKey(hKey);
+}
+
 bool DirectXCore::Initialize(HWND hwnd)
 {
     Cleanup();
@@ -63,11 +121,84 @@ bool DirectXCore::Initialize(HWND hwnd)
         return false;
     }
 
+    // --- Determine rendering backend ---
+    // DirectXRendering is the master switch; OpenGLRendering selects GL
+    // when both are enabled.
+    m_bUseOpenGL = ExtConfigs::DirectXRendering && ExtConfigs::OpenGLRendering;
+    Logger::Raw("[DirectXCore] Backend: %s\n", m_bUseOpenGL ? "OpenGL 3.3" : "Direct3D 11");
+
+    if (m_bUseOpenGL)
+    {
+        if (!GL_Init(hwnd))
+        {
+            Logger::Raw("[DirectXCore] GL_Init failed.\n");
+            return false;
+        }
+        m_bInitialized = true;
+        Logger::Raw("[DirectXCore] Initialize (OpenGL) succeeded.\n");
+        return true;
+    }
+
+    // ==================== D3D11 path ====================
     if (!CreateDeviceAndSwapChain(hwnd))
     {
         Logger::Raw("[DirectXCore] CreateDeviceAndSwapChain failed.\n");
         return false;
     }
+
+    // --- Log GPU / adapter info ---
+    {
+        ComPtr<IDXGIDevice> pDXGIDevice;
+        if (SUCCEEDED(m_pDevice.As(&pDXGIDevice)) && pDXGIDevice)
+        {
+            ComPtr<IDXGIAdapter> pAdapter;
+            if (SUCCEEDED(pDXGIDevice->GetAdapter(&pAdapter)) && pAdapter)
+            {
+                DXGI_ADAPTER_DESC desc = {};
+                if (SUCCEEDED(pAdapter->GetDesc(&desc)))
+                {
+                    // Convert wide-char description to UTF-8
+                    char gpuName[256] = {};
+                    WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, gpuName, sizeof(gpuName), nullptr, nullptr);
+
+                    D3D_FEATURE_LEVEL fl = m_pDevice->GetFeatureLevel();
+                    const char *flStr = "?";
+                    switch (fl)
+                    {
+                    case D3D_FEATURE_LEVEL_11_0:
+                        flStr = "11_0";
+                        break;
+                    case D3D_FEATURE_LEVEL_10_1:
+                        flStr = "10_1";
+                        break;
+                    case D3D_FEATURE_LEVEL_10_0:
+                        flStr = "10_0";
+                        break;
+                    case D3D_FEATURE_LEVEL_9_3:
+                        flStr = "9_3";
+                        break;
+                    default:
+                        break;
+                    }
+
+                    Logger::Raw("\n");
+                    Logger::Raw("========== DirectX Device Info ==========\n");
+                    Logger::Raw("[DX] GPU: %s\n", gpuName);
+                    Logger::Raw("[DX] VendorId: 0x%04X  DeviceId: 0x%04X\n",
+                                desc.VendorId, desc.DeviceId);
+                    Logger::Raw("[DX] VRAM: %d MB\n", desc.DedicatedVideoMemory / (1024 * 1024));
+                    Logger::Raw("[DX] System RAM Shared: %d MB\n",
+                                desc.SharedSystemMemory / (1024 * 1024));
+                    Logger::Raw("[DX] FeatureLevel: %s\n", flStr);
+
+                    GetDriverVersionFromRegistry();
+                    Logger::Raw("========================================\n");
+                    Logger::Raw("\n");
+                }
+            }
+        }
+    }
+
     if (!CreateShadersAndInputLayout())
     {
         Logger::Raw("[DirectXCore] CreateShadersAndInputLayout failed.\n");
@@ -158,12 +289,24 @@ bool DirectXCore::IsInitialized()
 
 void DirectXCore::ClearTextures()
 {
+    if (m_bUseOpenGL)
+    {
+        for (auto &[k, v] : m_textureMap)
+            if (v && v->glTexture)
+                glDeleteTextures(1, &v->glTexture);
+    }
     m_textureMap.clear();
     Logger::Raw("[DirectXCore] Clear textures.\n");
 }
 
 void DirectXCore::ClearTileTextures()
 {
+    if (m_bUseOpenGL)
+    {
+        for (auto &[k, v] : m_tileTextureMap)
+            if (v && v->glTexture)
+                glDeleteTextures(1, &v->glTexture);
+    }
     m_tileTextureMap.clear();
     Logger::Raw("[DirectXCore] Clear tile textures.\n");
 }
@@ -225,6 +368,7 @@ void DirectXCore::Cleanup()
     m_pDepthStateShadowRedraw.Reset();
     m_pBlendStateDarken.Reset();
     m_pShadowDarkenPS.Reset();
+    m_pBlendStateNoColor.Reset();
 
     m_pSamplerLinear.Reset();
     m_pSamplerNearestNeighbor.Reset();
@@ -253,17 +397,48 @@ void DirectXCore::Cleanup()
     m_pBackgroundCacheSRV.Reset();
     m_backgroundCacheValid = false;
 
+    // --- OpenGL cleanup ---
+    if (m_bUseOpenGL)
+        GL_Cleanup();
+
     m_clientWidth = m_clientHeight = 0;
     m_globalScaleX = m_globalScaleY = 1.0f;
     m_globalOffsetX = m_globalOffsetY = 0.0f;
     m_renderScale = 1.0f;
     m_bInitialized = false;
 
-    Logger::Raw("[DirectXCore] Reset all.\n");
+    Logger::Raw("[DirectXCore] Cleaning up.\n");
 }
 
 void DirectXCore::OnResize(HWND hwnd)
 {
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+    UINT width = rc.right - rc.left;
+    UINT height = rc.bottom - rc.top;
+    m_clientWidth = width;
+    m_clientHeight = height;
+
+    if (m_bUseOpenGL)
+    {
+        // Recreate GL FBOs and helper textures at new size
+        wglMakeCurrent(m_hGLDC, m_hGLRC);
+        if (m_glTexOffscreen)
+            glDeleteTextures(1, &m_glTexOffscreen);
+        if (m_glFBOOffscreen)
+            glDeleteFramebuffers(1, &m_glFBOOffscreen);
+        if (m_glRBODepthStencil)
+            glDeleteRenderbuffers(1, &m_glRBODepthStencil);
+        m_glTexOffscreen = m_glFBOOffscreen = m_glRBODepthStencil = 0;
+        GL_EnsureFactorTexture();
+        GL_EnsureScreenCopyTexture();
+        GL_EnsureAlphaAccumTexture();
+        if (!GL_CreateOffscreenResources())
+            Logger::Raw("[DirectXCore] OnResize: GL_CreateOffscreenResources failed.\n");
+        return;
+    }
+
+    // --- D3D11 path ---
     if (!m_pSwapChain)
         return;
 
@@ -279,10 +454,6 @@ void DirectXCore::OnResize(HWND hwnd)
     m_pScreenCopy.Reset();
     m_pScreenCopySRV.Reset();
 
-    RECT rc;
-    GetClientRect(hwnd, &rc);
-    UINT width = rc.right - rc.left;
-    UINT height = rc.bottom - rc.top;
     HRESULT hr = m_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
     if (SUCCEEDED(hr))
     {
@@ -368,6 +539,29 @@ float DirectXCore::SetZoomOut(float scaleFactor)
     if (vh == 0)
         vh = 1;
 
+    if (m_bUseOpenGL)
+    {
+        // Update scale FIRST so Ensure/Create functions use the new size
+        m_renderScale = scaleFactor;
+
+        if (m_glTexOffscreen)
+            glDeleteTextures(1, &m_glTexOffscreen);
+        if (m_glFBOOffscreen)
+            glDeleteFramebuffers(1, &m_glFBOOffscreen);
+        if (m_glRBODepthStencil)
+            glDeleteRenderbuffers(1, &m_glRBODepthStencil);
+        m_glTexOffscreen = m_glFBOOffscreen = m_glRBODepthStencil = 0;
+        GL_EnsureFactorTexture();
+        GL_EnsureScreenCopyTexture();
+        GL_EnsureAlphaAccumTexture();
+        if (!GL_CreateOffscreenResources())
+        {
+            Logger::Raw("[DirectXCore] SetZoomOut: GL_CreateOffscreenResources failed.\n");
+            return m_renderScale;
+        }
+        return m_renderScale;
+    }
+
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
     m_OffscreenSRV.Reset();
@@ -409,7 +603,7 @@ bool DirectXCore::CreateDeviceAndSwapChain(HWND hwnd)
     scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT createFlags = 0;
-#ifdef _DEBUG
+#ifndef NDEBUG
     createFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -537,7 +731,6 @@ bool DirectXCore::CreateShadersAndInputLayout()
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     m_pDevice->CreateBlendState(&blendDesc, &m_pBlendState);
 
-    // No-color-output blend state (ç”¨äºŽä»…æ›´æ–°stencilçš„pass)
     D3D11_BLEND_DESC blendNoColor = {};
     blendNoColor.RenderTarget[0].BlendEnable = FALSE;
     blendNoColor.RenderTarget[0].RenderTargetWriteMask = 0;
@@ -742,14 +935,17 @@ bool DirectXCore::CreateShadersAndInputLayout()
         ComPtr<ID3DBlob> blob, err;
         HRESULT hr = D3DCompile(instVS, strlen(instVS), nullptr, nullptr, nullptr,
                                 "main", "vs_5_0", 0, 0, &blob, &err);
-        if (FAILED(hr)) {
-            if (err) OutputDebugStringA((char*)err->GetBufferPointer());
+        if (FAILED(hr))
+        {
+            if (err)
+                OutputDebugStringA((char *)err->GetBufferPointer());
             return false;
         }
         hr = m_pDevice->CreateVertexShader(blob->GetBufferPointer(),
                                            blob->GetBufferSize(),
                                            nullptr, &m_pInstancedVS);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         // Input layout: slot 0 = QuadVertex (per-vertex), slot 1 = InstanceData (per-instance)
         D3D11_INPUT_ELEMENT_DESC instLayout[] = {
@@ -771,7 +967,8 @@ bool DirectXCore::CreateShadersAndInputLayout()
         hr = m_pDevice->CreateInputLayout(instLayout, 6, blob->GetBufferPointer(),
                                           blob->GetBufferSize(),
                                           &m_pInstancedInputLayout);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
     }
 
     return true;
@@ -963,7 +1160,11 @@ void DirectXCore::CopyScreenToTexture()
 {
     if (!m_pContext || !m_OffscreenRTV || !m_pScreenCopy)
         return;
+    // Unbind the offscreen RT before copying from it (D3D11 forbids CopyResource on a bound RT)
+    m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
     m_pContext->CopyResource(m_pScreenCopy.Get(), m_OffscreenTex.Get());
+    // Re-bind the offscreen RT (caller expects it to be active)
+    // Note: caller (Phase 4) will set its own RT immediately after
 }
 
 void DirectXCore::DrawFullscreenQuad()
@@ -1042,6 +1243,7 @@ void DirectXCore::CreateBackgroundCacheTexture(UINT width, UINT height)
     if (pBackBuffer)
     {
         pBackBuffer->GetDesc(&desc);
+        desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
     }
     else
     {
@@ -1071,7 +1273,11 @@ void DirectXCore::UpdateBackgroundCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying from it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(m_pBackgroundCacheTexture.Get(), pBackBufferResource.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         m_backgroundCacheValid = true;
     }
 }
@@ -1084,7 +1290,11 @@ void DirectXCore::RestoreBackgroundFromCache()
     m_pRTV->GetResource(&pBackBufferResource);
     if (pBackBufferResource)
     {
+        // Unbind back buffer RTV before copying to it
+        m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
         m_pContext->CopyResource(pBackBufferResource.Get(), m_pBackgroundCacheTexture.Get());
+        // Re-bind back buffer RTV (caller will set RTV again before next draw)
+        m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     }
 }
 
@@ -1160,7 +1370,7 @@ bool DirectXCore::CreateLineShaders()
 {
     // Vertex shader: receives LineVertex { x, y, depth, color } as float4.
     // x,y are already in NDC; depth is the pre-assigned depth value.
-    // Just pass through directly â€? no matrix transform needed.
+    // Just pass through directly no matrix transform needed.
     const char *vsCode = R"(
         struct VSInput {
             float4 pos_depth : POSITION;  // (ndcX, ndcY, depth, colorPacked)
@@ -1285,21 +1495,25 @@ bool DirectXCore::CreateAlphaAccumShaders()
     hr = D3DCompile(mrtPS, strlen(mrtPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pMRTPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     // Compile modified line PS
     hr = D3DCompile(lineModPS, strlen(lineModPS), nullptr, nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_pLineModPS);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     return true;
 }
@@ -1319,7 +1533,8 @@ bool DirectXCore::CreateShadowDarkenShaders()
                             "main", "ps_5_0", 0, 0, &psBlob, &error);
     if (FAILED(hr))
     {
-        if (error) OutputDebugStringA((char *)error->GetBufferPointer());
+        if (error)
+            OutputDebugStringA((char *)error->GetBufferPointer());
         return false;
     }
     hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(),
@@ -1347,9 +1562,11 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
     desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     HRESULT hr = m_pDevice->CreateTexture2D(&desc, nullptr, &m_pAlphaAccumTex);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateRenderTargetView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumRTV);
-    if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
     hr = m_pDevice->CreateShaderResourceView(m_pAlphaAccumTex.Get(), nullptr, &m_pAlphaAccumSRV);
 }
 
@@ -1357,7 +1574,8 @@ void DirectXCore::EnsureAlphaAccumTexture(UINT width, UINT height)
 // Avoids expensive OMGetDepthStencilState pipeline queries.
 void DirectXCore::SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRef)
 {
-    if (m_pTrackedDSState != pDS || m_trackedStencilRef != stencilRef) {
+    if (m_pTrackedDSState != pDS || m_trackedStencilRef != stencilRef)
+    {
         m_pContext->OMSetDepthStencilState(pDS, stencilRef);
         m_pTrackedDSState = pDS;
         m_trackedStencilRef = stencilRef;
@@ -1368,21 +1586,24 @@ void DirectXCore::SetDSStateTracked(ID3D11DepthStencilState *pDS, UINT stencilRe
 // Draws all DrawCommands in `batch` with a single DrawInstanced call.
 // All commands MUST share the same texture, VS, PS, blend state, DS state.
 // Pixel-perfect output identical to per-quad Draw(4,0).
-void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batch)
+void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
 {
-    if (batch.empty()) return;
+    if (batch.empty())
+        return;
     const UINT count = (UINT)batch.size();
 
     // Ensure instance VB capacity
-    if (!m_pInstanceVB || m_instanceVBCapacity < (int)count) {
+    if (!m_pInstanceVB || m_instanceVBCapacity < (int)count)
+    {
         m_pInstanceVB.Reset();
-        int cap = (count + 255) & ~255;  // round up
+        int cap = (count + 255) & ~255; // round up
         D3D11_BUFFER_DESC desc = {};
         desc.ByteWidth = cap * sizeof(InstanceData);
         desc.Usage = D3D11_USAGE_DYNAMIC;
         desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        if (FAILED(m_pDevice->CreateBuffer(&desc, nullptr, &m_pInstanceVB))) {
+        if (FAILED(m_pDevice->CreateBuffer(&desc, nullptr, &m_pInstanceVB)))
+        {
             m_instanceVBCapacity = 0;
             return;
         }
@@ -1393,8 +1614,9 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
     D3D11_MAPPED_SUBRESOURCE mapped;
     if (FAILED(m_pContext->Map(m_pInstanceVB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
         return;
-    auto *dst = (InstanceData*)mapped.pData;
-    for (const DrawCommand *cmd : batch) {
+    auto *dst = (InstanceData *)mapped.pData;
+    for (const DrawCommand *cmd : batch)
+    {
         const auto &p = cmd->params;
         TextureResource *tex = cmd->texRes;
         float w_px = tex->sourceView.FullWidth * p.scaleX;
@@ -1406,18 +1628,18 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
         float ndcCenterX = ((snappedX + w_px * 0.5f) / m_vwCached) * 2.0f - 1.0f;
         float ndcCenterY = 1.0f - ((snappedY + h_px * 0.5f) / m_vhCached) * 2.0f;
         float depthZ = cmd->depth * (1.0f / 16777216.0f);
-        dst->scaleX  = ndcW;
-        dst->scaleY  = ndcH;
-        dst->transX  = ndcCenterX;
-        dst->transY  = ndcCenterY;
-        dst->depthZ  = depthZ;
+        dst->scaleX = ndcW;
+        dst->scaleY = ndcH;
+        dst->transX = ndcCenterX;
+        dst->transY = ndcCenterY;
+        dst->depthZ = depthZ;
         dst->colorMulR = p.redMult;
         dst->colorMulG = p.greenMult;
         dst->colorMulB = p.blueMult;
         dst->colorMulA = p.opacity;
-        dst->mixR   = p.mixR;
-        dst->mixG   = p.mixG;
-        dst->mixB   = p.mixB;
+        dst->mixR = p.mixR;
+        dst->mixG = p.mixG;
+        dst->mixB = p.mixB;
         dst->mixFactor = p.mixFactor;
         dst->padding[0] = dst->padding[1] = dst->padding[2] = 0;
         ++dst;
@@ -1432,8 +1654,10 @@ void DirectXCore::FlushInstanceBatch(const std::vector<const DrawCommand*>& batc
 
     // Bind the SRV for the batch (all commands share the same texture)
     TextureResource *tex = batch[0]->texRes;
-    if (tex && tex->srv) {
-        if (m_pTrackedSRV != tex->srv.Get()) {
+    if (tex && tex->srv)
+    {
+        if (m_pTrackedSRV != tex->srv.Get())
+        {
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pTrackedSRV = tex->srv.Get();
         }
@@ -1487,7 +1711,8 @@ void DirectXCore::RenderOffscreenContent()
     auto DrawOneTracked = [&](const DrawCommand &cmd)
     {
         TextureResource *tex = cmd.texRes;
-        if (!tex || !tex->srv) return;
+        if (!tex || !tex->srv)
+            return;
         const auto &p = cmd.params;
         float depthZ = cmd.depth * depthScale;
         float w_px = tex->sourceView.FullWidth * p.scaleX;
@@ -1508,7 +1733,8 @@ void DirectXCore::RenderOffscreenContent()
         cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
         cb.mixFactor = p.mixFactor;
 
-        if (cmd.pCustomDSState) {
+        if (cmd.pCustomDSState)
+        {
             UINT ref = (p.stencilRef >= 0) ? (UINT)p.stencilRef : 0;
             SetDSStateTracked(cmd.pCustomDSState, ref);
         }
@@ -1520,21 +1746,24 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
         m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
 
-        if (m_pTrackedSRV != tex->srv.Get()) {
+        if (m_pTrackedSRV != tex->srv.Get())
+        {
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pTrackedSRV = tex->srv.Get();
         }
         m_pContext->Draw(4, 0);
+
+        // m_pContext->Flush();
     };
 
     // ====================================================================
     // Classification (unchanged)
     // ====================================================================
-    std::vector<const DrawCommand*> opaqueCmds;
-    std::vector<const DrawCommand*> stencilCmds;
-    std::vector<const DrawCommand*> transparentCmds;
-    std::vector<const DrawCommand*> effectCmds;
-    std::vector<const DrawCommand*> overlayCmds;
+    std::vector<const DrawCommand *> opaqueCmds;
+    std::vector<const DrawCommand *> stencilCmds;
+    std::vector<const DrawCommand *> transparentCmds;
+    std::vector<const DrawCommand *> effectCmds;
+    std::vector<const DrawCommand *> overlayCmds;
 
     for (const auto &cmd : m_drawCommands)
     {
@@ -1560,7 +1789,6 @@ void DirectXCore::RenderOffscreenContent()
             }
         }
     }
-
     // ====================================================================
     // Phase 1: Instanced opaque (depth write ON, depth test ON)
     //   Split: commands with custom DS state (stencil writes) are drawn
@@ -1575,8 +1803,8 @@ void DirectXCore::RenderOffscreenContent()
     if (!opaqueCmds.empty())
     {
         // Separate: plain vs. stencil-writing commands
-        std::vector<const DrawCommand*> opaquePlain;
-        std::vector<const DrawCommand*> opaqueStencil;
+        std::vector<const DrawCommand *> opaquePlain;
+        std::vector<const DrawCommand *> opaqueStencil;
         for (const DrawCommand *cmd : opaqueCmds)
         {
             if (cmd->pCustomDSState)
@@ -1588,24 +1816,28 @@ void DirectXCore::RenderOffscreenContent()
         // -- Draw per-quad for stencil-aware opaque commands first --
         // These write building/object height into stencil for Phase 1.5.
         for (const DrawCommand *cmd : opaqueStencil)
+        {
             DrawOneTracked(*cmd);
+        }
 
         // -- Instanced batch for plain opaque commands --
         if (!opaquePlain.empty())
         {
             std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
-                [](const DrawCommand *a, const DrawCommand *b) {
-                    return a->texRes < b->texRes;
-                });
+                             [](const DrawCommand *a, const DrawCommand *b)
+                             {
+                                 return a->texRes < b->texRes;
+                             });
 
             m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
             m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
 
-            std::vector<const DrawCommand*> batch;
+            std::vector<const DrawCommand *> batch;
             TextureResource *curTex = nullptr;
             for (const DrawCommand *cmd : opaquePlain)
             {
-                if (cmd->texRes != curTex) {
+                if (cmd->texRes != curTex)
+                {
                     FlushInstanceBatch(batch);
                     batch.clear();
                     curTex = cmd->texRes;
@@ -1624,6 +1856,7 @@ void DirectXCore::RenderOffscreenContent()
             m_pTrackedSRV = nullptr;
         }
     }
+    m_pContext->Flush();
 
     // ====================================================================
     // Phase 1.5: Stencil-aware draws (per-quad, state-tracked)
@@ -1714,6 +1947,7 @@ void DirectXCore::RenderOffscreenContent()
             m_pTrackedDSState = m_pDepthStateGE.Get();
             m_trackedStencilRef = 0;
         }
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1734,18 +1968,20 @@ void DirectXCore::RenderOffscreenContent()
 
         // Sort by texture for batching
         std::stable_sort(transparentCmds.begin(), transparentCmds.end(),
-            [](const DrawCommand *a, const DrawCommand *b) {
-                return a->texRes < b->texRes;
-            });
+                         [](const DrawCommand *a, const DrawCommand *b)
+                         {
+                             return a->texRes < b->texRes;
+                         });
 
         m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
         m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
 
-        std::vector<const DrawCommand*> batch;
+        std::vector<const DrawCommand *> batch;
         TextureResource *curTex = nullptr;
         for (const DrawCommand *cmd : transparentCmds)
         {
-            if (cmd->texRes != curTex) {
+            if (cmd->texRes != curTex)
+            {
                 FlushInstanceBatch(batch);
                 batch.clear();
                 curTex = cmd->texRes;
@@ -1764,6 +2000,7 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &singleStride, &singleOffset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
         m_pTrackedSRV = nullptr;
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1792,6 +2029,7 @@ void DirectXCore::RenderOffscreenContent()
         // Clean up extra SRV binding
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(1, 1, &nullSRV);
+        m_pContext->Flush();
     }
 
     // ====================================================================
@@ -1857,7 +2095,8 @@ void DirectXCore::RenderOffscreenContent()
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
 
             m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
-            if (m_pTrackedSRV != idxTex->srv.Get()) {
+            if (m_pTrackedSRV != idxTex->srv.Get())
+            {
                 m_pContext->PSSetShaderResources(0, 1, idxTex->srv.GetAddressOf());
                 m_pTrackedSRV = idxTex->srv.Get();
             }
@@ -1885,8 +2124,13 @@ void DirectXCore::RenderOffscreenContent()
     bool hasOverlay = !overlayCmds.empty();
     // Quick scan for overlay lines (no need to pre-collect - FlushLineBatch counts)
     bool hasOverlayLines = false;
-    for (const auto &le : m_lineEntries) {
-        if (!le.bScreenSpace && le.bAlwaysOnTop) { hasOverlayLines = true; break; }
+    for (const auto &le : m_lineEntries)
+    {
+        if (!le.bScreenSpace && le.bAlwaysOnTop)
+        {
+            hasOverlayLines = true;
+            break;
+        }
     }
 
     if (hasOverlay || hasOverlayLines)
@@ -1902,22 +2146,24 @@ void DirectXCore::RenderOffscreenContent()
     {
         // Sort by texture for batching
         std::stable_sort(overlayCmds.begin(), overlayCmds.end(),
-            [](const DrawCommand *a, const DrawCommand *b) {
-                return a->texRes < b->texRes;
-            });
+                         [](const DrawCommand *a, const DrawCommand *b)
+                         {
+                             return a->texRes < b->texRes;
+                         });
 
         m_pContext->VSSetShader(m_pInstancedVS.Get(), nullptr, 0);
         m_pContext->IASetInputLayout(m_pInstancedInputLayout.Get());
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1,
-            (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
-                                    : m_pSamplerLinear.GetAddressOf());
+                                  (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf()
+                                                          : m_pSamplerLinear.GetAddressOf());
 
-        std::vector<const DrawCommand*> batch;
+        std::vector<const DrawCommand *> batch;
         TextureResource *curTex = nullptr;
         for (const DrawCommand *cmd : overlayCmds)
         {
-            if (cmd->texRes != curTex) {
+            if (cmd->texRes != curTex)
+            {
                 FlushInstanceBatch(batch);
                 batch.clear();
                 curTex = cmd->texRes;
@@ -1937,7 +2183,8 @@ void DirectXCore::RenderOffscreenContent()
     }
 
     // Phase 5b: Always-on-top lines (depth OFF, no alpha modulation, regular line PS)
-    if (hasOverlayLines) {
+    if (hasOverlayLines)
+    {
         FlushLineBatch(false, m_pLinePS.Get(), true);
 
         // Restore quad pipeline state (Phase 5b changed IA/VS/PS for lines)
@@ -1950,6 +2197,7 @@ void DirectXCore::RenderOffscreenContent()
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, (m_renderScale == 1.0f) ? m_pSamplerPoint.GetAddressOf() : m_pSamplerLinear.GetAddressOf());
     }
+    m_pContext->Flush();
 }
 
 void DirectXCore::RenderFinalToBackBuffer()
@@ -1965,7 +2213,11 @@ void DirectXCore::RenderFinalToBackBuffer()
         m_pRTV->GetResource(&pBackBufferResource);
         if (pBackBufferResource && m_OffscreenTex)
         {
+            // Unbind back buffer RTV before copying to it (D3D11 forbids CopyResource on bound RT)
+            m_pContext->OMSetRenderTargets(0, nullptr, nullptr);
             m_pContext->CopyResource(pBackBufferResource.Get(), m_OffscreenTex.Get());
+            // Re-bind back buffer RTV
+            m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
         }
         return;
     }
@@ -2008,6 +2260,7 @@ void DirectXCore::RenderFinalToBackBuffer()
 
     ID3D11ShaderResourceView *nullSRV = nullptr;
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
+    m_pContext->Flush();
 }
 
 void DirectXCore::RenderScreenSpaceContent()
@@ -2018,20 +2271,21 @@ void DirectXCore::RenderScreenSpaceContent()
     m_pContext->OMSetRenderTargets(1, m_pRTV.GetAddressOf(), nullptr);
     m_pContext->OMSetDepthStencilState(m_pDepthStateOff.Get(), 0);
 
+    int screenCmdCount = 0;
     if (!m_drawCommands.empty())
     {
         m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
-    
+
         m_pContext->VSSetShader(m_pVS.Get(), nullptr, 0);
         m_pContext->PSSetShader(m_pPS.Get(), nullptr, 0);
         m_pContext->PSSetSamplers(0, 1, m_pSamplerPoint.GetAddressOf());
         m_pContext->IASetInputLayout(m_pInputLayout.Get());
-    
+
         UINT stride = sizeof(QuadVertex);
         UINT offset = 0;
         m_pContext->IASetVertexBuffers(0, 1, m_pQuadVB.GetAddressOf(), &stride, &offset);
         m_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    
+
         auto CalcWorldMatrixScreen = [&](const DrawParams &p, int texW, int texH) -> XMMATRIX
         {
             float screenW = (float)m_clientWidth;
@@ -2050,7 +2304,7 @@ void DirectXCore::RenderScreenSpaceContent()
             XMMATRIX T = XMMatrixTranslation(ndc_centerX, ndc_centerY, 0.0f);
             return S * T;
         };
-    
+
         for (const auto &cmd : m_drawCommands)
         {
             if (!cmd.bScreenSpace)
@@ -2060,7 +2314,8 @@ void DirectXCore::RenderScreenSpaceContent()
             TextureResource *tex = cmd.texRes;
             if (!tex || !tex->srv)
                 continue;
-    
+            ++screenCmdCount;
+
             const auto &p = cmd.params;
             XMMATRIX world = CalcWorldMatrixScreen(p, tex->sourceView.FullWidth, tex->sourceView.FullHeight);
             CBPerObject cb;
@@ -2068,32 +2323,32 @@ void DirectXCore::RenderScreenSpaceContent()
             cb.colorMul = XMFLOAT4(p.redMult, p.greenMult, p.blueMult, p.opacity);
             cb.mixColor = XMFLOAT4(p.mixR, p.mixG, p.mixB, 1.0f);
             cb.mixFactor = p.mixFactor;
-    
+
             D3D11_MAPPED_SUBRESOURCE mapped;
             HRESULT hr = m_pContext->Map(m_pConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
             if (FAILED(hr))
                 continue;
             memcpy(mapped.pData, &cb, sizeof(cb));
             m_pContext->Unmap(m_pConstantBuffer.Get(), 0);
-    
+
             m_pContext->VSSetConstantBuffers(0, 1, m_pConstantBuffer.GetAddressOf());
             m_pContext->PSSetShaderResources(0, 1, tex->srv.GetAddressOf());
             m_pContext->Draw(4, 0);
         }
-    
+
         ID3D11ShaderResourceView *nullSRV = nullptr;
         m_pContext->PSSetShaderResources(0, 1, &nullSRV);
-    
     }
 
     // Flush GPU-batched screen-space lines
     m_pContext->OMSetBlendState(m_pBlendState.Get(), nullptr, 0xffffffff);
     FlushLineBatch(true);
+    m_pContext->Flush();
 }
 
 void DirectXCore::Render()
 {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV)
+    if (!m_bInitialized)
         return;
 
     // If nothing to render at all, skip entirely
@@ -2102,7 +2357,30 @@ void DirectXCore::Render()
 
     ResetDepth();
 
+    if (m_bUseOpenGL)
+    {
+        GL_RenderOffscreenContent();
+
+        if (!CIsoViewExt::RenderingMap)
+        {
+            if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
+                GL_DarkenOffscreen(0.7f);
+
+            GL_RenderFinalToBackBuffer();
+            GL_RenderScreenSpaceContent();
+        }
+
+        SwapBuffers(m_hGLDC);
+        m_drawCommands.clear();
+        return;
+    }
+
+    // --- D3D11 path ---
+    if (!m_pContext || !m_pSwapChain || !m_pRTV)
+        return;
+
     RenderOffscreenContent();
+
     if (!CIsoViewExt::RenderingMap)
     {
         if (ExtConfigs::EnableDarkMode && ExtConfigs::EnableDarkMode_DimMap)
@@ -2149,8 +2427,21 @@ void DirectXCore::DarkenOffscreen(float brightness)
 
 void DirectXCore::RenderScreenSpaceOnly()
 {
-    if (!m_bInitialized || !m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid)
+    if (!m_bInitialized)
         return;
+
+    if (m_bUseOpenGL)
+    {
+        GL_RenderFinalToBackBuffer();
+        GL_RenderScreenSpaceContent();
+        SwapBuffers(m_hGLDC);
+        m_drawCommands.clear();
+        return;
+    }
+
+    if (!m_pContext || !m_pSwapChain || !m_pRTV || !m_backgroundCacheValid)
+        return;
+
     RestoreBackgroundFromCache();
     RenderScreenSpaceContent();
     m_pSwapChain->Present(1, 0);
@@ -2163,7 +2454,7 @@ TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct c
     auto [itr, inserted] = m_textureMap.try_emplace(index);
     if (!inserted)
         return itr->second.get();
-    if (!m_pDevice || !view.pOriginData)
+    if (!view.pOriginData)
         return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer)
         return nullptr;
@@ -2186,6 +2477,19 @@ TextureResource *DirectXCore::LoadTexture(const ImageDataView &view, BGRStruct c
             rgbaData[y * w + x] = rgba;
         }
     }
+
+    // === OpenGL path ===
+    if (m_bUseOpenGL)
+    {
+        GL_UploadTextureRGBA8(texRes.get(), w, h, rgbaData.data(), false);
+        TextureResource *ret = texRes.get();
+        itr->second = std::move(texRes);
+        return ret;
+    }
+
+    // === D3D11 path ===
+    if (!m_pDevice)
+        return nullptr;
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = w;
     desc.Height = h;
@@ -2212,7 +2516,7 @@ TextureResource *DirectXCore::LoadTileTexture(CTileBlockClass *tileBlock, const 
     auto [itr, inserted] = m_tileTextureMap.try_emplace(tileBlock);
     if (!inserted)
         return itr->second.get();
-    if (!m_pDevice || !tileBlock)
+    if (!tileBlock)
         return nullptr;
     auto texRes = std::make_unique<TextureResource>();
     texRes->sourceView = view;
@@ -2230,6 +2534,19 @@ TextureResource *DirectXCore::LoadTileTexture(CTileBlockClass *tileBlock, const 
             rgbaData[y * w + x] = rgba;
         }
     }
+
+    // === OpenGL path ===
+    if (m_bUseOpenGL)
+    {
+        GL_UploadTextureRGBA8(texRes.get(), w, h, rgbaData.data(), false);
+        TextureResource *ret = texRes.get();
+        itr->second = std::move(texRes);
+        return ret;
+    }
+
+    // === D3D11 path ===
+    if (!m_pDevice)
+        return nullptr;
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = w;
     desc.Height = h;
@@ -2246,6 +2563,7 @@ TextureResource *DirectXCore::LoadTileTexture(CTileBlockClass *tileBlock, const 
     hr = m_pDevice->CreateShaderResourceView(texRes->texture.Get(), nullptr, &texRes->srv);
     if (FAILED(hr))
         return nullptr;
+
     TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
@@ -2257,7 +2575,7 @@ TextureResource *DirectXCore::LoadIndexTexture(const ImageDataView &view)
     auto [itr, inserted] = m_textureMap.try_emplace(index);
     if (!inserted)
         return itr->second.get();
-    if (!m_pDevice || !view.pOriginData)
+    if (!view.pOriginData)
         return nullptr;
     if (view.FullWidth <= 0 || view.FullHeight <= 0 || !view.pImageBuffer)
         return nullptr;
@@ -2266,6 +2584,19 @@ TextureResource *DirectXCore::LoadIndexTexture(const ImageDataView &view)
     texRes->sourceView = view;
     texRes->bIsIndexTexture = true;
     int w = view.FullWidth, h = view.FullHeight;
+
+    // === OpenGL path ===
+    if (m_bUseOpenGL)
+    {
+        GL_UploadTextureR8(texRes.get(), w, h, view.pImageBuffer, false);
+        TextureResource *ret = texRes.get();
+        itr->second = std::move(texRes);
+        return ret;
+    }
+
+    // === D3D11 path ===
+    if (!m_pDevice)
+        return nullptr;
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = w;
     desc.Height = h;
@@ -2292,7 +2623,7 @@ TextureResource *DirectXCore::LoadBitmapTexture(FString_view name, CBitmap &bitm
     auto [itr, inserted] = m_bitmapTextureMap.try_emplace(name);
     if (!inserted)
         return itr->second.get();
-    if (!m_pDevice)
+    if (!m_pDevice && !m_bUseOpenGL)
         return nullptr;
 
     BITMAP bm = {};
@@ -2369,6 +2700,17 @@ TextureResource *DirectXCore::LoadBitmapTexture(FString_view name, CBitmap &bitm
     texRes->bIsIndexTexture = false;
     texRes->sourceView.FullWidth = w;
     texRes->sourceView.FullHeight = h;
+
+    // === OpenGL path ===
+    if (m_bUseOpenGL)
+    {
+        GL_UploadTextureRGBA8(texRes.get(), w, h, rgbaData.data(), false);
+        TextureResource *ret = texRes.get();
+        itr->second = std::move(texRes);
+        return ret;
+    }
+
+    // === D3D11 path ===
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = w;
     desc.Height = h;
@@ -2395,6 +2737,7 @@ TextureResource *DirectXCore::LoadBitmapTexture(FString_view name, CBitmap &bitm
         &texRes->srv);
     if (FAILED(hr))
         return nullptr;
+
     TextureResource *ret = texRes.get();
     itr->second = std::move(texRes);
     return ret;
@@ -2402,6 +2745,12 @@ TextureResource *DirectXCore::LoadBitmapTexture(FString_view name, CBitmap &bitm
 
 void DirectXCore::RemoveBitmapTexture(FString_view name)
 {
+    if (m_bUseOpenGL)
+    {
+        auto it = m_bitmapTextureMap.find(name);
+        if (it != m_bitmapTextureMap.end() && it->second && it->second->glTexture)
+            glDeleteTextures(1, &it->second->glTexture);
+    }
     m_bitmapTextureMap.erase(name);
 }
 
@@ -2454,18 +2803,21 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
         cmd.depth = params.bScreenSpace ? 0 : GetNextDepth();
     }
 
-    if (cmd.params.stencilRef >= 0) {
-        if (cmd.params.bIsOverlapShadow) {
+    if (cmd.params.stencilRef >= 0)
+    {
+        if (cmd.params.bIsOverlapShadow)
+        {
             int shadowVal = cmd.params.stencilRef;
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;
             cmd.bIsOverlapShadow = true;
             cmd.pCustomDSState = m_pDepthStateShadowRedraw.Get();
-            cmd.params.stencilRef = shadowVal; 
+            cmd.params.stencilRef = shadowVal;
             cmd.params.drawDepth = cmd.depth;
             m_drawCommands.push_back(cmd);
-        } 
-        else if (cmd.params.bIsShadow) {
+        }
+        else if (cmd.params.bIsShadow)
+        {
             int shadowVal = cmd.params.stencilRef | 0x80;
             cmd.bStencilDraw = true;
             cmd.bStencilOnly = false;
@@ -2473,18 +2825,23 @@ void DirectXCore::DrawTexture(TextureResource *tex, const DrawParams &params)
             cmd.pCustomDSState = m_pDepthStateShadowMark.Get();
             cmd.params.stencilRef = shadowVal;
             m_drawCommands.push_back(cmd);
-        } 
-        else if (cmd.params.bWriteStencil) {
+        }
+        else if (cmd.params.bWriteStencil)
+        {
             cmd.bStencilDraw = false;
             cmd.pCustomDSState = m_pDepthStateObjectStencilWrite.Get();
             UINT renderDepth = cmd.depth;
             m_drawCommands.push_back(cmd);
-        } else {
+        }
+        else
+        {
             cmd.bStencilDraw = true;
             cmd.pCustomDSState = m_pDepthStateTerrainRedraw.Get();
             m_drawCommands.push_back(cmd);
         }
-    } else {
+    }
+    else
+    {
         cmd.bStencilDraw = false;
         cmd.pCustomDSState = nullptr;
         m_drawCommands.push_back(cmd);
@@ -2512,7 +2869,7 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     if (numLines == 0)
         return;
 
-    const int vertsPerLine = 6; // TRIANGLELIST: 2 triangles Ã— 3 verts
+    const int vertsPerLine = 6;
     const int totalVerts = numLines * vertsPerLine;
 
     // Ensure vertex buffer is large enough
@@ -2534,16 +2891,23 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     }
 
     // Build vertex data on stack then map-and-copy
-    struct LineVertex { float x, y, depth; uint32_t color; }; // 16 bytes
+    struct LineVertex
+    {
+        float x, y, depth;
+        uint32_t color;
+    }; // 16 bytes
     std::vector<LineVertex> verts;
     verts.reserve(totalVerts);
 
     // World-space lines use offscreen viewport; screen-space lines use window
     float vw, vh;
-    if (bScreenSpace) {
+    if (bScreenSpace)
+    {
         vw = (float)m_clientWidth;
         vh = (float)m_clientHeight;
-    } else {
+    }
+    else
+    {
         vw = (float)(m_clientWidth * m_renderScale);
         vh = (float)(m_clientHeight * m_renderScale);
     }
@@ -2562,22 +2926,23 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
         if (len < 1e-6f)
         {
             // Degenerate line: draw a small cross
-            nx = halfT; ny = 0.0f;
-            dx = 0.0f; dy = 0.0f;
+            nx = halfT;
+            ny = 0.0f;
+            dx = 0.0f;
+            dy = 0.0f;
         }
         else
         {
             float invLen = 1.0f / len;
             nx = -dy * invLen * halfT;
-            ny =  dx * invLen * halfT;
+            ny = dx * invLen * halfT;
         }
 
         auto toNDC = [&](float px, float py) -> std::pair<float, float>
         {
             return {
                 (px / vw) * 2.0f - 1.0f,
-                1.0f - (py / vh) * 2.0f
-            };
+                1.0f - (py / vh) * 2.0f};
         };
 
         float depthZ = le.depth * depthScale;
@@ -2590,13 +2955,13 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
 
         // TRIANGLELIST: two triangles forming the thick line quad
         // V0 = start-left, V1 = start-right, V2 = end-left, V3 = end-right
-        // Triangles: (V0,V1,V2) and (V1,V3,V2) â€? no shared edges with next line
-        verts.push_back({x0b, y0b, depthZ, le.color});  // V0: left of start
-        verts.push_back({x0a, y0a, depthZ, le.color});  // V1: right of start
-        verts.push_back({x1b, y1b, depthZ, le.color});  // V2: left of end
-        verts.push_back({x0a, y0a, depthZ, le.color});  // V1 again
-        verts.push_back({x1a, y1a, depthZ, le.color});  // V3: right of end
-        verts.push_back({x1b, y1b, depthZ, le.color});  // V2 again
+        // Triangles: (V0,V1,V2) and (V1,V3,V2) no shared edges with next line
+        verts.push_back({x0b, y0b, depthZ, le.color}); // V0: left of start
+        verts.push_back({x0a, y0a, depthZ, le.color}); // V1: right of start
+        verts.push_back({x1b, y1b, depthZ, le.color}); // V2: left of end
+        verts.push_back({x0a, y0a, depthZ, le.color}); // V1 again
+        verts.push_back({x1a, y1a, depthZ, le.color}); // V3: right of end
+        verts.push_back({x1b, y1b, depthZ, le.color}); // V2 again
     }
 
     // Upload to GPU
@@ -2618,7 +2983,8 @@ void DirectXCore::FlushLineBatch(bool bScreenSpace, ID3D11PixelShader *pCustomPS
     // Draw all lines in one call
     m_pContext->Draw(totalVerts, 0);
 
-    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le) { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
+    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le)
+                  { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
 }
 
 static constexpr float kPi = 3.14159265358979323846f;
@@ -2775,6 +3141,10 @@ TextureResource *DrawShapes::AcquireTempTexture(int w, int h,
 
     if (!UploadPixelsToExistingRes(dev, ctx, slot.res.get(), w, h, pixels))
         return nullptr;
+
+    // Upload to OpenGL if using GL backend
+    if (m_dx->IsUsingOpenGL())
+        m_dx->GL_UploadTextureDynamic(slot.res.get(), w, h, pixels.data());
 
     slot.res->sourceView.FullWidth = w;
     slot.res->sourceView.FullHeight = h;
@@ -2984,7 +3354,7 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
         bool useDash = (params.dashLength > 0.f && params.gapLength > 0.f);
@@ -2992,7 +3362,8 @@ void DrawShapes::DrawLine(float x0, float y0, float x1, float y1,
         {
             float dx = x1 - x0, dy = y1 - y0;
             float len = std::sqrt(dx * dx + dy * dy);
-            if (len < 1e-4f) {
+            if (len < 1e-4f)
+            {
                 m_dx->AddLineEntry(x0, y0, x1, y1, rgba, params.thickness, depth, params.bScreenSpace, params.bAlwaysOnTop);
                 return;
             }
@@ -3094,10 +3465,13 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
-        struct Seg { float ax, ay, bx, by; };
+        struct Seg
+        {
+            float ax, ay, bx, by;
+        };
         Seg segs[4] = {
             {x, y, x + w, y},
             {x + w, y, x + w, y + h},
@@ -3112,7 +3486,8 @@ void DrawShapes::DrawRect(float x, float y, float w, float h,
             {
                 float dx = s.bx - s.ax, dy = s.by - s.ay;
                 float segLen = std::sqrt(dx * dx + dy * dy);
-                if (segLen < 1e-4f) continue;
+                if (segLen < 1e-4f)
+                    continue;
                 float pos = 0.f;
                 while (pos < segLen)
                 {
@@ -3181,7 +3556,7 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
         }
         else
         {
-            depth = params.bScreenSpace ? 0 :  m_dx->GetNextDepth();
+            depth = params.bScreenSpace ? 0 : m_dx->GetNextDepth();
         }
 
         int segs = params.segments > 0
@@ -3195,7 +3570,12 @@ void DrawShapes::DrawEllipse(float cx, float cy, float rx, float ry,
             float px = cx + rx * std::cos(angle);
             float py = cy + ry * std::sin(angle);
 
-            if (i == 0) { prevPx = px; prevPy = py; continue; }
+            if (i == 0)
+            {
+                prevPx = px;
+                prevPy = py;
+                continue;
+            }
 
             float dx = px - prevPx, dy = py - prevPy;
             float segLen = std::sqrt(dx * dx + dy * dy);
@@ -3283,7 +3663,7 @@ TextRenderer::~TextRenderer()
 void TextRenderer::DrawTexts(
     float x,
     float y,
-    const FString& text,
+    const FString &text,
     const TextParams &params)
 {
     if (text.empty())
@@ -3354,7 +3734,7 @@ void TextRenderer::DrawTexts(
         dp.SetScreenSpace();
     }
     else
-    {   
+    {
         dp.bAlwaysOnTop = params.bAlwaysOnTop;
     }
 
@@ -3391,8 +3771,7 @@ bool TextRenderer::MeasureText(const FString &text,
     UINT dtFlags =
         DT_CALCRECT |
         DT_TOP |
-        DT_NOPREFIX |
-        DT_SINGLELINE;
+        DT_NOPREFIX;
 
     switch (params.align)
     {
@@ -3498,7 +3877,7 @@ HFONT TextRenderer::GetOrCreateFont(const TextParams &p)
     lf.lfUnderline = p.underline ? TRUE : FALSE;
     lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfOutPrecision = OUT_TT_PRECIS;
-    lf.lfQuality = p.fontSize >= 20 ? CLEARTYPE_NATURAL_QUALITY : NONANTIALIASED_QUALITY;
+    lf.lfQuality = p.fontSize >= 24 ? CLEARTYPE_NATURAL_QUALITY : NONANTIALIASED_QUALITY;
     lf.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
     wcsncpy_s(lf.lfFaceName, wFontName.c_str(), LF_FACESIZE - 1);
 
@@ -3573,8 +3952,7 @@ bool TextRenderer::RasterizeGDI(
     UINT dtFlags =
         DT_CALCRECT |
         DT_TOP |
-        DT_NOPREFIX |
-        DT_SINGLELINE;
+        DT_NOPREFIX;
 
     switch (p.align)
     {
@@ -3797,6 +4175,16 @@ bool TextRenderer::UploadTexture(TextureResource *res,
 {
     if (!m_dx)
         return false;
+
+    // === OpenGL path ===
+    if (m_dx->IsUsingOpenGL())
+    {
+        m_dx->GL_UploadTextureRGBA8(res, w, h, pixels.data(), false);
+        res->sourceView.FullWidth = w;
+        res->sourceView.FullHeight = h;
+        return true;
+    }
+
     ID3D11Device *dev = m_dx->GetDevice();
     ID3D11DeviceContext *ctx = m_dx->GetContext();
     if (!dev || !ctx)
@@ -3822,33 +4210,1899 @@ bool TextRenderer::UploadTexture(TextureResource *res,
         desc.ArraySize = 1;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
-        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-        HRESULT hr = dev->CreateTexture2D(&desc, nullptr, &res->texture);
+        D3D11_SUBRESOURCE_DATA initData = {};
+        initData.pSysMem = pixels.data();
+        initData.SysMemPitch = w * 4;
+
+        HRESULT hr = dev->CreateTexture2D(&desc, &initData, &res->texture);
         if (FAILED(hr))
             return false;
 
         hr = dev->CreateShaderResourceView(res->texture.Get(), nullptr, &res->srv);
         if (FAILED(hr))
             return false;
+
+        // Upload to OpenGL
+        if (m_dx->IsUsingOpenGL())
+            m_dx->GL_UploadTextureRGBA8(res, w, h, pixels.data(), false);
+
+        res->sourceView.FullWidth = w;
+        res->sourceView.FullHeight = h;
+        return true;
     }
 
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    HRESULT hr = ctx->Map(res->texture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    if (FAILED(hr))
-        return false;
+    ctx->UpdateSubresource(res->texture.Get(), 0, nullptr,
+                           pixels.data(), w * 4, 0);
 
-    for (int row = 0; row < h; ++row)
-    {
-        memcpy(static_cast<uint8_t *>(mapped.pData) + row * mapped.RowPitch,
-               pixels.data() + row * w,
-               w * 4);
-    }
-    ctx->Unmap(res->texture.Get(), 0);
+    // Update OpenGL texture
+    if (m_dx->IsUsingOpenGL())
+        m_dx->GL_UploadTextureDynamic(res, w, h, pixels.data());
 
     res->sourceView.FullWidth = w;
     res->sourceView.FullHeight = h;
     return true;
+}
+
+// ==========================================================================
+// OpenGL 3.3 Backend Implementation
+// ==========================================================================
+
+// --- GLSL Shader Sources (converted from HLSL) ---
+// Note: depth is remapped from D3D [0,1] reverse-Z to GL NDC [-1,1].
+// In GL we use standard depth: clear=1.0, GL_LEQUAL, z_output=1.0-depthZ.
+// Texture Y is flipped during upload, so UVs need no adjustment here.
+
+static const char *kGLSL_MainVS = R"(#version 330 core
+uniform mat4 g_World;
+uniform vec4 g_ColorMul;
+uniform vec4 g_MixColor;
+uniform float g_MixFactor;
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inUV;
+out vec2 vUV;
+out vec4 vColorMul;
+out vec4 vMixColor;
+out float vMixFactor;
+void main() {
+    gl_Position = g_World * vec4(inPos, 1.0);
+    gl_Position.z = 1.0 - gl_Position.z * 2.0 - 0.00000011920928955078126; // D3D [0,1] -> GL [1,0], x2 preserves 24-bit depth precision
+    vUV = inUV;
+    vColorMul = g_ColorMul;
+    vMixColor = g_MixColor;
+    vMixFactor = g_MixFactor;
+}
+)";
+
+static const char *kGLSL_MainPS = R"(#version 330 core
+uniform sampler2D tex;
+in vec2 vUV;
+in vec4 vColorMul;
+in vec4 vMixColor;
+in float vMixFactor;
+layout(location = 0) out vec4 outColor;
+void main() {
+    vec4 texColor = texture(tex, vUV);
+    vec3 multRGB = texColor.rgb * vColorMul.rgb;
+    vec3 finalRGB = mix(multRGB, vMixColor.rgb, vMixFactor);
+    float finalAlpha = texColor.a * vColorMul.a;
+    if (finalAlpha < 1.0/255.0) discard;
+    outColor = vec4(finalRGB, finalAlpha);
+}
+)";
+
+static const char *kGLSL_InstancedVS = R"(#version 330 core
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inUV;
+// Per-instance: 4 x vec4 = 64 bytes
+layout(location = 2) in vec4 iD0; // scaleX, scaleY, transX, transY
+layout(location = 3) in vec4 iD1; // depthZ, colorMul.rgb
+layout(location = 4) in vec4 iD2; // colorMul.a, mixColor.rgb
+layout(location = 5) in vec4 iD3; // mixFactor, _, _, _
+out vec2 vUV;
+out vec4 vColorMul;
+out vec4 vMixColor;
+out float vMixFactor;
+void main() {
+    vec4 pos4 = vec4(inPos.x * iD0.x + iD0.z,
+                     inPos.y * iD0.y + iD0.w,
+                     iD1.x, 1.0);
+    gl_Position = pos4;
+    gl_Position.z = 1.0 - pos4.z * 2.0 - 0.00000011920928955078126;
+    vUV = inUV;
+    vColorMul = vec4(iD1.yzw, iD2.x);
+    vMixColor = vec4(iD2.yzw, 1.0);
+    vMixFactor = iD3.x;
+}
+)";
+
+static const char *kGLSL_EffectVS = R"(#version 330 core
+uniform mat4 g_World;
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inUV;
+out vec2 vUV;
+void main() {
+    gl_Position = g_World * vec4(inPos, 1.0);
+    gl_Position.z = 1.0 - gl_Position.z * 2.0 - 0.00000011920928955078126;
+    vUV = inUV;
+}
+)";
+
+static const char *kGLSL_EffectPS = R"(#version 330 core
+uniform sampler2D indexTex;
+in vec2 vUV;
+layout(location = 0) out vec4 outColor;
+void main() {
+    float f = texture(indexTex, vUV).r;
+    float index = f * 255.0;
+    float factor = index / 128.0;
+    outColor = vec4(factor, factor, factor, 1.0);
+}
+)";
+
+static const char *kGLSL_CompositeVS = R"(#version 330 core
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inUV;
+out vec2 vUV;
+void main() {
+    gl_Position = vec4(inPos, 1.0);
+    vUV = inUV;
+}
+)";
+
+static const char *kGLSL_CompositePS = R"(#version 330 core
+uniform sampler2D screenTex;
+uniform sampler2D factorTex;
+in vec2 vUV;
+layout(location = 0) out vec4 outColor;
+void main() {
+    // Flip V: GL texture origin is bottom-left, fullscreen quad UVs are top-left.
+    vec2 uv = vec2(vUV.x, 1.0 - vUV.y);
+    vec4 orig = texture(screenTex, uv);
+    float factor = texture(factorTex, uv).r;
+    outColor = vec4(orig.rgb * factor, orig.a);
+}
+)";
+
+static const char *kGLSL_FinalVS = R"(#version 330 core
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inUV;
+out vec2 vUV;
+void main() {
+    gl_Position = vec4(inPos, 1.0);
+    vUV = inUV;
+}
+)";
+
+static const char *kGLSL_FinalPS = R"(#version 330 core
+uniform sampler2D tex;
+uniform vec2 uScale;
+uniform vec2 uOffset;
+in vec2 vUV;
+layout(location = 0) out vec4 outColor;
+void main() {
+    vec2 ndc = vUV * 2.0 - 1.0;
+    vec2 originalNdc = (ndc - uOffset) / uScale;
+    vec2 originalUv = (originalNdc + 1.0) / 2.0;
+    if (any(lessThan(originalUv, vec2(0.0))) || any(greaterThan(originalUv, vec2(1.0))))
+        discard;
+    // GL FBO origin is bottom-left; D3D offscreen texture origin is top-left.
+    // The fullscreen quad maps NDC bottom-left to UV(0,1), which in GL samples
+    // the TOP of the offscreen texture.  Flip V to match D3D behaviour.
+    outColor = texture(tex, vec2(originalUv.x, 1.0 - originalUv.y));
+}
+)";
+
+static const char *kGLSL_LineVS = R"(#version 330 core
+layout(location = 0) in vec4 inPosDepth; // (ndcX, ndcY, depth, colorPacked)
+layout(location = 1) in uint inColor;
+out vec4 vCol;
+void main() {
+    gl_Position = vec4(inPosDepth.xy, inPosDepth.z, 1.0);
+    gl_Position.z = 1.0 - gl_Position.z * 2.0 - 0.00000011920928955078126;
+    uint c = inColor;
+    vCol = vec4(
+        float(c & 0xffu) / 255.0,
+        float((c >> 8u) & 0xffu) / 255.0,
+        float((c >> 16u) & 0xffu) / 255.0,
+        float((c >> 24u) & 0xffu) / 255.0
+    );
+}
+)";
+
+static const char *kGLSL_LinePS = R"(#version 330 core
+in vec4 vCol;
+layout(location = 0) out vec4 outColor;
+void main() {
+    outColor = vCol;
+}
+)";
+
+static const char *kGLSL_LineModPS = R"(#version 330 core
+uniform vec2 uViewportSize;
+uniform sampler2D alphaAccum;
+in vec4 vCol;
+layout(location = 0) out vec4 outColor;
+void main() {
+    vec2 uv = gl_FragCoord.xy / uViewportSize;
+    float accumAlpha = texture(alphaAccum, uv).r;
+    vec4 lineColor = vCol;
+    lineColor.a *= (1.0 - accumAlpha);
+    outColor = lineColor;
+}
+)";
+
+static const char *kGLSL_AlphaAccumPS = R"(#version 330 core
+uniform sampler2D tex;
+in vec2 vUV;
+in vec4 vColorMul;
+in vec4 vMixColor;
+in float vMixFactor;
+layout(location = 0) out vec4 outRT0;
+layout(location = 1) out vec4 outRT1;
+void main() {
+    vec4 texColor = texture(tex, vUV);
+    vec3 multRGB = texColor.rgb * vColorMul.rgb;
+    vec3 finalRGB = mix(multRGB, vMixColor.rgb, vMixFactor);
+    float finalAlpha = texColor.a * vColorMul.a;
+    if (finalAlpha < 1.0/255.0) discard;
+    outRT0 = vec4(finalRGB, finalAlpha);
+    outRT1 = vec4(finalAlpha, 0.0, 0.0, finalAlpha);
+}
+)";
+
+static const char *kGLSL_ShadowDarkenPS = R"(#version 330 core
+layout(location = 0) out vec4 outColor;
+void main() {
+    outColor = vec4(0.5, 0.5, 0.5, 1.0);
+}
+)";
+
+// ==========================================================================
+// GL Helper: compile + link a program from VS and PS source
+// ==========================================================================
+bool DirectXCore::GL_CompileAndLinkProgram(const char *vsSrc, const char *psSrc, GLuint *outProgram)
+{
+    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vs, 1, &vsSrc, nullptr);
+    glCompileShader(vs);
+    GLint ok = 0;
+    glGetShaderiv(vs, GL_COMPILE_STATUS, &ok);
+    if (!ok)
+    {
+        char log[1024] = {};
+        glGetShaderInfoLog(vs, sizeof(log), nullptr, log);
+        Logger::Raw("[GL] VS compile error: %s\n", log);
+        glDeleteShader(vs);
+        return false;
+    }
+
+    GLuint ps = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(ps, 1, &psSrc, nullptr);
+    glCompileShader(ps);
+    glGetShaderiv(ps, GL_COMPILE_STATUS, &ok);
+    if (!ok)
+    {
+        char log[1024] = {};
+        glGetShaderInfoLog(ps, sizeof(log), nullptr, log);
+        Logger::Raw("[GL] PS compile error: %s\n", log);
+        glDeleteShader(vs);
+        glDeleteShader(ps);
+        return false;
+    }
+
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, ps);
+    glLinkProgram(prog);
+    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok)
+    {
+        char log[1024] = {};
+        glGetProgramInfoLog(prog, sizeof(log), nullptr, log);
+        Logger::Raw("[GL] Program link error: %s\n", log);
+        glDeleteProgram(prog);
+        glDeleteShader(vs);
+        glDeleteShader(ps);
+        return false;
+    }
+
+    glDeleteShader(vs);
+    glDeleteShader(ps);
+    *outProgram = prog;
+    return true;
+}
+
+// ==========================================================================
+// GL State-Tracking Helpers (Phase 2 optimization)
+// ==========================================================================
+void DirectXCore::GL_BindTexture0(GLuint tex)
+{
+    if (m_glTrackedTexture != tex)
+    {
+        if (m_glTrackedActiveTexUnit != 0)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            m_glTrackedActiveTexUnit = 0;
+        }
+        glBindTexture(GL_TEXTURE_2D, tex);
+        m_glTrackedTexture = tex;
+    }
+}
+void DirectXCore::GL_BindTexture1(GLuint tex)
+{
+    if (m_glTrackedTexture1 != tex)
+    {
+        if (m_glTrackedActiveTexUnit != 1)
+        {
+            glActiveTexture(GL_TEXTURE1);
+            m_glTrackedActiveTexUnit = 1;
+        }
+        glBindTexture(GL_TEXTURE_2D, tex);
+        m_glTrackedTexture1 = tex;
+    }
+}
+void DirectXCore::GL_UseProgramTracked(GLuint prog)
+{
+    if (m_glTrackedProgram != prog)
+    {
+        glUseProgram(prog);
+        m_glTrackedProgram = prog;
+    }
+}
+void DirectXCore::GL_BindVAOTracked(GLuint vao)
+{
+    if (m_glTrackedVAO != vao)
+    {
+        glBindVertexArray(vao);
+        m_glTrackedVAO = vao;
+    }
+}
+void DirectXCore::GL_BindFBOTracked(GLuint fbo)
+{
+    if (m_glTrackedFBO != fbo)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        m_glTrackedFBO = fbo;
+    }
+}
+
+// ==========================================================================
+// GL_Init - create WGL context, load GL functions, compile shaders, set up FBOs
+// ==========================================================================
+bool DirectXCore::GL_Init(HWND hwnd)
+{
+    m_hGLDC = GetDC(hwnd);
+    if (!m_hGLDC)
+    {
+        Logger::Raw("[GL] GL_Init: GetDC failed.\n");
+        return false;
+    }
+
+    // --- Step 1: Create a dummy GL context to load WGL extensions ---
+    PIXELFORMATDESCRIPTOR pfd = {sizeof(pfd), 1};
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    int pf = ChoosePixelFormat(m_hGLDC, &pfd);
+    if (!pf || !SetPixelFormat(m_hGLDC, pf, &pfd))
+    {
+        Logger::Raw("[GL] GL_Init: ChoosePixelFormat/SetPixelFormat failed.\n");
+        return false;
+    }
+
+    HGLRC tempRC = wglCreateContext(m_hGLDC);
+    if (!tempRC || !wglMakeCurrent(m_hGLDC, tempRC))
+    {
+        Logger::Raw("[GL] GL_Init: temporary context failed.\n");
+        return false;
+    }
+
+    // Load WGL_ARB_create_context and WGL_ARB_pixel_format
+    auto wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+    auto wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+
+    if (!wglCreateContextAttribsARB)
+    {
+        wglMakeCurrent(nullptr, nullptr);
+        wglDeleteContext(tempRC);
+        Logger::Raw("[GL] GL_Init: WGL_ARB_create_context not supported.\n");
+        return false;
+    }
+
+    // --- Step 2: Destroy dummy context, set proper pixel format ---
+    wglMakeCurrent(nullptr, nullptr);
+    wglDeleteContext(tempRC);
+    ReleaseDC(hwnd, m_hGLDC);
+    m_hGLDC = GetDC(hwnd); // Re-acquire DC after SetPixelFormat
+
+    // Set the (already-set) pixel format again on the re-acquired DC
+    SetPixelFormat(m_hGLDC, pf, &pfd);
+
+    // --- Step 3: Create OpenGL 3.3 context ---
+    const int contextAttribs[] = {
+        0x2091 /* WGL_CONTEXT_MAJOR_VERSION_ARB */, 3,
+        0x2092 /* WGL_CONTEXT_MINOR_VERSION_ARB */, 3,
+        0x9126 /* WGL_CONTEXT_PROFILE_MASK_ARB */, 0x00000001 /* CORE */,
+#ifndef NDEBUG
+        0x2094 /* WGL_CONTEXT_FLAGS_ARB */, 0x0001 /* DEBUG */,
+#endif
+        0};
+
+    m_hGLRC = wglCreateContextAttribsARB(m_hGLDC, nullptr, contextAttribs);
+    if (!m_hGLRC)
+    {
+        // Fallback to 3.2
+        const int fallbackAttribs[] = {
+            0x2091, 3, 0x2092, 2, 0x9126, 0x00000001, 0};
+        m_hGLRC = wglCreateContextAttribsARB(m_hGLDC, nullptr, fallbackAttribs);
+        Logger::Raw("[GL] GL_Init: 3.3 context failed, trying 3.2.\n");
+    }
+    if (!m_hGLRC)
+    {
+        Logger::Raw("[GL] GL_Init: context creation failed.\n");
+        return false;
+    }
+
+    if (!wglMakeCurrent(m_hGLDC, m_hGLRC))
+    {
+        Logger::Raw("[GL] GL_Init: wglMakeCurrent failed.\n");
+        return false;
+    }
+
+    // --- Step 4: Load all OpenGL functions via glad ---
+    if (!gladLoadGL())
+    {
+        Logger::Raw("[GL] GL_Init: gladLoadGL failed.\n");
+        return false;
+    }
+
+    // Load extension: glBlendFunci (ARB_draw_buffers_blend)
+    glad_glBlendFunci = (PFNGLBLENDFUNCIPROC)wglGetProcAddress("glBlendFunci");
+    if (!glad_glBlendFunci)
+        Logger::Raw("[GL] Warning: glBlendFunci not available - MRT blending may be incorrect.\n");
+
+    // Enable V-Sync
+    auto wglSwapIntervalEXT = (BOOL(WINAPI *)(int))wglGetProcAddress("wglSwapIntervalEXT");
+    if (wglSwapIntervalEXT)
+    {
+        wglSwapIntervalEXT(1);
+    }
+    // --- Step 5: Log GPU info ---
+    Logger::Raw("\n");
+    Logger::Raw("========== OpenGL Device Info ==========\n");
+    Logger::Raw("[GL] Vendor:   %s\n", (const char *)glGetString(GL_VENDOR));
+    Logger::Raw("[GL] Renderer: %s\n", (const char *)glGetString(GL_RENDERER));
+    Logger::Raw("[GL] Version:  %s\n", (const char *)glGetString(GL_VERSION));
+    Logger::Raw("[GL] GLSL:     %s\n", (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION));
+    Logger::Raw("========================================\n");
+    Logger::Raw("\n");
+
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+    m_clientWidth = rc.right - rc.left;
+    m_clientHeight = rc.bottom - rc.top;
+
+    if (!GL_CreateShaders())
+    {
+        Logger::Raw("[GL] GL_Init: GL_CreateShaders failed.\n");
+        return false;
+    }
+
+    if (!GL_CreateQuadGeometry())
+    {
+        Logger::Raw("[GL] GL_Init: GL_CreateQuadGeometry failed.\n");
+        return false;
+    }
+
+    UINT vw = (UINT)(m_clientWidth * m_renderScale);
+    UINT vh = (UINT)(m_clientHeight * m_renderScale);
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
+
+    if (!GL_CreateOffscreenResources())
+    {
+        Logger::Raw("[GL] GL_Init: GL_CreateOffscreenResources failed.\n");
+        return false;
+    }
+
+    GL_EnsureFactorTexture();
+    GL_EnsureScreenCopyTexture();
+    GL_EnsureAlphaAccumTexture();
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    glClearDepth(1.0);
+
+    m_glTrackedDepthTest = GL_TRUE;
+    m_glTrackedBlend = GL_TRUE;
+
+    m_backgroundCacheValid = false;
+
+    return true;
+}
+
+// ==========================================================================
+// GL_Cleanup
+// ==========================================================================
+void DirectXCore::GL_Cleanup()
+{
+    if (m_hGLDC && m_hGLRC)
+    {
+        wglMakeCurrent(m_hGLDC, m_hGLRC);
+
+        // Delete shader programs
+        GLuint progs[] = {
+            m_glProgMain, m_glProgInstanced, m_glProgEffect,
+            m_glProgComposite, m_glProgFinal, m_glProgLine,
+            m_glProgAlphaAccum, m_glProgAlphaAccumNI, m_glProgLineMod, m_glProgShadowDarken};
+        for (GLuint p : progs)
+            if (p)
+                glDeleteProgram(p);
+
+        // Delete VAOs
+        GLuint vaos[] = {m_glVAOQuad, m_glVAOFullscreen, m_glVAOLine, m_glVAOInstance};
+        for (GLuint v : vaos)
+            if (v)
+                glDeleteVertexArrays(1, &v);
+
+        // Delete VBOs
+        GLuint vbos[] = {m_glVBOQuad, m_glVBOFullscreen, m_glVBOInstance, m_glVBOLine};
+        for (GLuint b : vbos)
+            if (b)
+                glDeleteBuffers(1, &b);
+
+        // Delete FBOs + textures + RBO
+        if (m_glFBOOffscreen)
+            glDeleteFramebuffers(1, &m_glFBOOffscreen);
+        if (m_glTexOffscreen)
+            glDeleteTextures(1, &m_glTexOffscreen);
+        if (m_glRBODepthStencil)
+            glDeleteRenderbuffers(1, &m_glRBODepthStencil);
+        if (m_glFBOFactor)
+            glDeleteFramebuffers(1, &m_glFBOFactor);
+        if (m_glTexFactor)
+            glDeleteTextures(1, &m_glTexFactor);
+        if (m_glTexScreenCopy)
+            glDeleteTextures(1, &m_glTexScreenCopy);
+        if (m_glFBOAlphaAccum)
+            glDeleteFramebuffers(1, &m_glFBOAlphaAccum);
+        if (m_glTexAlphaAccum)
+            glDeleteTextures(1, &m_glTexAlphaAccum);
+
+        // Delete texture GL handles in texture maps
+        for (auto &[k, v] : m_textureMap)
+            if (v && v->glTexture)
+                glDeleteTextures(1, &v->glTexture);
+        for (auto &[k, v] : m_tileTextureMap)
+            if (v && v->glTexture)
+                glDeleteTextures(1, &v->glTexture);
+        for (auto &[k, v] : m_bitmapTextureMap)
+            if (v && v->glTexture)
+                glDeleteTextures(1, &v->glTexture);
+
+        wglMakeCurrent(nullptr, nullptr);
+        wglDeleteContext(m_hGLRC);
+    }
+
+    if (m_hGLDC)
+    {
+        ReleaseDC(WindowFromDC(m_hGLDC), m_hGLDC);
+        m_hGLDC = nullptr;
+    }
+    m_hGLRC = nullptr;
+
+    m_glProgMain = m_glProgInstanced = m_glProgEffect = 0;
+    m_glProgComposite = m_glProgFinal = m_glProgLine = 0;
+    m_glProgAlphaAccum = m_glProgAlphaAccumNI = m_glProgLineMod = m_glProgShadowDarken = 0;
+    m_glVAOQuad = m_glVAOFullscreen = m_glVAOLine = m_glVAOInstance = 0;
+    m_glVBOQuad = m_glVBOFullscreen = m_glVBOInstance = m_glVBOLine = 0;
+    m_glInstanceVBCapacity = m_glLineVBCapacity = 0;
+    m_glFBOOffscreen = m_glTexOffscreen = m_glRBODepthStencil = 0;
+    m_glFBOFactor = m_glTexFactor = m_glTexScreenCopy = 0;
+    m_glFBOAlphaAccum = m_glTexAlphaAccum = 0;
+
+    m_glTrackedProgram = m_glTrackedTexture = m_glTrackedTexture1 = 0;
+    m_glTrackedVAO = m_glTrackedFBO = 0;
+}
+
+// ==========================================================================
+// GL_CreateShaders
+// ==========================================================================
+bool DirectXCore::GL_CreateShaders()
+{
+    if (!GL_CompileAndLinkProgram(kGLSL_MainVS, kGLSL_MainPS, &m_glProgMain))
+    {
+        Logger::Raw("[GL] Main program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_InstancedVS, kGLSL_MainPS, &m_glProgInstanced))
+    {
+        Logger::Raw("[GL] Instanced program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_EffectVS, kGLSL_EffectPS, &m_glProgEffect))
+    {
+        Logger::Raw("[GL] Effect program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_CompositeVS, kGLSL_CompositePS, &m_glProgComposite))
+    {
+        Logger::Raw("[GL] Composite program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_FinalVS, kGLSL_FinalPS, &m_glProgFinal))
+    {
+        Logger::Raw("[GL] Final program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_LineVS, kGLSL_LinePS, &m_glProgLine))
+    {
+        Logger::Raw("[GL] Line program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_InstancedVS, kGLSL_AlphaAccumPS, &m_glProgAlphaAccum))
+    {
+        Logger::Raw("[GL] AlphaAccum program failed.\n");
+        return false;
+    }
+    // Non-instanced version for per-quad Phase 2 rendering
+    if (!GL_CompileAndLinkProgram(kGLSL_MainVS, kGLSL_AlphaAccumPS, &m_glProgAlphaAccumNI))
+    {
+        Logger::Raw("[GL] AlphaAccumNI program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_LineVS, kGLSL_LineModPS, &m_glProgLineMod))
+    {
+        Logger::Raw("[GL] LineMod program failed.\n");
+        return false;
+    }
+    if (!GL_CompileAndLinkProgram(kGLSL_FinalVS, kGLSL_ShadowDarkenPS, &m_glProgShadowDarken))
+    {
+        Logger::Raw("[GL] ShadowDarken program failed.\n");
+        return false;
+    }
+
+// --- Cache all uniform locations (Phase 1 optimization) ---
+#define CACHE_ULOC(prog, field, name) \
+    m_glUL_##field = glGetUniformLocation(prog, name)
+
+    CACHE_ULOC(m_glProgMain, Main_World, "g_World");
+    CACHE_ULOC(m_glProgMain, Main_ColorMul, "g_ColorMul");
+    CACHE_ULOC(m_glProgMain, Main_MixColor, "g_MixColor");
+    CACHE_ULOC(m_glProgMain, Main_MixFactor, "g_MixFactor");
+
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_World, "g_World");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_ColorMul, "g_ColorMul");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_MixColor, "g_MixColor");
+    CACHE_ULOC(m_glProgAlphaAccumNI, AlphaNI_MixFactor, "g_MixFactor");
+
+    CACHE_ULOC(m_glProgEffect, Effect_World, "g_World");
+
+    CACHE_ULOC(m_glProgComposite, Composite_ScreenTex, "screenTex");
+    CACHE_ULOC(m_glProgComposite, Composite_FactorTex, "factorTex");
+
+    CACHE_ULOC(m_glProgFinal, Final_Scale, "uScale");
+    CACHE_ULOC(m_glProgFinal, Final_Offset, "uOffset");
+
+    CACHE_ULOC(m_glProgLineMod, LineMod_ViewportSize, "uViewportSize");
+    CACHE_ULOC(m_glProgLineMod, LineMod_AlphaAccum, "alphaAccum");
+
+#undef CACHE_ULOC
+
+    Logger::Raw("[GL] All shader programs compiled successfully.\n");
+    return true;
+}
+
+// ==========================================================================
+// GL_CreateQuadGeometry - unit quad (centered at origin) and fullscreen quad
+// ==========================================================================
+bool DirectXCore::GL_CreateQuadGeometry()
+{
+    // Unit quad vertices (centered at origin, Y-flipped since we flip textures on upload)
+    float quadVerts[] = {
+        // pos(x,y,z)      uv(u,v)
+        -0.5f,
+        -0.5f,
+        0.0f,
+        0.0f,
+        1.0f,
+        -0.5f,
+        0.5f,
+        0.0f,
+        0.0f,
+        0.0f,
+        0.5f,
+        -0.5f,
+        0.0f,
+        1.0f,
+        1.0f,
+        0.5f,
+        0.5f,
+        0.0f,
+        1.0f,
+        0.0f,
+    };
+
+    glGenVertexArrays(1, &m_glVAOQuad);
+    glBindVertexArray(m_glVAOQuad);
+    glGenBuffers(1, &m_glVBOQuad);
+    glBindBuffer(GL_ARRAY_BUFFER, m_glVBOQuad);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0); // pos
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1); // uv
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+    // Fullscreen quad (NDC [-1,1])
+    float fsVerts[] = {
+        -1.0f,
+        -1.0f,
+        0.0f,
+        0.0f,
+        1.0f,
+        -1.0f,
+        1.0f,
+        0.0f,
+        0.0f,
+        0.0f,
+        1.0f,
+        -1.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f,
+        0.0f,
+        1.0f,
+        0.0f,
+    };
+
+    glGenVertexArrays(1, &m_glVAOFullscreen);
+    glBindVertexArray(m_glVAOFullscreen);
+    glGenBuffers(1, &m_glVBOFullscreen);
+    glBindBuffer(GL_ARRAY_BUFFER, m_glVBOFullscreen);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fsVerts), fsVerts, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
+    // Line VAO: configure vertex attributes once (not per-frame)
+    //   location 0: vec4 (x, y, depth, _) - uses sizeof(LineVertex)=16
+    //   location 1: uint color (packed RGBA8 at byte offset 12)
+    {
+        glGenVertexArrays(1, &m_glVAOLine);
+        glBindVertexArray(m_glVAOLine);
+
+        // Dummy VBO bind for attribute setup (actual VBO bound later in GL_FlushLineBatch)
+        glGenBuffers(1, &m_glVBOLine);
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
+        glBufferData(GL_ARRAY_BUFFER, 1024 * 16, nullptr, GL_DYNAMIC_DRAW);
+        m_glLineVBCapacity = 1024;
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 16, (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 16, (void *)12);
+
+        glBindVertexArray(0);
+    }
+
+    // Instance VAO: quad VBO (slot 0, per-vertex) + instance VBO (slot 1, per-instance)
+    //   location 0,1: from quad VBO (divisor 0)
+    //   location 2,3,4,5: from instance VBO (divisor 1), 4¡Ávec4=64 bytes per instance
+    {
+		// Create instance VBO first so VAO references a valid buffer (not 0)
+		if (m_glVBOInstance == 0)
+		{
+			glGenBuffers(1, &m_glVBOInstance);
+			glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+			glBufferData(GL_ARRAY_BUFFER, 256 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+			m_glInstanceVBCapacity = 256;
+		}
+
+		glGenVertexArrays(1, &m_glVAOInstance);
+		glBindVertexArray(m_glVAOInstance);
+
+        // Bind quad VBO for per-vertex data
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOQuad);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+
+        // Bind instance VBO for per-instance data (layout matches kGLSL_InstancedVS)
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+        for (int i = 0; i < 4; ++i)
+        {
+            GLuint loc = 2 + i;
+            glEnableVertexAttribArray(loc);
+            glVertexAttribPointer(loc, 4, GL_FLOAT, GL_FALSE, 64, (void *)(i * 16));
+            glVertexAttribDivisor(loc, 1);
+        }
+
+        glBindVertexArray(0);
+    }
+
+    return true;
+}
+
+// ==========================================================================
+// GL_CreateOffscreenResources - FBO with color + depth/stencil
+// ==========================================================================
+bool DirectXCore::GL_CreateOffscreenResources()
+{
+    UINT w = (UINT)(m_clientWidth * m_renderScale);
+    UINT h = (UINT)(m_clientHeight * m_renderScale);
+    if (w == 0)
+        w = 1;
+    if (h == 0)
+        h = 1;
+
+    // Color texture
+    glGenTextures(1, &m_glTexOffscreen);
+    glBindTexture(GL_TEXTURE_2D, m_glTexOffscreen);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // Depth/stencil renderbuffer
+    glGenRenderbuffers(1, &m_glRBODepthStencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_glRBODepthStencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+
+    // FBO
+    glGenFramebuffers(1, &m_glFBOOffscreen);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOOffscreen);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexOffscreen, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_glRBODepthStencil);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        Logger::Raw("[GL] GL_CreateOffscreenResources: FBO incomplete.\n");
+        return false;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return true;
+}
+
+void DirectXCore::GL_EnsureFactorTexture()
+{
+    UINT w = (UINT)(m_clientWidth * m_renderScale);
+    UINT h = (UINT)(m_clientHeight * m_renderScale);
+    if (w == 0)
+        w = 1;
+    if (h == 0)
+        h = 1;
+
+    if (m_glTexFactor)
+        glDeleteTextures(1, &m_glTexFactor);
+    if (m_glFBOFactor)
+        glDeleteFramebuffers(1, &m_glFBOFactor);
+
+    glGenTextures(1, &m_glTexFactor);
+    glBindTexture(GL_TEXTURE_2D, m_glTexFactor);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, w, h, 0, GL_RED, GL_HALF_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenFramebuffers(1, &m_glFBOFactor);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOFactor);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexFactor, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void DirectXCore::GL_EnsureScreenCopyTexture()
+{
+    UINT w = (UINT)(m_clientWidth * m_renderScale);
+    UINT h = (UINT)(m_clientHeight * m_renderScale);
+    if (w == 0)
+        w = 1;
+    if (h == 0)
+        h = 1;
+
+    if (m_glTexScreenCopy)
+        glDeleteTextures(1, &m_glTexScreenCopy);
+
+    glGenTextures(1, &m_glTexScreenCopy);
+    glBindTexture(GL_TEXTURE_2D, m_glTexScreenCopy);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+void DirectXCore::GL_EnsureAlphaAccumTexture()
+{
+    UINT w = (UINT)(m_clientWidth * m_renderScale);
+    UINT h = (UINT)(m_clientHeight * m_renderScale);
+    if (w == 0)
+        w = 1;
+    if (h == 0)
+        h = 1;
+
+    if (m_glTexAlphaAccum)
+        glDeleteTextures(1, &m_glTexAlphaAccum);
+    if (m_glFBOAlphaAccum)
+        glDeleteFramebuffers(1, &m_glFBOAlphaAccum);
+
+    glGenTextures(1, &m_glTexAlphaAccum);
+    glBindTexture(GL_TEXTURE_2D, m_glTexAlphaAccum);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glGenFramebuffers(1, &m_glFBOAlphaAccum);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOAlphaAccum);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexAlphaAccum, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void DirectXCore::GL_CopyScreenToTexture()
+{
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_glFBOOffscreen);
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBindTexture(GL_TEXTURE_2D, m_glTexScreenCopy);
+    UINT w = (UINT)(m_clientWidth * m_renderScale);
+    UINT h = (UINT)(m_clientHeight * m_renderScale);
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, w, h);
+    // Restore draw FBO
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_glFBOOffscreen);
+}
+
+void DirectXCore::GL_DrawFullscreenQuad()
+{
+    glBindVertexArray(m_glVAOFullscreen);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+// ==========================================================================
+// GL Texture Upload Helpers
+// ==========================================================================
+void DirectXCore::GL_UploadTextureRGBA8(TextureResource *res, int w, int h, const uint32_t *pixels, bool flipY)
+{
+    if (res->glTexture == 0)
+        glGenTextures(1, &res->glTexture);
+
+    glBindTexture(GL_TEXTURE_2D, res->glTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+    if (flipY)
+    {
+        if ((int)m_glTexFlipBufRGBA.size() < w * h)
+            m_glTexFlipBufRGBA.resize(w * h);
+        for (int y = 0; y < h; ++y)
+            memcpy(&m_glTexFlipBufRGBA[(h - 1 - y) * w], &pixels[y * w], w * 4);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_glTexFlipBufRGBA.data());
+    }
+    else
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    }
+}
+
+void DirectXCore::GL_UploadTextureR8(TextureResource *res, int w, int h, const uint8_t *pixels, bool flipY)
+{
+    if (res->glTexture == 0)
+        glGenTextures(1, &res->glTexture);
+
+    glBindTexture(GL_TEXTURE_2D, res->glTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    if (flipY)
+    {
+        if ((int)m_glTexFlipBufR8.size() < w * h)
+            m_glTexFlipBufR8.resize(w * h);
+        for (int y = 0; y < h; ++y)
+            memcpy(&m_glTexFlipBufR8[(h - 1 - y) * w], &pixels[y * w], w);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, m_glTexFlipBufR8.data());
+    }
+    else
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
+    }
+}
+
+void DirectXCore::GL_UploadTextureDynamic(TextureResource *res, int w, int h, const uint32_t *pixels)
+{
+    // Used by DrawShapes - re-uploads to existing texture
+    if (res->glTexture == 0)
+    {
+        glGenTextures(1, &res->glTexture);
+        glBindTexture(GL_TEXTURE_2D, res->glTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    }
+    else
+    {
+        glBindTexture(GL_TEXTURE_2D, res->glTexture);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    }
+}
+
+// ==========================================================================
+// GL_RenderOffscreenContent - the main 5-phase render (OpenGL path)
+//   Optimized: uniform location caching, state tracking, instanced Phase 1,
+//   reusable flip buffers, removed redundant glFlush calls.
+// ==========================================================================
+void DirectXCore::GL_RenderOffscreenContent()
+{
+    UINT vw = (UINT)(m_clientWidth * m_renderScale);
+    UINT vh = (UINT)(m_clientHeight * m_renderScale);
+    if (vw == 0)
+        vw = 1;
+    if (vh == 0)
+        vh = 1;
+    m_vwCached = (float)vw;
+    m_vhCached = (float)vh;
+
+    GL_BindFBOTracked(m_glFBOOffscreen);
+
+    float clearColor[4] = {
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
+        CIsoViewExt::RenderingMap ? 0.0f : (ExtConfigs::EnableDarkMode ? 0.125f : 1.0f),
+        1.0f};
+    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+    glClearDepth(1.0);
+    glClearStencil(0);
+    glDepthMask(GL_TRUE);
+    glStencilMask(0xFF);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    glViewport(0, 0, vw, vh);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_STENCIL_TEST);
+
+    const float depthScale = 1.0f / 16777216.0f;
+
+    // --- Cached uniform locations (aliases for readability) ---
+    const GLint &UL_M_World = m_glUL_Main_World;
+    const GLint &UL_M_CMul = m_glUL_Main_ColorMul;
+    const GLint &UL_M_MixC = m_glUL_Main_MixColor;
+    const GLint &UL_M_MixF = m_glUL_Main_MixFactor;
+    const GLint &UL_AN_World = m_glUL_AlphaNI_World;
+    const GLint &UL_AN_CMul = m_glUL_AlphaNI_ColorMul;
+    const GLint &UL_AN_MixC = m_glUL_AlphaNI_MixColor;
+    const GLint &UL_AN_MixF = m_glUL_AlphaNI_MixFactor;
+    const GLint &UL_Eff_World = m_glUL_Effect_World;
+
+    // Lambda: set common uniforms using cached locations (Phase 1 optimization)
+    auto SetMainUniformsCached = [&](const DrawCommand &cmd)
+    {
+        const auto &p = cmd.params;
+        if (UL_M_CMul >= 0)
+            glUniform4f(UL_M_CMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+        if (UL_M_MixC >= 0)
+            glUniform4f(UL_M_MixC, p.mixR, p.mixG, p.mixB, 1.0f);
+        if (UL_M_MixF >= 0)
+            glUniform1f(UL_M_MixF, p.mixFactor);
+    };
+
+    // Lambda: compute world matrix into caller-provided buffer (no static, thread-safe)
+    auto ComputeWorldMatrix = [&](const DrawCommand &cmd, float (&mat)[16])
+    {
+        TextureResource *tex = cmd.texRes;
+        if (!tex)
+        {
+            memset(mat, 0, sizeof(mat));
+            mat[0] = mat[5] = mat[10] = mat[15] = 1.0f;
+            return;
+        }
+        const auto &p = cmd.params;
+        float depthZ = cmd.depth * depthScale;
+        float w_px = tex->sourceView.FullWidth * p.scaleX;
+        float h_px = tex->sourceView.FullHeight * p.scaleY;
+        float snappedX = std::floor(p.x + 0.5f);
+        float snappedY = std::floor(p.y + 0.5f);
+        float ndcW = (w_px / vw) * 2.0f;
+        float ndcH = (h_px / vh) * 2.0f;
+        float ndcX = ((snappedX + w_px * 0.5f) / vw) * 2.0f - 1.0f;
+        float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / vh) * 2.0f;
+
+        memset(mat, 0, sizeof(mat));
+        mat[0] = ndcW;
+        mat[5] = ndcH;
+        mat[10] = 1.0f;
+        mat[15] = 1.0f;
+        mat[12] = ndcX;
+        mat[13] = ndcY;
+        mat[14] = depthZ;
+    };
+
+    // Classify commands (same as D3D)
+    std::vector<const DrawCommand *> opaqueCmds, stencilCmds, transparentCmds;
+    std::vector<const DrawCommand *> effectCmds, overlayCmds;
+
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (cmd.bAlwaysOnTop)
+        {
+            overlayCmds.push_back(&cmd);
+            continue;
+        }
+        if (cmd.bStencilDraw)
+            stencilCmds.push_back(&cmd);
+        if (cmd.bIsEffect)
+            effectCmds.push_back(&cmd);
+        if (!cmd.bScreenSpace && !cmd.bStencilDraw && !cmd.bIsEffect)
+        {
+            TextureResource *tex = cmd.texRes;
+            if (tex && tex->glTexture && !tex->bIsIndexTexture)
+            {
+                if (cmd.params.opacity < 1.0f - 1e-6f)
+                    transparentCmds.push_back(&cmd);
+                else
+                    opaqueCmds.push_back(&cmd);
+            }
+        }
+    }
+
+    // ====================================================================
+    // Phase 1: Opaque (depth write ON, depth test ON)
+    // ====================================================================
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
+
+    if (!opaqueCmds.empty())
+    {
+        std::vector<const DrawCommand *> opaquePlain;
+        std::vector<const DrawCommand *> opaqueStencil;
+        for (const DrawCommand *cmd : opaqueCmds)
+        {
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            if (cmd->params.bWriteStencil)
+                opaqueStencil.push_back(cmd);
+            else
+                opaquePlain.push_back(cmd);
+        }
+
+        // -- Stencil-writing opaque (per-quad) --
+        if (!opaqueStencil.empty())
+        {
+            glEnable(GL_STENCIL_TEST);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+            glStencilMask(0xFF);
+            for (const DrawCommand *cmd : opaqueStencil)
+            {
+                int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
+                glStencilFunc(GL_ALWAYS, ref, 0x7F);
+                float mat[16];
+                ComputeWorldMatrix(*cmd, mat);
+                if (UL_M_World >= 0)
+                    glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+                SetMainUniformsCached(*cmd);
+                GL_BindTexture0(cmd->texRes->glTexture);
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            }
+            glDisable(GL_STENCIL_TEST);
+        }
+
+        // -- Plain opaque: use instanced rendering (Phase 4 optimization) --
+        if (!opaquePlain.empty())
+        {
+            std::stable_sort(opaquePlain.begin(), opaquePlain.end(),
+                             [](const DrawCommand *a, const DrawCommand *b)
+                             { return a->texRes < b->texRes; });
+            GL_FlushInstanceBatch(opaquePlain);
+            // Restore state that GL_FlushInstanceBatch changed
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
+        }
+    }
+
+    // ====================================================================
+    // Phase 1.5: Stencil-aware draws
+    // ====================================================================
+    if (ExtConfigs::PreciseDepthCalculation && !stencilCmds.empty())
+    {
+        glEnable(GL_STENCIL_TEST);
+
+        // -- Sub-phase a: Write stencil (no color) --
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilMask(0xFF);
+        for (const DrawCommand *cmd : stencilCmds)
+        {
+            if (cmd->params.bIsShadow || cmd->params.bIsOverlapShadow ||
+                !cmd->params.bWriteStencil || !cmd->bStencilOnly)
+                continue;
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
+            glStencilFunc(GL_GREATER, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+        // -- Sub-phase b: Read stencil (normal draw) --
+        glDepthMask(GL_TRUE);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilMask(0xFF);
+        for (const DrawCommand *cmd : stencilCmds)
+        {
+            if (cmd->params.bIsShadow || cmd->params.bIsOverlapShadow ||
+                cmd->params.bWriteStencil)
+                continue;
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
+            glStencilFunc(GL_GEQUAL, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            SetMainUniformsCached(*cmd);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        // -- Sub-phase c: Shadow objects (write stencil bit 7, no color) --
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_ALWAYS);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        glStencilMask(0x80);
+        for (const DrawCommand *cmd : stencilCmds)
+        {
+            if (!cmd->params.bIsShadow || cmd->params.bIsOverlapShadow || cmd->bStencilOnly)
+                continue;
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            int ref = cmd->params.stencilRef >= 0 ? cmd->params.stencilRef : 0;
+            glStencilFunc(GL_GEQUAL, ref, 0x7F);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+        // -- Sub-phase d: Overlap shadow draw --
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glStencilMask(0x00);
+        for (const DrawCommand *cmd : stencilCmds)
+        {
+            if (!cmd->params.bIsOverlapShadow || cmd->bStencilOnly)
+                continue;
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            int ref = (cmd->params.stencilRef >= 0) ? cmd->params.stencilRef : 0;
+            glStencilFunc(GL_GEQUAL, ref, 0x7F);
+            SetMainUniformsCached(*cmd);
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        // -- Shadow darkening pass (fullscreen) --
+        if (CIsoViewExt::DrawShadows && m_glProgShadowDarken)
+        {
+            GL_UseProgramTracked(m_glProgShadowDarken);
+            glDisable(GL_DEPTH_TEST);
+            glStencilFunc(GL_EQUAL, 0x80, 0x80);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            glStencilMask(0x00);
+            glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+            GL_BindVAOTracked(m_glVAOFullscreen);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            // Restore
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LEQUAL);
+            glStencilMask(0xFF);
+            GL_BindVAOTracked(m_glVAOQuad);
+            GL_UseProgramTracked(m_glProgMain);
+        }
+
+        glDisable(GL_STENCIL_TEST);
+        glStencilMask(0xFF);
+        glDepthFunc(GL_LEQUAL);
+        glDepthMask(GL_TRUE);
+    }
+
+    // ====================================================================
+    // Phase 2: Semi-transparent (MRT alpha accumulation)
+    // ====================================================================
+    if (!transparentCmds.empty())
+    {
+        GL_BindFBOTracked(m_glFBOOffscreen);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, m_glTexAlphaAccum, 0);
+        GLenum drawBufs[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+        glDrawBuffers(2, drawBufs);
+
+        float alphaClear[4] = {0, 0, 0, 0};
+        glClearBufferfv(GL_COLOR, 1, alphaClear);
+
+        glDepthMask(GL_FALSE);
+        GL_UseProgramTracked(m_glProgAlphaAccumNI);
+
+        if (glBlendFunci)
+        {
+            glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glBlendFunci(1, GL_ONE, GL_ZERO);
+        }
+        glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glColorMaski(1, GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+        for (const DrawCommand *cmd : transparentCmds)
+        {
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_AN_World >= 0)
+                glUniformMatrix4fv(UL_AN_World, 1, GL_FALSE, mat);
+            if (UL_AN_CMul >= 0)
+                glUniform4f(UL_AN_CMul, cmd->params.redMult, cmd->params.greenMult,
+                            cmd->params.blueMult, cmd->params.opacity);
+            if (UL_AN_MixC >= 0)
+                glUniform4f(UL_AN_MixC, cmd->params.mixR, cmd->params.mixG, cmd->params.mixB, 1.0f);
+            if (UL_AN_MixF >= 0)
+                glUniform1f(UL_AN_MixF, cmd->params.mixFactor);
+
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        glDrawBuffers(1, drawBufs);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glColorMaski(1, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthMask(GL_TRUE);
+        GL_UseProgramTracked(m_glProgMain);
+    }
+
+    // ====================================================================
+    // Phase 3: World-space lines with alpha modulation
+    // ====================================================================
+    {
+        glDepthMask(GL_FALSE);
+        GL_FlushLineBatch(false, m_glProgLineMod);
+        // Unbind alpha accum texture from unit 1
+        GL_BindTexture1(0);
+    }
+
+    // Restore
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
+    glDepthMask(GL_TRUE);
+
+    // ====================================================================
+    // Phase 4: Effects (index textures -> factor -> composite)
+    // ====================================================================
+    if (!effectCmds.empty())
+    {
+        GL_CopyScreenToTexture();
+
+        GL_BindFBOTracked(m_glFBOFactor);
+        float one[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        glClearBufferfv(GL_COLOR, 0, one);
+
+        GL_UseProgramTracked(m_glProgEffect);
+        glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+        GL_BindVAOTracked(m_glVAOQuad);
+
+        for (const DrawCommand *cmd : effectCmds)
+        {
+            if (!cmd->texRes || cmd->texRes->glTexture == 0 || !cmd->texRes->bIsIndexTexture)
+                continue;
+            const auto &p = cmd->params;
+            float depthZ = cmd->depth * depthScale;
+            float w_px = cmd->texRes->sourceView.FullWidth * p.scaleX;
+            float h_px = cmd->texRes->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float ndcW = (w_px / vw) * 2.0f, ndcH = (h_px / vh) * 2.0f;
+            float ndcX = ((snappedX + w_px * 0.5f) / vw) * 2.0f - 1.0f;
+            float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / vh) * 2.0f;
+            float mat[16] = {};
+            mat[0] = ndcW;
+            mat[5] = ndcH;
+            mat[10] = 1.0f;
+            mat[15] = 1.0f;
+            mat[12] = ndcX;
+            mat[13] = ndcY;
+            mat[14] = depthZ;
+            if (UL_Eff_World >= 0)
+                glUniformMatrix4fv(UL_Eff_World, 1, GL_FALSE, mat);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        // Composite: offscreen = screenCopy * factor
+        GL_BindFBOTracked(m_glFBOOffscreen);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glDisable(GL_BLEND);
+        GL_UseProgramTracked(m_glProgComposite);
+        GL_BindVAOTracked(m_glVAOFullscreen);
+        GL_BindTexture0(m_glTexScreenCopy);
+        if (m_glUL_Composite_ScreenTex >= 0)
+            glUniform1i(m_glUL_Composite_ScreenTex, 0);
+        if (m_glUL_Composite_FactorTex >= 0)
+            glUniform1i(m_glUL_Composite_FactorTex, 1);
+        GL_BindTexture1(m_glTexFactor);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
+        GL_BindVAOTracked(m_glVAOQuad);
+        GL_UseProgramTracked(m_glProgMain);
+    }
+
+    // ====================================================================
+    // Phase 5: Always-on-top overlays
+    // ====================================================================
+    bool hasOverlayLines = false;
+    for (const auto &le : m_lineEntries)
+        if (!le.bScreenSpace && le.bAlwaysOnTop)
+        {
+            hasOverlayLines = true;
+            break;
+        }
+
+    if (!overlayCmds.empty() || hasOverlayLines)
+    {
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+
+        for (const DrawCommand *cmd : overlayCmds)
+        {
+            if (!cmd->texRes || cmd->texRes->glTexture == 0)
+                continue;
+            float mat[16];
+            ComputeWorldMatrix(*cmd, mat);
+            if (UL_M_World >= 0)
+                glUniformMatrix4fv(UL_M_World, 1, GL_FALSE, mat);
+            SetMainUniformsCached(*cmd);
+            GL_BindTexture0(cmd->texRes->glTexture);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
+
+        if (hasOverlayLines)
+        {
+            GL_FlushLineBatch(false, 0, true);
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
+        }
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(GL_TRUE);
+    }
+
+    glFlush();
+}
+
+// ==========================================================================
+// GL_RenderFinalToBackBuffer
+// ==========================================================================
+void DirectXCore::GL_RenderFinalToBackBuffer()
+{
+    GL_BindFBOTracked(0);
+    glViewport(0, 0, m_clientWidth, m_clientHeight);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    GL_UseProgramTracked(m_glProgFinal);
+    GL_BindVAOTracked(m_glVAOFullscreen);
+
+    if (m_glUL_Final_Scale >= 0)
+        glUniform2f(m_glUL_Final_Scale, 1.0f, 1.0f);
+    if (m_glUL_Final_Offset >= 0)
+        glUniform2f(m_glUL_Final_Offset, 0.0f, 0.0f);
+
+    // Only change filter when needed (skip when renderScale==1 and already NEAREST)
+    GLint filter = GL_NEAREST;
+    bool needBilinear = (m_renderScale != 1.0f && ExtConfigs::DDrawScalingBilinear &&
+                         !(ExtConfigs::DDrawScalingBilinear_OnlyShrink && CIsoViewExt::ScaledFactor < 1.0f));
+    if (needBilinear)
+        filter = GL_LINEAR;
+
+    GL_BindTexture0(m_glTexOffscreen);
+    if (needBilinear || m_renderScale != 1.0f)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    }
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    // Restore NEAREST only if we changed it
+    if (needBilinear || m_renderScale != 1.0f)
+    {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
+
+    glEnable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+}
+
+// ==========================================================================
+// GL_RenderScreenSpaceContent
+// ==========================================================================
+void DirectXCore::GL_RenderScreenSpaceContent()
+{
+    GL_BindFBOTracked(0);
+    glViewport(0, 0, m_clientWidth, m_clientHeight);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    GL_UseProgramTracked(m_glProgMain);
+    GL_BindVAOTracked(m_glVAOQuad);
+
+    for (const auto &cmd : m_drawCommands)
+    {
+        if (!cmd.bScreenSpace || cmd.bIsEffect)
+            continue;
+        TextureResource *tex = cmd.texRes;
+        if (!tex || tex->glTexture == 0)
+            continue;
+
+        const auto &p = cmd.params;
+        float screenW = (float)m_clientWidth, screenH = (float)m_clientHeight;
+        float w_px = tex->sourceView.FullWidth * p.scaleX;
+        float h_px = tex->sourceView.FullHeight * p.scaleY;
+        float snappedX = std::floor(p.x + 0.5f);
+        float snappedY = std::floor(p.y + 0.5f);
+        float ndcW = (w_px / screenW) * 2.0f, ndcH = (h_px / screenH) * 2.0f;
+        float ndcX = ((snappedX + w_px * 0.5f) / screenW) * 2.0f - 1.0f;
+        float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / screenH) * 2.0f;
+        float mat[16] = {};
+        mat[0] = ndcW;
+        mat[5] = ndcH;
+        mat[10] = 1.0f;
+        mat[15] = 1.0f;
+        mat[12] = ndcX;
+        mat[13] = ndcY;
+        if (m_glUL_Main_World >= 0)
+            glUniformMatrix4fv(m_glUL_Main_World, 1, GL_FALSE, mat);
+        if (m_glUL_Main_ColorMul >= 0)
+            glUniform4f(m_glUL_Main_ColorMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+        if (m_glUL_Main_MixColor >= 0)
+            glUniform4f(m_glUL_Main_MixColor, p.mixR, p.mixG, p.mixB, 1.0f);
+        if (m_glUL_Main_MixFactor >= 0)
+            glUniform1f(m_glUL_Main_MixFactor, p.mixFactor);
+
+        GL_BindTexture0(tex->glTexture);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+    GL_FlushLineBatch(true);
+    glFlush();
+}
+
+// ==========================================================================
+// GL_DarkenOffscreen
+// ==========================================================================
+void DirectXCore::GL_DarkenOffscreen(float brightness)
+{
+    GL_CopyScreenToTexture();
+
+    GL_BindFBOTracked(m_glFBOFactor);
+    float factor[4] = {brightness, brightness, brightness, 1.0f};
+    glClearBufferfv(GL_COLOR, 0, factor);
+
+    GL_BindFBOTracked(m_glFBOOffscreen);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_BLEND);
+    GL_UseProgramTracked(m_glProgComposite);
+    GL_BindVAOTracked(m_glVAOFullscreen);
+
+    GL_BindTexture0(m_glTexScreenCopy);
+    if (m_glUL_Composite_ScreenTex >= 0)
+        glUniform1i(m_glUL_Composite_ScreenTex, 0);
+    if (m_glUL_Composite_FactorTex >= 0)
+        glUniform1i(m_glUL_Composite_FactorTex, 1);
+    GL_BindTexture1(m_glTexFactor);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    GL_BindVAOTracked(m_glVAOQuad);
+    GL_UseProgramTracked(m_glProgMain);
+}
+
+// ==========================================================================
+// GL_FlushInstanceBatch - instanced rendering for Phase 1 opaque + Phase 5 overlays
+//   Uses m_glProgInstanced (kGLSL_InstancedVS + kGLSL_MainPS).
+//   All commands in batch share the same texture, blend state, and depth state.
+//   Instance data layout: 4 ¡Á vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
+// ==========================================================================
+void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
+{
+    if (batch.empty())
+        return;
+
+    // Group by texture pointer, flush each group
+    std::vector<const DrawCommand *> group;
+    TextureResource *curTex = nullptr;
+
+    auto FlushGroup = [&]()
+    {
+        if (group.empty())
+            return;
+        const UINT count = (UINT)group.size();
+        TextureResource *tex = group[0]->texRes;
+        if (!tex || tex->glTexture == 0)
+        {
+            group.clear();
+            return;
+        }
+
+        // Fast path: single instance ¡ú use regular non-instanced program
+        // (avoids std::vector alloc + glBufferSubData overhead for the common
+        //  case of unique-texture terrain tiles)
+        if (count == 1)
+        {
+            const DrawCommand *cmd = group[0];
+            const auto &p = cmd->params;
+            float depthScale = 1.0f / 16777216.0f;
+            float w_px = tex->sourceView.FullWidth * p.scaleX;
+            float h_px = tex->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float ndcW = (w_px / m_vwCached) * 2.0f;
+            float ndcH = (h_px / m_vhCached) * 2.0f;
+            float ndcX = ((snappedX + w_px * 0.5f) / m_vwCached) * 2.0f - 1.0f;
+            float ndcY = 1.0f - ((snappedY + h_px * 0.5f) / m_vhCached) * 2.0f;
+            float mat[16] = {};
+            mat[0] = ndcW; mat[5] = ndcH; mat[10] = 1.0f; mat[15] = 1.0f;
+            mat[12] = ndcX; mat[13] = ndcY; mat[14] = cmd->depth * depthScale;
+
+            GL_UseProgramTracked(m_glProgMain);
+            GL_BindVAOTracked(m_glVAOQuad);
+            GL_BindTexture0(tex->glTexture);
+            if (m_glUL_Main_World >= 0)     glUniformMatrix4fv(m_glUL_Main_World, 1, GL_FALSE, mat);
+            if (m_glUL_Main_ColorMul >= 0)  glUniform4f(m_glUL_Main_ColorMul, p.redMult, p.greenMult, p.blueMult, p.opacity);
+            if (m_glUL_Main_MixColor >= 0)  glUniform4f(m_glUL_Main_MixColor, p.mixR, p.mixG, p.mixB, 1.0f);
+            if (m_glUL_Main_MixFactor >= 0) glUniform1f(m_glUL_Main_MixFactor, p.mixFactor);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            group.clear();
+            return;
+        }
+
+        // Multi-instance path: use instanced rendering
+        // Ensure instance VBO capacity (orphan old if insufficient)
+        // 16 floats per instance (4 vec4 ¡Á 4 floats)
+        int needed = (int)count * 16;
+        if (m_glInstanceVBCapacity < needed)
+        {
+            int cap = (needed + 255) & ~255;
+            glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+            glBufferData(GL_ARRAY_BUFFER, cap * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+            m_glInstanceVBCapacity = cap;
+        }
+
+        // Build instance data (reuse vector across groups)
+        static std::vector<float> instData;
+        instData.clear();
+        instData.reserve(count * 16);
+        const float depthScale = 1.0f / 16777216.0f;
+        const float vw = m_vwCached, vh = m_vhCached;
+
+        for (const DrawCommand *cmd : group)
+        {
+            const auto &p = cmd->params;
+            float w_px = tex->sourceView.FullWidth * p.scaleX;
+            float h_px = tex->sourceView.FullHeight * p.scaleY;
+            float snappedX = std::floor(p.x + 0.5f);
+            float snappedY = std::floor(p.y + 0.5f);
+            float ndcW = (w_px / vw) * 2.0f;
+            float ndcH = (h_px / vh) * 2.0f;
+            float ndcCX = ((snappedX + w_px * 0.5f) / vw) * 2.0f - 1.0f;
+            float ndcCY = 1.0f - ((snappedY + h_px * 0.5f) / vh) * 2.0f;
+
+            // iD0: scaleX, scaleY, transX, transY
+            instData.push_back(ndcW);
+            instData.push_back(ndcH);
+            instData.push_back(ndcCX);
+            instData.push_back(ndcCY);
+            // iD1: depthZ, colorMul.rgb
+            instData.push_back(cmd->depth * depthScale);
+            instData.push_back(p.redMult);
+            instData.push_back(p.greenMult);
+            instData.push_back(p.blueMult);
+            // iD2: colorMul.a, mixColor.rgb
+            instData.push_back(p.opacity);
+            instData.push_back(p.mixR);
+            instData.push_back(p.mixG);
+            instData.push_back(p.mixB);
+            // iD3: mixFactor, 0, 0, 0
+            instData.push_back(p.mixFactor);
+            instData.push_back(0);
+            instData.push_back(0);
+            instData.push_back(0);
+        }
+
+        // Upload instance data
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOInstance);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, count * 16 * sizeof(float), instData.data());
+
+        // Bind texture
+        GL_BindTexture0(tex->glTexture);
+
+        // Draw instanced
+        GL_UseProgramTracked(m_glProgInstanced);
+        GL_BindVAOTracked(m_glVAOInstance);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, count);
+
+        group.clear();
+    };
+
+    for (const DrawCommand *cmd : batch)
+    {
+        if (cmd->texRes != curTex)
+        {
+            FlushGroup();
+            curTex = cmd->texRes;
+        }
+        group.push_back(cmd);
+    }
+    FlushGroup();
+}
+
+// ==========================================================================
+// GL_FlushLineBatch
+// ==========================================================================
+void DirectXCore::GL_FlushLineBatch(bool bScreenSpace, GLuint overrideProgram, bool bOverlay)
+{
+    int numLines = 0;
+    for (const auto &le : m_lineEntries)
+        if (le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay)
+            ++numLines;
+    if (numLines == 0)
+        return;
+
+    const int vertsPerLine = 6;
+    const int totalVerts = numLines * vertsPerLine;
+
+    // Ensure line VBO capacity (use orphan via glBufferData instead of delete+gen)
+    if (m_glLineVBCapacity < totalVerts)
+    {
+        int cap = (totalVerts + 1023) & ~1023;
+        glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
+        glBufferData(GL_ARRAY_BUFFER, cap * 16, nullptr, GL_DYNAMIC_DRAW);
+        m_glLineVBCapacity = cap;
+    }
+
+    struct LineVertex
+    {
+        float x, y, depth;
+        uint32_t color;
+    };
+    std::vector<LineVertex> verts;
+    verts.reserve(totalVerts);
+
+    float vw, vh;
+    if (bScreenSpace)
+    {
+        vw = (float)m_clientWidth;
+        vh = (float)m_clientHeight;
+    }
+    else
+    {
+        vw = (float)(int)(m_clientWidth * m_renderScale);
+        vh = (float)(int)(m_clientHeight * m_renderScale);
+    }
+    const float depthScale = 1.0f / 16777216.0f;
+
+    for (const auto &le : m_lineEntries)
+    {
+        if (le.bScreenSpace != bScreenSpace || le.bAlwaysOnTop != bOverlay)
+            continue;
+        float dx = le.x1 - le.x0, dy = le.y1 - le.y0;
+        float len = std::sqrt(dx * dx + dy * dy);
+        float halfT = le.thickness * 0.5f;
+        float nx, ny;
+        if (len < 1e-6f)
+        {
+            nx = halfT;
+            ny = 0.0f;
+        }
+        else
+        {
+            float inv = 1.0f / len;
+            nx = -dy * inv * halfT;
+            ny = dx * inv * halfT;
+        }
+
+        auto toNDC = [&](float px, float py) -> std::pair<float, float>
+        {
+            return {(px / vw) * 2.0f - 1.0f, 1.0f - (py / vh) * 2.0f};
+        };
+        float depthZ = le.depth * depthScale;
+        auto [x0a, y0a] = toNDC(le.x0 - nx, le.y0 - ny);
+        auto [x0b, y0b] = toNDC(le.x0 + nx, le.y0 + ny);
+        auto [x1a, y1a] = toNDC(le.x1 - nx, le.y1 - ny);
+        auto [x1b, y1b] = toNDC(le.x1 + nx, le.y1 + ny);
+
+        // Triangle list: (V0,V1,V2) and (V1,V3,V2)
+        verts.push_back({x0b, y0b, depthZ, le.color});
+        verts.push_back({x0a, y0a, depthZ, le.color});
+        verts.push_back({x1b, y1b, depthZ, le.color});
+        verts.push_back({x0a, y0a, depthZ, le.color});
+        verts.push_back({x1a, y1a, depthZ, le.color});
+        verts.push_back({x1b, y1b, depthZ, le.color});
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_glVBOLine);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, totalVerts * 16, verts.data());
+
+    // VAO attributes configured once in GL_CreateQuadGeometry - no per-call reconfig
+    GL_BindVAOTracked(m_glVAOLine);
+
+    GLuint prog = overrideProgram ? overrideProgram : m_glProgLine;
+    GL_UseProgramTracked(prog);
+
+    // Set viewport size uniform for LineMod PS (use cached locations)
+    if (prog == m_glProgLineMod)
+    {
+        if (m_glUL_LineMod_ViewportSize >= 0)
+            glUniform2f(m_glUL_LineMod_ViewportSize, vw, vh);
+        // Bind alpha accum texture to unit 1
+        GL_BindTexture1(m_glTexAlphaAccum);
+        if (m_glUL_LineMod_AlphaAccum >= 0)
+            glUniform1i(m_glUL_LineMod_AlphaAccum, 1);
+    }
+
+    glDrawArrays(GL_TRIANGLES, 0, totalVerts);
+
+    // Clean up: remove drawn entries
+    std::erase_if(m_lineEntries, [bScreenSpace, bOverlay](const auto &le)
+                  { return le.bScreenSpace == bScreenSpace && le.bAlwaysOnTop == bOverlay; });
 }

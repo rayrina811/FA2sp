@@ -17,6 +17,7 @@ void ScriptSort::LoadAllTriggers()
     this->Clear();
     // TODO : 
     // Optimisze the efficiency
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, FALSE, 0);
     if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
     {
         for (auto& pair : pSection->GetEntities())
@@ -24,12 +25,16 @@ void ScriptSort::LoadAllTriggers()
             this->AddTrigger(pair.second);
         }
     }
+    
+    SendMessage(this->GetHwnd(), WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(this->GetHwnd(), NULL, TRUE);
     ExtConfigs::InitializeMap = true;
 }
 
 void ScriptSort::Clear()
 {
     TreeViewHelper::ClearTreeView(this->GetHwnd());
+    this->IndexClear();
 }
 
 BOOL ScriptSort::OnNotify(LPNMTREEVIEW lpNmTreeView)
@@ -121,7 +126,8 @@ void ScriptSort::OnSize() const
 {
     RECT rect;
     ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    ::MoveWindow(this->GetHwnd(), 2, 29, rect.right - rect.left - 6, rect.bottom - rect.top - 35, FALSE);
+    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    ::MoveWindow(this->GetHwnd(), 2, tabPageheight, rect.right - rect.left - 6, rect.bottom - rect.top - 6 - tabPageheight, FALSE);
 }
 
 void ScriptSort::ShowWindow(bool bShow) const
@@ -230,29 +236,35 @@ ScriptSort::operator HWND() const
     return this->GetHwnd();
 }
 
+std::string ScriptSort::MakeLabelKey(HTREEITEM hParent, LPCSTR pszLabel)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%p:", hParent);
+    return std::string(buf) + pszLabel;
+}
+
+void ScriptSort::IndexAdd(HTREEITEM hParent, LPCSTR pszLabel, HTREEITEM hItem) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex[MakeLabelKey(hParent, pszLabel)] = hItem;
+}
+
+void ScriptSort::IndexRemove(HTREEITEM hParent, LPCSTR pszLabel) const
+{
+    if (hParent && pszLabel && pszLabel[0])
+        m_labelIndex.erase(MakeLabelKey(hParent, pszLabel));
+}
+
+void ScriptSort::IndexClear() const
+{
+    m_labelIndex.clear();
+}
+
 HTREEITEM ScriptSort::FindLabel(HTREEITEM hItemParent, LPCSTR pszLabel) const
 {
-    TVITEM tvi;
-    char chLabel[0x200];
-
-    for (tvi.hItem = TreeView_GetChild(this->GetHwnd(), hItemParent); tvi.hItem;
-        tvi.hItem = TreeView_GetNextSibling(this->GetHwnd(), tvi.hItem))
-    {
-        tvi.mask = TVIF_TEXT | TVIF_CHILDREN;
-        tvi.pszText = chLabel;
-        tvi.cchTextMax = _countof(chLabel);
-        if (TreeView_GetItem(this->GetHwnd(), &tvi))
-        {
-            if (strcmp(tvi.pszText, pszLabel) == 0)
-                return tvi.hItem;
-            if (tvi.cChildren)
-            {
-                HTREEITEM hChildSearch = this->FindLabel(tvi.hItem, pszLabel);
-                if (hChildSearch) 
-                    return hChildSearch;
-            }
-        }
-    }
+    auto it = m_labelIndex.find(MakeLabelKey(hItemParent, pszLabel));
+    if (it != m_labelIndex.end())
+        return it->second;
     return NULL;
 }
 
@@ -292,7 +304,9 @@ void ScriptSort::AddTrigger(std::vector<FString> group, FString name, FString id
         else
         {
             FString nodeCombo = FString::Join(currentNodes, ".");
-            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hParent, true);
+            auto hOldParent = hParent;
+            hParent = TreeViewHelper::InsertTreeItem(this->GetHwnd(), node, nodeCombo, hOldParent, true);
+            this->IndexAdd(hOldParent, node, hParent);
         }
     }
 
@@ -302,14 +316,19 @@ void ScriptSort::AddTrigger(std::vector<FString> group, FString name, FString id
         item.hItem = hNode;
         if (TreeView_GetItem(this->GetHwnd(), &item))
         {
+            auto* pOldData = TreeViewHelper::GetTreeItemData(this->GetHwnd(), item.hItem);
+            if (pOldData)
+                this->IndexRemove(hParent, pOldData->label);
             FString text = item.pszText;
             text += " (" + id + ")";
             TreeViewHelper::UpdateTreeItem(this->GetHwnd(), hNode, text, id);
+            this->IndexAdd(hParent, text, item.hItem);
         }
     }
     else
     {
-        TreeViewHelper::InsertTreeItem(this->GetHwnd(), name + " (" + id + ")", id, hParent);
+        auto hItem = TreeViewHelper::InsertTreeItem(this->GetHwnd(), name + " (" + id + ")", id, hParent);
+        this->IndexAdd(hParent, name + " (" + id + ")", hItem);
     }
 }
 

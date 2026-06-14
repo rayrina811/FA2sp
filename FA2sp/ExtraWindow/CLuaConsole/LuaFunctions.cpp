@@ -23,6 +23,7 @@
 #include "../../Miscs/MultiSelection.h"
 #include <unordered_set>
 #include "../CNewComboUInputDlg/CNewComboUInputDlg.h"
+#include "../CNewAITrigger/CNewAITrigger.h"
 #include "../CListUInputDlg/CListUInputDlg.h"
 #include <CInputMessageBox.h>
 
@@ -34,12 +35,29 @@ namespace LuaFunctions
 
 	static void write_lua_console(std::string text)
 	{
-		text = ">> " + text + "\r\n";;
-		int len = GetWindowTextLength(CLuaConsole::hOutputBox);
-		SendMessage(CLuaConsole::hOutputBox, EM_SETSEL, len, len);
-
-		SendMessage(CLuaConsole::hOutputBox, EM_REPLACESEL, FALSE, (LPARAM)text.c_str());
-		SendMessage(CLuaConsole::hOutputBox, EM_SCROLLCARET, 0, 0);
+		std::string msg = ">> " + text + "\r\n";
+	
+		CHARRANGE cr;
+		cr.cpMin = -1;
+		cr.cpMax = -1; 
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_EXSETSEL,
+			0,
+			(LPARAM)&cr);
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_REPLACESEL,
+			FALSE,
+			(LPARAM)msg.c_str());
+	
+		SendMessage(
+			CLuaConsole::hOutputBox,
+			EM_SCROLLCARET,
+			0,
+			0);
 
 		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (now - time > 2000)
@@ -659,7 +677,8 @@ namespace LuaFunctions
 		building(std::string house, std::string type, int y, int x)
 			: House(house), TypeID(type), X(x), Y(y) 
 		{
-			Facing = ExtConfigs::DefaultBuildingProperty.Facing;
+			auto defaultFacing = Variables::RulesMap.TryGetString(type.c_str(), "FA2DefaultFacing");
+			Facing = defaultFacing ? *defaultFacing : ExtConfigs::DefaultBuildingProperty.Facing;
 			Health = ExtConfigs::DefaultBuildingProperty.Health;
 			Tag = ExtConfigs::DefaultBuildingProperty.Tag;
 			AISellable = ExtConfigs::DefaultBuildingProperty.AISellable;
@@ -890,7 +909,9 @@ namespace LuaFunctions
 		short X;
 		short Y;
 		short Unit;
-		short Infantry[3];
+		short Infantry_1;
+		short Infantry_2;
+		short Infantry_3;
 		short Aircraft;
 		short Structure;
 		short TypeListIndex;
@@ -1197,7 +1218,7 @@ namespace LuaFunctions
 			tag.RepeatType = repeat == 2 ? "2" : repeat == 1 ? "1" : "0";
 			UsedINIIndices.insert(id);
 		}
-		void add_event(std::string value)
+		void add_event(std::string value, int index = 0)
 		{
 			auto&& splits = split_string(value);
 			if (splits.size() < 3 || splits.size() > 4 || (splits.size() == 4 && splits[1] != "2"))
@@ -1205,9 +1226,27 @@ namespace LuaFunctions
 				write_lua_console("Ill-formed event " + value);
 				return;
 			}
-			Events.push_back(value);
-		}
-		void add_action(std::string value)
+		
+			const int size = static_cast<int>(Events.size());
+		
+			if (index == 0)
+			{
+				Events.push_back(value);
+			}
+			else if (index >= 1 && index <= size + 1)
+			{
+				Events.insert(Events.begin() + (index - 1), value);
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size + 1) + ", or 0 for append)"
+				);
+				Events.push_back(value);
+			}
+		}	
+		void add_action(std::string value, int index = 0)
 		{
 			auto&& splits = split_string(value);
 			if (splits.size() != 8)
@@ -1215,7 +1254,71 @@ namespace LuaFunctions
 				write_lua_console("Ill-formed action " + value);
 				return;
 			}
-			Actions.push_back(value);
+		
+			const int size = static_cast<int>(Actions.size());
+		
+			if (index == 0)
+			{
+				Actions.push_back(value);
+			}
+			else if (index >= 1 && index <= size + 1)
+			{
+				Actions.insert(Actions.begin() + (index - 1), value);
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size + 1) + ", or 0 for append)"
+				);
+				Actions.push_back(value);
+			}
+		}
+		void replace_event(std::string value, int index)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() < 3 || splits.size() > 4 || (splits.size() == 4 && splits[1] != "2"))
+			{
+				write_lua_console("Ill-formed event " + value);
+				return;
+			}
+
+			const int size = static_cast<int>(Events.size());
+
+			if (index >= 1 && index <= size)
+			{
+				Events[index - 1] = value;
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+			}
+		}
+		void replace_action(std::string value, int index)
+		{
+			auto&& splits = split_string(value);
+			if (splits.size() != 8)
+			{
+				write_lua_console("Ill-formed action " + value);
+				return;
+			}
+
+			const int size = static_cast<int>(Actions.size());
+
+			if (index >= 1 && index <= size)
+			{
+				Actions[index - 1] = value;
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(index) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+			}
 		}
 		void delete_tag(int index, bool removeIni)
 		{
@@ -1256,6 +1359,279 @@ namespace LuaFunctions
 			UsedINIIndices.insert(id);
 			ID = id;
 		}
+		std::string get_event_type(int eventIdx, int paramIdx)
+		{
+			const int size = static_cast<int>(Events.size());
+			if (eventIdx >= 1 && eventIdx <= size)
+			{
+				auto eventInfo = Events[eventIdx - 1];
+				auto atoms = split_string(eventInfo);
+				while (atoms.size() < 4)
+				{
+					atoms.push_back("");
+				}
+
+				auto& eventStr = atoms[0];
+				auto eventNum = atoi(eventStr.c_str());
+				const int size_p = 4;
+				if (paramIdx >= 1 && paramIdx <= size_p - 1)
+				{
+					auto& target_param = atoms[paramIdx];
+					FString param_type;
+					auto& params = CNewTrigger::EventParamAffectedParams;
+					for (const auto& param : params)
+					{
+						if (param.Index == eventNum)
+						{
+							int AffectedParam = param.AffectedParam;
+							int SourceParam = param.SourceParam;
+							if (atoms[1] == "2")
+							{
+								AffectedParam++;
+								SourceParam++;
+							}
+							if (AffectedParam == paramIdx - 1)
+							{
+								if (SourceParam >= 0 && SourceParam <= 2)
+								{
+									auto sourceStr = atoms[SourceParam + 1];
+									auto itr = param.ParamMap.find(sourceStr);
+									if (itr != param.ParamMap.end())
+										param_type = itr->second;
+								}
+							}
+						}
+					}
+					
+					auto& fadata = CINI::FAData();
+					if (param_type.IsEmpty())
+					{
+						auto eventInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("EventsRA2"), eventStr.c_str(), "MISSING,0,0,0,0,MISSING,0,1,0"), 8);
+						FString paramType[2];
+						paramType[0] = eventInfos[1];
+						paramType[1] = eventInfos[2];
+						if (atoms[1] == "2")
+						{
+							if (paramIdx >= 2 && paramIdx <= 3)
+							{
+								param_type = paramType[paramIdx - 2];
+							}
+						}
+						else
+						{
+							if (paramIdx >= 1 && paramIdx <= 2)
+							{
+								param_type = paramType[paramIdx - 1];
+							}
+						}
+					}
+
+					if (param_type.IsEmpty() || atoi(param_type) <= 0)
+						return {};
+
+					auto newParams = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), param_type, "MISSING,0"), 1);
+
+					if (newParams[1] == "1")
+						return "WAYPOINT_NUM";
+					if (newParams[1] == "3" 
+						|| newParams[1] == "4" 
+						|| newParams[1] == "5" 
+						|| newParams[1] == "6"
+						|| newParams[1] == "7"
+						|| newParams[1] == "13"
+						|| newParams[1] == "14"
+					)
+						return "COUNTRY";
+					if (newParams[1] == "8")
+						return "TECHNO";
+					if (newParams[1] == "9")
+						return "TRIGGER";
+					if (newParams[1] == "10")
+						return "CSF";
+					if (newParams[1] == "11")
+						return "TAG";
+					if (newParams[1] == "12")
+						return "FLOAT";
+					if (newParams[1] == "15")
+						return "TEAM";
+
+					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
+					
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+						return "VARIABLE_GLOBAL";
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+						return "VARIABLE_LOCAL";
+					if (newParamInfos[0] == "Countries" && (newParamInfos[1] == "2" || newParamInfos[1] == "1") && newParamInfos[2] == "1")
+						return "COUNTRY";
+
+					return std::string(newParams[1]);
+				}
+				else
+				{
+					write_lua_console(
+						"Event param index out of range: " + std::to_string(paramIdx) +
+						" (valid: 1-3)"
+					);
+					return {};
+				}
+			}
+			else
+			{
+				write_lua_console(
+					"Event index out of range: " + std::to_string(eventIdx) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+				return {};
+			}
+		}
+		std::string get_action_type(int actionIdx, int paramIdx)
+		{
+			const int size = static_cast<int>(Actions.size());
+			if (actionIdx >= 1 && actionIdx <= size)
+			{
+				auto actionInfo = Actions[actionIdx - 1];
+				auto atoms = split_string(actionInfo);
+				while (atoms.size() < 4)
+				{
+					atoms.push_back("");
+				}
+
+				auto& actionStr = atoms[0];
+				auto actionNum = atoi(actionStr.c_str());
+				const int size_p = 8;
+				if (paramIdx >= 1 && paramIdx <= size_p - 1)
+				{
+					auto& target_param = atoms[paramIdx];
+					FString param_type;
+					
+					auto& fadata = CINI::FAData();
+
+					auto actionInfos = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ActionsRA2"), actionStr.c_str(), 
+					"MISSING,0,0,0,0,0,0,0,0,0,MISSING,0,1,0"), 13);
+					FString paramType[7];
+					for (int i = 0; i < 7; i++)
+						paramType[i] = actionInfos[i + 1];
+				
+					std::vector<FString> pParamTypes[7];
+					for (int i = 0; i < 7; i++)
+						pParamTypes[i] = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), paramType[i], "MISSING,0"));
+										
+					param_type = paramType[paramIdx - 1];
+					if (paramIdx == 7 && param_type != "0")
+					{
+						bool Param7isWP = true;
+						if (auto pSection = fadata.GetSection("DontSaveAsWP"))
+						{
+							for (auto& pair : pSection->GetEntities())
+							{
+								if (atoi(pair.second) == -atoi(paramType[0]))
+									Param7isWP = false;
+							}
+						}
+						if (Param7isWP)
+						{
+							param_type = "WP";
+						}
+					}
+
+					auto& params = CNewTrigger::ActionParamAffectedParams;
+					std::vector<int> availableParams;
+					for (const auto& param : params)
+					{
+						if (param.Index == actionNum)
+						{
+							if (availableParams.empty())
+							{
+								for (int i = 0; i < 7; i++)
+								{
+									if (atoi(paramType[i]) > 0)
+									{
+										availableParams.push_back(i);
+									}
+								}
+							}
+							int AffectedParam = param.AffectedParam;
+							int SourceParam = param.SourceParam;
+							if (AffectedParam >= 0 && AffectedParam < availableParams.size())
+								AffectedParam = availableParams[AffectedParam];
+							if (SourceParam >= 0 && SourceParam < availableParams.size())
+								SourceParam = availableParams[SourceParam];
+
+							if (AffectedParam == paramIdx - 1)
+							{
+								if (SourceParam >= 0 && SourceParam <= 6)
+								{
+									auto sourceStr = atoms[SourceParam + 1];
+									auto itr = param.ParamMap.find(sourceStr);
+									if (itr != param.ParamMap.end())
+										param_type = itr->second;
+								}
+							}
+						}
+					}
+					
+					if (param_type == "WP")
+						return "WAYPOINT_STR";
+
+					if (param_type.IsEmpty() || atoi(param_type) <= 0)
+						return {};
+
+					auto newParams = FString::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ParamTypes"), param_type, "MISSING,0"), 1);
+
+					if (newParams[1] == "1")
+						return "WAYPOINT_NUM";
+					if (newParams[1] == "3" 
+						|| newParams[1] == "4" 
+						|| newParams[1] == "5" 
+						|| newParams[1] == "6"
+						|| newParams[1] == "7"
+						|| newParams[1] == "13"
+						|| newParams[1] == "14"
+					)
+						return "COUNTRY";
+					if (newParams[1] == "8")
+						return "TECHNO";
+					if (newParams[1] == "9")
+						return "TRIGGER";
+					if (newParams[1] == "10")
+						return "CSF";
+					if (newParams[1] == "11")
+						return "TAG";
+					if (newParams[1] == "12")
+						return "FLOAT";
+					if (newParams[1] == "15")
+						return "TEAM";
+
+					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
+					
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+						return "VARIABLE_GLOBAL";
+					if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+						return "VARIABLE_LOCAL";
+					if (newParamInfos[0] == "Countries" && (newParamInfos[1] == "2" || newParamInfos[1] == "1") && newParamInfos[2] == "1")
+						return "COUNTRY";
+
+					return std::string(newParams[1]);
+				}
+				else
+				{
+					write_lua_console(
+						"Action param index out of range: " + std::to_string(paramIdx) +
+						" (valid: 1-7)"
+					);
+					return {};
+				}
+			}
+			else
+			{
+				write_lua_console(
+					"Action index out of range: " + std::to_string(actionIdx) +
+					" (valid: 1-" + std::to_string(size) + ")"
+				);
+				return {};
+			}
+		}
+
 		void apply()
 		{
 			FString trigger;
@@ -1406,10 +1782,22 @@ namespace LuaFunctions
 			}
 			return sol::make_object(CLuaConsole::Lua, sol::nil);
 		}
+
+		static std::vector<std::string> get_triggers()
+		{
+			std::vector<std::string> ret;
+			if (auto pSection = CINI::CurrentDocument->GetSection("Triggers"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(key.GetString());
+				}
+			}
+			return ret;
+		}
 		void release_id() const {
 			UsedINIIndices.erase(ID);
 		}
-
 	};
 
 	class team
@@ -1648,6 +2036,18 @@ namespace LuaFunctions
 			UsedINIIndices.erase(id);
 			CLuaConsole::updateTeam = true;
 		}
+		static std::vector<std::string> get_teams()
+		{
+			std::vector<std::string> ret;
+			if (auto pSection = CINI::CurrentDocument->GetSection("TeamTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.GetString());
+				}
+			}
+			return ret;
+		}
 	};
 
 	class task_force
@@ -1708,6 +2108,25 @@ namespace LuaFunctions
 				Numbers.erase(Numbers.begin() + index);
 				Units.erase(Units.begin() + index);
 			}
+		}
+		void replace_number(int index, int num, std::string obj)
+		{
+			index--;
+			if (index >= Units.size())
+			{
+				return;
+			}
+			for (int i = 0; i < Units.size(); ++i)
+			{
+				const auto& unit = Units[i];
+				if (obj == unit && i != index)
+				{
+					write_lua_console(std::format("Duplicate unit {} for task force {}, abort.", obj, ID));
+					return;
+				}
+			}
+			Numbers[index] = num;
+			Units[index] = obj;
 		}
 		static sol::object get_task_force(std::string id)
 		{
@@ -1814,6 +2233,18 @@ namespace LuaFunctions
 			UsedINIIndices.erase(id);
 			CLuaConsole::updateTaskforce = true;
 		}
+		static std::vector<std::string> get_task_forces()
+		{
+			std::vector<std::string> ret;
+			if (auto pSection = CINI::CurrentDocument->GetSection("TaskForces"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.GetString());
+				}
+			}
+			return ret;
+		}
 	};
 
 	class script
@@ -1866,6 +2297,15 @@ namespace LuaFunctions
 				Params.erase(Params.begin() + index);
 			}
 		}
+		void replace_action(int index, int action, int param)
+		{
+			index--;
+			if (0 <= index && index < Actions.size())
+			{
+				Actions[index] = action;
+				Params[index] = param;
+			}
+		}
 		static sol::object get_script(std::string id)
 		{
 			bool found = false;
@@ -1904,6 +2344,93 @@ namespace LuaFunctions
 			}
 			return sol::make_object(CLuaConsole::Lua, sol::nil);
 		}
+		static std::string get_script_type(int scriptIdx, bool extra = false)
+		{
+			auto& fadata = CINI::FAData();
+			FString key = std::to_string(scriptIdx);
+			auto value = fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), key);
+			auto atoms = FString::SplitString(value, 4);
+			FString name = atoms[0];
+			auto& paramIdx = atoms[1];
+			auto& disable = atoms[2];
+			auto& hasParam = atoms[3];
+			auto& description = atoms[4];
+
+			if (value == "" || hasParam == "0")
+				return {};
+
+			auto scriptParams = STDHelpers::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
+			FString scriptParam;
+
+			if (scriptParams.size() >= 2 && !extra)
+				scriptParam = scriptParams[1];
+			else if (scriptParams.size() >= 4 && extra)
+				scriptParam = scriptParams[3];
+			else
+				return {};
+
+			if (scriptParam == "1")
+				return "WAYPOINT_NUM";
+			if (scriptParam == "3" 
+				||scriptParam == "4" 
+				||scriptParam == "5" 
+				||scriptParam == "6"
+				||scriptParam == "7"
+				||scriptParam == "13"
+				||scriptParam == "14"
+			)
+				return "COUNTRY";
+			if (scriptParam == "8")
+				return "TECHNO";
+			if (scriptParam == "9")
+				return "TRIGGER";
+			if (scriptParam == "10")
+				return "CSF";
+			if (scriptParam == "11")
+				return "TAG";
+			if (scriptParam == "12")
+				return "FLOAT";
+			if (scriptParam == "15")
+				return "TEAM";
+
+			auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", scriptParam, "MISSING,0,0,0,0"), 4);
+			
+			if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "1")
+				return "VARIABLE_GLOBAL";
+			if (newParamInfos[0] == "VariableNames" && newParamInfos[1] == "3")
+				return "VARIABLE_LOCAL";
+			if (newParamInfos[0] == "Countries" && (newParamInfos[1] == "2" || newParamInfos[1] == "1") && newParamInfos[2] == "1")
+				return "COUNTRY";
+			
+			return std::string(scriptParam);
+		}
+
+		static bool script_has_extra(int scriptIdx)
+		{
+			auto& fadata = CINI::FAData();
+			FString key = std::to_string(scriptIdx);
+			auto value = fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptsRA2"), key);
+			auto atoms = FString::SplitString(value, 4);
+			auto& paramIdx = atoms[1];
+			auto scriptParams = STDHelpers::SplitString(fadata.GetString(ExtraWindow::GetTranslatedSectionName("ScriptParams"), paramIdx));
+
+			if (scriptParams.size() >= 4)
+				return true;
+			return false;
+		}
+
+		static int get_script_extra(int param, bool get_extra = false)
+		{
+			if (get_extra)
+				return HIWORD(param);
+			return LOWORD(param);
+		}
+
+		static int combine_script_extra(int param, int extra_param)
+		{
+			return MAKELONG(param, extra_param);
+		}
+		
 		void apply() const
 		{
 			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
@@ -1968,6 +2495,18 @@ namespace LuaFunctions
 			}	
 			UsedINIIndices.erase(id);
 			CLuaConsole::updateScript = true;
+		}
+		static std::vector<std::string> get_scripts()
+		{
+			std::vector<std::string> ret;
+			if (auto pSection = CINI::CurrentDocument->GetSection("ScriptTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.GetString());
+				}
+			}
+			return ret;
 		}
 	};
 
@@ -2140,6 +2679,18 @@ namespace LuaFunctions
 			UsedINIIndices.erase(ID);
 			CLuaConsole::updateAITrigger = true;
 		}
+		static std::vector<std::string> get_ai_triggers()
+		{
+			std::vector<std::string> ret;
+			if (auto pSection = CINI::CurrentDocument->GetSection("AITriggerTypes"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(key.GetString());
+				}
+			}
+			return ret;
+		}
 
 	private:
 		static int ReadComparator(FString text, int index)
@@ -2179,6 +2730,82 @@ namespace LuaFunctions
 		}
 
 	};
+
+	static int get_variable_value(int index, bool is_global = false)
+	{
+		auto str = std::to_string(index);
+		if (auto pValue = (is_global ? CINI::Rules->TryGetString("VariableNames", str.c_str()) 
+		: CINI::CurrentDocument->TryGetString("VariableNames", str.c_str())))
+		{
+			auto value = FString::GetParam(*pValue, 1);
+			return atoi(value);
+		}
+		return -1;
+	}
+
+	static std::string get_variable_name(int index, bool is_global = false)
+	{
+		auto str = std::to_string(index);
+		if (auto pValue = (is_global ? CINI::Rules->TryGetString("VariableNames", str.c_str()) 
+		: CINI::CurrentDocument->TryGetString("VariableNames", str.c_str())))
+		{
+			auto value = FString::GetParam(*pValue, 0);
+			return value;
+		}
+		return "MISSING";
+	}
+
+	static void set_variable_value(int index, int value)
+	{
+		auto str = std::to_string(index);
+		if (auto pValue = CINI::CurrentDocument->TryGetString("VariableNames", str.c_str()))
+		{
+			FString newValue = *pValue;
+			newValue.SetParam(1, std::to_string(value));
+			CINI::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
+			CLuaConsole::updateVariable = true;
+		}
+		else
+		{
+			FString err;
+			err.Format("Invalid variable index: %d", index);
+			write_lua_console(err);
+		}
+	}
+
+	static void set_variable_name(int index, std::string name)
+	{
+		auto str = std::to_string(index);
+		if (auto pValue = CINI::CurrentDocument->TryGetString("VariableNames", str.c_str()))
+		{
+			FString newValue = *pValue;
+			newValue.SetParam(0, name);
+			CINI::CurrentDocument->WriteString("VariableNames", str.c_str(), newValue);
+			CLuaConsole::updateVariable = true;
+		}
+		else
+		{
+			FString err;
+			err.Format("Invalid variable index: %d", index);
+			write_lua_console(err);
+		}
+	}
+
+	static int add_variable(std::string name, int value)
+	{
+		auto key = CINI::GetAvailableKey("VariableNames");
+		FString val;
+		val.Format("%s,%d", name, value);
+		CINI::CurrentDocument->WriteString("VariableNames", key, val);
+		CLuaConsole::updateVariable = true;
+
+		int index = atoi(key);
+		if (!ExtConfigs::ExtVariables && index >= 100)
+		{
+			write_lua_console("The number of local variables exceeds 100, following variables cannot be used. If you are using Phobos, please enable ExtVariables.");
+		}
+		return index;
+	}
 
 	static void place_terrain(int y, int x, std::string id)
 	{
@@ -2785,6 +3412,17 @@ namespace LuaFunctions
 		return "";
 	}
 
+	static std::string get_param(std::string str, int index, std::string delimiter = ",")
+	{
+		index--;// to fit lua 
+		auto&& atoms = split_string(str, delimiter);
+		if (atoms.size() > index) 
+		{
+			return atoms[index];
+		}
+		return "";
+	}
+
 	static void set_param(std::string section, std::string key, std::string value, int index, std::string delimiter = ",")
 	{
 		index--;// to fit lua 
@@ -2804,6 +3442,27 @@ namespace LuaFunctions
 			}
 			write_string(section, key, fullValue);
 		}
+	}
+
+	static std::string set_param(std::string str, std::string value, int index, std::string delimiter = ",")
+	{
+		index--;// to fit lua 
+		auto&& atoms = split_string(str, delimiter);
+		if (atoms.size() > index)
+		{
+			std::string fullValue;
+			for (int i = 0; i < atoms.size(); ++i)
+			{
+				auto& atom = atoms[i];
+				if (i == index)
+					atom = value;
+				fullValue += atom;
+				if (i != atoms.size() - 1)
+					fullValue += delimiter[0];
+			}
+			return fullValue;
+		}
+		return str;
 	}
 	
 	static std::string trim_index(std::string value)
@@ -3222,9 +3881,9 @@ namespace LuaFunctions
 			c.X = -1;
 			c.Y = -1;
 			c.Unit = -1;
-			c.Infantry[0] = -1;
-			c.Infantry[1] = -1;
-			c.Infantry[2] = -1;
+			c.Infantry_1 = -1;
+			c.Infantry_2 = -1;
+			c.Infantry_3 = -1;
 			c.Aircraft = -1;
 			c.Structure = -1;
 			c.TypeListIndex = -1;
@@ -3261,9 +3920,9 @@ namespace LuaFunctions
 		c.X = x;
 		c.Y = y;
 		c.Unit = pCell->Unit;
-		c.Infantry[0] = pCell->Infantry[0];
-		c.Infantry[1] = pCell->Infantry[1];
-		c.Infantry[2] = pCell->Infantry[2];
+		c.Infantry_1 = pCell->Infantry[0];
+		c.Infantry_2 = pCell->Infantry[1];
+		c.Infantry_3 = pCell->Infantry[2];
 		c.Aircraft = pCell->Aircraft;
 		c.Structure = pCell->Structure > -1 ? CMapDataExt::StructureIndexMap[pCell->Structure] : -1;
 		c.TypeListIndex = pCell->TypeListIndex;
@@ -3656,6 +4315,7 @@ namespace LuaFunctions
 		CMapData::Instance->UpdateFieldOverlayData(false);
 		CMapData::Instance->UpdateINIFile(SaveMapFlag::LoadFromINI);
 		CFinalSunDlg::Instance->MyViewFrame.Minimap.Update();
+		CMapDataExt::RefreshAllWindows();
 		CLuaConsole::needRedraw = true;
 		CLuaConsole::updateMinimap = true;
 	}

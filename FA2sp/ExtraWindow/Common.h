@@ -1,6 +1,7 @@
 #pragma once
 #include "FA2PP.h"
 #include "../Helpers/MultimapHelper.h"
+#include <functional>
 
 class FString;
 class CNewTrigger;
@@ -73,12 +74,14 @@ enum class SubtextGlyph : uint8_t
     HollowRect, 
     BandedCircle, 
     AllowCircle, 
-    Space
+    Space,
+    Character
  };
 
 struct SubtextSegment
 {
     SubtextGlyph type;
+    char character = '\0';
 };
 
 struct VCBItemEntry
@@ -321,6 +324,7 @@ public:
 
     void Attach(HWND hCombo, bool* sortType = nullptr, bool allowFreeText = true);
     void SetAutoSearchRestriction(bool* restrict);
+    void SetSpecialKeysFirst();
     void Detach();
     void CopyFrom(const VirtualComboBoxEx& other, 
         const std::vector<FString>* addToFront = nullptr,
@@ -358,10 +362,13 @@ public:
     void SetDropWidthMode(DropWidthMode mode);
 
     void SortItems(int* pSelIndex = nullptr);
+    
+    static int m_itemHeight;
+	static std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxExMap;
 
 private:
-    HWND hCombo = nullptr;
-    HWND hEdit = nullptr;
+	HWND hCombo = nullptr;
+	HWND hEdit = nullptr;
     HWND hList = nullptr;
 
     WNDPROC oldComboProc = nullptr;
@@ -384,10 +391,12 @@ private:
     bool m_needFixSelection = false;
     bool m_inFixSelection = false;
     bool m_EnterKeyPressed = false;
+    bool m_SpecialKeysFirst = false;
 
     DropWidthMode m_dropWidthMode = DropWidth_AutoMax;
     int m_cachedMaxWidth = 0;
     HBRUSH m_hCurBrush = nullptr;
+    HFONT m_hGlyphFont = nullptr;
 
 private:
     void Filter(const char* text);
@@ -401,4 +410,41 @@ private:
     static LRESULT CALLBACK EditProc(HWND, UINT, WPARAM, LPARAM);
     static LRESULT CALLBACK ListProc(HWND, UINT, WPARAM, LPARAM);
     LRESULT OnComboMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+};
+
+class CINIDialog : public ppmfc::CDialog
+{
+public:
+    enum ControlType
+    {
+        CheckBox = 0,
+        Edit,
+        Combobox,
+    };
+    struct ControlInfo
+    {
+		ControlType Type;
+		FString IniSection;
+        FString IniKey;
+        std::function<void()> CallBack;
+		std::vector<FString> Labels;
+	};   
+    CINIDialog(int resource);
+	void ShowDialog();
+	void SetControlInfo(int id, const ControlInfo& info);
+	void DisableControl(int id);
+	void Translate(int id, const FString& text);
+	void TranslateTitle(const FString& text);
+
+  protected:
+	virtual BOOL OnInitDialog();
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+	virtual void DoDataExchange(ppmfc::CDataExchange* pDX);
+	virtual void OnCancel();
+	virtual void OnClose();
+	int m_dialogResource;
+	std::map<int, ControlInfo> m_controlInfos;
+	std::map<int, FString> m_controlTranslations;
+	std::vector<int> m_disabledControls;
+	FString m_title;
 };

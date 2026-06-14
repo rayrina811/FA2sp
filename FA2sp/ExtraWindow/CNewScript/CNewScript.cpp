@@ -300,8 +300,8 @@ LRESULT CALLBACK CNewScript::DragDotProc(HWND hWnd, UINT message, WPARAM wParam,
                 "STATIC",
                 nullptr,
                 WS_POPUP,
-                pt.x - 6, pt.y - 6,
-                12, 12,
+                pt.x - 6 * CFinalSunAppExt::ProgramScaleFactor, pt.y - 6 * CFinalSunAppExt::ProgramScaleFactor,
+                12 * CFinalSunAppExt::ProgramScaleFactor, 12 * CFinalSunAppExt::ProgramScaleFactor,
                 nullptr, nullptr,
                 static_cast<HINSTANCE>(FA2sp::hInstance),
                 nullptr
@@ -1026,6 +1026,8 @@ void CNewScript::OnClickNewScript()
     ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
     OnSelchangeScript();
+    
+    ScriptSort::Instance.AddTrigger(value);
 }
 
 void CNewScript::OnClickDelScript(HWND& hWnd)
@@ -1062,6 +1064,8 @@ void CNewScript::OnClickDelScript(HWND& hWnd)
         idx = 0;
     SendMessage(hSelectedScript, CB_SETCURSEL, idx, NULL);
     OnSelchangeScript();
+    if (ScriptSort::Instance.IsVisible())
+        ScriptSort::Instance.LoadAllTriggers();
 }
 
 void CNewScript::OnClickCloScript(HWND& hWnd)
@@ -1099,6 +1103,7 @@ void CNewScript::OnClickCloScript(HWND& hWnd)
         ExtraWindow::SortTeams(vcbSelectedScript, "ScriptTypes", SelectedScriptIndex, value);
 
         OnSelchangeScript();
+        ScriptSort::Instance.AddTrigger(value);
     }
 }
 
@@ -1500,7 +1505,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                             CNewScript::ParamAutodrop[1] = false;
                         }
                         buffer.Format("%s - ", atoms[1]);
-                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        int idx = vcbActionParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             buffer.Format("%s", atoms[1]);
@@ -1509,7 +1514,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         else
                             SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                         buffer.Format("%s - ", atoms[2]);
-                        idx = SendMessage(hActionExtraParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        idx = vcbActionExtraParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             buffer.Format("%s", atoms[2]);
@@ -1527,7 +1532,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         auto& actionParam = atoms[1];
                         FString buffer;
                         buffer.Format("%s - ", actionParam);
-                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        int idx = vcbActionParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);
@@ -1552,7 +1557,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         int high = HIWORD(actionParam);
 
                         buffer.Format("%d - ", low);
-                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        int idx = vcbActionParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             buffer.Format("%d", low);
@@ -1561,7 +1566,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         else
                             SendMessage(hActionParam, CB_SETCURSEL, idx, NULL);
                         buffer.Format("%d - ", high);
-                        idx = SendMessage(hActionExtraParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        idx = vcbActionExtraParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             buffer.Format("%d", high);
@@ -1579,7 +1584,7 @@ void CNewScript::UpdateActionAndParam(int actionChanged, int listBoxCurChanged, 
                         auto& actionParam = atoms[1];
                         FString buffer;
                         buffer.Format("%s - ", actionParam);
-                        int idx = SendMessage(hActionParam, CB_FINDSTRING, 0, (LPARAM)buffer);
+                        int idx = vcbActionParam.FindStringExactStart(buffer);
                         if (idx == CB_ERR)
                         {
                             SendMessage(hActionParam, WM_SETTEXT, 0, (LPARAM)actionParam);

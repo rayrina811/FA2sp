@@ -37,10 +37,12 @@ public:
     static void ProgramStartupInit();
 
     static bool HasMinimap;
+    static bool MapValidatorAlive;
     static int CurrentLighting;
     static int SearchObjectType;
     static std::pair<FString, int> SearchObjectIndex;
     static std::map<UINT, CheckButtonInfo> CheckButtonMap;
+    static int CurrentToolbarIconSize;
     static std::unique_ptr<CTechnoDialog> TechnoDialog;
 
     static bool CheckProperty_Vehicle(CUnitData data);
@@ -253,7 +255,7 @@ private:
     static std::set<int> InsertedTileIndices;
 
     HTREEITEM InsertString(const char* pString, DWORD dwItemData = 0, 
-        HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
+        HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST, const char* pOriString = nullptr);
     HTREEITEM InsertTranslatedString(const char* pOriginString, DWORD dwItemData = 0,
         HTREEITEM hParent = TVI_ROOT, HTREEITEM hInsertAfter = TVI_LAST);
     void LoadMultiLayers(
@@ -264,7 +266,6 @@ private:
         int index, int sideLimit, const FString& display);
     void Redraw_MainList();
     void Redraw_Ground();
-    void Redraw_Owner();
     void Redraw_Infantry();
     void Redraw_Vehicle();
     void Redraw_Aircraft();
@@ -395,6 +396,7 @@ public:
     static bool PlacingRandomStructureAIRepairs;
     static MoveBaseNode MoveBaseNode_SelectedObj;
     static bool NeedChangeTreeViewSelect;
+    static bool Initialized;
 
     static std::unique_ptr<CPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CPropertyInfantry> InfantryBrushDlg;
@@ -417,6 +419,7 @@ public:
     static std::map<int, FString> TreeViewIndex_Smudge;
 
     void Redraw();
+    void Redraw_Owner();
     bool UpdateEngine(int nData);
     static void Redraw_Initialize();
     static void OnExeTerminate();
