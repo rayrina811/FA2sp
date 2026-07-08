@@ -94,6 +94,15 @@ struct VCBItemEntry
     bool leftSideBackground = false;
 };
 
+namespace VCBColorHelpers
+{
+    double GetLuminance(COLORREF color);
+    double GetContrastRatio(COLORREF foreground, COLORREF background);
+    void RGBToHSL(COLORREF rgb, double& h, double& s, double& l);
+    COLORREF HSLToRGB(double h, double s, double l);
+    COLORREF EnsureContrast(COLORREF textColor, COLORREF backgroundColor, double minContrast = 3.0);
+}
+
 class ExtraWindow
 {
 public:
@@ -123,6 +132,10 @@ public:
     static void LoadParam_Triggers(VirtualComboBoxEx& vcbd, CNewTrigger* instance);
     static void LoadParam_Tags(VirtualComboBoxEx& vcb);
     static void LoadParam_Teamtypes(VirtualComboBoxEx& vcb);
+    static void LoadParam_Infantries(VirtualComboBoxEx& vcb);
+    static void LoadParam_Units(VirtualComboBoxEx& vcb);
+    static void LoadParam_Aircrafts(VirtualComboBoxEx& vcb);
+    static void LoadParam_Structures(VirtualComboBoxEx& vcb);
     static void LoadParam_Stringtables(VirtualComboBoxEx& vcb);
 
     static void SortLabels(std::vector<FString>& labels);
@@ -150,13 +163,39 @@ public:
     static void SetScintillaText(HWND hScintilla, FString& text);
     static bool HitTestListView(HWND hListView, POINT ptScreen, ListViewHitResult& out);
     static void UpdateListBoxHScroll(HWND hListBox);
+	static COLORREF GetTriggerColor(const FString& trigger);
+	static void SetTriggerColor(const FString& trigger, COLORREF color);
 
-    static std::vector<DropTarget> g_DropTargets;
+    static void DisableOtherWindows(HWND hDlg);
+    static void RestoreDisabledWindows();
+
+	static std::vector<DropTarget> g_DropTargets;
 
 private:
+    struct DisableOtherCtx {
+        HWND hDlg;
+        std::vector<HWND>* pDisabled;
+    };
+    static BOOL CALLBACK DisableOtherWindowsProc(HWND hEnum, LPARAM lParam);
+    static std::vector<HWND> s_disabledWindows;
     static CINI& map;
     static CINI& fadata;
     static MultimapHelper& rules;
+};
+
+class DisableOtherWindowsScope
+{
+public:
+    DisableOtherWindowsScope(HWND hDlg)
+    {
+        ExtraWindow::DisableOtherWindows(hDlg);
+    }
+    ~DisableOtherWindowsScope()
+    {
+        ExtraWindow::RestoreDisabledWindows();
+    }
+    DisableOtherWindowsScope(const DisableOtherWindowsScope&) = delete;
+    DisableOtherWindowsScope& operator=(const DisableOtherWindowsScope&) = delete;
 };
 
 class HelpDlg
@@ -362,9 +401,13 @@ public:
     void SetDropWidthMode(DropWidthMode mode);
 
     void SortItems(int* pSelIndex = nullptr);
-    
+
     static int m_itemHeight;
 	static std::map<HWND, VirtualComboBoxEx*> VirtualComboBoxExMap;
+
+    // Returns the textColor of the currently selected item for the combo's edit box,
+    // or CLR_INVALID when no custom color should be applied.
+    static COLORREF GetCurEditTextColor(HWND hCombo);
 
 private:
 	HWND hCombo = nullptr;
@@ -422,6 +465,7 @@ public:
         CheckBox = 0,
         Edit,
         Combobox,
+        Button,
     };
     struct ControlInfo
     {
@@ -430,10 +474,16 @@ public:
         FString IniKey;
         std::function<void()> CallBack;
 		std::vector<FString> Labels;
-	};   
+	};
+    struct ControlHandleInfo
+    {
+        HWND hWnd = nullptr;
+        ControlType Type;
+    };
     CINIDialog(int resource);
 	void ShowDialog();
 	void SetControlInfo(int id, const ControlInfo& info);
+    ControlHandleInfo GetControlInfo(int id);
 	void DisableControl(int id);
 	void Translate(int id, const FString& text);
 	void TranslateTitle(const FString& text);

@@ -141,10 +141,21 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 	int cellpos = std::min(CMapDataExt::CellDataExts.size() - 1, (UINT)point.X + point.Y * CMapData::Instance().MapWidthPlusHeight);
 	auto& cellExt = CMapDataExt::CellDataExts[cellpos];
 
-	// property brush && delete objects && change owner && delete overlay && delete celltag
+	// property brush && delete objects && change owner && delete overlay && delete celltag && modify ore
 	if (pIsoView->BrushSizeX != 1 || pIsoView->BrushSizeY != 1)
     {
-        if (CIsoView::CurrentCommand->Command == 0x17 || CIsoView::CurrentCommand->Command == 0x2 || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1) || CIsoView::CurrentCommand->Command == 11 || CIsoView::CurrentCommand->Command == 12 || CIsoView::CurrentCommand->Command == 13 || CIsoView::CurrentCommand->Command == 14 || CIsoView::CurrentCommand->Command == 15)
+        if (CIsoView::CurrentCommand->Command == 0x17 
+            || CIsoView::CurrentCommand->Command == 0x2 
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7) 
+            || (CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 6 && CIsoView::CurrentCommand->Param == 1) 
+            || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 1) 
+            || (CIsoView::CurrentCommand->Command == 4 && CIsoView::CurrentCommand->Type == 4) 
+            || CIsoView::CurrentCommand->Command == 11 
+            || CIsoView::CurrentCommand->Command == 12 
+            || CIsoView::CurrentCommand->Command == 13 
+            || CIsoView::CurrentCommand->Command == 14 
+            || CIsoView::CurrentCommand->Command == 15
+            || CIsoView::CurrentCommand->Command == 0x20)
         {
             std::vector<MapCoord> cells;
             for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
@@ -2515,8 +2526,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                             for (auto &pair : pSection->GetEntities())
                             {
                                 auto wp = CINI::CurrentDocument->GetString(pair.second, "Waypoint");
+                                auto wp2 = CINI::CurrentDocument->GetString(pair.second, "TransportWaypoint");
 
-                                if (process(wp) == atoi(*pWP))
+                                if (process(wp) == atoi(*pWP) 
+                                || (process(wp2) == atoi(*pWP) && CINI::CurrentDocument->GetBool(pair.second, "UseTransportOrigin")))
                                 {
                                     pSrc.Format(Translations::TranslateOrDefault("ObjectInfo.Waypoint.Team",
                                                                                  "Team: %s (%s)"),

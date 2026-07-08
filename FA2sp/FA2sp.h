@@ -68,6 +68,7 @@ public:
     static bool SortByLabelName_Script;
     static bool NewTriggerPlusID;
     static bool DisplayTriggerEnableInfo;
+    static bool AttachedTriggerIsSelfCheck;
     static bool UseSequentialIndexing;
     static bool UseSeparateIndexing;
     static bool AdjustDropdownWidth;
@@ -124,6 +125,7 @@ public:
     static int SaveMap_DefaultPreviewOptionMP;
     static int SaveMap_DefaultPreviewOptionSP;
     static bool SaveMap_FileEncodingComment;
+    static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
     static int RecentFileLimit;
     static int MultiSelectionColor;
@@ -178,6 +180,7 @@ public:
     static bool FillArea_ConsiderWater;
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
+    static bool RecordBrushSizeHistory;
     static bool INIEditor_IgnoreTeams;
     static bool StringBufferStackAllocation;
     static bool RangeBound_DrawEllipse;
@@ -248,6 +251,8 @@ public:
     static CBuildingData DefaultBuildingProperty;
     static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
+    static bool MCP_Enable;
+    static int MCP_Port;
     static float IsoViewWidthPercentage;
     static float IsoViewHeightPercentage;
 

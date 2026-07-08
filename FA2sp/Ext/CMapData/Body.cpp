@@ -87,6 +87,7 @@ Palette CMapDataExt::Palette_ISO_NoTint;
 Palette CMapDataExt::Palette_Shadow;
 Palette CMapDataExt::Palette_AlphaImage;
 std::vector<std::pair<LightingSourcePosition, LightingSource>> CMapDataExt::LightingSources;
+FHashSet CMapDataExt::LightingBuildingTypes;
 std::vector<LatInfo> CMapDataExt::Tile_to_lat;
 std::set<int> CMapDataExt::Lat_releated_sets;
 std::map<int, std::vector<int>> CMapDataExt::Same_Smooth_tile_lats;
@@ -96,6 +97,7 @@ std::vector<short> CMapDataExt::StructureIndexMap;
 std::vector<TubeData> CMapDataExt::Tubes;
 std::unordered_map<int, TileAnimation> CMapDataExt::TileAnimations;
 FHashMap<COLORREF> CMapDataExt::Colors;
+FHashMap<COLORREF> CMapDataExt::WAETriggerColors;
 std::unordered_map<int, FString> CMapDataExt::TileSetOriginSetNames[6];
 FHashSet CMapDataExt::TerrainPaletteBuildings;
 FHashSet CMapDataExt::DamagedAsRubbleBuildings;
@@ -139,6 +141,8 @@ std::vector<CUnitDataFS> CMapDataExt::UnitDatasExt;
 std::vector<CAircraftDataFS> CMapDataExt::AircraftDatasExt;
 std::vector<CBuildingDataFS> CMapDataExt::BuildingDatasExt;
 std::unordered_map<CTileBlockClass*, TileBlockExt> CMapDataExt::TileBlockDataExt;
+bool CMapDataExt::IsInitingPropertyDialog = false;
+
 const std::vector<FString> CMapDataExt::TechnoStates = 
 {
 	"Ambush",
@@ -166,6 +170,24 @@ const std::vector<FString> CMapDataExt::TechnoStates =
 	"Sticky",
 	"Stop",
 	"Unload"
+};
+static const FHashMap<COLORREF> colorMap =
+{
+	{ "Teal",       RGB(0, 196, 196) },
+	{ "Green",      RGB(0, 255, 0) },
+	{ "Dark Green", RGB(0, 128, 0) },
+	{ "Lime Green", RGB(50, 205, 50) },
+	{ "Yellow",     RGB(255, 255, 0) },
+	{ "Orange",     RGB(255, 165, 0) },
+	{ "Red",        RGB(255, 0, 0) },
+	{ "Blood Red",  RGB(139, 0, 0) },
+	{ "Pink",       RGB(255, 105, 180) },
+	{ "Cherry",     RGB(255, 192, 203) },
+	{ "Purple",     RGB(147, 112, 219) },
+	{ "Sky Blue",   RGB(135, 206, 235) },
+	{ "Blue",       RGB(40, 40, 255) },
+	{ "Brown",      RGB(165, 42, 42) },
+	{ "Metalic",    RGB(160, 160, 200) }
 };
 
 static inline int DistSqrByIndex(int a, int b)
@@ -952,6 +974,27 @@ int CMapDataExt::GetSafeSubTileIndex(int tile, int idx)
 	return 0;
 }
 
+void CMapDataExt::AddCellTagExt(const char* lpTag, int dwPos)
+{
+	auto pThis = GetExtension();
+	int X = pThis->GetXFromCoordIndex(dwPos);
+	int Y = pThis->GetYFromCoordIndex(dwPos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+    for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+    {
+        for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+        {
+            if (!CMapDataExt::IsCoordInFullMap(gx, gy))
+                continue;
+
+			int intKey = gx * 1000 + gy;
+			CINI::CurrentDocument->WriteString("CellTags", std::to_string(intKey).c_str(), lpTag);
+        }
+    }
+
+    CMapData::Instance->UpdateFieldCelltagData(FALSE);
+}
+
 void CMapDataExt::UpdateTriggers()
 {
 	CMapDataExt::Triggers.clear();
@@ -1042,9 +1085,7 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 		return false;
 	int pos = this->GetCoordIndex(x, y);
 	auto cell = this->GetCellAt(pos);
-	int tileIndex = cell->TileIndex;
-	if (tileIndex == 0xFFFF)
-		tileIndex = 0;
+	int tileIndex = GetSafeTileIndex(cell->TileIndex);
 
 	int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
 	int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
@@ -1061,9 +1102,7 @@ bool CMapDataExt::IsTileIntact(int x, int y, int startX, int startY, int right, 
 					return false;
 
 			auto cell2 = this->GetCellAt(m + oriX, n + oriY);
-			int tileIndex2 = cell2->TileIndex;
-			if (tileIndex2 == 0xFFFF)
-				tileIndex2 = 0;
+			int tileIndex2 = GetSafeTileIndex(cell2->TileIndex);
 
 			if (CMapDataExt::TileData[tileIndex].TileBlockDatas[subIdx].ImageData != NULL)
 			{
@@ -1262,9 +1301,7 @@ std::vector<MapCoord> CMapDataExt::GetIntactTileCoords(int x, int y, bool oriInt
 	{
 		int pos = this->GetCoordIndex(x, y);
 		auto cell = this->GetCellAt(pos);
-		int tileIndex = cell->TileIndex;
-		if (tileIndex == 0xFFFF)
-			tileIndex = 0;
+		int tileIndex = GetSafeTileIndex(cell->TileIndex);
 
 		int oriX = x - cell->TileSubIndex / CMapDataExt::TileData[tileIndex].Width;
 		int oriY = y - cell->TileSubIndex % CMapDataExt::TileData[tileIndex].Width;
@@ -1788,8 +1825,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 		return CMapDataExt::TileData[tileIndex].Morphable;
 	};
 	auto cell = CMapData::Instance->TryGetCellAt(x, y);
-	int groundClick = cell->TileIndex;
-	if (groundClick == 0xFFFF) groundClick = 0;
+	int groundClick = GetSafeTileIndex(cell->TileIndex);
 	if (!IgnoreMorphable && !isDefinedMorphable(groundClick)) return;
 
 	// default use clear
@@ -1843,8 +1879,7 @@ void CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable)
 			if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 				return 0;
 			if (IgnoreMorphable) return 1;
-			int groundClick = cell->TileIndex;
-			if (groundClick == 0xFFFF) groundClick = 0;
+			int groundClick = GetSafeTileIndex(cell->TileIndex);
 			return isDefinedMorphable(groundClick) ? 1 : 0;
 		};
 	auto getIndex = [startTile](int idx)
@@ -2142,6 +2177,10 @@ void CMapDataExt::UpdateFieldStructureData_Optimized()
 		if (ExtConfigs::InGameDisplay_RemapableOverlay)
 		{
 			RemapableOverlay_RefreshBuildingIndices();
+		}
+		if (CFinalSunDlgExt::CurrentLighting != 31000)
+		{		
+			LightingSourceTint::CalculateMapLamps();
 		}
 	}
 }
@@ -4076,8 +4115,7 @@ void CMapDataExt::CheckCellLow(bool steep, int loopCount, bool IgnoreMorphable, 
 		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 			return false;
 		if (IgnoreMorphable) return true;
-		int groundClick = cell->TileIndex;
-		if (groundClick == 0xFFFF) groundClick = 0;
+		int groundClick = GetSafeTileIndex(cell->TileIndex);
 		return CMapDataExt::TileData[groundClick].Morphable != 0;
 	};
 
@@ -4215,8 +4253,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 		if (ExtConfigs::PlaceTileSkipHide && cell->IsHidden())
 			return 0;
 		if (IgnoreMorphable) return 1;
-		int groundClick = cell->TileIndex;
-		if (groundClick == 0xFFFF) groundClick = 0;
+		int groundClick = GetSafeTileIndex(cell->TileIndex);
 		return CMapDataExt::TileData[groundClick].Morphable;
 	};
 
@@ -4344,8 +4381,7 @@ void CMapDataExt::CheckCellRise(bool steep, int loopCount, bool IgnoreMorphable,
 					auto cell = CMapDataExt::TryGetCellAt(newX, newY);
 					if (!cell) continue;
 
-					int ground = cell->TileIndex;
-					if (ground == 0xFFFF) ground = 0;
+					int ground = GetSafeTileIndex(cell->TileIndex);
 					if (!CMapDataExt::TileData[ground].Morphable) continue;
 
 					if (height - cell->Height <= 0) continue;
@@ -5146,4 +5182,26 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 	CIsoViewExt::GetInstance()->Drag = FALSE;
 	CIsoViewExt::GetInstance()->CurrentCellObjectIndex = -1;
 	CIsoViewExt::GetInstance()->CurrentCellObjectType = -1;
+
+	WAETriggerColors.clear();
+	const char* WAESections[3] =
+		{
+			"EditorTriggerInfo",
+			"EditorScriptInfo",
+			"EditorTeamTypeInfo",
+		};
+	for (int i = 0; i < 3; ++i)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection(WAESections[i]))
+		{
+			for (auto& [key, value] : pSection->GetEntities())
+			{
+				auto it = colorMap.find(value);
+				if (it != colorMap.end())
+				{
+					WAETriggerColors[key] = it->second;
+				}
+			}
+		}
+	} 
 }

@@ -33,31 +33,223 @@ namespace LuaFunctions
 	static FMap<CINI*> LoadedINIs;
 	static std::unordered_set<std::string> UsedINIIndices;
 
+	// Convert ANSI string to UTF-8 for Scintilla output
+	static std::string AnsiToUtf8(const std::string& ansi)
+	{
+		if (ansi.empty()) return {};
+		int wideLen = MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, nullptr, 0);
+		if (wideLen <= 0) return ansi;
+		std::wstring wide(wideLen, L'\0');
+		MultiByteToWideChar(CP_ACP, 0, ansi.c_str(), -1, &wide[0], wideLen);
+		int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
+		if (utf8Len <= 0) return ansi;
+		std::string utf8(utf8Len, '\0');
+		WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, &utf8[0], utf8Len, nullptr, nullptr);
+		if (!utf8.empty() && utf8.back() == '\0') utf8.pop_back();
+		return utf8;
+	}
+}
+
+// Convert text to UTF-8: use directly if already valid UTF-8, otherwise convert from ANSI
+inline FString CLuaConsole::EnsureUtf8(const FString& text)
+{
+	if (text.empty()) return {};
+	// Check if already valid UTF-8
+	int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.c_str(), -1, nullptr, 0);
+	if (wlen > 0)
+		return text; // Already valid UTF-8, use as-is
+	// Not valid UTF-8, convert from ANSI
+	return LuaFunctions::AnsiToUtf8(text);
+}
+
+// Convert UTF-8 to ANSI, replacing non-representable codepoints with ASCII placeholders
+// e.g. <emoji:1F5A5> so they survive the ANSI pipeline
+inline FString CLuaConsole::EncodeUtf8ToAnsi(const FString& utf8)
+	{
+		if (utf8.empty()) return {};
+		FString result;
+		size_t i = 0;
+		while (i < utf8.size())
+		{
+			unsigned char c = static_cast<unsigned char>(utf8[i]);
+			uint32_t cp = c;
+			size_t len = 1;
+
+			if (c >= 0xF0) { cp = c & 0x07; len = 4; }
+			else if (c >= 0xE0) { cp = c & 0x0F; len = 3; }
+			else if (c >= 0xC0) { cp = c & 0x1F; len = 2; }
+
+			if (i + len > utf8.size()) { result += '?'; i++; continue; }
+
+			for (size_t j = 1; j < len; j++)
+				cp = (cp << 6) | (static_cast<unsigned char>(utf8[i + j]) & 0x3F);
+
+			uint32_t origCp = cp; // Save for placeholder hex output
+
+			// Convert codepoint to UTF-16 for WideCharToMultiByte
+			// wchar_t on Windows is 16-bit, must use surrogate pairs for > U+FFFF
+			wchar_t wc[2] = { 0 };
+			int wlen = 1;
+			if (cp < 0x10000) {
+				wc[0] = static_cast<wchar_t>(cp);
+			}
+			else {
+				cp -= 0x10000;
+				wc[0] = static_cast<wchar_t>(0xD800 + (cp >> 10));
+				wc[1] = static_cast<wchar_t>(0xDC00 + (cp & 0x3FF));
+				wlen = 2;
+			}
+
+			char ansiBuf[8] = { 0 };
+			BOOL usedDefaultChar = FALSE;
+			int ansiLen = WideCharToMultiByte(CP_ACP, 0, wc, wlen, ansiBuf, 8, nullptr, &usedDefaultChar);
+
+			if (ansiLen > 0 && !usedDefaultChar)
+			{
+				result.append(ansiBuf, ansiLen);
+			}
+			else
+			{
+				// Non-representable: store as <emoji:XXXXXX> placeholder
+				char placeholder[32];
+				sprintf_s(placeholder, "<emoji:%X>", origCp);
+				result += placeholder;
+			}
+			i += len;
+		}
+		return result;
+	}
+
+	// Replace <emoji:XXXXXX> placeholders with actual UTF-8 emoji characters
+	inline FString CLuaConsole::DecodeEmojiPlaceholders(const FString& text)
+	{
+		if (text.empty()) return {};
+		FString result;
+		size_t i = 0;
+		while (i < text.size())
+		{
+			// Look for <emoji:XXXXXX> pattern
+			if (text[i] == '<' && (i + 7 <= text.size()) && text.substr(i, 7) == "<emoji:")
+			{
+				size_t end = text.find('>', i);
+				if (end != std::string::npos)
+				{
+					std::string hex = text.substr(i + 7, end - i - 7);
+					if (!hex.empty())
+					{
+						char* endp = nullptr;
+						uint32_t cp = strtoul(hex.c_str(), &endp, 16);
+						if (*endp == '\0' && cp > 0)
+						{
+							// Convert codepoint to UTF-8 via UTF-16
+							// wchar_t on Windows is 16-bit, use surrogate pairs for > U+FFFF
+							wchar_t wc[2] = { 0 };
+							int wlen = 1;
+							if (cp < 0x10000) {
+								wc[0] = static_cast<wchar_t>(cp);
+							}
+							else {
+								cp -= 0x10000;
+								wc[0] = static_cast<wchar_t>(0xD800 + (cp >> 10));
+								wc[1] = static_cast<wchar_t>(0xDC00 + (cp & 0x3FF));
+								wlen = 2;
+							}
+
+							char utf8Buf[8] = { 0 };
+							int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wc, wlen, utf8Buf, 8, nullptr, nullptr);
+							if (utf8Len > 0)
+							{
+								result.append(utf8Buf, utf8Len);
+								i = end + 1;
+								continue;
+							}
+						}
+					}
+				}
+			}
+			result += text[i];
+			i++;
+		}
+		return result;
+	}
+
+namespace LuaFunctions
+{
+
 	static void write_lua_console(std::string text)
 	{
-		std::string msg = ">> " + text + "\r\n";
-	
-		CHARRANGE cr;
-		cr.cpMin = -1;
-		cr.cpMax = -1; 
-	
+		CLuaConsole::RestoreOutput();
+		std::string prefix = CLuaConsole::mcpRunning ? "MCP >> " : ">> ";
+		std::string msg = prefix + text + "\r\n";
+
+		// Capture output for MCP if an MCP request is active
+		if (CLuaConsole::mcpRunning)
+			CLuaConsole::mcpOutput += text + "\r\n";
+
+		// Convert ANSI text to UTF-8 for Scintilla (preserving emoji if already UTF-8)
+		FString utf8Msg = CLuaConsole::EnsureUtf8(msg);
+		// Decode <emoji:XXXXXX> placeholders back to actual UTF-8 emoji
+		utf8Msg = CLuaConsole::DecodeEmojiPlaceholders(utf8Msg);
+
+		// Temporarily unset read-only to allow modification, then restore
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+
+		// Append text to Scintilla output box
 		SendMessage(
 			CLuaConsole::hOutputBox,
-			EM_EXSETSEL,
-			0,
-			(LPARAM)&cr);
-	
+			SCI_APPENDTEXT,
+			utf8Msg.length(),
+			(LPARAM)utf8Msg.c_str());
+
+		// Re-enable read-only
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
+
+		// Scroll to end
+		int endLen = SendMessage(CLuaConsole::hOutputBox, SCI_GETLENGTH, 0, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_GOTOPOS, endLen, 0);
+
+		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		if (now - time > 2000)
+		{
+			time = now;
+			MSG msg;
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+	}
+
+	// Write raw text to output box without prefix or extra newline
+	static void write_lua_console_raw(const std::string& text)
+	{
+		CLuaConsole::RestoreOutput();
+		// Capture output for MCP if an MCP request is active
+		if (CLuaConsole::mcpRunning)
+			CLuaConsole::mcpOutput += text;
+
+		// Convert ANSI text to UTF-8 for Scintilla (preserving emoji if already UTF-8)
+		FString utf8Text = CLuaConsole::EnsureUtf8(text);
+		// Decode <emoji:XXXXXX> placeholders back to actual UTF-8 emoji
+		utf8Text = CLuaConsole::DecodeEmojiPlaceholders(utf8Text);
+
+		// Temporarily unset read-only to allow modification, then restore
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+
+		// Append text to Scintilla output box
 		SendMessage(
 			CLuaConsole::hOutputBox,
-			EM_REPLACESEL,
-			FALSE,
-			(LPARAM)msg.c_str());
-	
-		SendMessage(
-			CLuaConsole::hOutputBox,
-			EM_SCROLLCARET,
-			0,
-			0);
+			SCI_APPENDTEXT,
+			utf8Text.length(),
+			(LPARAM)utf8Text.c_str());
+
+		// Re-enable read-only
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
+
+		// Scroll to end
+		int endLen = SendMessage(CLuaConsole::hOutputBox, SCI_GETLENGTH, 0, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_GOTOPOS, endLen, 0);
+		RedrawWindow(CLuaConsole::hOutputBox, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
 
 		auto&& now = duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (now - time > 2000)
@@ -73,7 +265,10 @@ namespace LuaFunctions
 
 	static void clear()
 	{
-		SendMessage(CLuaConsole::hOutputBox, WM_SETTEXT, 0, (LPARAM)"");
+		CLuaConsole::RestoreOutput();
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, FALSE, 0);
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETTEXT, 0, (LPARAM)"");
+		SendMessage(CLuaConsole::hOutputBox, SCI_SETREADONLY, TRUE, 0);
 	}
 
 	static void lua_print(sol::variadic_args args)
@@ -156,6 +351,7 @@ namespace LuaFunctions
 		auto it = formatMap.find(format);
 		UINT style = (it != formatMap.end()) ? it->second : MB_OK;
 
+		ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
 		int result = MessageBoxA(CLuaConsole::GetHandle(), text.c_str(), title.c_str(), style);
 
 		auto returnIt = returnValueMap.find(style & ~(MB_ICONMASK));
@@ -163,11 +359,13 @@ namespace LuaFunctions
 			const std::vector<int>& buttons = returnIt->second;
 			for (size_t i = 0; i < buttons.size(); ++i) {
 				if (result == buttons[i]) {
+					ExtraWindow::RestoreDisabledWindows();
 					return static_cast<int>(i+1); // to fit lua
 				}
 			}
 		}
-
+		
+		ExtraWindow::RestoreDisabledWindows();
 		return -1;
 	}
 
@@ -192,6 +390,7 @@ namespace LuaFunctions
 		}
 		std::string do_modal()
 		{
+			DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 			CNewComboUInputDlg dlg;
 			dlg.m_type = COMBOUINPUT_ALL_CUSTOM;
 			dlg.m_Caption = caption.c_str();
@@ -248,7 +447,8 @@ namespace LuaFunctions
 			ExtraWindow::SortRawStrings(options, !second);
 		}
 		std::vector<std::string> do_modal()
-		{
+		{	
+			DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 			std::vector<std::string> ret;
 			CListUInputDlg dlg;
 			dlg.m_Caption = caption.c_str();
@@ -292,6 +492,7 @@ namespace LuaFunctions
 
 	static std::string input_box(std::string message)
 	{
+		DisableOtherWindowsScope scope(CLuaConsole::GetHandle());
 		return CInputMessageBox::GetString(message.c_str(), Translations::TranslateOrDefault("LuaConsole.InputBoxTitle", "Please enter")).GetString();
 	}
 	
@@ -1181,7 +1382,7 @@ namespace LuaFunctions
 			CLuaConsole::Lua.collect_garbage();
 			ID = GetAvailableIndex(EIndexType::Trigger);
 			Name = "New Trigger";
-			House = "Americans";
+			House = "Neutral";
 			AttachedTrigger = "<none>";
 			Obsolete = "0";
 			Disabled = false;
@@ -1194,7 +1395,7 @@ namespace LuaFunctions
 			: ID(id)
 		{
 			Name = "New Trigger";
-			House = "Americans";
+			House = "Neutral";
 			AttachedTrigger = "<none>";
 			Obsolete = "0";
 			Disabled = false;
@@ -1454,6 +1655,14 @@ namespace LuaFunctions
 						return "FLOAT";
 					if (newParams[1] == "15")
 						return "TEAM";
+					if (newParams[1] == "16")
+						return "AIRCRAFT";
+					if (newParams[1] == "17")
+						return "INFANTRY";
+					if (newParams[1] == "18")
+						return "UNIT";
+					if (newParams[1] == "19")
+						return "STRUCTURE";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -1601,6 +1810,14 @@ namespace LuaFunctions
 						return "FLOAT";
 					if (newParams[1] == "15")
 						return "TEAM";
+					if (newParams[1] == "16")
+						return "AIRCRAFT";
+					if (newParams[1] == "17")
+						return "INFANTRY";
+					if (newParams[1] == "18")
+						return "UNIT";
+					if (newParams[1] == "19")
+						return "STRUCTURE";
 
 					auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", newParams[1], "MISSING,0,0,0,0"), 4);
 					
@@ -1798,6 +2015,21 @@ namespace LuaFunctions
 		void release_id() const {
 			UsedINIIndices.erase(ID);
 		}
+
+		static float int_to_float(int value)
+		{
+			auto f = *(float*)&value;
+			if (f > 0.0f)
+				f = std::max(f, 0.000001f);
+			else if (f < 0.0f)
+				f = std::min(f, -0.000001f);
+			return f;
+		}
+
+		static unsigned int float_to_int(float value)
+		{
+			return *(unsigned int*)&value;
+		}
 	};
 
 	class team
@@ -1805,7 +2037,7 @@ namespace LuaFunctions
 	public:
 		std::string ID;
 		std::string Name = "New Teamtype";
-		std::string House = "Americans";
+		std::string House = "Neutral";
 		std::string Taskforce = "";
 		std::string Script = "";
 		std::string Tag = "";
@@ -2392,6 +2624,14 @@ namespace LuaFunctions
 				return "FLOAT";
 			if (scriptParam == "15")
 				return "TEAM";
+			if (scriptParam == "16")
+				return "AIRCRAFT";
+			if (scriptParam == "17")
+				return "INFANTRY";
+			if (scriptParam == "18")
+				return "UNIT";
+			if (scriptParam == "19")
+				return "STRUCTURE";
 
 			auto newParamInfos = FString::SplitString(fadata.GetString("NewParamTypes", scriptParam, "MISSING,0,0,0,0"), 4);
 			
@@ -3042,6 +3282,16 @@ namespace LuaFunctions
 			remove_waypoint(atoi(CINI::CurrentDocument->GetKeyAt("Waypoints", index)));
 	}
 
+	static int get_waypoint(int index)
+	{
+		if (auto pSection = CINI::CurrentDocument->GetSection("Waypoints"))
+		{
+			if (auto pKey = pSection->GetKeyAt(index))
+				return atoi(pKey->GetString());
+		}
+		return -1;
+	}
+
 	static std::string get_string(std::string section, std::string key, std::string def = "", std::string loadFrom = "map")
 	{
 		auto endsWithIni = [](const std::string& str) {
@@ -3492,6 +3742,7 @@ namespace LuaFunctions
 		if (x < 0)
 		{
 			CMapData::Instance->DeleteInfantryData(indexY);
+			CMapData::Instance->UpdateFieldInfantryData(FALSE);
 			CLuaConsole::needRedraw = true;
 		}
 		else
@@ -3503,6 +3754,7 @@ namespace LuaFunctions
 			if (idx > -1)
 			{
 				CMapData::Instance->DeleteInfantryData(idx);
+				CMapData::Instance->UpdateFieldInfantryData(FALSE);
 				CLuaConsole::needRedraw = true;
 			}
 		}
@@ -3515,7 +3767,8 @@ namespace LuaFunctions
 		{
 			CInfantryData obj;
 			CMapData::Instance->GetInfantryData(indexY, obj);
-			return infantry::convert(obj);
+			if (!obj.Flag)
+				return infantry::convert(obj);
 		}
 		else
 		{
@@ -3529,7 +3782,8 @@ namespace LuaFunctions
 			{
 				CInfantryData obj;
 				CMapData::Instance->GetInfantryData(idx, obj);
-				return infantry::convert(obj);
+				if (!obj.Flag)
+					return infantry::convert(obj);
 			}
 		}
 		return ret;
@@ -3541,7 +3795,7 @@ namespace LuaFunctions
 			return;
 
 		int coord = CMapData::Instance->GetCoordIndex(x, y);
-		CMapData::Instance->SetUnitData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetUnitData(NULL, type.c_str(), house.c_str(), coord, "");
 		CLuaConsole::needRedraw = true;
 	}
 
@@ -3597,7 +3851,7 @@ namespace LuaFunctions
 			return;
 
 		int coord = CMapData::Instance->GetCoordIndex(x, y);
-		CMapData::Instance->SetAircraftData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetAircraftData(NULL, type.c_str(), house.c_str(), coord, "");
 		CLuaConsole::needRedraw = true;
 	}
 
@@ -3658,7 +3912,7 @@ namespace LuaFunctions
 		{
 			ExtConfigs::PlaceStructureOverlappingCheck = false;
 		}
-		CMapData::Instance->SetBuildingData(NULL, type.c_str(), house.c_str(), coord, "-1");
+		CMapData::Instance->SetBuildingData(NULL, type.c_str(), house.c_str(), coord, "");
 		ExtConfigs::PlaceStructureOverlappingCheck = oldCheck;
 
 		CLuaConsole::needRedraw = true; 
@@ -3719,7 +3973,9 @@ namespace LuaFunctions
 		std::vector<building> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Structures"); ++i)
 		{
-			ret.push_back(get_building(i));
+			auto obj = get_building(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3729,7 +3985,9 @@ namespace LuaFunctions
 		std::vector<aircraft> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Aircraft"); ++i)
 		{
-			ret.push_back(get_aircraft(i));
+			auto obj = get_aircraft(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3739,7 +3997,9 @@ namespace LuaFunctions
 		std::vector<infantry> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Infantry"); ++i)
 		{
-			ret.push_back(get_infantry(i));
+			auto obj = get_infantry(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
 		}
 		return ret;
 	}
@@ -3749,7 +4009,41 @@ namespace LuaFunctions
 		std::vector<unit> ret;
 		for (int i = 0; i < CINI::CurrentDocument->GetKeyCount("Units"); ++i)
 		{
-			ret.push_back(get_unit(i));
+			auto obj = get_unit(i);
+			if (!obj.TypeID.empty())
+				ret.push_back(std::move(obj));
+		}
+		return ret;
+	}
+
+	static std::vector<std::string> get_available_houses()
+	{
+		std::vector<std::string> ret;
+		if (CMapData::Instance->IsMultiOnly())
+		{
+			ret.push_back("Neutral");
+			ret.push_back("Special");
+			if (ExtConfigs::PlayerAtXForTechnos)
+			{
+				ret.push_back("<Player @ A>");
+				ret.push_back("<Player @ B>");
+				ret.push_back("<Player @ C>");
+				ret.push_back("<Player @ D>");
+				ret.push_back("<Player @ E>");
+				ret.push_back("<Player @ F>");
+				ret.push_back("<Player @ G>");
+				ret.push_back("<Player @ H>");
+			}
+		}
+		else
+		{
+			if (auto pSection = CINI::CurrentDocument->GetSection("Houses"))
+			{
+				for (const auto& [key, value] : pSection->GetEntities())
+				{
+					ret.push_back(value.GetString());
+				}
+			}
 		}
 		return ret;
 	}
@@ -4330,6 +4624,11 @@ namespace LuaFunctions
 		CMapData::Instance->SaveUndoRedoData(true, 0, 0, 0, 0);
 	}
 
+	static void save_undo_objects()
+	{
+		CMapDataExt::MakeObjectRecord(0x0FFFFFFF);
+	}
+
 	static void save_redo()
 	{
 		// No longer needed since changed undo redo method
@@ -4472,5 +4771,261 @@ namespace LuaFunctions
 	static void redraw_window()
 	{
 		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+	}
+
+	static std::string get_file_encoding(std::string data)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(data.data()),
+			data.size()
+		);
+		switch (encoding)
+		{
+		case FileEncoding::ANSI:
+			return "ANSI";
+		case FileEncoding::UTF8:
+			return "UTF-8";
+		case FileEncoding::UTF8_BOM:
+			return "UTF-8 BOM";
+		case FileEncoding::UTF8_ASCII:
+			return "UTF-8 (ASCII)";
+		default:
+			return "Unknown";
+		}
+	}
+
+	static std::string to_ansi(std::string utf8_str)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(utf8_str.data()),
+			utf8_str.size()
+		);
+		if (encoding == FileEncoding::ANSI || encoding == FileEncoding::UTF8_ASCII)
+			return utf8_str;
+
+		FString fs(utf8_str);
+		fs.toANSI();
+		return std::string(fs);
+	}
+
+	static std::string to_utf8(std::string ansi_str)
+	{
+		auto encoding = STDHelpers::GetFileEncoding(
+			reinterpret_cast<const uint8_t*>(ansi_str.data()),
+			ansi_str.size()
+		);
+		if (encoding == FileEncoding::UTF8 || encoding == FileEncoding::UTF8_BOM || encoding == FileEncoding::UTF8_ASCII)
+			return ansi_str;
+
+		FString fs(ansi_str);
+		fs.toUTF8();
+		return std::string(fs);
+	}
+
+	static sol::object exec(std::string command, sol::optional<sol::table> options)
+	{
+		// Parse options
+		bool async = false;
+		bool url = false;
+		bool file = false;
+		bool capture = true;
+		bool show = false;
+		bool stream = false;
+		std::string cwd = "";
+		int timeout_ms = 0; // 0 = infinite
+
+		if (options) {
+			async = options->get_or("async", false);
+			url = options->get_or("url", false);
+			file = options->get_or("file", false);
+			capture = options->get_or("capture", true);
+			show = options->get_or("show", false);
+			stream = options->get_or("stream", false);
+			cwd = options->get_or("cwd", std::string(""));
+			timeout_ms = options->get_or("timeout", 0);
+		}
+
+		// Validate
+		if (command.empty()) {
+			write_lua_console("exec: command cannot be empty");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		// Verify only one mode is selected
+		int modeCount = (url ? 1 : 0) + (file ? 1 : 0);
+		if (modeCount > 1) {
+			write_lua_console("exec: cannot use 'url' and 'file' at the same time");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		// URL mode - use ShellExecute
+		if (url) {
+			HINSTANCE result = ShellExecuteA(nullptr, "open", command.c_str(), nullptr,
+				cwd.empty() ? nullptr : cwd.c_str(), show ? SW_SHOW : SW_HIDE);
+			if ((INT_PTR)result <= 32) {
+				write_lua_console("exec: failed to open URL: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// File mode - open with default associated program
+		if (file) {
+			HINSTANCE result = ShellExecuteA(nullptr, "open", command.c_str(), nullptr,
+				cwd.empty() ? nullptr : cwd.c_str(), show ? SW_SHOW : SW_HIDE);
+			if ((INT_PTR)result <= 32) {
+				write_lua_console("exec: failed to open file: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Async mode - fire and forget
+		if (async) {
+			STARTUPINFOA si = { sizeof(si) };
+			PROCESS_INFORMATION pi;
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+			if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, FALSE,
+				CREATE_NO_WINDOW, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+				write_lua_console("exec: failed to start process: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			write_lua_console("Process started (async): " + command);
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Sync mode without capture - just run and wait
+		if (!capture) {
+			STARTUPINFOA si = { sizeof(si) };
+			PROCESS_INFORMATION pi;
+			si.dwFlags = STARTF_USESHOWWINDOW;
+			si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+			if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, FALSE,
+				0, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+				write_lua_console("exec: failed to start process: " + command);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+
+			DWORD waitResult = WaitForSingleObject(pi.hProcess, timeout_ms > 0 ? timeout_ms : INFINITE);
+			if (waitResult == WAIT_TIMEOUT) {
+				TerminateProcess(pi.hProcess, 1);
+				write_lua_console("exec: process timed out: " + command);
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+				return sol::make_object(CLuaConsole::Lua, sol::nil);
+			}
+
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			return sol::make_object(CLuaConsole::Lua, true);
+		}
+
+		// Sync mode with output capture (and optional streaming)
+		HANDLE hReadPipe, hWritePipe;
+		SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
+
+		if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
+			write_lua_console("exec: failed to create pipe");
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		STARTUPINFOA si = { sizeof(si) };
+		PROCESS_INFORMATION pi;
+		si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+		si.hStdOutput = hWritePipe;
+		si.hStdError = hWritePipe;
+		si.wShowWindow = show ? SW_SHOW : SW_HIDE;
+
+		if (!CreateProcessA(nullptr, &command[0], nullptr, nullptr, TRUE,
+			CREATE_NO_WINDOW, nullptr, cwd.empty() ? nullptr : cwd.c_str(), &si, &pi)) {
+			CloseHandle(hReadPipe);
+			CloseHandle(hWritePipe);
+			write_lua_console("exec: failed to start process: " + command);
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		CloseHandle(hWritePipe);
+
+		std::string output;
+		char buffer[4096];
+		DWORD bytesRead;
+
+		bool timedOut = false;
+		ULONGLONG startTime = GetTickCount64();
+
+		if (stream) {
+			write_lua_console("Stream:");
+		}
+
+		while (true) {
+			// Check timeout (poll every 10ms)
+			if (timeout_ms > 0 && !timedOut) {
+				ULONGLONG elapsed = GetTickCount64() - startTime;
+				if (elapsed >= (ULONGLONG)timeout_ms) {
+					TerminateProcess(pi.hProcess, 1);
+					timedOut = true;
+					write_lua_console("exec: process timed out: " + command);
+					break;
+				}
+			}
+
+			// Non-blocking check for available pipe data
+			DWORD bytesAvailable = 0;
+			if (PeekNamedPipe(hReadPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr) && bytesAvailable > 0) {
+				DWORD toRead = std::min(bytesAvailable, (DWORD)sizeof(buffer) - 1);
+				if (ReadFile(hReadPipe, buffer, toRead, &bytesRead, nullptr) && bytesRead > 0) {
+					buffer[bytesRead] = '\0';
+					output.append(buffer, bytesRead);
+					if (stream) {
+						// Use raw write to avoid double newlines from command output
+						write_lua_console_raw(std::string(buffer, bytesRead));
+					}
+				}
+				continue; // Immediately check for more data
+			}
+
+			// Check if process has exited
+			if (WaitForSingleObject(pi.hProcess, 0) == WAIT_OBJECT_0) {
+				// Drain any remaining data from pipe
+				while (PeekNamedPipe(hReadPipe, nullptr, 0, nullptr, &bytesAvailable, nullptr) && bytesAvailable > 0) {
+					DWORD toRead = std::min(bytesAvailable, (DWORD)sizeof(buffer) - 1);
+					if (ReadFile(hReadPipe, buffer, toRead, &bytesRead, nullptr) && bytesRead > 0) {
+						buffer[bytesRead] = '\0';
+						output.append(buffer, bytesRead);
+						if (stream) {
+							write_lua_console_raw(std::string(buffer, bytesRead));
+						}
+					}
+				}
+				break;
+			}
+
+			// Small sleep to avoid busy-waiting, also pumps messages for UI responsiveness
+			Sleep(10);
+			MSG msg;
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+
+		CloseHandle(hReadPipe);
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+
+		if (timedOut) {
+			return sol::make_object(CLuaConsole::Lua, sol::nil);
+		}
+
+		if (stream) {
+			write_lua_console_raw("\r\n");
+		}
+
+		return sol::make_object(CLuaConsole::Lua, output);
 	}
 }

@@ -71,6 +71,7 @@ std::map<int, FString> CViewObjectsExt::TreeViewIndex_Vehicle;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Aircraft;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Terrain;
 std::map<int, FString> CViewObjectsExt::TreeViewIndex_Smudge;
+std::map<int, FString> CViewObjectsExt::TreeViewIndex_House;
 COLORREF CViewObjectsExt::WpColor;
 COLORREF CViewObjectsExt::TagColor;
 
@@ -976,6 +977,7 @@ void CViewObjectsExt::Redraw_Ground()
 
 void CViewObjectsExt::Redraw_Owner()
 {
+    TreeViewIndex_House.clear();
     HTREEITEM& hOwner = ExtNodes[Root_Owner];
     if (hOwner == NULL)    return;
 
@@ -992,43 +994,49 @@ void CViewObjectsExt::Redraw_Owner()
     {
         if (CMapData::Instance->IsMultiOnly())
         {
-            auto&& section = Variables::RulesMap.GetSection("Countries");
-            auto itr = section.begin();
-            for (size_t i = 0, sz = section.size(); i < sz; ++i, ++itr)
-                if (strcmp(itr->second, "Neutral") == 0 || strcmp(itr->second, "Special") == 0)
+            if (auto pSection = CINI::Rules->GetSection("Countries"))
+            {
+                auto& section = pSection->GetEntities();
+                size_t i = 0;
+                for (auto& itr : section)
                 {
-                    FString uiname = itr->second;
-
-                    if (!ExtConfigs::NoHouseNameTranslation)
-                        for (auto& pair : countries)
-                        {
-                            if (ExtConfigs::BetterHouseNameTranslation)
-                                translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
-                            else
-                                translated = StringtableLoader::QueryUIName(pair.second, true);
-
-                            uiname.Replace(pair.second, translated);
-                        }
-
-                    if (ExtConfigs::TreeViewCameo_Display)
+                    if (strcmp(itr.second, "Neutral") == 0 || strcmp(itr.second, "Special") == 0)
                     {
-                        InsertingSpecialBitmap = true;
-                        int full = ExtConfigs::TreeViewCameo_Size;
-                        int half = ExtConfigs::TreeViewCameo_Size / 2;
-                        int quarter = ExtConfigs::TreeViewCameo_Size / 4;
-                        SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+                        FString uiname = itr.second;
 
-                        CDC dc;
-                        dc.CreateCompatibleDC(NULL);
-                        CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
-                        dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
-                        dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr->second));
-                        dc.SelectObject(pOldBitmap);
-                        dc.DeleteDC();
+                        if (!ExtConfigs::NoHouseNameTranslation)
+                            for (auto& pair : countries)
+                            {
+                                if (ExtConfigs::BetterHouseNameTranslation)
+                                    translated = StringtableLoader::QueryUIName(pair.second, true) + "(" + pair.second + ")";
+                                else
+                                    translated = StringtableLoader::QueryUIName(pair.second, true);
+
+                                uiname.Replace(pair.second, translated);
+                            }
+
+                        if (ExtConfigs::TreeViewCameo_Display)
+                        {
+                            InsertingSpecialBitmap = true;
+                            int full = ExtConfigs::TreeViewCameo_Size;
+                            int half = ExtConfigs::TreeViewCameo_Size / 2;
+                            int quarter = ExtConfigs::TreeViewCameo_Size / 4;
+                            SpecialBitmap.CreateBitmap(full, full, 1, 32, NULL);
+
+                            CDC dc;
+                            dc.CreateCompatibleDC(NULL);
+                            CBitmap* pOldBitmap = dc.SelectObject(&SpecialBitmap);
+                            dc.FillSolidRect(0, 0, full, full, RGB(255, 255, 255));
+                            dc.FillSolidRect(quarter, quarter, half, half, Miscs::GetColorRef(itr.second));
+                            dc.SelectObject(pOldBitmap);
+                            dc.DeleteDC();
+                        }
+                        this->InsertString(uiname, Const_House + i, hOwner);
+                        TreeViewIndex_House[i] = itr.second;
+                        InsertingSpecialBitmap = false;
                     }
-                    this->InsertString(uiname, Const_House + i, hOwner);
-                    InsertingSpecialBitmap = false;
                 }
+            }
             if (ExtConfigs::PlayerAtXForTechnos)
             {
                 int index = 0;
@@ -1050,8 +1058,10 @@ void CViewObjectsExt::Redraw_Owner()
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
-                    this->InsertString(player, Const_House + 5000 + index++, hOwner);
-                    InsertingSpecialBitmap = false;
+                    this->InsertString(player, Const_House + 5000 + index, hOwner);
+					TreeViewIndex_House[5000 + index] = player;
+					index++;
+					InsertingSpecialBitmap = false;
                 }
             }          
         }
@@ -1091,7 +1101,8 @@ void CViewObjectsExt::Redraw_Owner()
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
-                    this->InsertString(uiname, Const_House + i, hOwner);
+                    this->InsertString(uiname, Const_House + i, hOwner);    
+					TreeViewIndex_House[i] = itr.second;
                     InsertingSpecialBitmap = false;
                     i++;
                 }
@@ -1137,7 +1148,8 @@ void CViewObjectsExt::Redraw_Owner()
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
-                    this->InsertString(uiname, Const_House + i, hOwner);
+                    this->InsertString(uiname, Const_House + i, hOwner);              
+					TreeViewIndex_House[i] = itr.second;
                     InsertingSpecialBitmap = false;
                     i++;
                 }
@@ -1162,7 +1174,9 @@ void CViewObjectsExt::Redraw_Owner()
                             dc.SelectObject(pOldBitmap);
                             dc.DeleteDC();
                         }
-                        this->InsertString(player, Const_House + 5000 + index++, hOwner);
+                        this->InsertString(player, Const_House + 5000 + index, hOwner);                      
+                        TreeViewIndex_House[5000 + index] = player;
+                        index++;
                         InsertingSpecialBitmap = false;
                     }
                 }
@@ -1204,7 +1218,8 @@ void CViewObjectsExt::Redraw_Owner()
                         dc.SelectObject(pOldBitmap);
                         dc.DeleteDC();
                     }
-                    this->InsertString(uiname, Const_House + i, hOwner);
+                    this->InsertString(uiname, Const_House + i, hOwner);              
+					TreeViewIndex_House[i] = itr.second;
                     InsertingSpecialBitmap = false;
                     i++;
                 }
@@ -2927,61 +2942,72 @@ void CViewObjectsExt::SquareBatchAddMultiSelection(int X, int Y, bool add)
 
 void CViewObjectsExt::ModifyOre(int X, int Y)
 {
-    const int ORE_COUNT = 12;
-    auto pExt = CMapDataExt::GetExtension();
-    int pos = pExt->GetCoordIndex(X, Y);
-    auto ovr = pExt->GetOverlayAt(pos);
-    int ovrd = pExt->GetOverlayDataAt(pos);
+	auto pIsoView = CIsoViewExt::GetExtension();
+	bool needRedraw = false;
+	for (int gx = X - pIsoView->BrushSizeX / 2; gx <= X + pIsoView->BrushSizeX / 2; gx++)
+	{
+		for (int gy = Y - pIsoView->BrushSizeY / 2; gy <= Y + pIsoView->BrushSizeY / 2; gy++)
+		{
+			const int ORE_COUNT = 12;
+			auto pExt = CMapDataExt::GetExtension();
+			int pos = pExt->GetCoordIndex(gx, gy);
+			auto ovr = pExt->GetOverlayAt(pos);
+			int ovrd = pExt->GetOverlayDataAt(pos);
 
-    auto getValidOreData = [ORE_COUNT](int data)
-        {
-            if (data < 0)
-                data = -1;
-            if (data >= ORE_COUNT)
-                data = ORE_COUNT - 1;
-            return data;
-        };
-    auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
-        {            
-            data = getValidOreData(data);
-            int moneyDelta = 0;
-            int olyPos = y + x * 512;
-            int pos = pExt->GetCoordIndex(x, y);
+			auto getValidOreData = [ORE_COUNT](int data)
+			{
+				if (data < 0)
+					data = -1;
+				if (data >= ORE_COUNT)
+					data = ORE_COUNT - 1;
+				return data;
+			};
+			auto setOreDataAt = [ovr, ovrd, pExt, getValidOreData](int x, int y, int data)
+			{
+				data = getValidOreData(data);
+				int moneyDelta = 0;
+				int olyPos = y + x * 512;
+				int pos = pExt->GetCoordIndex(x, y);
 
-            pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
-            if (data >= 0)
-            {
-                pExt->OverlayData[olyPos] = data;
-                pExt->CellDatas[pos].OverlayData = data;
-            }
-            else
-            {
-                pExt->Overlay[olyPos] = 0xFF;
-                pExt->NewOverlay[olyPos] = 0xFFFF;
-                pExt->OverlayData[olyPos] = 0;
-                pExt->CellDatas[pos].Overlay = 0xFF;
-                pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
-                pExt->CellDatas[pos].OverlayData = 0;
-            }
-            pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
-        };
-    if (CMapDataExt::IsOre(ovr))
-    {
-        if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
-        {
-            CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
-            pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
-        }
-        if (CIsoView::CurrentCommand->Type == 0)
-        {
-            setOreDataAt(X, Y, ovrd + 1);
-        }
-        else if (CIsoView::CurrentCommand->Type == 1)
-        {
-            setOreDataAt(X, Y, ovrd - 1);
-        }
-        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
-    }
+				pExt->DeleteTiberium(std::min(ovr, (word)0xFF), pExt->OverlayData[olyPos]);
+				if (data >= 0)
+				{
+					pExt->OverlayData[olyPos] = data;
+					pExt->CellDatas[pos].OverlayData = data;
+				}
+				else
+				{
+					pExt->Overlay[olyPos] = 0xFF;
+					pExt->NewOverlay[olyPos] = 0xFFFF;
+					pExt->OverlayData[olyPos] = 0;
+					pExt->CellDatas[pos].Overlay = 0xFF;
+					pExt->CellDataExts[pos].NewOverlay = 0xFFFF;
+					pExt->CellDatas[pos].OverlayData = 0;
+				}
+				pExt->AddTiberium(std::min(pExt->NewOverlay[olyPos], (word)0xFF), data);
+			};
+			if (CMapDataExt::IsOre(ovr))
+			{
+				if (!CIsoViewExt::HistoryRecord_IsHoldingLButton)
+				{
+					CIsoViewExt::HistoryRecord_IsHoldingLButton = true;
+					pExt->SaveUndoRedoData(true, 0, 0, 0, 0);
+				}
+				if (CIsoView::CurrentCommand->Type == 0)
+				{
+					setOreDataAt(gx, gy, ovrd + 1);
+				}
+				else if (CIsoView::CurrentCommand->Type == 1)
+				{
+					setOreDataAt(gx, gy, ovrd - 1);
+				}
+				needRedraw = true;
+			}
+		}
+	}
+
+    if (needRedraw)
+		::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void CViewObjectsExt::AddAnnotation(int X, int Y)
@@ -3733,7 +3759,7 @@ void CViewObjectsExt::ApplyTag(int X, int Y, FString tag)
 
                     CIsoViewExt::DrawPropertyBrushMark = true;
                     CIsoViewExt::DrawEditedMarks.push_back(
-                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y) });
+                        EditedMarks{ (short)atoi(data.X), (short)atoi(data.Y), (short)atoi(data.SubCell) });
 
                     CMapData::Instance->DeleteInfantryData(infantry);
                     CMapData::Instance->SetInfantryData(&data, nullptr, nullptr, 0, -1);
@@ -4309,12 +4335,12 @@ bool CViewObjectsExt::UpdateEngine(int nData)
         }
         return true;
     }
-    if (nData  >= Const_House + 5000 && nData < Const_House + 5008) // multiplayer locations
+    if (nData >= Const_House && nData < Const_House + 5008)
     {
         CIsoView::CurrentCommand->Command = 1;
         CIsoView::CurrentCommand->Type = 7;
-        CIsoView::CurrentCommand->ObjectID = playersAtX[nData - Const_House - 5000];
-        CIsoView::CurrentHouse() = playersAtX[nData - Const_House - 5000];
+        CIsoView::CurrentCommand->ObjectID = TreeViewIndex_House[nData - Const_House];
+        CIsoView::CurrentHouse() = TreeViewIndex_House[nData - Const_House];
         return true;
     }
 

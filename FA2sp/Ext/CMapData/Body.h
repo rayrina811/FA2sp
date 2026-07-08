@@ -772,8 +772,9 @@ public:
     static void GetBuildingDataByIniID(int bldID, CBuildingData& data);
     static int GetSafeTileIndex(int idx);
     static int GetSafeSubTileIndex(int tile, int idx);
+	static void AddCellTagExt(const char* lpTag, int dwPos);
 
-    // damageStage = -1 means read the target cell overlayData to determine
+	// damageStage = -1 means read the target cell overlayData to determine
     static void PlaceWallAt(int dwPos, int overlay, int damageStage = -1, bool firstRun = true);
     static int GetInfantryAt(int dwPos, int dwSubPos = -1);
     static std::vector<int> GetStructureSize(ppmfc::CString structure);
@@ -937,6 +938,7 @@ public:
     static Palette Palette_Shadow;
     static Palette Palette_AlphaImage;
     static std::vector<std::pair<LightingSourcePosition, LightingSource>> LightingSources;
+    static FHashSet LightingBuildingTypes;
     static int AutoShore_ShoreTileSet;
     static int AutoShore_GreenTileSet;
     static std::unordered_set<int> ShoreTileSets;
@@ -949,6 +951,7 @@ public:
     static std::vector<short> StructureIndexMap;
     static std::vector<TubeData> Tubes;
     static FHashMap<COLORREF> Colors;
+    static FHashMap<COLORREF> WAETriggerColors;
     static std::unordered_map<int, TileAnimation> TileAnimations;
     // 0 = tem, 1 = sno, 2 = urban, 3 = newurban, 4 = lunar, 5 = desert
     static std::unordered_map<int, FString> TileSetOriginSetNames[6];
@@ -991,6 +994,7 @@ public:
     static float ExtraUnitLight;
     static float ExtraInfantryLight;
     static float ExtraAircraftLight;
+    static bool IsInitingPropertyDialog;
 
     static std::vector<CUnitDataFS> UnitDatasExt;
     static std::vector<CAircraftDataFS> AircraftDatasExt;

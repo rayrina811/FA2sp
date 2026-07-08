@@ -17,6 +17,7 @@ bool CopyPaste::CopyWholeMap = false;
 bool CopyPaste::OnLButtonDownPasted = false;
 bool CopyPaste::IsCutting = false;
 std::vector<TileRule> CopyPaste::TileConvertRules;
+char CopyPaste::CurrentTileConvertTheaters[2];
 
 const char* CopyPaste::GetString(const MyClipboardData& cell, const StringField& field, MyClipboardData* pBufferBase)
 {
@@ -57,21 +58,22 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
         auto& pCellExt = CMapDataExt::CellDataExts[pos];
 
         MyClipboardData item = {};
+        auto tileIndex = pCell->TileIndex == 0xFFFF ? 0 : pCell->TileIndex;
         item.X = coords.X;
         item.Y = coords.Y;
         item.Overlay = pCellExt.NewOverlay;
         item.OverlayData = pCell->OverlayData;
-        item.TileIndex = pCell->TileIndex;
+        item.TileIndex = tileIndex;
         item.TileIndexHiPart = pCell->TileIndexHiPart;
         item.TileSubIndex = pCell->TileSubIndex;
-        item.TileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileSet;
-        item.TileSetSubIndex = pCell->TileIndex - CMapDataExt::TileSet_starts[item.TileSet];
+        item.TileSet = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileSet;
+        item.TileSetSubIndex = tileIndex - CMapDataExt::TileSet_starts[item.TileSet];
         item.Height = pCell->Height;
         item.IceGrowth = pCell->IceGrowth;
         item.Flag = pCell->Flag;
 
         relativeHeight = std::min(relativeHeight, pCell->Height -
-            CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(pCell->TileIndex)].TileBlockDatas[pCell->TileSubIndex].Height);
+            CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(tileIndex)].TileBlockDatas[pCell->TileSubIndex].Height);
         lowest = std::min(lowest, (int)pCell->Height);
         highest = std::max(highest, (int)pCell->Height);
 
@@ -291,8 +293,9 @@ void CopyPaste::Copy(const std::set<MapCoord>& coords)
             if (CIsoViewExt::PasteGround)
             {
                 CMapDataExt::GetExtension()->PlaceTileAt(cell.X, cell.Y, 0, 3);
-                pCell->Height = (cell.X, cell.Y, realLowest);
+                pCell->Height = realLowest;
             }
+            CMapData::Instance->UpdateMapPreviewAt(cell.X, cell.Y);
         }
         CIsoView::GetInstance()->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
     }
@@ -454,18 +457,21 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
         {
             if (!TileConvertRules.empty())
             {
-                pCell->TileIndex = cell.TileIndex;
+				pCell->TileIndex = cell.TileIndex;
                 pCell->TileSubIndex = cell.TileSubIndex;
                 pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
+
                 ConvertTile(*pCell);
-            }
+
+				pCell->TileIndex = CMapDataExt::GetSafeTileIndex(pCell->TileIndex);
+				pCell->TileSubIndex = CMapDataExt::GetSafeSubTileIndex(pCell->TileIndex, pCell->TileSubIndex);
+			}
             else
             {
                 if (cell.TileSet < CMapDataExt::TileSet_starts.size() - 1
                     && CMapDataExt::TileSet_starts[cell.TileSet] + cell.TileSetSubIndex < CMapDataExt::TileSet_starts[cell.TileSet + 1])
                     pCell->TileIndex = CMapDataExt::TileSet_starts[cell.TileSet] + cell.TileSetSubIndex;
-                else
-                    pCell->TileIndex = 0;
+
                 pCell->TileSubIndex = cell.TileSubIndex;
                 pCell->Height = std::clamp(cell.Height + nBaseHeight, 0, 14);
 
@@ -473,6 +479,9 @@ void CopyPaste::Paste(int X, int Y, int nBaseHeight, MyClipboardData* data, size
                 {
                     pCell->Flag.AltIndex = 0;
                 }
+
+                pCell->TileIndex = CMapDataExt::GetSafeTileIndex(pCell->TileIndex);
+				pCell->TileSubIndex = CMapDataExt::GetSafeSubTileIndex(pCell->TileIndex, pCell->TileSubIndex);
             }
 
             pCell->TileIndexHiPart = cell.TileIndexHiPart;
@@ -740,14 +749,19 @@ void CopyPaste::PasteArea(int X, int Y, int nBaseHeight, MyClipboardData* data, 
     CopyPaste::PastedCoords.clear();
 }
 
-void CopyPaste::LoadTileConvertRule(char sourceTheater)
+void CopyPaste::LoadTileConvertRule(char sourceTheater, char currentTheater)
 {
-    TileConvertRules.clear();
-    bool reverse = false;
+    if (CurrentTileConvertTheaters[0] == sourceTheater && CurrentTileConvertTheaters[1] == currentTheater)
+		return;
+
+	CurrentTileConvertTheaters[0] = sourceTheater;
+	CurrentTileConvertTheaters[1] = currentTheater;
+	TileConvertRules.clear();
+	bool reverse = false;
     FString iniSection;
     iniSection.Format("%s2%sTileRules", 
         TheaterHelpers::GetSuffix(sourceTheater), 
-        TheaterHelpers::GetSuffix(CLoading::Instance->TheaterIdentifier));
+        TheaterHelpers::GetSuffix(currentTheater));
 
     std::string path = CFinalSunApp::Instance->ExePath();
     path += "\\TileConvertRules.ini";
@@ -758,10 +772,10 @@ void CopyPaste::LoadTileConvertRule(char sourceTheater)
     if (!ini.SectionExists(iniSection))
     {
         iniSection.Format("%s2%sTileRules",
-            TheaterHelpers::GetSuffix(CLoading::Instance->TheaterIdentifier),
+            TheaterHelpers::GetSuffix(currentTheater),
             TheaterHelpers::GetSuffix(sourceTheater));
         reverse = true;
-    }
+	}
 
     if (auto pSection = ini.GetSection(iniSection))
     {
@@ -823,7 +837,7 @@ void CopyPaste::ConvertTile(CellData& cell)
         const std::vector<int>& toTiles =
             rule.reverse ? rule.sourceTiles : rule.destinationTiles;
 
-        auto it = std::find(fromTiles.begin(), fromTiles.end(), CMapDataExt::GetSafeTileIndex(cell.TileIndex));
+        auto it = std::find(fromTiles.begin(), fromTiles.end(), cell.TileIndex);
         if (it == fromTiles.end())
             continue;
 
@@ -953,10 +967,9 @@ DEFINE_HOOK(4C3850, CMapData_PasteAt, 8)
             const auto length = reinterpret_cast<size_t*>(ptr)[1];
             const int identifier = reinterpret_cast<int*>(ptr)[2];
             const int recordType = reinterpret_cast<int*>(ptr)[3];
-            CopyPaste::TileConvertRules.clear();
             if (identifier != CLoading::Instance->TheaterIdentifier)
             {
-                CopyPaste::LoadTileConvertRule(identifier);
+				CopyPaste::LoadTileConvertRule(identifier, CLoading::Instance->TheaterIdentifier);
             }
             const auto p = reinterpret_cast<MyClipboardData*>(reinterpret_cast<char*>(ptr) + 16);
             if (GetAsyncKeyState(VK_CONTROL) & 0x8000)

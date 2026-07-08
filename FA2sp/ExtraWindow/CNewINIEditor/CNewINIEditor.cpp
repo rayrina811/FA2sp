@@ -788,13 +788,22 @@ void CNewINIEditor::OnSelchangeListbox(int index)
 
 void CNewINIEditor::SetupIniHighlight(HWND& hWnd)
 {
+    SendMessage(hWnd, SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE, 0);
+    // set locale
+	WCHAR wLocale[LOCALE_NAME_MAX_LENGTH];
+	GetUserDefaultLocaleName(wLocale, LOCALE_NAME_MAX_LENGTH);
+
+	char locale[LOCALE_NAME_MAX_LENGTH];
+	WideCharToMultiByte(CP_UTF8, 0, wLocale, -1, locale, sizeof(locale), nullptr, nullptr);
+	SendMessage(hWnd, SCI_SETFONTLOCALE, 0, reinterpret_cast<LPARAM>(locale));
+
     ::SendMessage(hWnd, SCI_SETMULTIPLESELECTION, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETADDITIONALSELECTIONTYPING, TRUE, 0);
     ::SendMessage(hWnd, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH, 0);
     ::SendMessage(hWnd, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION, 0);
     ::SendMessage(hWnd, SCI_SETCODEPAGE, SC_CP_UTF8, 0);
     ::SendMessage(hWnd, SCI_STYLESETFONT, STYLE_DEFAULT, (LPARAM)"Consolas");
-    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 12);
+    ::SendMessage(hWnd, SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
     ::SendMessage(hWnd, SCI_SETTABWIDTH, 4, 0);
 
     ::SendMessage(hWnd, SCI_SETILEXER, 0, (LPARAM)CreateLexer("props"));
@@ -1013,6 +1022,26 @@ int CNewINIEditor::FindLBTextCaseSensitive(HWND hwndCtl, const char* searchStrin
 
 void CNewINIEditor::UpdateGameObject(const char* lpSectionName)
 {
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && CMapDataExt::LightingBuildingTypes.contains(lpSectionName))
+    {
+        LightingSourceTint::CalculateMapLamps();
+        ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        return;
+    }
+    if (CFinalSunDlgExt::CurrentLighting != 31000 && strcmp(lpSectionName, "Lighting") == 0) 
+    {
+        LightingStruct::GetCurrentLighting();
+        for (int i = 0; i < CMapData::Instance->MapWidthPlusHeight; i++) {
+            for (int j = 0; j < CMapData::Instance->MapWidthPlusHeight; j++) {
+                CMapData::Instance->UpdateMapPreviewAt(i, j);
+            }
+        }
+        LightingSourceTint::CalculateMapLamps();
+        CFinalSunDlg::Instance()->MyViewFrame.Minimap.RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        CFinalSunDlg::Instance()->MyViewFrame.pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+		return;
+	}
+
     if (!IsGameObject(lpSectionName) && !IsHouse(lpSectionName)) return;
     if (strcmp(lpSectionName, "Structures") == 0) {
         CMapDataExt::UpdateFieldStructureData_RedrawMinimap();
