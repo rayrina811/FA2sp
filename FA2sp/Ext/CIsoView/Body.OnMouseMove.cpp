@@ -155,14 +155,34 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
             || CIsoView::CurrentCommand->Command == 13 
             || CIsoView::CurrentCommand->Command == 14 
             || CIsoView::CurrentCommand->Command == 15
-            || CIsoView::CurrentCommand->Command == 0x20)
+            || CIsoView::CurrentCommand->Command == 0x20
+            || CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 1)
         {
             std::vector<MapCoord> cells;
-            for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+
+            if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+                    || CIsoView::CurrentCommand->Command == 12 
+                    || CIsoView::CurrentCommand->Command == 15
+                )
+                || CIsoView::CurrentCommand->Command == 0x27
+            )
             {
-                for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2 - 1; gx++)
                 {
-                    cells.push_back({gx, gy});
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2 - 1; gy++)
+                    {
+                        cells.push_back({gx, gy});
+                    }
+                }
+            }
+            else
+            {
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+                {
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                    {
+                        cells.push_back({gx, gy});
+                    }
                 }
             }
             if (ExtConfigs::DirectXRendering)
@@ -518,6 +538,10 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                 leftIndex++;
             double defaultScaledFactor = ExtConfigs::HiDPIAwareness_ScaleIsoView ? (1.0 / CFinalSunAppExt::ProgramScaleFactor) : 1.0;
             if (fabs(CIsoViewExt::ScaledFactor - defaultScaledFactor) > 0.01)
+                leftIndex++;
+            if (CIsoView::CurrentCommand->Command == 11 
+                || CIsoView::CurrentCommand->Command == 12 
+                || CIsoView::CurrentCommand->Command == 15)
                 leftIndex++;
         }
 
@@ -2818,7 +2842,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                     display(0, bools, dlg->CString_House, data.House, "PropertyBrush.House", "House");
                     display(1, bools, dlg->CString_HealthPoint, data.Health, "PropertyBrush.Health", "Health");
                     display(2, bools, dlg->CString_Direction, data.Facing, "PropertyBrush.Facing", "Facing");
-                    display(3, bools, dlg->CString_Status, data.Status, "PropertyBrush.Status", "Status");
+                    display(3, bools, dlg->CString_State, data.Status, "PropertyBrush.Status", "Status");
                     display(4, bools, dlg->CString_VeteranLevel, data.VeterancyPercentage, "PropertyBrush.VeterancyPercentage", "Veterancy");
                     display(5, bools, dlg->CString_Group, data.Group, "PropertyBrush.Group", "Group");
                     display(6, bools, dlg->CString_AutoCreateNoRecruitable, data.AutoNORecruitType, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
@@ -2965,7 +2989,7 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
                     displayNew(0, bools, dlg->CString_House, "PropertyBrush.House", "House");
                     displayNew(1, bools, dlg->CString_HealthPoint, "PropertyBrush.Health", "Health");
                     displayNew(2, bools, dlg->CString_Direction, "PropertyBrush.Facing", "Facing");
-                    displayNew(3, bools, dlg->CString_Status, "PropertyBrush.Status", "Status");
+                    displayNew(3, bools, dlg->CString_State, "PropertyBrush.Status", "Status");
                     displayNew(4, bools, dlg->CString_VeteranLevel, "PropertyBrush.VeterancyPercentage", "Veterancy");
                     displayNew(5, bools, dlg->CString_Group, "PropertyBrush.Group", "Group");
                     displayNew(6, bools, dlg->CString_AutoCreateNoRecruitable, "PropertyBrush.AutoNORecruitType", "AutoNORecruitType");
@@ -3232,11 +3256,67 @@ void CIsoViewExt::DrawMouseMove(HDC hDC, const RECT &rect)
 		}
 		else
         {
-			if (ExtConfigs::DirectXRendering)
-				pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY, cell->Height);
+			if (CIsoViewExt::UsingNewRaiseGround && 
+                (CIsoView::CurrentCommand->Command == 11
+                || CIsoView::CurrentCommand->Command == 12
+                || CIsoView::CurrentCommand->Command == 15
+                )
+                || CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 1
+            )
+            {
+                VertexHeight vh = { point.X, point.Y };
+				vh.GetVertexHeight(true, true);
+                int offset = CFinalSunApp::Instance->FlatToGround ? 0 : (vh.Height - cell->Height);				
+				if (ExtConfigs::DirectXRendering)
+                    pIsoView->DirectXMouseNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                        CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height);
+                else
+                    pIsoView->DrawLockedCellOutlinePaintNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                        CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, 
+                        ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                        ExtConfigs::CursorSelectionBound_AutoColor);
+			}
+			else if (CIsoView::CurrentCommand->Command == 0x27 && CIsoView::CurrentCommand->Type == 0)
+            {        
+                for (int gx = point.X - pIsoView->BrushSizeX / 2; gx <= point.X + pIsoView->BrushSizeX / 2; gx++)
+                {
+                    for (int gy = point.Y - pIsoView->BrushSizeY / 2; gy <= point.Y + pIsoView->BrushSizeY / 2; gy++)
+                    {
+                        int X = gx, Y = gy;
+                        CIsoViewExt::MapCoord2ScreenCoord(X, Y);
+                        VertexHeight vh = { gx, gy };		
+                        vh.GetVertexHeight(true, true);
+                        int offset = CFinalSunApp::Instance->FlatToGround ? 0 : (vh.Height - cell->Height);		
+                        if (ExtConfigs::DirectXRendering)
+                        {    
+                            pIsoView->DirectXMouseNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                                Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                                CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, true);
+                        }
+                        else
+                        {                        
+                            pIsoView->DrawLockedCellOutlinePaintNewRaiseGroundCursor(X - CIsoViewExt::drawOffsetX, 
+                                Y - CIsoViewExt::drawOffsetY - offset * 15 / CIsoViewExt::ScaledFactor, 
+                                CFinalSunApp::Instance->FlatToGround ? cell->Height : vh.Height, 
+                                ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                                ExtConfigs::CursorSelectionBound_AutoColor, true);
+                        }
+                    }
+                }
+			}
             else
-                pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, Y - CIsoViewExt::drawOffsetY,
-                    cell->Height, ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, ExtConfigs::CursorSelectionBound_AutoColor);
+            {
+                if (ExtConfigs::DirectXRendering)
+                    pIsoView->DirectXMouseCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY, cell->Height);
+                else
+                    pIsoView->DrawLockedCellOutlinePaintCursor(X - CIsoViewExt::drawOffsetX, 
+                        Y - CIsoViewExt::drawOffsetY, cell->Height, 
+                        ExtConfigs::CursorSelectionBound_Color, hDC, pIsoView->m_hWnd, 
+                        ExtConfigs::CursorSelectionBound_AutoColor);
+            }
 		}
     }
 }

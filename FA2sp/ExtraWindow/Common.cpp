@@ -777,6 +777,93 @@ void ExtraWindow::LoadParam_Stringtables(VirtualComboBoxEx& vcb)
     }
 }
 
+void ExtraWindow::LoadParams_Houses(VirtualComboBoxEx& vcb, bool multiOnly, bool countries, bool players)
+{
+    const char* playersAtX[8]
+    {
+        "<Player @ A>",
+        "<Player @ B>",
+        "<Player @ C>",
+        "<Player @ D>",
+        "<Player @ E>",
+        "<Player @ F>",
+        "<Player @ G>",
+        "<Player @ H>"
+    };
+    vcb.Clear();
+
+    if (!multiOnly)
+        players = false;
+
+    auto pCountry = CINI::Rules->GetSection("Countries");
+    auto pHouse = CINI::CurrentDocument->GetSection("Houses");
+    INISection* pSection = nullptr;
+
+    if (CMapDataExt::IsInitingPropertyDialog)
+        pSection = multiOnly ? pCountry : pHouse;
+    else
+        pSection = countries ? pCountry : pHouse;
+
+	auto addColoredHouse = [&](const char* house, const char* text = nullptr)
+	{
+        if (!text)
+            text = house;
+        if (!CMapDataExt::IsInitingPropertyDialog)
+        {
+            vcb.AddString(text);
+        }
+        else
+        {
+			auto color = Miscs::GetColorRef(house);
+			vcb.AddString(text, CLR_INVALID, color, true);
+        }
+	};
+
+	if (pSection)
+    {
+        if (players)
+        {
+			for (int i = 0; i < 8; ++i)
+            {    
+				addColoredHouse(playersAtX[i]);
+            }
+        }
+
+        for (const auto& [key, value] : pSection->GetEntities())
+        {
+            if (value == "Nod" || value == "GDI")
+                continue;
+
+            FString text = Translations::ParseHouseName(value, true);
+
+            if (ExtConfigs::ObjectBrowser_SafeHouses
+                && CMapDataExt::IsInitingPropertyDialog
+                && pSection == pCountry)
+            {
+                if (value != "Neutral" && value != "Special")
+                    continue;
+            }
+
+            addColoredHouse(value, text);
+        }
+    }
+    else if (players)
+    {
+        for (int i = 0; i < 8; ++i)
+        {    
+            addColoredHouse(playersAtX[i]);
+        }
+    }
+}
+
+void ExtraWindow::LoadParams_Tags(VirtualComboBoxEx& vcb, bool addNone)
+{
+    if (addNone)
+        vcb.AddString("None");
+
+    ExtraWindow::LoadParam_Tags(vcb);
+}
+
 static SortLabelKey BuildKey(const FString& input)
 {
     SortLabelKey key;
@@ -1605,6 +1692,7 @@ BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
     {
     case WM_INITDIALOG:
     {
+        m_transparency.Init(hWnd, "HelpDlgOpacity");
         return TRUE;
     }
     case WM_GETMINMAXINFO: 
@@ -1643,6 +1731,12 @@ BOOL CALLBACK HelpDlg::HandleMsg(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lPar
     {
         CloseHelpDlg();
         return TRUE;
+    }
+    default:
+    {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "HelpDlgOpacity"))
+        return TRUE;
+    break;
     }
     }
     return FALSE;
@@ -2550,7 +2644,7 @@ int VirtualComboBoxEx::ReplaceString(int index, const char* str, COLORREF textCo
             DeleteObject(m_hCurBrush);
             m_hCurBrush = nullptr;
         }
-        if (items[index].backgroundColor != CLR_INVALID)
+        if (items[index].backgroundColor != CLR_INVALID && !items[index].leftSideBackground)
             m_hCurBrush = CreateSolidBrush(items[index].backgroundColor);
 
         InvalidateRect(hEdit, NULL, TRUE);
@@ -2624,7 +2718,7 @@ void VirtualComboBoxEx::SetItemColors(int index, COLORREF textColor, COLORREF ba
             DeleteObject(m_hCurBrush);
             m_hCurBrush = nullptr;
         }
-        if (backgroundColor != CLR_INVALID)
+        if (backgroundColor != CLR_INVALID && !leftSideBackground)
             m_hCurBrush = CreateSolidBrush(backgroundColor);
 
         InvalidateRect(hEdit, NULL, TRUE);
@@ -3169,7 +3263,7 @@ LRESULT CALLBACK VirtualComboBoxEx::ComboProc(HWND hwnd, UINT msg, WPARAM wParam
             pThis->curSel = idx;
             SetWindowTextA(pThis->hEdit, pThis->items[idx].text);
 
-            if (pThis->items[idx].backgroundColor != CLR_INVALID)
+            if (pThis->items[idx].backgroundColor != CLR_INVALID && !pThis->items[idx].leftSideBackground)
                 pThis->m_hCurBrush = CreateSolidBrush(pThis->items[idx].backgroundColor);
         }
         else
@@ -4014,6 +4108,8 @@ CINIDialog::CINIDialog(int resource)
 BOOL CINIDialog::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+	if (!m_transparencyKey.IsEmpty())
+		m_transparency.Init(GetSafeHwnd(), m_transparencyKey);
 	FString buffer;
 
 	auto translate = [&buffer, this](int nItem, const char* lpLabel)
@@ -4067,10 +4163,29 @@ BOOL CINIDialog::OnInitDialog()
 	return TRUE;
 }
 
+void CINIDialog::SetTransparencyKey(const char* key)
+{
+	m_transparencyKey = key;
+}
+
 BOOL CINIDialog::OnCommand(WPARAM wParam, LPARAM lParam)
 {
     WORD nID = LOWORD(wParam);
     WORD nNotify = HIWORD(wParam);
+
+    if (!m_transparencyKey.IsEmpty()) {
+        int alpha = -1;
+        if (nID == TransparencyHelper::IDM_OPAQUE)           alpha = 255;
+        else if (nID == TransparencyHelper::IDM_NEAR_FULL)   alpha = 191;
+        else if (nID == TransparencyHelper::IDM_HALF)        alpha = 128;
+        else if (nID == TransparencyHelper::IDM_TRANSPARENT) alpha = 64;
+        else if (nID == TransparencyHelper::IDM_FULL_TRANSPARENT) alpha = 1;
+
+        if (alpha != -1) {
+            m_transparency.ApplyTransparency(GetSafeHwnd(), alpha, m_transparencyKey);
+            return TRUE;
+        }
+    }
 
 	auto itr = m_controlInfos.find(nID);
 	if (itr != m_controlInfos.end())
@@ -4149,6 +4264,13 @@ void CINIDialog::OnCancel()
 	OnClose();
 }
 
+BOOL CINIDialog::PreTranslateMessage(MSG* pMsg)
+{
+    if (!m_transparencyKey.IsEmpty() && m_transparency.HandleMessage(GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam, m_transparencyKey))
+        return TRUE;
+    return CDialog::PreTranslateMessage(pMsg);
+}
+
 void ExtraWindow::DisableOtherWindows(HWND hDlg)
 {
     s_disabledWindows.clear();
@@ -4176,4 +4298,261 @@ void ExtraWindow::RestoreDisabledWindows()
             EnableWindow(h, TRUE);
     }
     s_disabledWindows.clear();
+}
+
+// ============================================================
+// TransparencyHelper implementation
+// ============================================================
+
+void TransparencyHelper::Init(HWND hWnd, const char* iniKey)
+{
+	if (m_initialized)
+		return;
+	m_initialized = true;
+
+	int opacity = 255;
+	CINI fa2;
+	FString path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path);
+	opacity = fa2.GetInteger("UserInterface", iniKey, 255);
+	opacity = std::max(1, std::min(255, opacity));
+
+	DWORD dwEx = ::GetWindowLong(hWnd, GWL_EXSTYLE);
+	dwEx |= WS_EX_LAYERED;
+	::SetWindowLong(hWnd, GWL_EXSTYLE, dwEx);
+	::SetLayeredWindowAttributes(hWnd, 0, opacity, LWA_ALPHA);
+	::SetWindowPos(hWnd, NULL, 0, 0, 0, 0,
+		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        m_restingAlpha = opacity;
+
+	if (opacity < 255)
+	{
+		ArmMouseLeave(hWnd);
+		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+	}
+}
+
+void TransparencyHelper::ArmMouseLeave(HWND hWnd)
+{
+	// Track WM_MOUSELEAVE for the client area.
+	// When the mouse leaves, we'll do a one-shot check to decide
+	// whether to restore transparency (vs. mouse is over a dropdown).
+	TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hWnd, 0 };
+	::TrackMouseEvent(&tme);
+}
+
+void TransparencyHelper::SetTransparency(HWND hWnd, int alpha)
+{
+	DWORD dwEx = ::GetWindowLong(hWnd, GWL_EXSTYLE);
+	if (!(dwEx & WS_EX_LAYERED))
+	{
+		dwEx |= WS_EX_LAYERED;
+		::SetWindowLong(hWnd, GWL_EXSTYLE, dwEx);
+	}
+	::SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
+}
+
+void TransparencyHelper::ApplyTransparency(HWND hWnd, int alpha, const char* iniKey)
+{
+	SetTransparency(hWnd, alpha);
+	m_restingAlpha = alpha;
+
+	if (alpha == 255)
+	{
+		::KillTimer(hWnd, HOVER_TIMER_ID);
+		RemoveProp(hWnd, "TransparencyHover");
+	}
+	else
+	{
+		ArmMouseLeave(hWnd);
+		::SetTimer(hWnd, HOVER_TIMER_ID, HOVER_INTERVAL, nullptr);
+	}
+
+	CINI fa2;
+	FString path = CFinalSunAppExt::ExePathExt;
+	path += "\\FinalAlert.ini";
+	fa2.ClearAndLoad(path);
+	fa2.WriteString("UserInterface", iniKey, std::to_string(alpha).c_str());
+	fa2.WriteToFile(path);
+}
+
+bool TransparencyHelper::IsCursorOverWindow(HWND hWnd)
+{
+	POINT pt;
+	::GetCursorPos(&pt);
+	HWND hWndUnder = ::WindowFromPoint(pt);
+
+	if (!hWndUnder)
+		return false;
+	if (hWnd == hWndUnder || ::IsChild(hWnd, hWndUnder))
+		return true;
+
+	// Walk owner chain for popup windows (e.g., tooltips)
+	HWND hOwner = hWndUnder;
+	while ((hOwner = ::GetWindow(hOwner, GW_OWNER)) != NULL)
+	{
+		if (hOwner == hWnd || ::IsChild(hWnd, hOwner))
+			return true;
+	}
+
+	return false;
+}
+
+bool TransparencyHelper::HasAnyDropdownOpen(HWND hWnd)
+{
+	bool hasOpen = false;
+	::EnumChildWindows(hWnd, [](HWND hChild, LPARAM lParam) -> BOOL {
+		bool* pResult = reinterpret_cast<bool*>(lParam);
+
+		// GetComboBoxInfo is safe to call even when the ComboBox is in a
+		// modal dropdown loop ?C it doesn't send a message, just reads state.
+		COMBOBOXINFO cbi = { sizeof(cbi) };
+		if (::GetComboBoxInfo(hChild, &cbi))
+		{
+			if (cbi.hwndList && ::IsWindowVisible(cbi.hwndList))
+			{
+				*pResult = true;
+				return FALSE; // stop enumeration
+			}
+		}
+
+		return TRUE;
+	}, reinterpret_cast<LPARAM>(&hasOpen));
+
+	return hasOpen;
+}
+
+void TransparencyHelper::ShowTransparencyMenu(HWND hWnd)
+{
+	HMENU hMenu = ::CreatePopupMenu();
+	::AppendMenu(hMenu, MF_STRING, IDM_OPAQUE,
+		Translations::TranslateOrDefault("TransparencyMenu.100", "Opaque (100%)"));
+	::AppendMenu(hMenu, MF_STRING, IDM_NEAR_FULL,
+		Translations::TranslateOrDefault("TransparencyMenu.75", "75% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_HALF,
+		Translations::TranslateOrDefault("TransparencyMenu.50", "50% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_TRANSPARENT,
+		Translations::TranslateOrDefault("TransparencyMenu.25", "25% Opacity"));
+	::AppendMenu(hMenu, MF_STRING, IDM_FULL_TRANSPARENT,
+		Translations::TranslateOrDefault("TransparencyMenu.1", "1% Opacity"));
+
+	POINT pt;
+	::GetCursorPos(&pt);
+	::SetForegroundWindow(hWnd);
+	::TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_LEFTBUTTON, pt.x, pt.y, 0, hWnd, nullptr);
+	::DestroyMenu(hMenu);
+}
+
+bool TransparencyHelper::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, const char* iniKey)
+{
+	switch (msg)
+	{
+	case WM_NCRBUTTONDOWN:
+		if (wParam == HTCAPTION)
+		{
+			ShowTransparencyMenu(hWnd);
+			return true;
+		}
+		break;
+
+	case WM_INITMENUPOPUP:
+		if (::GetMenuState((HMENU)wParam, IDM_OPAQUE, MF_BYCOMMAND) != -1)
+			return true;
+		break;
+
+	case WM_SETFOCUS:
+	{
+		// Window got focus (mouse click, Alt+Tab, etc.) - make opaque.
+		// Covers the case where the user clicks on this window to dismiss
+		// a ComboBox dropdown in another window.
+		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+		SetTransparency(hWnd, 255);
+		ArmMouseLeave(hWnd);
+		return false; // don't consume, let default handler run
+	}
+
+	case WM_MOUSEMOVE:
+	case WM_NCMOUSEMOVE:
+	{
+		// Mouse entered our window (or moved within it) - make opaque immediately
+		// and re-arm WM_MOUSELEAVE tracking.
+		SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+		SetTransparency(hWnd, 255);
+		ArmMouseLeave(hWnd);
+		return false; // don't consume, let default handler run
+	}
+
+	case WM_MOUSELEAVE:
+	case WM_NCMOUSELEAVE:
+	{
+		// The polling timer (started in Init) handles leave detection.
+		// No need to start a new timer here - the continuous poller
+		// will check IsCursorOverWindow and restore transparency if needed.
+		return false; // let MFC process WM_MOUSELEAVE for control hover state
+	}
+
+	case WM_TIMER:
+		if (wParam == HOVER_TIMER_ID)
+		{
+			if (m_restingAlpha == 255)
+			{
+				::KillTimer(hWnd, HOVER_TIMER_ID);
+				RemoveProp(hWnd, "TransparencyHover");
+				return true;
+			}
+
+			// If any ComboBox dropdown is open, keep the window opaque
+			// while the dropdown is visible.
+			if (HasAnyDropdownOpen(hWnd))
+			{
+				SetTransparency(hWnd, 255);
+				SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+				return true;
+			}
+
+			// Continuous polling: check if the mouse is over our window
+			// and correct the transparency state accordingly.
+			// This catches edge cases where WM_MOUSEMOVE/WM_MOUSELEAVE
+			// may not fire (e.g. external window on top, window closure).
+			bool isOver = IsCursorOverWindow(hWnd);
+			bool wasHover = GetProp(hWnd, "TransparencyHover") != nullptr;
+
+			if (isOver && !wasHover)
+			{
+				// Mouse entered our window (missed by WM_MOUSEMOVE) - make opaque
+				SetTransparency(hWnd, 255);
+				SetProp(hWnd, "TransparencyHover", (HANDLE)TRUE);
+				ArmMouseLeave(hWnd);
+			}
+			else if (!isOver && wasHover)
+			{
+				// Mouse left our window (missed by WM_MOUSELEAVE) - restore transparency
+				SetTransparency(hWnd, m_restingAlpha);
+				RemoveProp(hWnd, "TransparencyHover");
+			}
+			// else: state is consistent, nothing to do
+
+			return true;
+		}
+		break;
+
+	case WM_COMMAND:
+	{
+		UINT id = LOWORD(wParam);
+		int alpha = -1;
+		if (id == IDM_OPAQUE)           alpha = 255;
+		else if (id == IDM_NEAR_FULL)   alpha = 191;
+		else if (id == IDM_HALF)        alpha = 128;
+		else if (id == IDM_TRANSPARENT) alpha = 64;
+		else if (id == IDM_FULL_TRANSPARENT) alpha = 1;
+		else
+			return false;
+
+		ApplyTransparency(hWnd, alpha, iniKey);
+		return true;
+	}
+	}
+
+	return false;
 }

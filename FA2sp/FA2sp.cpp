@@ -118,6 +118,8 @@ int ExtConfigs::SaveMap_DefaultPreviewOptionSP;
 bool ExtConfigs::SaveMap_FileEncodingComment;
 bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
+bool ExtConfigs::TileSetBrowserFloating;
+bool ExtConfigs::ViewObjectsFloating;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
 int ExtConfigs::TerrainGeneratorColor;
@@ -157,6 +159,7 @@ bool ExtConfigs::PlaceTileSkipHide;
 bool ExtConfigs::EnableVeinholeLogic;
 bool ExtConfigs::InitializeMap;
 bool ExtConfigs::ReloadGameFromMapFolder;
+bool ExtConfigs::ReloadIniWhenOpeningMap;
 bool ExtConfigs::LoadGameFromMapFolder_OnInit;
 bool ExtConfigs::ArtImageSwap;
 bool ExtConfigs::ExtraRaiseGroundTerrainSupport;
@@ -167,6 +170,7 @@ bool ExtConfigs::SaveMaps_BetterMapPreview;
 bool ExtConfigs::ShowMapBoundInMiniMap;
 bool ExtConfigs::CursorSelectionBound_AutoColor;
 bool ExtConfigs::MultiSelect_ConsiderLAT;
+float ExtConfigs::MultiSelect_Opacity;
 bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
 bool ExtConfigs::DPIAware;
@@ -310,6 +314,7 @@ void FA2sp::ExtConfigsInitialize()
 		CINI::FAData->GetColor("ExtConfigs", "CursorSelectionBound.HeightIndicatorColor", 0x3C3C3C);
 	ExtConfigs::CursorSelectionBound_AutoColor = CINI::FAData->GetBool("ExtConfigs", "CursorSelectionBound.AutoHeightColor");
 	ExtConfigs::MultiSelect_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "MultiSelect.ConsiderLAT", true);
+	ExtConfigs::MultiSelect_Opacity = CINI::FAData->GetSingle("ExtConfigs", "MultiSelect.Opacity", 0.33f);
 	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT", true);
 	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater", true);
 	ExtConfigs::ForceNeutralSpecialColor = CINI::FAData->GetBool("ExtConfigs", "ForceNeutralSpecialColor", true);
@@ -448,6 +453,8 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::SaveMap_DefaultPreviewOptionSP = CINI::FAData->GetInteger("ExtConfigs", "SaveMap.DefaultPreviewOptionSP", 1);
 
 	ExtConfigs::VerticalLayout = CINI::FAData->GetBool("ExtConfigs", "VerticalLayout");
+	ExtConfigs::TileSetBrowserFloating = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserFloating");
+	ExtConfigs::ViewObjectsFloating = CINI::FAData->GetBool("ExtConfigs", "ViewObjectsFloating");
 
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
 
@@ -496,6 +503,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::PlaceTileSkipHide = CINI::FAData->GetBool("ExtConfigs", "PlaceTileSkipHide");
 	ExtConfigs::EnableVeinholeLogic = CINI::FAData->GetBool("ExtConfigs", "EnableVeinholeLogic");
 	ExtConfigs::ReloadGameFromMapFolder = CINI::FAData->GetBool("ExtConfigs", "ReloadGameFromMapFolder");
+	ExtConfigs::ReloadIniWhenOpeningMap = CINI::FAData->GetBool("ExtConfigs", "ReloadIniWhenOpeningMap");
 	ExtConfigs::LoadGameFromMapFolder_OnInit = CINI::FAData->GetBool("ExtConfigs", "LoadGameFromMapFolder.OnInit");
 	// ExtConfigs::ArtImageSwap = CINI::FAData->GetBool("ExtConfigs", "ArtImageSwap");
 	ExtConfigs::ExtraRaiseGroundTerrainSupport = CINI::FAData->GetBool("ExtConfigs", "ExtraRaiseGroundTerrainSupport");
@@ -644,6 +652,18 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.VerticalLayout", "Move tile browser to right"),
 		.IniKey = "VerticalLayout",
 		.Value = &ExtConfigs::VerticalLayout,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ViewObjectsFloating", "Object browser as floating window"),
+		.IniKey = "ViewObjectsFloating",
+		.Value = &ExtConfigs::ViewObjectsFloating,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserFloating", "Tile browser as floating window"),
+		.IniKey = "TileSetBrowserFloating",
+		.Value = &ExtConfigs::TileSetBrowserFloating,
 		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
@@ -1043,6 +1063,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ReloadGameFromMapFolder", "Reload game resources from map folder"),
 		.IniKey = "ReloadGameFromMapFolder",
 		.Value = &ExtConfigs::ReloadGameFromMapFolder,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ReloadIniWhenOpeningMap", "Reload game INIs when opening map file"),
+		.IniKey = "ReloadIniWhenOpeningMap",
+		.Value = &ExtConfigs::ReloadIniWhenOpeningMap,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

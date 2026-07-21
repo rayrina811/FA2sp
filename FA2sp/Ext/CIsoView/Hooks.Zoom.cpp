@@ -99,6 +99,14 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15) 
+		|| CIsoView::CurrentCommand->Command == 0x27)
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 
@@ -123,6 +131,15 @@ DEFINE_HOOK(461167, CIsoView_ScreenCoord2MapCoord_Height_TileData, 6)
 	return 0;
 }
 
+DEFINE_HOOK(461153, CIsoView_ScreenCoord2MapCoord_Height_TileIndex, 5)
+{
+	GET(int, tileIndex, EAX);
+
+	R->EAX(CMapDataExt::GetSafeTileIndex(tileIndex));
+
+	return 0x46115C;
+}
+
 DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 {
 	GET_STACK(int *, X, 0x4);
@@ -135,6 +152,14 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
+
+	if (CIsoViewExt::UsingNewRaiseGround && (CIsoView::CurrentCommand->Command == 11 
+			|| CIsoView::CurrentCommand->Command == 12 
+			|| CIsoView::CurrentCommand->Command == 15)
+		|| CIsoView::CurrentCommand->Command == 0x27)
+	{
+		*Y += 15;
+	}
 	return 0;
 }
 

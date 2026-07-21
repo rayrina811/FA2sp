@@ -43,6 +43,7 @@ std::map<int, int> CSearhReference::LocalVariableEvents;
 std::map<int, int> CSearhReference::LocalVariableActions;
 std::map<int, std::map<int, FString>> CSearhReference::LocalVariableParamAffectedEvents;
 std::map<int, std::map<int, FString>> CSearhReference::LocalVariableParamAffectedActions;
+TransparencyHelper CSearhReference::m_transparency;
 
 void CSearhReference::Create(CFinalSunDlg* pWnd)
 {
@@ -105,6 +106,7 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
     case WM_INITDIALOG:
     {
         CSearhReference::Initialize(hWnd);
+        m_transparency.Init(hWnd, "SearchReferenceOpacity");
         RECT rect;
         GetClientRect(hWnd, &rect);
         origWndWidth = rect.right - rect.left;
@@ -147,12 +149,21 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
         newHeight = rect.bottom - rect.top;
         MoveWindow(hRefresh, topLeft.x + newWndWidth - origWndWidth, topLeft.y + newWndHeight - origWndHeight, newWidth, newHeight, TRUE);
 
+        GetWindowRect(hFollowActiveWindow, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hFollowActiveWindow, topLeft.x + newWndWidth - origWndWidth, topLeft.y + newWndHeight - origWndHeight, newWidth, newHeight, TRUE);
+
         origWndWidth = newWndWidth;
         origWndHeight = newWndHeight;
         break;
     }
     case WM_COMMAND:
     {
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "SearchReferenceOpacity"))
+            return TRUE;
         WORD ID = LOWORD(wParam);
         WORD CODE = HIWORD(wParam);
         switch (ID)
@@ -190,7 +201,10 @@ BOOL CALLBACK CSearhReference::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARA
         Update(false);
         return TRUE;
     }
-
+    default:
+        if (m_transparency.HandleMessage(hWnd, Msg, wParam, lParam, "SearchReferenceOpacity"))
+            return TRUE;
+        break;
     }
 
     // Process this message through default handler
