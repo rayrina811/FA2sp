@@ -22,6 +22,7 @@ public:
 		TaskforceSort = 5,
 		ScriptSort = 6,
 		WaypointSort = 7,
+		MapObjectList = 8,
 	};
 
 	//

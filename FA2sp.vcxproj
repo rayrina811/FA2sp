@@ -321,6 +321,7 @@
     <ClCompile Include="FA2sp\Ext\CTags\Body.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\MapObjectList.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.cpp" />
     <ClCompile Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.cpp" />
@@ -442,6 +443,7 @@
     <ClInclude Include="FA2sp\Ext\CSingleplayerSettings\Body.h" />
     <ClInclude Include="FA2sp\Ext\CTags\Body.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\GridObjectViewer.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\MapObjectList.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\ScriptSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TagSort.h" />
     <ClInclude Include="FA2sp\Ext\CTileSetBrowserFrame\TabPages\TaskForceSort.h" />
