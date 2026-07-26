@@ -13,6 +13,7 @@
 #include <cctype>
 #include <commctrl.h>
 #include <cstdlib>
+#include <sstream>
 
 MapObjectList MapObjectList::Instance;
 
@@ -22,6 +23,7 @@ namespace
     constexpr UINT SearchControl = 2;
     constexpr UINT ListControl = 3;
     constexpr UINT CountControl = 4;
+    constexpr UINT ClearCommand = 5;
 
     int CompareText(const FString& left, const FString& right)
     {
@@ -66,15 +68,23 @@ void MapObjectList::CreateControls()
     m_hRefresh = CreateWindow(
         "BUTTON", Translations::TranslateOrDefault("MapObjectList.Refresh", "Refresh"),
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-        270, 4, 80, 24, m_hWnd,
+        304, 4, 80, 24, m_hWnd,
         reinterpret_cast<HMENU>(RefreshCommand),
+        static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
+    );
+
+    m_hClear = CreateWindow(
+        "BUTTON", "×",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+        270, 4, 28, 24, m_hWnd,
+        reinterpret_cast<HMENU>(ClearCommand),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
 
     m_hCount = CreateWindow(
         "STATIC", nullptr,
         WS_CHILD | WS_VISIBLE | SS_RIGHT,
-        360, 8, 120, 18, m_hWnd,
+        390, 8, 120, 18, m_hWnd,
         reinterpret_cast<HMENU>(CountControl),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -93,9 +103,9 @@ void MapObjectList::CreateControls()
     );
 
     const char* headers[] = {
-        "Index", "TypeID", "Coordinate", "House", "Health"
+        "Index", "Type", "TypeID", "Coordinate", "House", "Health"
     };
-    const int widths[] = { 70, 150, 100, 130, 80 };
+    const int widths[] = { 70, 90, 150, 100, 130, 80 };
     for (int i = 0; i < Column::Count; ++i)
     {
         LVCOLUMN column{};
@@ -108,9 +118,9 @@ void MapObjectList::CreateControls()
 
     FString text;
     const char* translationKeys[] = {
-        "MapObjectList.Index", "MapObjectList.TypeID",
-        "MapObjectList.Coordinate", "MapObjectList.House",
-        "MapObjectList.Health"
+        "MapObjectList.Index", "MapObjectList.Type",
+        "MapObjectList.TypeID", "MapObjectList.Coordinate",
+        "MapObjectList.House", "MapObjectList.Health"
     };
     for (int i = 0; i < Column::Count; ++i)
     {
@@ -132,6 +142,7 @@ void MapObjectList::Refresh()
 
     LoadRows();
     ApplyFilterAndSort();
+    m_dataDirty = false;
 }
 
 void MapObjectList::LoadRows()
@@ -157,47 +168,20 @@ void MapObjectList::LoadRows()
             Row row;
             row.Index = index++;
             row.Type = type;
+            // Map INI order is OWNER, TypeID, Health, X, Y.
             row.X = atoi(values[3]);
             row.Y = atoi(values[4]);
+            row.TypeID = values[1];
+            row.House = Translations::ParseHouseName(values[0], true);
+            row.Health = values[2];
 
-            switch (type)
-            {
-            case ObjectType::Infantry:
-            {
-                CInfantryData data;
-                CMapData::Instance->GetInfantryData(row.Index, data);
-                row.TypeID = data.TypeID;
-                row.House = Translations::ParseHouseName(data.House, true);
-                row.Health = data.Health;
-                break;
-            }
-            case ObjectType::Building:
+            if (type == ObjectType::Building)
             {
                 CBuildingData data;
-                CMapData::Instance->GetBuildingData(row.Index, data);
+                CMapDataExt::GetBuildingDataByIniID(row.Index, data);
                 row.TypeID = data.TypeID;
                 row.House = Translations::ParseHouseName(data.House, true);
                 row.Health = data.Health;
-                break;
-            }
-            case ObjectType::Aircraft:
-            {
-                CAircraftData data;
-                CMapData::Instance->GetAircraftData(row.Index, data);
-                row.TypeID = data.TypeID;
-                row.House = Translations::ParseHouseName(data.House, true);
-                row.Health = data.Health;
-                break;
-            }
-            case ObjectType::Unit:
-            {
-                CUnitData data;
-                CMapData::Instance->GetUnitData(row.Index, data);
-                row.TypeID = data.TypeID;
-                row.House = Translations::ParseHouseName(data.House, true);
-                row.Health = data.Health;
-                break;
-            }
             }
 
             m_rows.push_back(std::move(row));
@@ -215,24 +199,30 @@ bool MapObjectList::MatchesFilter(const Row& row, const FString& filter) const
     if (filter.empty())
         return true;
 
-    FString all = GetCellText(row, Column::Index);
-    all += " ";
-    all += row.TypeID;
-    all += " ";
-    all += GetCellText(row, Column::Coordinate);
-    all += " ";
-    all += row.House;
-    all += " ";
-    all += row.Health;
+    FString all;
+    for (int column = Column::Index; column < Column::Count; ++column)
+    {
+        if (!all.empty())
+            all += " ";
+        all += GetCellText(row, static_cast<Column>(column));
+    }
 
     auto equalIgnoreCase = [](char left, char right)
     {
         return std::tolower(static_cast<unsigned char>(left)) ==
             std::tolower(static_cast<unsigned char>(right));
     };
-    return std::search(
-        all.begin(), all.end(), filter.begin(), filter.end(), equalIgnoreCase
-    ) != all.end();
+
+    std::istringstream stream(filter.c_str());
+    std::string term;
+    while (stream >> term)
+    {
+        if (std::search(
+                all.begin(), all.end(), term.begin(), term.end(), equalIgnoreCase
+            ) == all.end())
+            return false;
+    }
+    return true;
 }
 
 void MapObjectList::ApplyFilterAndSort()
@@ -290,6 +280,31 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
     case Column::Index:
         text.Format("%d", row.Index);
         break;
+    case Column::Type:
+        switch (row.Type)
+        {
+        case ObjectType::Infantry:
+            text = Translations::TranslateOrDefault(
+                "MapObjectList.Type.Infantry", "Infantry"
+            );
+            break;
+        case ObjectType::Unit:
+            text = Translations::TranslateOrDefault(
+                "MapObjectList.Type.Unit", "Vehicle"
+            );
+            break;
+        case ObjectType::Aircraft:
+            text = Translations::TranslateOrDefault(
+                "MapObjectList.Type.Aircraft", "Aircraft"
+            );
+            break;
+        case ObjectType::Building:
+            text = Translations::TranslateOrDefault(
+                "MapObjectList.Type.Building", "Building"
+            );
+            break;
+        }
+        break;
     case Column::TypeID:
         text = row.TypeID;
         break;
@@ -300,8 +315,12 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
         text = row.House;
         break;
     case Column::Health:
-        text = row.Health;
+    {
+        int health = atoi(row.Health);
+        health = std::max(0, std::min(256, health));
+        text.Format("%d%%", (health * 100 + 128) / 256);
         break;
+    }
     default:
         break;
     }
@@ -324,7 +343,7 @@ void MapObjectList::RebuildList()
         FString text = GetCellText(row, Column::Index);
         item.pszText = const_cast<char*>(text.c_str());
         int displayIndex = ListView_InsertItem(m_hList, &item);
-        for (int column = Column::TypeID; column < Column::Count; ++column)
+        for (int column = Column::Type; column < Column::Count; ++column)
         {
             text = GetCellText(row, static_cast<Column>(column));
             ListView_SetItemText(m_hList, displayIndex, column, const_cast<char*>(text.c_str()));
@@ -370,15 +389,57 @@ void MapObjectList::HandleSelection(bool doubleClick)
         return;
 
     const auto& row = m_rows[item.lParam];
-    CIsoViewExt::MoveToMapCoord(row.X, row.Y);
+    // MoveToMapCoord uses the editor's internal Y,X parameter order.
+    CIsoViewExt::MoveToMapCoord(row.Y, row.X);
     if (doubleClick)
         OpenProperties(row);
 }
 
 void MapObjectList::OpenProperties(const Row& row)
 {
+    auto getIniValue = [](const Row& target)
+    {
+        const char* section = nullptr;
+        switch (target.Type)
+        {
+        case ObjectType::Infantry:
+            section = "Infantry";
+            break;
+        case ObjectType::Unit:
+            section = "Units";
+            break;
+        case ObjectType::Building:
+            section = "Structures";
+            break;
+        case ObjectType::Aircraft:
+            section = "Aircraft";
+            break;
+        }
+
+        if (!section)
+            return FString();
+
+        auto pSection = CMapData::Instance->INI.GetSection(section);
+        if (!pSection)
+            return FString();
+
+        int index = 0;
+        for (auto& pair : pSection->GetEntities())
+        {
+            if (index++ == target.Index)
+            {
+                FString value;
+                value = pair.second;
+                return value;
+            }
+        }
+        return FString();
+    };
+
+    const FString before = getIniValue(row);
     CIsoView::GetInstance()->HandleProperties(row.Index, static_cast<int>(row.Type));
-    Refresh();
+    if (before != getIniValue(row))
+        Refresh();
 }
 
 LRESULT CALLBACK MapObjectList::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -407,6 +468,11 @@ LRESULT MapObjectList::HandleMessage(HWND hWnd, UINT message, WPARAM wParam, LPA
     case WM_COMMAND:
         if (LOWORD(wParam) == SearchControl && HIWORD(wParam) == EN_CHANGE)
             ApplyFilterAndSort();
+        else if (LOWORD(wParam) == ClearCommand && HIWORD(wParam) == BN_CLICKED)
+        {
+            SetWindowText(m_hSearch, "");
+            SetFocus(m_hSearch);
+        }
         else if (LOWORD(wParam) == RefreshCommand && HIWORD(wParam) == BN_CLICKED)
             Refresh();
         return 0;
@@ -426,7 +492,17 @@ LRESULT MapObjectList::HandleMessage(HWND hWnd, UINT message, WPARAM wParam, LPA
         return 0;
     }
     case 114514:
-        Refresh();
+        m_dataDirty = true;
+        if (!m_refreshPosted)
+        {
+            m_refreshPosted = true;
+            ::PostMessage(hWnd, WM_APP + 1, 0, 0);
+        }
+        return 0;
+    case WM_APP + 1:
+        m_refreshPosted = false;
+        if (IsVisible() && m_dataDirty)
+            Refresh();
         return 0;
     case WM_DESTROY:
         m_hWnd = nullptr;
@@ -457,8 +533,9 @@ void MapObjectList::OnSize() const
     GetClientRect(m_hWnd, &rect);
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    ::MoveWindow(m_hSearch, 4, 4, std::max(80, width - 220), 24, TRUE);
-    ::MoveWindow(m_hRefresh, std::max(88, width - 210), 4, 80, 24, TRUE);
+    ::MoveWindow(m_hSearch, 4, 4, std::max(80, width - 250), 24, TRUE);
+    ::MoveWindow(m_hClear, std::max(88, width - 242), 4, 28, 24, TRUE);
+    ::MoveWindow(m_hRefresh, std::max(120, width - 210), 4, 80, 24, TRUE);
     ::MoveWindow(m_hCount, std::max(180, width - 125), 8, 120, 18, TRUE);
     ::MoveWindow(m_hList, 4, 34, std::max(100, width - 8), std::max(40, height - 38), TRUE);
 }
@@ -470,7 +547,8 @@ void MapObjectList::ShowWindow(bool bShow) const
 
 void MapObjectList::ShowWindow() const
 {
-    const_cast<MapObjectList*>(this)->Refresh();
+    if (m_dataDirty)
+        const_cast<MapObjectList*>(this)->Refresh();
     ShowWindow(true);
 }
 

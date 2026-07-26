@@ -45,6 +45,7 @@ private:
     enum Column : int
     {
         Index = 0,
+        Type,
         TypeID,
         Coordinate,
         House,
@@ -68,6 +69,7 @@ private:
 
     HWND m_hWnd = nullptr;
     HWND m_hSearch = nullptr;
+    HWND m_hClear = nullptr;
     HWND m_hRefresh = nullptr;
     HWND m_hCount = nullptr;
     HWND m_hList = nullptr;
@@ -75,4 +77,6 @@ private:
     std::vector<int> m_visibleRows;
     int m_sortColumn = Column::Index;
     bool m_sortAscending = true;
+    bool m_dataDirty = true;
+    bool m_refreshPosted = false;
 };

@@ -269,14 +269,14 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 	}
 	else if (pMsg->message == 114514)
 	{
+		// Keep the object list dirty even while its tab is hidden.
+		// The list refreshes immediately only when visible, or once when shown.
+		if (MapObjectList::Instance.IsValid())
+			::SendMessage(MapObjectList::Instance.GetHwnd(), 114514, 0, 0);
 		if (GridObjectViewer::Instance.IsVisible())
 		{	
 			InvalidateRect(GridObjectViewer::Instance.GetControl(), NULL, TRUE);
 			InvalidateRect(GridObjectViewer::Instance.GetView(), NULL, TRUE);
-		}
-		else if (MapObjectList::Instance.IsVisible())
-		{
-			::SendMessage(MapObjectList::Instance.GetHwnd(), 114514, 0, 0);
 		}
 		else if (::IsWindowVisible(this->DialogBar))
 		{	
