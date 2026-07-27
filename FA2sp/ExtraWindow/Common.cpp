@@ -2793,6 +2793,14 @@ void VirtualComboBoxEx::SyncListCount()
 
 void VirtualComboBoxEx::Filter(const char* text)
 {
+    if (m_preFilterCallback)
+    {
+        DWORD selStart = 0, selEnd = 0;
+        SendMessage(hEdit, EM_GETSEL, (WPARAM)&selStart, (LPARAM)&selEnd);
+        m_preFilterCallback();
+        SendMessage(hEdit, EM_SETSEL, selStart, selEnd);
+    }
+
     if (!m_EnterKeyPressed 
         && (m_allowFilter && !*m_allowFilter || ExtConfigs::SearchCombobox_Disabled)
         && !m_filterActive)
