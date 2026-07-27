@@ -61,8 +61,6 @@ void CTileSetBrowserFrameExt::OnBNSearchClicked()
 		::ShowWindow(CObjectSearch::GetHandle(), SW_SHOW);
 		::SendMessage(CObjectSearch::GetHandle(), 114514, 0, 0);
 	}
-
-
 }
 void CTileSetBrowserFrameExt::OnBNTerrainGeneratorClicked()
 {
@@ -272,7 +270,9 @@ BOOL CTileSetBrowserFrameExt::PreTranslateMessageExt(MSG* pMsg)
 		// Keep the object list dirty even while its tab is hidden.
 		// The list refreshes immediately only when visible, or once when shown.
 		if (MapObjectList::Instance.IsValid())
-			::SendMessage(MapObjectList::Instance.GetHwnd(), 114514, 0, 0);
+		{
+			InvalidateRect(MapObjectList::Instance.GetHwnd(), NULL, TRUE);
+		}
 		if (GridObjectViewer::Instance.IsVisible())
 		{	
 			InvalidateRect(GridObjectViewer::Instance.GetControl(), NULL, TRUE);
@@ -535,13 +535,13 @@ void CTileSetBrowserFrameExt::InitTabControl()
 
 	insertItem("Tiles && Overlays", "TabPages.TilePlacement");
 	insertItem("Object Viewer", "TabPages.GridObjectViewer");
+	insertItem("Map Objects", "TabPages.MapObjectList");
 	insertItem("Trigger Sort", "TabPages.TriggerSort");
 	insertItem("Tag Sort", "TabPages.TagSort");
 	insertItem("Team Sort", "TabPages.TeamSort");
 	insertItem("Taskforce Sort", "TabPages.TaskforceSort");
 	insertItem("Script Sort", "TabPages.ScriptSort");
 	insertItem("Wayponit Sort", "TabPages.WaypointSort");
-	insertItem("Map Objects", "TabPages.MapObjectList");
 	
 	// Create the pages
 	TriggerSort::Instance.Create(hTabCtrl);

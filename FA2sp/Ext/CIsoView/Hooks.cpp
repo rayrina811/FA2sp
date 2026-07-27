@@ -1585,9 +1585,13 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		break;
 	}
 	case 1:
+	case 100: // get building data by ini index
 	{
 		CBuildingData data;
-		CMapData::Instance->GetBuildingData(index, data);
+		if (type == 1)
+			CMapData::Instance->GetBuildingData(index, data);
+		else
+			CMapDataExt::GetBuildingDataByIniID(index, data);
 
 		CNewPropertyBuilding dlg;
 		dlg.CString_HealthPoint = data.Health;
@@ -1626,7 +1630,11 @@ DEFINE_HOOK(45EDC0, CIsoView_HandleProperties, 6)
 		data.Nominal = dlg.CString_ShowName;
 		
 		CMapDataExt::SkipBuildingOverlappingCheck = true;
+		if (type != 1)
+			CMapDataExt::DeleteBuildingByIniID = true;
 		CMapData::Instance->DeleteBuildingData(index);
+		if (type != 1)
+			CMapDataExt::DeleteBuildingByIniID = false;
 		CMapData::Instance->SetBuildingData(&data, NULL, NULL, 0, "");
 		CMapDataExt::SkipBuildingOverlappingCheck = false;
 
