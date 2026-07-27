@@ -126,7 +126,7 @@ FString ExtraWindow::GetTagName(const char* id)
 
 FString ExtraWindow::GetTagDisplayName(const char* id)
 {
-    if (strcmp(id, "<none>") == 0)
+    if (strcmp(id, "<none>") == 0 || strcmp(id, "None") == 0 )
         return id;
     FString name;
     name.Format("%s (%s)", id, FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1));

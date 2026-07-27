@@ -33,6 +33,7 @@
 #include "../CTileSetBrowserFrame/TabPages/WaypointSort.h"
 #include "../CTileSetBrowserFrame/TabPages/TaskForceSort.h"
 #include "../CTileSetBrowserFrame/TabPages/ScriptSort.h"
+#include "../CTileSetBrowserFrame/TabPages/MapObjectList.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Helpers/Translations.h"
 #include "../CIsoView/Body.h"
@@ -5233,6 +5234,10 @@ void CMapDataExt::RefreshAllWindows()
 	{
 		CTriggerAnnotation::ID = "";
 		::SendMessage(CSearhReference::GetHandle(), 114515, 0, 0);
+	}
+	if (MapObjectList::Instance.IsVisible())
+	{	
+		MapObjectList::Instance.Refresh();
 	}
 }
 
