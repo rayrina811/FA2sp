@@ -78,7 +78,7 @@ void MapObjectList::CreateControls()
     m_hSearchLabel = CreateWindow(
         "STATIC", Translations::TranslateOrDefault("MapObjectList.Search", "Search:"),
         WS_CHILD | WS_VISIBLE | SS_LEFT,
-        8, 6, 44 * s, 16 * s, m_hWnd,
+        8, 10, 44 * s, 16 * s, m_hWnd,
         reinterpret_cast<HMENU>(SearchLabelControl),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -86,7 +86,7 @@ void MapObjectList::CreateControls()
     m_hSearch = CreateWindowEx(
         WS_EX_CLIENTEDGE, "EDIT", nullptr,
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
-        56 * s, 4, 210 * s, 20 * s, m_hWnd,
+        56 * s, 8, 210 * s, 20 * s, m_hWnd,
         reinterpret_cast<HMENU>(SearchControl),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -94,7 +94,7 @@ void MapObjectList::CreateControls()
     m_hRefresh = CreateWindow(
         "BUTTON", Translations::TranslateOrDefault("MapObjectList.Refresh", "Refresh"),
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
-        270 * s, 4, 80 * s, 20 * s, m_hWnd,
+        270 * s, 8, 80 * s, 20 * s, m_hWnd,
         reinterpret_cast<HMENU>(RefreshCommand),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -102,7 +102,7 @@ void MapObjectList::CreateControls()
     m_hCount = CreateWindow(
         "STATIC", nullptr,
         WS_CHILD | WS_VISIBLE | SS_RIGHT,
-        360 * s, 8, 120 * s, 15 * s, m_hWnd,
+        360 * s, 12, 120 * s, 15 * s, m_hWnd,
         reinterpret_cast<HMENU>(CountControl),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -111,7 +111,7 @@ void MapObjectList::CreateControls()
         WS_EX_CLIENTEDGE, WC_LISTVIEW, nullptr,
         WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_SINGLESEL |
         LVS_SHOWSELALWAYS | LVS_OWNERDATA,
-        4, 25 * s, 476 * s, 300 * s, m_hWnd,
+        4, 29 * s, 476 * s, 300 * s, m_hWnd,
         reinterpret_cast<HMENU>(ListControl),
         static_cast<HINSTANCE>(FA2sp::hInstance), nullptr
     );
@@ -150,8 +150,8 @@ void MapObjectList::CreateControls()
         "Facing", "Status", "Tag"
     };
     const int widths[] = { 
-        static_cast<int>(70 * s), 
-        static_cast<int>(90 * s), 
+        static_cast<int>(50 * s), 
+        static_cast<int>(80 * s), 
         static_cast<int>(150 * s), 
         static_cast<int>(100 * s), 
         static_cast<int>(130 * s), 
@@ -745,10 +745,10 @@ void MapObjectList::OnSize() const
     GetClientRect(m_hWnd, &rect);
     int width = rect.right - rect.left;
     int height = rect.bottom - rect.top;
-    ::MoveWindow(m_hSearch, 56 * s, 4, std::max(80 * s, width - 272 * s), 20 * s, FALSE);
-    ::MoveWindow(m_hRefresh, std::max(88 * s, width - 210 * s), 4, 80 * s, 20 * s, FALSE);
-    ::MoveWindow(m_hCount, std::max(180 * s, width - 125 * s), 8, 120 * s, 15 * s, FALSE);
-    ::MoveWindow(m_hList, 4, 25 * s, std::max(100 * s, width - 8 * s), std::max(40 * s, height - 25 * s), FALSE);
+    ::MoveWindow(m_hSearch, 56 * s, 8, std::max(80 * s, width - 272 * s), 20 * s, FALSE);
+    ::MoveWindow(m_hRefresh, std::max(88 * s, width - 210 * s), 8, 80 * s, 20 * s, FALSE);
+    ::MoveWindow(m_hCount, std::max(180 * s, width - 125 * s), 12, 120 * s, 15 * s, FALSE);
+    ::MoveWindow(m_hList, 4, 29 * s, std::max(100 * s, width - 8 * s), std::max(40 * s, height - 29 * s), FALSE);
 }
 
 void MapObjectList::ShowWindow(bool bShow) const

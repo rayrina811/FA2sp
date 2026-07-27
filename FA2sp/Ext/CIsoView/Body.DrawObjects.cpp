@@ -563,55 +563,58 @@ static void InitAllObjects()
 	progress.ProgressBar.SetRange(0, count);
 	progress.ProgressBar.SetPos(0);
 
+	auto updateProgress = [&]()
+	{
+		currentPos++;
+		if (currentPos % 50 == 0)
+		{
+			progress.ProgressBar.SetPos(currentPos);
+			progress.ProgressBar.UpdateWindow();
+		}
+	};
+
 	for (int i = 0; i < CMapDataExt::BuildingDatasExt.size(); ++i)
 	{
 		Renderer::Buildings[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapDataExt::UnitDatasExt.size(); ++i)
 	{
 		Renderer::Vehicles[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapDataExt::AircraftDatasExt.size(); ++i)
 	{
 		Renderer::Aircrafts[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->InfantryDatas.size(); ++i)
 	{
 		Renderer::Infantries[i].Reload(i);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->TerrainDatas.size(); ++i)
 	{
 		auto &obj = CMapData::Instance->TerrainDatas[i].TypeID;
 		auto pType = Renderer::GetOrCreateTerrain(obj);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (int i = 0; i < CMapData::Instance->SmudgeDatas.size(); ++i)
 	{
 		auto &obj = CMapData::Instance->SmudgeDatas[i].TypeID;
 		auto pType = Renderer::GetOrCreateSmudge(obj);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (auto nOvr : overlays)
 	{
 		auto pType = Renderer::GetOrCreateOverlay(nOvr);
-		progress.ProgressBar.SetPos(++currentPos);
-		progress.ProgressBar.UpdateWindow();
+		updateProgress();
 	}
 	keepAlive();
 	for (auto &node : baseNodes)
