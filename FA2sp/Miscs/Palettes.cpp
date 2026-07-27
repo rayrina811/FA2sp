@@ -254,12 +254,17 @@ Palette* PalettesManager::GetOverlayPalette(Palette* pPal, Cell3DLocation locati
 
     if (LightingStruct::CurrentLighting != LightingStruct::NoLighting)
     {
-        const auto overlay = CMapDataExt::GetExtension()->GetOverlayAt(
-            CMapData::Instance->GetCoordIndex(
-                CIsoViewExt::CurrentDrawCellLocation.X, CIsoViewExt::CurrentDrawCellLocation.Y));
         if (!CMapDataExt::IsOre(overlay))
         {
-            p.AdjustLighting(LightingStruct::CurrentLighting, location);
+			Cell3DLocation locat = location;
+            if (overlay == 0x18 || overlay == 0x19 ||
+                overlay == 0x3B || overlay == 0x3C ||
+                overlay == 0xED || overlay == 0xEE)
+            {            
+                locat.Height += 4;
+                locat.Height = std::min(locat.Height,  static_cast<short>(14));
+            }
+			p.AdjustLighting(LightingStruct::CurrentLighting, locat);
             p.TintColors();
         }   
     }
@@ -720,7 +725,14 @@ ColorMults ColorMults::GetOverlayColorMult(Cell3DLocation location, Renderer::Ov
     float AmbientMult = 1.0f;
     const auto lamp = LightingSourceTint::ApplyLamp(location.X, location.Y);
 
-    AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * location.Height;
+	auto height = location.Height;
+    if (pType->IsHighBridge())
+    {
+        height += 4;
+        height = std::min(height, static_cast<short>(14));
+    }
+
+	AmbientMult = lighting.Ambient + lamp.AmbientTint - lighting.Ground + lighting.Level * height;
     ret.RedTint = lighting.Red + lamp.RedTint;
     ret.GreenTint = lighting.Green + lamp.GreenTint;
     ret.BlueTint = lighting.Blue + lamp.BlueTint;

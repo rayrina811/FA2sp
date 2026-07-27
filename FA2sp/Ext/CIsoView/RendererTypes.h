@@ -61,6 +61,7 @@ namespace Renderer
         ImageDataClassSafe* GetImageData(BYTE nOverlayData) const;
         ImageDataClassSafe* GetShadowData(BYTE nOverlayData) const;
         bool IsBridge() const;
+        bool IsHighBridge() const;
         virtual bool IsVisibleInMapRendererOrNormal() const override;
 
         static const char* IniSection;

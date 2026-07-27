@@ -2,6 +2,7 @@
 #include "../../Algorithms/Matrix3D.h"
 #include "../../ExtraWindow/CTerrainGenerator/CTerrainGenerator.h"
 #include "../../Helpers/Translations.h"
+#include "../../Helpers/Helper.h"
 #include "../../Miscs/Hooks.INI.h"
 #include "../../Miscs/MultiSelection.h"
 #include "../../Miscs/Palettes.h"
@@ -717,11 +718,14 @@ static void DrawUnit(Renderer::VehicleType* pType,
 		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
 		bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Vehicles[cell->Unit].GetHouseColor();
+		TempValueHolder tempHeight(CIsoViewExt::CurrentDrawCellLocation.Height, CIsoViewExt::CurrentDrawCellLocation.Height);
 
 		if (ImageDataClassSafe::IsValidImage(pData))
 		{
 			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 			{
+				CIsoViewExt::CurrentDrawCellLocation.Height += 4;
+				CIsoViewExt::CurrentDrawCellLocation.Height = std::min(CIsoViewExt::CurrentDrawCellLocation.Height,  static_cast<short>(14));
 				if (ExtConfigs::DirectXRendering)
 				{
 					pThis->DrawLineRawDirectX(x + 30, y + 15 - (HoveringUnit ? 10 : 0) - 60 - 30,
@@ -833,13 +837,18 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 	else
 	{
 		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+		TempValueHolder tempHeight(CIsoViewExt::CurrentDrawCellLocation.Height, CIsoViewExt::CurrentDrawCellLocation.Height);
 
 		int x1 = x;
 		int y1 = y;
 		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
 
 		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
+		{
 			y1 -= 60;
+			CIsoViewExt::CurrentDrawCellLocation.Height += 4;
+			CIsoViewExt::CurrentDrawCellLocation.Height = std::min(CIsoViewExt::CurrentDrawCellLocation.Height,  static_cast<short>(14));
+		}
 
 		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1" && !CIsoViewExt::RenderingMap)
 		{

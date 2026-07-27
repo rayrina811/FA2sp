@@ -414,6 +414,13 @@ bool Renderer::OverlayType::IsBridge() const
         (OverlayIndex >= 0xCD && OverlayIndex <= 0xEC);
 }
 
+bool Renderer::OverlayType::IsHighBridge() const
+{
+    return OverlayIndex == 0x18 || OverlayIndex == 0x19 ||
+        OverlayIndex == 0x3B || OverlayIndex == 0x3C ||
+        OverlayIndex == 0xED || OverlayIndex == 0xEE;
+}
+
 bool Renderer::OverlayType::IsVisibleInMapRendererOrNormal() const
 {
     return OverlayIndex != 0xffff && (!CIsoViewExt::RenderingMap
