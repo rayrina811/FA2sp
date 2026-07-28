@@ -3729,12 +3729,20 @@ void CIsoViewExt::DrawHighBridgeLines(HDC hDC, const RECT &rect, bool bScreenSpa
 
         int x1 = coord1.X;
         int y1 = coord1.Y;
-        CIsoViewExt::MapCoord2ScreenCoord(x1, y1);
-        int height = CMapData::Instance->GetCellAt(coord1.X, coord1.Y)->Height;
+        CIsoViewExt::MapCoord2ScreenCoord(x1, y1, 1);
+		int height = cell->Height;
+        auto& tileBlock = CMapDataExt::TileData[CMapDataExt::GetSafeTileIndex(cell->TileIndex)]
+        .TileBlockDatas[CMapDataExt::GetSafeSubTileIndex(cell->TileIndex, cell->TileSubIndex)];
+        height = std::min(14, height - tileBlock.Height + 4);
+
         int x2 = coord2.X;
         int y2 = coord2.Y;
         CIsoViewExt::MapCoord2ScreenCoord(x2, y2, 1);
-        y2 -= height * 15 / CIsoViewExt::ScaledFactor;
+        if (!CFinalSunApp::Instance->FlatToGround)
+        {
+            y2 -= height * 15 / CIsoViewExt::ScaledFactor;
+            y1 -= height * 15 / CIsoViewExt::ScaledFactor;
+        }
         if (ExtConfigs::DirectXRendering)
         {
             CIsoViewExt::DrawLineDirectX(x1, y1, x2, y2, success ? RGB(0, 255, 0) : RGB(255, 0, 0), 4);
@@ -5811,6 +5819,20 @@ void CIsoViewExt::PlaceTileOnMouse(int x, int y, int nFlags, bool recordHistory)
                                     )
                                     {                                      
                                         HighBridgeLines.push_back({{my_x, my_y}, 0});
+                                    }
+                                    else if ((releativeTileIndex >= 6 && releativeTileIndex <= 10)
+                                        && p == 4
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 1});
+                                        HighBridgeLines.push_back({{my_x, my_y}, 3});
+                                    }
+                                    else if ((releativeTileIndex >= 11 && releativeTileIndex <= 15)
+                                        && p == 2
+                                    )
+                                    {                                      
+                                        HighBridgeLines.push_back({{my_x, my_y}, 0});
+                                        HighBridgeLines.push_back({{my_x, my_y}, 2});
                                     }
                                 }
                                
