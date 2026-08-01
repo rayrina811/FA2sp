@@ -100,6 +100,12 @@ struct InsigniaGrid
 	FString Elite;
 };
 
+struct TiltType
+{
+	float angle;
+	float direction;
+};
+
 class NOVTABLE CLoadingExt : public CLoading
 {
 public:
@@ -142,7 +148,8 @@ public:
 	bool ReLoadObjectOrOverlay(const FString& pRegName);
 	void LoadOverlay(const FString& pRegName, int nIndex);
 	
-	static FString GetImageName(const FString& ID, int nFacing, bool bShadow = false, bool bDeploy = false, bool bWater = false);
+	static FString GetImageName(const FString& ID, int nFacing, 
+		bool bShadow = false, bool bDeploy = false, bool bWater = false, int tiltType = -1);
 	static FString GetAlphaImageName(const FString& ID, int nRawFacing, int nAvaFacing);
 	static FString GetOverlayName(WORD ovr, BYTE ovrd, bool bShadow = false);
 	static FString GetBuildingImageName(FString ID, int nFacing, int state, bool bShadow = false);
@@ -316,6 +323,7 @@ public:
 	static std::unordered_map<WORD, WORD> OverlayDataLimits;
 
 	static FHashMap<int> AvailableFacings;
+	static FHashMap<BOOL> ExtTilts;
 	static FHashMap<int> AlphaImageFacings;
 	static FHashSet LoadedObjects;
 	static FHashSet LoadedPreviewObjects;
@@ -362,6 +370,7 @@ public:
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomFlagMap;
 	static std::unordered_map<COLORREF, TextureResource*> DirectXCustomCelltagMap;
 	static std::vector<std::unique_ptr<ImageDataClassSafe>> DamageFires;
+	static std::vector<TiltType> TiltTypes;
 
 	static bool IsImageLoaded(const FString& name);
 	static ImageDataClassSafe* GetImageDataFromMap(const FString& name);

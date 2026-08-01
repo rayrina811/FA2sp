@@ -31,6 +31,7 @@ FHashMap<int> CLoadingExt::IFVTurrets;
 FHashSet CLoadingExt::InitialOccupiedBuildings;
 FHashMap<int> CLoadingExt::BioReactors;
 FHashMap<int> CLoadingExt::AvailableFacings;
+FHashMap<BOOL> CLoadingExt::ExtTilts;
 FHashMap<int> CLoadingExt::AlphaImageFacings;
 std::unordered_set<int> CLoadingExt::Ra2dotMixes;
 unsigned char CLoadingExt::VXL_Data[0x10000] = {0};
@@ -55,6 +56,23 @@ std::unordered_map<COLORREF, std::unique_ptr<ImageDataClassSurface>> CLoadingExt
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap;
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
+
+const float PI = 3.1415927f;
+std::vector<TiltType> CLoadingExt::TiltTypes{
+	{0.0f, 0.0f},
+	{0.387597f, PI / 4.0f * 4.0f},
+	{0.387597f, PI / 4.0f * 6.0f},
+	{0.387597f, PI / 4.0f * 0.0f},
+	{0.387597f, PI / 4.0f * 2.0f},
+	{0.281035f, PI / 4.0f * 5.0f},
+	{0.281035f, PI / 4.0f * 7.0f},
+	{0.281035f, PI / 4.0f * 1.0f},
+	{0.281035f, PI / 4.0f * 3.0f},
+	{0.523599f, PI / 4.0f * 5.0f},
+	{0.523599f, PI / 4.0f * 7.0f},
+	{0.523599f, PI / 4.0f * 1.0f},
+	{0.523599f, PI / 4.0f * 3.0f},
+};
 
 namespace fs = std::filesystem;
 
@@ -132,13 +150,16 @@ int CLoadingExt::GetAlphaImageFacing(const FString& ID)
 	return itr->second;
 }
 
-FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater)
+FString CLoadingExt::GetImageName(const FString& ID, int nFacing, bool bShadow, bool bDeploy, bool bWater, int tiltType)
 {
 	FString ret;
 	if (bShadow || bDeploy || bWater)
 		ret.Format("%s\233%d\233%s%s%s", ID, nFacing, bDeploy ? "DEPLOY" : "", bWater ? "WATER" : "", bShadow ? "SHADOW" : "");
 	else
 		ret.Format("%s\233%d", ID, nFacing);
+
+	if (tiltType != -1)
+		ret.Format("%s\233TILT%d", ret, tiltType);
 	return ret;
 }
 
@@ -341,6 +362,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		SwimableInfantries.clear();
 		ImageDataMap.clear();
 		AvailableFacings.clear();
+		ExtTilts.clear();
 		AlphaImageFacings.clear();
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
@@ -2080,6 +2102,8 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 	bool bHasTurret = Variables::RulesMap.GetBool(ID, "Turret");
 	bool bHasShadow = !Variables::RulesMap.GetBool(ID, "NoShadow");
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
+	int tiltCount = (ExtConfigs::ExtTilts && CINI::Art->GetBool(ArtID, "Voxel")) ? TiltTypes.size() : 1;
+	ExtTilts[ID] = tiltCount > 1 ? 1 : 0;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
 	int ifvTurIndex = GetIFVTurretIndex(ID);
 
@@ -2097,25 +2121,25 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 		std::vector<unsigned char*> pImage, pTurretImage, pBarrelImage;
 		std::vector<unsigned char*> pShadowImage, pShadowTurretImage, pShadowBarrelImage;
-		pImage.resize(facings, nullptr);
-		pTurretImage.resize(facings, nullptr);
-		pBarrelImage.resize(facings, nullptr);
+		pImage.resize(facings * tiltCount, nullptr);
+		pTurretImage.resize(facings * tiltCount, nullptr);
+		pBarrelImage.resize(facings * tiltCount, nullptr);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 		{
-			pShadowImage.resize(facings, nullptr);
-			pShadowTurretImage.resize(facings, nullptr);
-			pShadowBarrelImage.resize(facings, nullptr);
+			pShadowImage.resize(facings * tiltCount, nullptr);
+			pShadowTurretImage.resize(facings * tiltCount, nullptr);
+			pShadowBarrelImage.resize(facings * tiltCount, nullptr);
 		}
 		std::vector<VoxelRectangle> rect, turretrect, barrelrect;
 		std::vector<VoxelRectangle> shadowrect, shadowturretrect, shadowbarrelrect;
-		rect.resize(facings);
-		turretrect.resize(facings);
-		barrelrect.resize(facings);
+		rect.resize(facings * tiltCount);
+		turretrect.resize(facings * tiltCount);
+		barrelrect.resize(facings * tiltCount);
 		if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 		{
-			shadowrect.resize(facings);
-			shadowturretrect.resize(facings);
-			shadowbarrelrect.resize(facings);
+			shadowrect.resize(facings * tiltCount);
+			shadowturretrect.resize(facings * tiltCount);
+			shadowbarrelrect.resize(facings * tiltCount);
 		}
 
 		if (VoxelDrawer::LoadVXLFile(FileName))
@@ -2126,14 +2150,21 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				{
 					int actFacing = (i + facings - 2 * facings / 8) % facings;
 					bool result = false;
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-					{
-						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i])
-							&& VoxelDrawer::GetImageData(actFacing, pShadowImage[i], shadowrect[i], 0, 0, 0, true);
-					}
-					else
-					{
-						result = VoxelDrawer::GetImageData(actFacing, pImage[i], rect[i]);
+					for (int j = 0; j < tiltCount; ++j)
+					{				
+						auto& tilt = TiltTypes[j];
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pImage[i * tiltCount + j], rect[i * tiltCount + j],
+								0, 0, 0, false, 0, true, tilt.angle, tilt.direction)
+								&& VoxelDrawer::GetImageData(actFacing, pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j],
+								0, 0, 0, true, 0, true, tilt.angle, tilt.direction);
+						}
+						else
+						{
+							result = VoxelDrawer::GetImageData(actFacing, pImage[i * tiltCount + j], rect[i * tiltCount + j],
+								0, 0, 0, false, 0, true, tilt.angle, tilt.direction);
+						}
 					}
 				}
 			}
@@ -2188,19 +2219,25 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						bool result = false;
-						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H)
-								&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i], shadowturretrect[i], 
-									F, L, 0, true, 0, false);
+						for (int j = 0; j < tiltCount; ++j)
+						{				
+							auto& tilt = TiltTypes[j];
+							bool result = false;
+							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j], turretrect[i * tiltCount + j], F, L, H,
+									false, 0, true, tilt.angle, tilt.direction)
+									&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i * tiltCount + j], shadowturretrect[i * tiltCount + j], 
+										F, L, 0, true, 0, false, tilt.angle, tilt.direction);
+							}
+							else
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j], turretrect[i * tiltCount + j], F, L, H,
+									false, 0, true, tilt.angle, tilt.direction);
+							}
+							if (!result)
+								break;
 						}
-						else
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i], turretrect[i], F, L, H);
-						}
-						if (!result)
-							break;
 					}
 				}
 			}
@@ -2215,164 +2252,174 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
 						bool result = false;
-						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
-								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10))
-								&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i], shadowbarrelrect[i],
-									F, L, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false);
-						}
-						else
-						{
-							result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i], barrelrect[i],
-								F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10));
-						}
+						for (int j = 0; j < tiltCount; ++j)
+						{				
+							auto& tilt = TiltTypes[j];
+							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j], barrelrect[i * tiltCount + j],
+									F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+									 tilt.angle, tilt.direction)
+									&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i * tiltCount + j], shadowbarrelrect[i * tiltCount + j],
+										F, L, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false,
+										 tilt.angle, tilt.direction);
+							}
+							else
+							{
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j], barrelrect[i * tiltCount + j],
+									F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+									tilt.angle, tilt.direction);
+							}
 
-						if (!result)
-							break;
+							if (!result)
+								break;
+						}
 					}
 				}
 			}
 
 			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != facings / 8 * 2)
-					continue;
-				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
-
-				unsigned char* outBuffer;
-				int outW = 0x100, outH = 0x100;
-
-				if (pImage[i])
+				for (int j = 0; j < tiltCount; ++j)
 				{
-					VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-					CncImgFree(pImage[i]);
-				}
-				FString pKey;
-
-				pKey.Format("%sX%d", ID, i);
-				int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-				pKey.Format("%sY%d", ID, i);
-				int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
-				pKey.Format("%sX%d", ID, i);
-				int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-				pKey.Format("%sY%d", ID, i);
-				int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
-
-				bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
-
-				for (int k = 0; k < TotalTurretCount; ++k)
-				{
-					int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
-					Matrix3D turretOffset(exF, exL, exH, i, facings);
-
-					if (barrelInFront)
-					{
-						if (pTurretImage[i])
-							VXL_Add(pTurretImage[i], 
-								turretrect[i].X + turdeltaX + turretOffset.OutputX,
-								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								turretrect[i].W, turretrect[i].H);
-					}
-
-					if (pBarrelImage[i])
-					{
-						Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-						VXL_Add(pBarrelImage[i],
-							barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-							barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-							barrelrect[i].W, barrelrect[i].H);
-						for (int j = 0; j < ExtraBarlCount; ++j)
-						{
-							FString key;
-							key.Format("ExtraBarrelOffset%d", j);
-							int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-							VXL_Add(pBarrelImage[i],
-								barrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-								barrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-								barrelrect[i].W, barrelrect[i].H);
-						}
-					}
-
-					if (!barrelInFront)
-					{
-						if (pTurretImage[i])
-							VXL_Add(pTurretImage[i],
-								turretrect[i].X + turdeltaX + turretOffset.OutputX,
-								turretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								turretrect[i].W, turretrect[i].H);
-					}
-
-					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
-					{
-						if (pShadowTurretImage[i])
-						{
-							VXL_Add(pShadowTurretImage[i],
-								shadowturretrect[i].X + turdeltaX + turretOffset.OutputX,
-								shadowturretrect[i].Y + turdeltaY + turretOffset.OutputY,
-								shadowturretrect[i].W, shadowturretrect[i].H, true);
-						}
-						if (pShadowBarrelImage[i])
-						{
-							VXL_Add(pShadowBarrelImage[i],
-								shadowbarrelrect[i].X + barldeltaX + turretOffset.OutputX,
-								shadowbarrelrect[i].Y + barldeltaY + turretOffset.OutputY, 
-								shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-							for (int j = 0; j < ExtraBarlCount; ++j)
-							{
-								FString key;
-								key.Format("ExtraBarrelOffset%d", j);
-								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
-								VXL_Add(pShadowBarrelImage[i],
-									shadowbarrelrect[i].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-									shadowbarrelrect[i].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
-									shadowbarrelrect[i].W, shadowbarrelrect[i].H, true);
-							}
-						}
-					}
-				}
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowBarrelImage[i])
-					CncImgFree(pShadowBarrelImage[i]);
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowTurretImage[i])
-					CncImgFree(pShadowTurretImage[i]);
-				if (pTurretImage[i])
-					CncImgFree(pTurretImage[i]);
-				if (pBarrelImage[i])
-					CncImgFree(pBarrelImage[i]);
-
-				VXL_GetAndClear(outBuffer, &outW, &outH);
-				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
-				{
-					FString DictShadowName;
-					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
+						continue;
+					FString DictName;
+					DictName.Format("%s\233%d\233TILT%d", ID, i, j);
 
 					unsigned char* outBuffer;
 					int outW = 0x100, outH = 0x100;
 
-					if (pShadowImage[i])
+					if (pImage[i * tiltCount + j])
 					{
-						VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-						CncImgFree(pShadowImage[i]);
+						VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
+						CncImgFree(pImage[i * tiltCount + j]);
 					}
-					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+					FString pKey;
 
-					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+					pKey.Format("%sX%d", ID, i);
+					int turdeltaX = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+					pKey.Format("%sY%d", ID, i);
+					int turdeltaY = CINI::FAData->GetInteger("VehicleVoxelTurretsRA2", pKey);
+					pKey.Format("%sX%d", ID, i);
+					int barldeltaX = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
+					pKey.Format("%sY%d", ID, i);
+					int barldeltaY = CINI::FAData->GetInteger("VehicleVoxelBarrelsRA2", pKey);
 
-					if (Variables::RulesMap.GetBool(ID, "JumpJet")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
-						)
+					bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
+
+					for (int k = 0; k < TotalTurretCount; ++k)
 					{
-						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
-						CLoadingExt::ScaleImageHalf(pData);
+						int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
+						Matrix3D turretOffset(exF, exL, exH, i, facings);
+
+						if (barrelInFront)
+						{
+							if (pTurretImage[i * tiltCount + j])
+								VXL_Add(pTurretImage[i * tiltCount + j], 
+									turretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									turretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									turretrect[i * tiltCount + j].W, turretrect[i * tiltCount + j].H);
+						}
+
+						if (pBarrelImage[i * tiltCount + j])
+						{
+							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+							VXL_Add(pBarrelImage[i * tiltCount + j],
+								barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+								barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+								barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
+							for (int l = 0; l < ExtraBarlCount; ++l)
+							{
+								FString key;
+								key.Format("ExtraBarrelOffset%d", l);
+								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+								VXL_Add(pBarrelImage[i * tiltCount + j],
+									barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+									barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+									barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
+							}
+						}
+
+						if (!barrelInFront)
+						{
+							if (pTurretImage[i * tiltCount + j])
+								VXL_Add(pTurretImage[i * tiltCount + j],
+									turretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									turretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									turretrect[i * tiltCount + j].W, turretrect[i * tiltCount + j].H);
+						}
+
+						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
+						{
+							if (pShadowTurretImage[i * tiltCount + j])
+							{
+								VXL_Add(pShadowTurretImage[i * tiltCount + j],
+									shadowturretrect[i * tiltCount + j].X + turdeltaX + turretOffset.OutputX,
+									shadowturretrect[i * tiltCount + j].Y + turdeltaY + turretOffset.OutputY,
+									shadowturretrect[i * tiltCount + j].W, shadowturretrect[i * tiltCount + j].H, true);
+							}
+							if (pShadowBarrelImage[i * tiltCount + j])
+							{
+								VXL_Add(pShadowBarrelImage[i * tiltCount + j],
+									shadowbarrelrect[i * tiltCount + j].X + barldeltaX + turretOffset.OutputX,
+									shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + turretOffset.OutputY, 
+									shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
+								for (int l = 0; l < ExtraBarlCount; ++l)
+								{
+									FString key;
+									key.Format("ExtraBarrelOffset%d", l);
+									int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
+									Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+									VXL_Add(pShadowBarrelImage[i * tiltCount + j],
+										shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
+										shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+										shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
+								}
+							}
+						}
+					}
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowBarrelImage[i * tiltCount + j])
+						CncImgFree(pShadowBarrelImage[i * tiltCount + j]);
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow && pShadowTurretImage[i * tiltCount + j])
+						CncImgFree(pShadowTurretImage[i * tiltCount + j]);
+					if (pTurretImage[i * tiltCount + j])
+						CncImgFree(pTurretImage[i * tiltCount + j]);
+					if (pBarrelImage[i * tiltCount + j])
+						CncImgFree(pBarrelImage[i * tiltCount + j]);
+
+					VXL_GetAndClear(outBuffer, &outW, &outH);
+					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
+
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+					{
+						FString DictShadowName;
+						DictShadowName.Format("%s\233%d\233SHADOW\233TILT%d", ID, i, j);
+
+						unsigned char* outBuffer;
+						int outW = 0x100, outH = 0x100;
+
+						if (pShadowImage[i * tiltCount + j])
+						{
+							VXL_Add(pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j].X, shadowrect[i * tiltCount + j].Y, shadowrect[i * tiltCount + j].W, shadowrect[i * tiltCount + j].H, true);
+							CncImgFree(pShadowImage[i * tiltCount + j]);	
+						}
+						VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+						SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+						if (Variables::RulesMap.GetBool(ID, "JumpJet")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+							)
+						{
+							auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+							CLoadingExt::ScaleImageHalf(pData);
+						}
 					}
 				}
 			}
@@ -2381,43 +2428,46 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 		{
 			for (int i = 0; i < facings; ++i)
 			{
-				if (IsLoadingObjectView && i != facings / 8 * 2)
-					continue;
-				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
-
-				unsigned char* outBuffer;
-				int outW = 0x100, outH = 0x100;
-
-				VXL_Add(pImage[i], rect[i].X, rect[i].Y, rect[i].W, rect[i].H);
-				CncImgFree(pImage[i]);
-				VXL_GetAndClear(outBuffer, &outW, &outH);
-
-				SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
-
-				if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
+				for (int j = 0; j < tiltCount; ++j)
 				{
-					FString DictShadowName;
-					DictShadowName.Format("%s\233%d\233SHADOW", ID, i);
+					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
+						continue;
+					FString DictName;
+					DictName.Format("%s\233%d\233TILT%d", ID, i, j);
 
 					unsigned char* outBuffer;
 					int outW = 0x100, outH = 0x100;
 
-					VXL_Add(pShadowImage[i], shadowrect[i].X, shadowrect[i].Y, shadowrect[i].W, shadowrect[i].H, true);
-					CncImgFree(pShadowImage[i]);
-					VXL_GetAndClear(outBuffer, &outW, &outH, true);
+					VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
+					CncImgFree(pImage[i * tiltCount + j]);
+					VXL_GetAndClear(outBuffer, &outW, &outH);
 
-					SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+					SetImageDataSafe(outBuffer, DictName, outW, outH, PalettesManager::LoadPalette(PaletteName));
 
-					if (Variables::RulesMap.GetBool(ID, "JumpJet")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetBool(ID, "BalloonHover")
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
-						|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
-						)
+					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
-						auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
-						CLoadingExt::ScaleImageHalf(pData);
+						FString DictShadowName;
+						DictShadowName.Format("%s\233%d\233SHADOW\233TILT%d", ID, i, j);
+
+						unsigned char* outBuffer;
+						int outW = 0x100, outH = 0x100;
+
+						VXL_Add(pShadowImage[i * tiltCount + j], shadowrect[i * tiltCount + j].X, shadowrect[i * tiltCount + j].Y, shadowrect[i * tiltCount + j].W, shadowrect[i * tiltCount + j].H, true);
+						CncImgFree(pShadowImage[i * tiltCount + j]);
+						VXL_GetAndClear(outBuffer, &outW, &outH, true);
+
+						SetImageDataSafe(outBuffer, DictShadowName, outW, outH, &CMapDataExt::Palette_Shadow);
+
+						if (Variables::RulesMap.GetBool(ID, "JumpJet")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetBool(ID, "BalloonHover")
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "{92612C46-F71F-11d1-AC9F-006008055BB5}"
+							|| Variables::RulesMap.GetString(ID, "Locomotor") == "Jumpjet"
+							)
+						{
+							auto pData = CLoadingExt::GetImageDataFromMap(DictShadowName);
+							CLoadingExt::ScaleImageHalf(pData);
+						}
 					}
 				}
 			}
@@ -2551,7 +2601,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				CLoadingExt::LoadSHPFrameSafe(framesToRead[i], 1, &FramesBuffers[0], header);
 
 				FString DictName;
-				DictName.Format("%s\233%d", ID, i);
+				DictName.Format("%s\233%d\233TILT0", ID, i);
 
 				if (bHasTurret)
 				{
@@ -2633,7 +2683,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW\233TILT0", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						UnionSHP_Add(FramesBuffersShadow[0], header.Width, header.Height, 0, 0, false, true);
 						UnionSHP_Add(FramesBuffersTurretShadow[turrentFacing],
@@ -2653,7 +2703,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
 					{
 						FString DictNameShadow;
-						DictNameShadow.Format("%s\233%d\233SHADOW", ID, i);
+						DictNameShadow.Format("%s\233%d\233SHADOW\233TILT0", ID, i);
 						CLoadingExt::LoadSHPFrameSafe(framesToRead[i] + header.FrameCount / 2, 1, &FramesBuffersShadow[0], header);
 						SetImageDataSafe(FramesBuffersShadow[0], DictNameShadow, header.Width, header.Height, &CMapDataExt::Palette_Shadow);
 					}

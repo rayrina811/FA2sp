@@ -2316,6 +2316,9 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			pThis->IsScrolling = FALSE;
 	}
 
+	if (CIsoView::CurrentCommand->Command == 10)
+		return 0x456EDB;
+
     int keyboard_dx = 0;
     int keyboard_dy = 0;
 
@@ -2325,7 +2328,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
     if (GetAsyncKeyState(VK_UP) & 0x8000)    keyboard_dy -= 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)  keyboard_dy += 1200 * CIsoViewExt::ScaledFactor / CFinalSunAppExt::ScreenRefreshRate * (ExtConfigs::DirectXRendering ? 1.2f : 1.0f);
 
-	if(keyboard_dx != 0 || keyboard_dy != 0)
+	if (keyboard_dx != 0 || keyboard_dy != 0)
 	{
 		HWND hTopWnd = WindowFromPoint(pt);
 		if (hTopWnd == pThis->GetSafeHwnd())
@@ -2372,8 +2375,7 @@ DEFINE_HOOK(456E0B, CIsoView_OnMouseMove_Scroll, 8)
 			}
 		}
 	}
-
-    
+  
 	return 0x456EDB;
 }
 

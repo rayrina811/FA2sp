@@ -93,7 +93,7 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 CIsoView::GetInstance()->OnMouseMove(0, pt);
             }       
         }
-        else
+        else if (CIsoView::CurrentCommand->Command != 10)
         {		
             switch (lpMsg->wParam)
             {

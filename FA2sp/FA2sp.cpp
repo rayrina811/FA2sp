@@ -98,6 +98,7 @@ bool ExtConfigs::ForceNeutralSpecialColor;
 bool ExtConfigs::DrawCelltagTranslucent;
 bool ExtConfigs::ExtWaypoints;
 bool ExtConfigs::ExtFacings;
+bool ExtConfigs::ExtTilts;
 bool ExtConfigs::ExtFacings_Drag;
 bool ExtConfigs::ExtFacings_DragPreview;
 int ExtConfigs::UndoRedoLimit;
@@ -360,6 +361,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DrawCelltagTranslucent = CINI::FAData->GetBool("ExtConfigs", "DrawCelltagTranslucent");
 	ExtConfigs::ExtWaypoints = CINI::FAData->GetBool("ExtConfigs", "ExtWaypoints");
 	ExtConfigs::ExtFacings = CINI::FAData->GetBool("ExtConfigs", "ExtFacings");
+	ExtConfigs::ExtTilts = CINI::FAData->GetBool("ExtConfigs", "ExtTilts");
 	ExtConfigs::ExtFacings_Drag = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.Drag");
 	ExtConfigs::ExtFacings_DragPreview = CINI::FAData->GetBool("ExtConfigs", "ExtFacings.DragPreview", true);
 	ExtConfigs::ExtVariables = CINI::FAData->GetBool("ExtConfigs", "ExtVariables");
@@ -1240,7 +1242,14 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "ExtFacings.DragPreview",
 		.Value = &ExtConfigs::ExtFacings_DragPreview,
 		.Type = ExtConfigs::SpecialOptionType::None});
+		
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ExtTilts", "Allow vehicles and aircraft to tilt on slopes"),
+		.IniKey = "ExtTilts",
+		.Value = &ExtConfigs::ExtTilts,
 
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
+	
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ExtMixLoader", "Enable new mix loader"),
 		.IniKey = "ExtMixLoader",

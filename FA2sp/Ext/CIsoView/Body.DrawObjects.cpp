@@ -666,6 +666,32 @@ bool isCoordInFullMap(int X, int Y)
 			Y < CMapData::Instance->MapWidthPlusHeight;
 };
 
+static int GetRampType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		tileIndex = 0;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].RampType;
+}
+
+static int GetRampYOffset(int rampType)
+{
+	if (CFinalSunApp::Instance->FlatToGround)
+		return 0;
+	const int fullCellHeight = 15;
+	int heightMultiplier = 0;
+	if (rampType >= 1 && rampType <= 4 || rampType >= 9 && rampType <= 12 || rampType >= 17 && rampType <= 20)
+		heightMultiplier = 1;
+	else if (rampType >= 13 && rampType <= 16)
+		heightMultiplier = 2;
+
+	return - heightMultiplier * fullCellHeight / 2;
+}
+
 static void DrawUnit(Renderer::VehicleType* pType, 
 	CUnitDataFS& obj, 
 	CellData* cell,
@@ -678,11 +704,16 @@ static void DrawUnit(Renderer::VehicleType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
 		{
-			auto pData = pType->GetShadowData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+			auto pData = pType->GetShadowData(obj, 
+				CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex),
+				rampType
+			);
 
 			int x1 = x;
 			int y1 = y;
@@ -715,7 +746,10 @@ static void DrawUnit(Renderer::VehicleType* pType,
 	}
 	else
 	{
-		auto pData = pType->GetImageData(obj, CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex));
+		auto pData = pType->GetImageData(obj, 
+			CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex),
+			GetRampType(cell->TileIndex, cell->TileSubIndex)
+		);
 		bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Vehicles[cell->Unit].GetHouseColor();
 		TempValueHolder tempHeight(CIsoViewExt::CurrentDrawCellLocation.Height, CIsoViewExt::CurrentDrawCellLocation.Height);
@@ -801,6 +835,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
@@ -809,7 +844,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 
 			int x1 = x;
 			int y1 = y;
-			Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+			Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell, rampType);
 
 			if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 				y1 -= 60;
@@ -841,7 +876,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 
 		int x1 = x;
 		int y1 = y;
-		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell);
+		Renderer::Infantry::OffsetInfantrySubcell(x1, y1, subcell, rampType);
 
 		if (ExtConfigs::InGameDisplay_Bridge && obj.IsAboveGround == "1")
 		{
@@ -926,6 +961,8 @@ static void DrawAircraft(Renderer::AircraftType* pType,
 	COLORREF forceColor = CLR_INVALID
 )
 {
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType) && pType->TechnoAttachmentInfo)
@@ -938,7 +975,7 @@ static void DrawAircraft(Renderer::AircraftType* pType,
 	}
 	else
 	{
-		auto pData = pType->GetImageData(obj);
+		auto pData = pType->GetImageData(obj, rampType);
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Aircrafts[cell->Aircraft].GetHouseColor();
 		if (ImageDataClassSafe::IsValidImage(pData))
 		{

@@ -107,6 +107,7 @@ public:
     static CPoint Waypoint_Text_ExtraOffset;
     static bool ExtWaypoints;
     static bool ExtFacings;
+    static bool ExtTilts;
     static bool ExtFacings_Drag;
     static bool ExtFacings_DragPreview;
     static int UndoRedoLimit;
