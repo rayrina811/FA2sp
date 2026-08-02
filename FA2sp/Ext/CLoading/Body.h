@@ -272,7 +272,6 @@ private:
 
 	void LoadInfantry(const FString& ID);
 	void LoadTerrainOrSmudge(const FString& ID, bool terrain);
-	void LoadVehicleOrAircraft(const FString& ID);
 	void LoadInsignia(const FString& ID);
 	void LoadAlphaImage(const FString& ID, CLoadingExt::GameObjectType type);
 
@@ -319,11 +318,13 @@ public:
 	GameObjectType GetItemType(FString ID);
 	static bool SaveCBitmapToFile(CBitmap* pBitmap, const FString& filePath, COLORREF bgColor);
 	static bool LoadBMPToCBitmap(const FString& filePath, CBitmap& outBitmap);
+	void LoadVehicleOrAircraft(const FString& ID, int tiltType = -1);
 	static std::unique_ptr<ImageDataClassSafe> BindClippedImages(const std::vector<std::unique_ptr<ImageDataClassSafe>>& imgs, bool keepOpacity = false);
 	static std::unordered_map<WORD, WORD> OverlayDataLimits;
 
 	static FHashMap<int> AvailableFacings;
 	static FHashMap<BOOL> ExtTilts;
+	static FHashMap<std::set<int>> LoadedTilts;
 	static FHashMap<int> AlphaImageFacings;
 	static FHashSet LoadedObjects;
 	static FHashSet LoadedPreviewObjects;

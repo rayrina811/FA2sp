@@ -1184,7 +1184,7 @@ void GridObjectViewer::UpdateImages()
                 case CLoadingExt::GameObjectType::Aircraft:
                 {
                     int facings = CLoadingExt::GetAvailableFacing(id.ID);
-                    auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4);
+                    auto imageName = CLoadingExt::GetImageName(id.ID, facings / 4, false, false, false, 0);
                     loadImage(imageName, id.ID, type);
                     break;
                 }

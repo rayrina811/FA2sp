@@ -343,7 +343,7 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
             if (eItemType == CLoadingExt::GameObjectType::Aircraft || eItemType == CLoadingExt::GameObjectType::Vehicle)
             {
                 int facings = CLoadingExt::GetAvailableFacing(InsertingObjectID);
-                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4);
+                imageName = CLoadingExt::GetImageName(InsertingObjectID, facings / 4, false, false, false, 0);
             }
             else if (eItemType == CLoadingExt::GameObjectType::Building)
             {

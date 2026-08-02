@@ -165,14 +165,14 @@ namespace Renderer
         void Init(FString_view id);
         ImageDataClassSafe* GetImageData(const CUnitDataFS& obj, const LandType landType, const int rampType = 0);
         ImageDataClassSafe* GetShadowData(const CUnitDataFS& obj, const LandType landType, const int rampType = 0);
-        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow) const;
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, bool bShadow, const int rampType = 0) const;
 
         static const char* IniSection;
 
     private:
         VehicleType* GetAlteredType(const CUnitDataFS& obj, const LandType landType);
-        std::vector<ImageDataClassSafe*> pImageData;
-        std::vector<ImageDataClassSafe*> pShadowData;
+        mutable std::vector<ImageDataClassSafe*> pImageData;
+        mutable std::vector<ImageDataClassSafe*> pShadowData;
     };
 
     class AircraftType : public TechnoType
@@ -187,13 +187,13 @@ namespace Renderer
         AircraftType() = default;
         void Init(FString_view id);
         ImageDataClassSafe* GetImageData(const CAircraftDataFS& obj, const int rampType = 0);
-        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing) const;
+        ImageDataClassSafe* GetTechnoAttachmentImageData(int nFacing, const int rampType = 0) const;
 
         static const char* IniSection;
 
     private:
         AircraftType* GetAlteredType(const CAircraftDataFS& obj);
-        std::vector<ImageDataClassSafe*> pImageData;
+        mutable std::vector<ImageDataClassSafe*> pImageData;
     };
 
     class Object
@@ -271,5 +271,6 @@ namespace Renderer
     VehicleType* GetOrCreateVehicle(FString_view id);
     AircraftType* GetOrCreateAircraft(FString_view id);
     InfantryType* GetOrCreateInfantry(FString_view id);
+    int RampType2TiltType(int rampType);
 }
 

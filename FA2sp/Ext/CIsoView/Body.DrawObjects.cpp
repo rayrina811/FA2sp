@@ -150,6 +150,18 @@ struct RecursionGuard
 	}
 };
 
+static int GetRampType(int tileIndex, int TileSubIndex)
+{
+	if (tileIndex >= CMapDataExt::TileDataCount)
+		tileIndex = 0;
+	auto& tile = CMapDataExt::TileData[tileIndex];
+	if (tile.TileBlockCount == 0)
+		return LandType::Clear13;
+	if (TileSubIndex >= tile.TileBlockCount)
+		TileSubIndex = 0;
+	return tile.TileBlockDatas[TileSubIndex].RampType;
+}
+
 static void DrawTechnoAttachments(
 	DrawCall originalDraw,
 	FSet &recursionStack,
@@ -171,13 +183,16 @@ static void DrawTechnoAttachments(
 		RecursionGuard guard(recursionStack, pType->ID);
 
 		auto pThis = CIsoView::GetInstance();
+		auto rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+		auto tiltType = Renderer::RampType2TiltType(rampType);
+		auto& tilt = CLoadingExt::TiltTypes[tiltType];
 
 		auto infos = *infosOri;
 		auto calcGroupAndY = [&](const TechnoAttachment &a, int &outY) -> int
 		{
 			int ParentFacings = pType->FacingCount;
 			int parentFacing = (oriFacing * ParentFacings / 256) % ParentFacings;
-			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings);
+			Matrix3D mat(a.F, a.L, 0, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 
 			outY = mat.OutputY;
 
@@ -267,7 +282,7 @@ static void DrawTechnoAttachments(
 
 				if (!isShadow)
 				{
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 
 					auto draw = [&]
 					{
@@ -317,11 +332,11 @@ static void DrawTechnoAttachments(
 				int additionalFacing = (info.RotationAdjust * facings / 256) % facings;
 				int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
-				auto pData = pVehicle->GetTechnoAttachmentImageData(newFacing, isShadow);
+				auto pData = pVehicle->GetTechnoAttachmentImageData(newFacing, isShadow, rampType);
 
 				if (!isShadow)
 				{
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					auto draw = [&]
 					{
 						if (ImageDataClassSafe::IsValidImage(pData))
@@ -362,7 +377,7 @@ static void DrawTechnoAttachments(
 				else if (isShadow && pData->pImageBuffer && !(ExtConfigs::InGameDisplay_Cloakable && pVehicle->Cloakable))
 				{
 					// shadow always on the ground
-					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, 0, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXShadow(
@@ -393,9 +408,9 @@ static void DrawTechnoAttachments(
 					int additionalFacing = (info.RotationAdjust * facings / 256) % facings;
 					int newFacing = (parentFacing * facings / ParentFacings + additionalFacing) % facings;
 
-					auto pData = pAircraft->GetTechnoAttachmentImageData(newFacing);
+					auto pData = pAircraft->GetTechnoAttachmentImageData(newFacing, rampType);
 
-					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+					Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 					auto draw = [&]
 					{
 						if (ImageDataClassSafe::IsValidImage(pData))
@@ -458,7 +473,7 @@ static void DrawTechnoAttachments(
 						if (pBldData)
 						{
 							auto ArtID = CLoadingExt::GetArtID(info.ID);
-							Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings);
+							Matrix3D mat(info.F, info.L, info.H, parentFacing, ParentFacings, tilt.angle, tilt.direction);
 							auto draw = [&]
 							{
 								if (pBldData->pImageBuffer)
@@ -666,18 +681,6 @@ bool isCoordInFullMap(int X, int Y)
 			Y < CMapData::Instance->MapWidthPlusHeight;
 };
 
-static int GetRampType(int tileIndex, int TileSubIndex)
-{
-	if (tileIndex >= CMapDataExt::TileDataCount)
-		tileIndex = 0;
-	auto& tile = CMapDataExt::TileData[tileIndex];
-	if (tile.TileBlockCount == 0)
-		return LandType::Clear13;
-	if (TileSubIndex >= tile.TileBlockCount)
-		TileSubIndex = 0;
-	return tile.TileBlockDatas[TileSubIndex].RampType;
-}
-
 static int GetRampYOffset(int rampType)
 {
 	if (CFinalSunApp::Instance->FlatToGround)
@@ -748,7 +751,7 @@ static void DrawUnit(Renderer::VehicleType* pType,
 	{
 		auto pData = pType->GetImageData(obj, 
 			CMapDataExt::GetLandType(cell->TileIndex, cell->TileSubIndex),
-			GetRampType(cell->TileIndex, cell->TileSubIndex)
+			pType->IsHoveringUnit ? 0 : GetRampType(cell->TileIndex, cell->TileSubIndex)
 		);
 		bool HoveringUnit = ExtConfigs::InGameDisplay_Hover && pType->IsHoveringUnit;
 		auto color = forceColor != CLR_INVALID ? forceColor : Renderer::Vehicles[cell->Unit].GetHouseColor();

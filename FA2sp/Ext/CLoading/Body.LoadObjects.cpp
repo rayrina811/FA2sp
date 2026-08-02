@@ -57,6 +57,8 @@ std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomFlagMap
 std::unordered_map<COLORREF, TextureResource*> CLoadingExt::DirectXCustomCelltagMap;
 std::vector<std::unique_ptr<ImageDataClassSafe>> CLoadingExt::DamageFires;
 
+FHashMap<std::set<int>> CLoadingExt::LoadedTilts;
+
 const float PI = 3.1415927f;
 std::vector<TiltType> CLoadingExt::TiltTypes{
 	{0.0f, 0.0f},
@@ -320,13 +322,13 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 		break;
 	case CLoadingExt::GameObjectType::Vehicle:
 	{
-		LoadVehicleOrAircraft(ID);
+		LoadVehicleOrAircraft(ID, 0);
 		if (ExtConfigs::InGameDisplay_Deploy)
 		{
 			auto unloadingClass = Variables::RulesMap.GetString(ID, "UnloadingClass", ID);
 			if (unloadingClass != ID)
 			{
-				LoadVehicleOrAircraft(unloadingClass);
+				LoadVehicleOrAircraft(unloadingClass, 0);
 			}
 		}
 		if (ExtConfigs::InGameDisplay_Water)
@@ -334,13 +336,13 @@ void CLoadingExt::LoadObjects(const FString& ID, GameObjectType eItemType)
 			auto waterImage = Variables::RulesMap.GetString(ID, "WaterImage", ID);
 			if (waterImage != ID)
 			{
-				LoadVehicleOrAircraft(waterImage);
+				LoadVehicleOrAircraft(waterImage, 0);
 			}
 		}
 		break;
 	}
 	case CLoadingExt::GameObjectType::Aircraft:
-		LoadVehicleOrAircraft(ID);
+		LoadVehicleOrAircraft(ID, 0);
 		break;
 	case CLoadingExt::GameObjectType::Building:
 		LoadBuilding(ID);
@@ -363,6 +365,7 @@ void CLoadingExt::ClearItemTypes(bool releaseNonsurfaces)
 		ImageDataMap.clear();
 		AvailableFacings.clear();
 		ExtTilts.clear();
+		LoadedTilts.clear();
 		AlphaImageFacings.clear();
 		CustomPaletteTerrains.clear();
 		IFVTurrets.clear();
@@ -2094,7 +2097,7 @@ int CLoadingExt::GetIFVTurretIndex(const FString& ID)
 	return 0;
 }
 
-void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
+void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 {
 	LoadInsignia(ID);
 	FString ArtID = GetArtID(ID);
@@ -2104,6 +2107,10 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 	int facings = ExtConfigs::ExtFacings ? 32 : 8;
 	int tiltCount = (ExtConfigs::ExtTilts && CINI::Art->GetBool(ArtID, "Voxel")) ? TiltTypes.size() : 1;
 	ExtTilts[ID] = tiltCount > 1 ? 1 : 0;
+
+	int tiltStart = (tiltType >= 0) ? tiltType : 0;
+	int tiltEnd = (tiltType >= 0) ? tiltType + 1 : tiltCount;
+	if (tiltStart >= tiltCount) tiltStart = 0;
 	bool turretShadow = bHasShadow && CINI::Art->GetBool(ArtID, "TurretShadow", DrawTurretShadow);
 	int ifvTurIndex = GetIFVTurretIndex(ID);
 
@@ -2150,7 +2157,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 				{
 					int actFacing = (i + facings - 2 * facings / 8) % facings;
 					bool result = false;
-					for (int j = 0; j < tiltCount; ++j)
+					for (int j = tiltStart; j < tiltEnd; ++j)
 					{				
 						auto& tilt = TiltTypes[j];
 						if (ExtConfigs::InGameDisplay_Shadow && bHasShadow)
@@ -2179,6 +2186,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 			else if (s_count == 2) H = 0;
 
 			int AddiBarlL = CINI::Art->GetInteger(ArtID, "BarrelOffset", 0);
+			int FireAngle = Variables::RulesMap.GetInteger(ID, "FireAngle", 10);
 			int TotalTurretCount = CINI::Art->GetInteger(ArtID, "ExtraTurretCount", 0) + 1;
 			int ExtraBarlCount = CINI::Art->GetInteger(ArtID, "ExtraBarrelCount", 0);
 			bool BarrelOverTurret = CINI::Art->GetBool(ArtID, "BarrelOverTurret");
@@ -2219,20 +2227,23 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					for (int i = 0; i < facings; ++i)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
-						for (int j = 0; j < tiltCount; ++j)
+						for (int j = tiltStart; j < tiltEnd; ++j)
 						{				
 							auto& tilt = TiltTypes[j];
 							bool result = false;
 							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
 							{
-								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j], turretrect[i * tiltCount + j], F, L, H,
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j],
+									 turretrect[i * tiltCount + j], 0, 0, 0,
 									false, 0, true, tilt.angle, tilt.direction)
-									&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i * tiltCount + j], shadowturretrect[i * tiltCount + j], 
-										F, L, 0, true, 0, false, tilt.angle, tilt.direction);
+									&& VoxelDrawer::GetImageData(actFacing, pShadowTurretImage[i * tiltCount + j], 
+										shadowturretrect[i * tiltCount + j], 
+										0, 0, 0, true, 0, false, tilt.angle, tilt.direction);
 							}
 							else
 							{
-								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j], turretrect[i * tiltCount + j], F, L, H,
+								result = VoxelDrawer::GetImageData(actFacing, pTurretImage[i * tiltCount + j],
+									 turretrect[i * tiltCount + j], 0, 0, 0,
 									false, 0, true, tilt.angle, tilt.direction);
 							}
 							if (!result)
@@ -2252,22 +2263,25 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 					{
 						int actFacing = (i + facings - 2 * facings / 8) % facings;
 						bool result = false;
-						for (int j = 0; j < tiltCount; ++j)
+						for (int j = tiltStart; j < tiltEnd; ++j)
 						{				
 							auto& tilt = TiltTypes[j];
 							if (ExtConfigs::InGameDisplay_Shadow && bHasShadow && turretShadow)
 							{
-								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j], barrelrect[i * tiltCount + j],
-									F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j],
+									 barrelrect[i * tiltCount + j],
+									0, 0, 0, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
 									 tilt.angle, tilt.direction)
-									&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i * tiltCount + j], shadowbarrelrect[i * tiltCount + j],
-										F, L, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false,
+									&& VoxelDrawer::GetImageData(actFacing, pShadowBarrelImage[i * tiltCount + j], 
+										shadowbarrelrect[i * tiltCount + j],
+										0, 0, 0, true, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), false,
 										 tilt.angle, tilt.direction);
 							}
 							else
 							{
-								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j], barrelrect[i * tiltCount + j],
-									F, L, H, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
+								result = VoxelDrawer::GetImageData(actFacing, pBarrelImage[i * tiltCount + j],
+									 barrelrect[i * tiltCount + j],
+									0, 0, 0, false, Variables::RulesMap.GetInteger(ID, "FireAngle", 10), true,
 									tilt.angle, tilt.direction);
 							}
 
@@ -2280,7 +2294,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 			for (int i = 0; i < facings; ++i)
 			{
-				for (int j = 0; j < tiltCount; ++j)
+				for (int j = tiltStart; j < tiltEnd; ++j)
 				{
 					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
 						continue;
@@ -2292,7 +2306,8 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 					if (pImage[i * tiltCount + j])
 					{
-						VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
+						VXL_Add(pImage[i * tiltCount + j], rect[i * tiltCount + j].X, 
+							rect[i * tiltCount + j].Y, rect[i * tiltCount + j].W, rect[i * tiltCount + j].H);
 						CncImgFree(pImage[i * tiltCount + j]);
 					}
 					FString pKey;
@@ -2308,10 +2323,11 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 					bool barrelInFront = BarrelOverTurret || IsBarrelInFront(i, facings);
 
+					auto& tilt = TiltTypes[j];
 					for (int k = 0; k < TotalTurretCount; ++k)
 					{
-						int exF = extraF[k] - F, exL = extraL[k] - L, exH = extraH[k] - H;
-						Matrix3D turretOffset(exF, exL, exH, i, facings);
+						int exF = extraF[k], exL = extraL[k], exH = extraH[k];
+						Matrix3D turretOffset(exF, exL, exH, i, facings, tilt.angle, tilt.direction);
 
 						if (barrelInFront)
 						{
@@ -2324,20 +2340,20 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 
 						if (pBarrelImage[i * tiltCount + j])
 						{
-							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+							Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings, tilt.angle, tilt.direction);
 							VXL_Add(pBarrelImage[i * tiltCount + j],
-								barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-								barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+								barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+								barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
 								barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
 							for (int l = 0; l < ExtraBarlCount; ++l)
 							{
 								FString key;
 								key.Format("ExtraBarrelOffset%d", l);
 								int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+								Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings, tilt.angle, tilt.direction);
 								VXL_Add(pBarrelImage[i * tiltCount + j],
-									barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-									barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+									barrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+									barrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
 									barrelrect[i * tiltCount + j].W, barrelrect[i * tiltCount + j].H);
 							}
 						}
@@ -2362,19 +2378,20 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 							}
 							if (pShadowBarrelImage[i * tiltCount + j])
 							{
+								Matrix3D mat(exF, exL + AddiBarlL, 0, i, facings, tilt.angle, tilt.direction);
 								VXL_Add(pShadowBarrelImage[i * tiltCount + j],
-									shadowbarrelrect[i * tiltCount + j].X + barldeltaX + turretOffset.OutputX,
-									shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + turretOffset.OutputY, 
+									shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+									shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY, 
 									shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
 								for (int l = 0; l < ExtraBarlCount; ++l)
 								{
 									FString key;
 									key.Format("ExtraBarrelOffset%d", l);
 									int AddiBarlL = CINI::Art->GetInteger(ArtID, key, 0);
-									Matrix3D mat(exF, exL + AddiBarlL, exH, i, facings);
+									Matrix3D mat(exF, exL + AddiBarlL, 0, i, facings, tilt.angle, tilt.direction);
 									VXL_Add(pShadowBarrelImage[i * tiltCount + j],
-										shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX + turretOffset.OutputX,
-										shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY + turretOffset.OutputY,
+										shadowbarrelrect[i * tiltCount + j].X + barldeltaX + mat.OutputX,
+										shadowbarrelrect[i * tiltCount + j].Y + barldeltaY + mat.OutputY,
 										shadowbarrelrect[i * tiltCount + j].W, shadowbarrelrect[i * tiltCount + j].H, true);
 								}
 							}
@@ -2428,7 +2445,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 		{
 			for (int i = 0; i < facings; ++i)
 			{
-				for (int j = 0; j < tiltCount; ++j)
+				for (int j = tiltStart; j < tiltEnd; ++j)
 				{
 					if (IsLoadingObjectView && i != facings / 8 * 2 && j != 0)
 						continue;
@@ -2716,6 +2733,13 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID)
 			AvailableFacings[ID] = facings;
 		}
 	}
+
+	// 记录已加载的 tilt 类型，避免模型无图像时反复尝试
+	if (tiltType >= 0)
+		LoadedTilts[ID].insert(tiltType);
+	else
+		for (int j = 0; j < tiltCount; ++j)
+			LoadedTilts[ID].insert(j);
 }
 
 void CLoadingExt::SetImageDataSafe(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal, bool clip)
