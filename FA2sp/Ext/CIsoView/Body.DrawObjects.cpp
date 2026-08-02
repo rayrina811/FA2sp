@@ -695,6 +695,19 @@ static int GetRampYOffset(int rampType)
 	return - heightMultiplier * fullCellHeight / 2;
 }
 
+static int GetRampExtraHeight(int rampType)
+{
+	if (CFinalSunApp::Instance->FlatToGround)
+		return 0;
+	int addiHeight = 0;
+	if (rampType >= 1 && rampType <= 4 || rampType >= 9 && rampType <= 12 || rampType >= 17 && rampType <= 20)
+		addiHeight = 1;
+	else if (rampType >= 13 && rampType <= 16)
+		addiHeight = 1;
+
+	return addiHeight;
+}
+
 static void DrawUnit(Renderer::VehicleType* pType, 
 	CUnitDataFS& obj, 
 	CellData* cell,
@@ -709,6 +722,7 @@ static void DrawUnit(Renderer::VehicleType* pType,
 {
 	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
 	y += GetRampYOffset(rampType);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
@@ -732,7 +746,7 @@ static void DrawUnit(Renderer::VehicleType* pType,
 					CIsoViewExt::DirectXShadow(
 						x1 - pData->FullWidth / 2,
 						y1 - pData->FullHeight / 2 + 15,
-						pData, cell->Height, true);
+						pData, cell->Height + extraHeight, true);
 				}
 				else
 				{
@@ -839,6 +853,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 )
 {
 	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		if (!isCloakable(pType))
@@ -856,7 +871,7 @@ static void DrawInfantry(Renderer::InfantryType* pType,
 			{
 				if (ExtConfigs::DirectXRendering)
 				{
-					CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+					CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height + extraHeight);
 				}
 				else
 				{
@@ -1042,6 +1057,8 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 {
 	const auto &DataExt = *pType->pDataExt;
 	auto pBuilding = pForceBuilding ? pForceBuilding : &Renderer::Buildings[cell->Structure];
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	int extraHeight = GetRampExtraHeight(rampType);
 
 	const int HP = objRender.Strength;
 	int status = CLoadingExt::GBIN_NORMAL;
@@ -1068,6 +1085,17 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 	x1 -= DrawOffsetX;
 	y1 -= DrawOffsetY;
 
+	auto cellOrigin = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y);
+	int rampYOffset = GetRampYOffset(GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex));
+	y1 += rampYOffset;
+
+	MapCoord buildingOrigin{objRender.X, objRender.Y};
+	if (!IsCoordInWindow(objRender.X, objRender.Y))
+	{
+		buildingOrigin.X = X;
+		buildingOrigin.Y = Y;
+	}
+
 	if (CIsoViewExt::DrawStructures && ExtConfigs::InGameDisplay_AlphaImage && CIsoViewExt::DrawAlphaImages && objRender.poweredOn)
 	{
 		auto pAIData = pType->GetAlphaImageData(objRender.Facing);
@@ -1080,13 +1108,6 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 						y1 - pAIData->FullHeight / 2 + (DataExt.RealWidth + DataExt.RealHeight) * 15 / 2},
 					pAIData));
 		}
-	}
-
-	MapCoord buildingOrigin{objRender.X, objRender.Y};
-	if (!IsCoordInWindow(objRender.X, objRender.Y))
-	{
-		buildingOrigin.X = X;
-		buildingOrigin.Y = Y;
 	}
 
 	auto &clips = *pType->GetImageData(objRender.Facing, status);
@@ -1235,7 +1256,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 		{
 			if (ExtConfigs::DirectXRendering)
 			{
-				CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height);
+				CIsoViewExt::DirectXShadow(x1 - pData->FullWidth / 2, y1 - pData->FullHeight / 2, pData, cell->Height + extraHeight);
 			}
 			else
 			{
@@ -1273,7 +1294,7 @@ static void DrawBuilding(Renderer::BuildingType* pType,
 					CIsoViewExt::DirectXShadow(
 						x1 - pUpgData->FullWidth / 2,
 						y1 - pUpgData->FullHeight / 2,
-						pUpgData, cell->Height);
+						pUpgData, cell->Height + extraHeight);
 				}
 				else
 				{
@@ -1359,6 +1380,10 @@ static void DrawTerrain(FString_view obj,
 	const CellInfo& info
 )
 {
+	auto cell = CMapDataExt::TryGetCellAt(X, Y);
+	int rampType = GetRampType(cell->TileIndex, cell->TileSubIndex);
+	y += GetRampYOffset(rampType);
+	int extraHeight = GetRampExtraHeight(rampType);
 	if (shadow)
 	{
 		auto pType = Renderer::GetOrCreateTerrain(obj);
@@ -1375,7 +1400,7 @@ static void DrawTerrain(FString_view obj,
 					CIsoViewExt::DirectXShadow(
 						x1 - pData->FullWidth / 2,
 						y1 - pData->FullHeight / 2 + (pType->IsTiberiumTree ? -1 : 15),
-						pData, info.cell->Height);
+						pData, info.cell->Height + extraHeight);
 				}
 				else
 				{
@@ -2877,6 +2902,12 @@ static void DrawMap()
 						pThis->DrawLockedCellOutline(x1, y1, DataExt.Width, DataExt.Height, objRender.HouseColor, false, false, &ddsd);
 				}
 			}
+			
+			auto cellOrigin = CMapDataExt::TryGetCellAt(objRender.X, objRender.Y);
+			int rampType = GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex);
+			int rampYOffset = GetRampYOffset(rampType);
+			int rampHeight = GetRampExtraHeight(rampType);
+			y1 += rampYOffset;
 
 			if (CIsoViewExt::DrawStructures && pBuilding->IsVisible())
 			{
@@ -2890,7 +2921,8 @@ static void DrawMap()
 						CIsoViewExt::DirectXBuilding(part.DrawX, part.DrawY - part.pData->FullHeight / 2,
 													 part.pData, part.pPal, isCloakable(pType) ? 0.5f : 1.0f,
 													 objRender.HouseColor, isRubble, isTerrain,
-													 info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
+													 info.aroundRedrawCell ? 
+													 (pBuilding->GetCellData()->Height + rampHeight) : 0xFF);
 					}
 					else
 					{
@@ -2914,7 +2946,8 @@ static void DrawMap()
 											y1 - pData->FullHeight / 2, pData.get(),
 											NULL, isCloakable(pType) ? 0.5f : 1.0f,
 											objRender.HouseColor, false, pType->IsTerrainPalette,
-											info.aroundRedrawCell ? pBuilding->GetCellData()->Height : 0xFF);
+											info.aroundRedrawCell ? 
+										 	(pBuilding->GetCellData()->Height + rampHeight) : 0xFF);
 									}
 									else
 									{
@@ -3031,6 +3064,10 @@ static void DrawMap()
 			x1 -= DrawOffsetX;
 			y1 -= DrawOffsetY;
 
+			auto cellOrigin = CMapDataExt::TryGetCellAt(part.Data->X, part.Data->Y);
+			int rampType = GetRampType(cellOrigin->TileIndex, cellOrigin->TileSubIndex);
+			int rampYOffset = GetRampYOffset(rampType);
+
 			bool strOverlap = false;
 			if (!DataExt.IsCustomFoundation())
 			{
@@ -3109,20 +3146,22 @@ static void DrawMap()
 					if (ExtConfigs::DirectXRendering)
 					{
 						CIsoViewExt::DirectXBaseNode(
-							part.DrawX, part.DrawY - part.pData->FullHeight / 2,
+							part.DrawX, part.DrawY - part.pData->FullHeight / 2 + rampYOffset,
 							part.pData, nullptr, 0.5f, part.HouseColor, part.pType->IsTerrainPalette);
 					}
 					else
 					{
 						CIsoViewExt::BlitSHPTransparent_Building(pThis, ddsd.lpSurface, window, boundary,
-																 part.DrawX, part.DrawY - part.pData->FullHeight / 2, part.pData, part.pPal, 128);
+																 part.DrawX, 
+																 part.DrawY - part.pData->FullHeight / 2 + rampYOffset, 
+																 part.pData, part.pPal, 128);
 					}
 				}
 				if (firstDraw && CIsoViewExt::DrawVeterancy)
 				{
 					auto &veter = DrawVeterancies.emplace_back();
 					veter.X = x1 + (DataExt.RealWidth - DataExt.RealHeight) * 30 / 2;
-					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2;
+					veter.Y = y1 + (DataExt.RealWidth + DataExt.RealHeight - 2) * 15 / 2 + rampYOffset;
 					veter.VP = 0;
 					veter.ID = part.Data->ID;
 					veter.Transp = true;
