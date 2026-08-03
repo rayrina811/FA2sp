@@ -167,7 +167,7 @@ public:
 	static void LoadBitMap(FString ImageID, CBitmap& cBitmap);
 	static bool ReplaceBitmapColor(CBitmap& bitmap,COLORREF oldColor,COLORREF newColor);
 	void SetImageDataSafe(unsigned char* pBuffer, FString NameInDict,
-		int FullWidth, int FullHeight, Palette* pPal, bool clip = true);
+		int FullWidth, int FullHeight, Palette* pPal, bool clip = true, bool outline = false);
 	ImageDataClassSafe* SetBuildingImageDataSafe(unsigned char* pBuffer, FString NameInDict,
 		int FullWidth, int FullHeight, Palette* pPal, unsigned char* pAlphaBuffer);
 	void SetImageData(unsigned char* pBuffer, FString NameInDict, int FullWidth, int FullHeight, Palette* pPal);
@@ -289,9 +289,9 @@ private:
 	
 	void SetValidBuffer(ImageDataClass* pData, int Width, int Height);
 	void SetValidBufferSafe(ImageDataClassSafe* pData, int Width, int Height);
-	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow);
+	void TrimImageEdges(ImageDataClassSafe* pData, bool shadow, bool outline = false);
 	void ScaleImageHalf(ImageDataClassSafe* pData);
-	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr);
+	void TrimImageEdges(unsigned char*& pBuffer, int& width, int& height, unsigned char** pSecondBuffer = nullptr, Palette* pPal = nullptr, bool outline = false);
 
 	int ColorDistance(const ColorStruct& color1, const ColorStruct& color2); 
 	int ColorDistance(const BGRStruct& color1, const BGRStruct& color2);
@@ -308,6 +308,7 @@ public:
 	FString GetBuildingFileID(const FString& ID);
 	FString GetInfantryFileID(const FString& ID);
 	static int GetIFVTurretIndex(const FString& ID);
+	static int GetIFVWeaponIndex(const FString& ID);
 	static bool IsPreOccupiedBunker(const FString& ID);
 	static bool IsBioReactor(const FString& ID);
 	static FHashSet LoadedOverlays;

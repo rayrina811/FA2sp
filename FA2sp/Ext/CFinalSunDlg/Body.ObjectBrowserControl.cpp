@@ -332,6 +332,8 @@ HTREEITEM CViewObjectsExt::InsertString(const char* pString, DWORD dwItemData,
                 bool temp2 = ExtConfigs::InGameDisplay_Deploy;
                 bool temp3 = ExtConfigs::InGameDisplay_Water;
                 ExtConfigs::InGameDisplay_Shadow = false;
+                ExtConfigs::InGameDisplay_Deploy = false;
+                ExtConfigs::InGameDisplay_Water = false;
                 CLoadingExt::IsLoadingObjectView = true;
                 CLoading::Instance->LoadObjects(InsertingObjectID);
                 CLoadingExt::IsLoadingObjectView = false;
