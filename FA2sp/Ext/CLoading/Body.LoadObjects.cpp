@@ -2135,6 +2135,7 @@ void CLoadingExt::LoadVehicleOrAircraft(const FString& ID, int tiltType)
 	int tiltCount = (ExtConfigs::ExtTilts && CINI::Art->GetBool(ArtID, "Voxel")) ? TiltTypes.size() : 1;
 	ExtTilts[ID] = tiltCount > 1 ? 1 : 0;
 	bool outline = ID == "FA2DEFAULT_UNIT" || ID == "FA2DEFAULT_AIRCRAFT";
+	if (outline) tiltType = -1; // load all tilts for default image
 
 	int tiltStart = (tiltType >= 0) ? tiltType : 0;
 	int tiltEnd = (tiltType >= 0) ? tiltType + 1 : tiltCount;
