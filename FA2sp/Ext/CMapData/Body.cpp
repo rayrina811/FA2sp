@@ -702,6 +702,11 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 				else
 					break;
 			}
+			if (DataExt.Foundations->empty())
+			{
+				delete DataExt.Foundations;
+				DataExt.Foundations = nullptr;
+			}
 		}
 		else
 		{
@@ -718,88 +723,91 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 			DataExt.Foundations->push_back({ 2,2 });
 		}
 
-		// Build outline draw data
-		DataExt.LinesToDraw = new std::vector<std::pair<MapCoord, MapCoord>>;
-		std::vector<std::vector<BOOL>> LinesX, LinesY;
-
-		LinesX.resize(DataExt.Width);
-		for (auto& l : LinesX)
-			l.resize(DataExt.Height + 1);
-		LinesY.resize(DataExt.Width + 1);
-		for (auto& l : LinesY)
-			l.resize(DataExt.Height);
-
-		for (const auto& block : *DataExt.Foundations)
+		if (DataExt.Foundations)
 		{
-			int x = std::clamp(block.X, 0, DataExt.Width - 1);
-			int y = std::clamp(block.Y, 0, DataExt.Height - 1);
-
-			LinesX[x][y] = !LinesX[x][y];
-			LinesX[x][y + 1] = !LinesX[x][y + 1];
-
-			LinesY[x][y] = !LinesY[x][y];
-			LinesY[x + 1][y] = !LinesY[x + 1][y];
-		}
-
-		for (size_t y = 0; y < DataExt.Height + 1; ++y)
-		{
-			size_t length = 0;
-			for (size_t x = 0; x < DataExt.Width; ++x)
+			// Build outline draw data
+			DataExt.LinesToDraw = new std::vector<std::pair<MapCoord, MapCoord>>;
+			std::vector<std::vector<BOOL>> LinesX, LinesY;
+	
+			LinesX.resize(DataExt.Width);
+			for (auto& l : LinesX)
+				l.resize(DataExt.Height + 1);
+			LinesY.resize(DataExt.Width + 1);
+			for (auto& l : LinesY)
+				l.resize(DataExt.Height);
+	
+			for (const auto& block : *DataExt.Foundations)
 			{
-				if (LinesX[x][y])
-					++length;
-				else
+				int x = std::clamp(block.X, 0, DataExt.Width - 1);
+				int y = std::clamp(block.Y, 0, DataExt.Height - 1);
+	
+				LinesX[x][y] = !LinesX[x][y];
+				LinesX[x][y + 1] = !LinesX[x][y + 1];
+	
+				LinesY[x][y] = !LinesY[x][y];
+				LinesY[x + 1][y] = !LinesY[x + 1][y];
+			}
+	
+			for (size_t y = 0; y < DataExt.Height + 1; ++y)
+			{
+				size_t length = 0;
+				for (size_t x = 0; x < DataExt.Width; ++x)
 				{
-					if (!length)
-						continue;
+					if (LinesX[x][y])
+						++length;
+					else
+					{
+						if (!length)
+							continue;
+						MapCoord start, end;
+						start.X = ((x - length) - y) * 30;
+						start.Y = ((x - length) + y) * 15;
+						end.X = (x - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+						end.Y = (x + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
+						DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+						length = 0;
+					}
+				}
+				if (length)
+				{
 					MapCoord start, end;
-					start.X = ((x - length) - y) * 30;
-					start.Y = ((x - length) + y) * 15;
-					end.X = (x - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
-					end.Y = (x + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
+					start.X = ((DataExt.Width - length) - y) * 30;
+					start.Y = ((DataExt.Width - length) + y) * 15;
+					end.X = (DataExt.Width - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+					end.Y = (DataExt.Width + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
 					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-					length = 0;
 				}
 			}
-			if (length)
+	
+			for (size_t x = 0; x < DataExt.Width + 1; ++x)
 			{
-				MapCoord start, end;
-				start.X = ((DataExt.Width - length) - y) * 30;
-				start.Y = ((DataExt.Width - length) + y) * 15;
-				end.X = (DataExt.Width - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
-				end.Y = (DataExt.Width + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
-				DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-			}
-		}
-
-		for (size_t x = 0; x < DataExt.Width + 1; ++x)
-		{
-			size_t length = 0;
-			for (size_t y = 0; y < DataExt.Height; ++y)
-			{
-				if (LinesY[x][y])
-					++length;
-				else
+				size_t length = 0;
+				for (size_t y = 0; y < DataExt.Height; ++y)
 				{
-					if (!length)
-						continue;
-					MapCoord start, end;
-					start.X = (x - (y - length)) * 30;
-					start.Y = (x + (y - length)) * 15;
-					end.X = (x - y) * 30;
-					end.Y = (x + y) * 15;
-					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-					length = 0;
+					if (LinesY[x][y])
+						++length;
+					else
+					{
+						if (!length)
+							continue;
+						MapCoord start, end;
+						start.X = (x - (y - length)) * 30;
+						start.Y = (x + (y - length)) * 15;
+						end.X = (x - y) * 30;
+						end.Y = (x + y) * 15;
+						DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+						length = 0;
+					}
 				}
-			}
-			if (length)
-			{
-				MapCoord start, end;
-				start.X = (x - (DataExt.Height - length)) * 30;
-				start.Y = (x + (DataExt.Height - length)) * 15;
-				end.X = (x - DataExt.Height) * 30;
-				end.Y = (x + DataExt.Height) * 15;
-				DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+				if (length)
+				{
+					MapCoord start, end;
+					start.X = (x - (DataExt.Height - length)) * 30;
+					start.Y = (x + (DataExt.Height - length)) * 15;
+					end.X = (x - DataExt.Height) * 30;
+					end.Y = (x + DataExt.Height) * 15;
+					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+				}
 			}
 		}
 	}
