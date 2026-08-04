@@ -68,6 +68,40 @@ static std::string SafeDump(const json& j)
     return j.dump(-1, ' ', false, json::error_handler_t::replace);
 }
 
+// ---------------------------------------------------------------------------
+// Quote a string as a Lua short-string literal (Lua %q style subset).
+// ASCII controls are escaped; bytes >= 0x80 are passed through untouched so
+// that UTF-8/ANSI multibyte sequences survive the MCP encoding conversion.
+// ---------------------------------------------------------------------------
+static std::string LuaQuote(const std::string& s)
+{
+    std::string out = "\"";
+    for (unsigned char c : s)
+    {
+        switch (c)
+        {
+        case '"':  out += "\\\""; break;
+        case '\\': out += "\\\\"; break;
+        case '\n': out += "\\n"; break;
+        case '\r': out += "\\r"; break;
+        case '\t': out += "\\t"; break;
+        default:
+            if (c < 0x20)
+            {
+                char buf[8];
+                std::snprintf(buf, sizeof(buf), "\\%d", (int)c);
+                out += buf;
+            }
+            else
+            {
+                out += (char)c;
+            }
+        }
+    }
+    out += "\"";
+    return out;
+}
+
 static std::string GetRelativePath(const std::filesystem::path& full, const std::filesystem::path& root)
 {
     return std::filesystem::relative(full, root).generic_string();
@@ -281,6 +315,50 @@ static json ProcessRequest(json& request)
             }}
         });
 
+        tools.push_back({
+            {"name", "spec"},
+            {"description", "Manage the map spec file that persists map design intent across sessions. "
+                            "The spec has three layers: story (single main narrative), screenplay (scripted scenes "
+                            "grouped into parallel trigger pipelines, entry ids like L01S02, dependency DAG), "
+                            "implementation (mapping each entry to map triggers, with status "
+                            "designing/implemented/verified/deprecated). "
+                            "The spec file is stored next to the map as <mapname>.spec.md. "
+                            "Actions: init, read, update_story, add_line, add_entry, update_entry, "
+                            "deprecate_entry, link_trigger, unlink_trigger, set_status, validate. "
+                            "Always call read first to discover the current state; run validate before "
+                            "finishing a session. link_trigger verifies the trigger exists in the map."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"action", {
+                        {"type", "string"},
+                        {"description", "One of: init, read, update_story, add_line, add_entry, update_entry, "
+                                        "deprecate_entry, link_trigger, unlink_trigger, set_status, validate."}
+                    }},
+                    {"map_path", {
+                        {"type", "string"},
+                        {"description", "Full path to the map file (use forward slashes, e.g. "
+                                        "C:/maps/mymap.map). The spec file is stored next to it as mymap.spec.md."}
+                    }},
+                    {"title", {{"type", "string"}, {"description", "init: map title (optional, defaults to file name)."}}},
+                    {"text", {{"type", "string"}, {"description", "update_story: the new story text."}}},
+                    {"name", {{"type", "string"}, {"description", "add_line: trigger pipeline name (e.g. Soviet assault pipeline)."}}},
+                    {"line", {{"type", "string"}, {"description", "add_entry: target trigger pipeline id (e.g. L01)."}}},
+                    {"summary", {{"type", "string"}, {"description", "add_entry/update_entry: scene summary."}}},
+                    {"depends_on", {{"type", "array"}, {"items", {{"type", "string"}}},
+                        {"description", "add_entry/update_entry: prerequisite entry ids (dependency DAG edges)."}}},
+                    {"entry_id", {{"type", "string"}, {"description", "Entry id (e.g. L01S02)."}}},
+                    {"trigger_type", {{"type", "string"},
+                        {"description", "link_trigger/unlink_trigger: the trigger's [Triggers] section id in the map."}}},
+                    {"display_name", {{"type", "string"},
+                        {"description", "link_trigger: free-text display name of the trigger (semantic aid only)."}}},
+                    {"status", {{"type", "string"},
+                        {"description", "set_status: designing | implemented | verified | deprecated."}}}
+                }},
+                {"required", json::array({"action", "map_path"})}
+            }}
+        });
+
         response["result"] = {{"tools", tools}};
     }
     // ----- tools/call -----
@@ -302,6 +380,46 @@ static json ProcessRequest(json& request)
             std::string out = ToExternalEncoding(mcpReq->result);
             CloseHandle(mcpReq->hEvent); delete mcpReq;
             response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+        }
+        else if (toolName == "spec")
+        {
+            // Bridge to spec_lib.lua: forward whitelisted args, run through the
+            // existing run_lua execution channel (main thread, encoding conversion).
+            std::string action = arguments.value("action", "");
+            std::string mapPath = arguments.value("map_path", "");
+            if (action.empty() || mapPath.empty())
+            {
+                response["result"] = {{"content", json::array({{{"type", "text"},
+                    {"text", "Error: 'action' and 'map_path' are required."}}})}};
+            }
+            else
+            {
+                json specArgs = json::object();
+                specArgs["action"] = action;
+                specArgs["map_path"] = mapPath;
+                for (const char* k : {"title", "text", "name", "line", "summary",
+                                      "entry_id", "trigger_type", "display_name", "status"})
+                {
+                    if (arguments.contains(k))
+                        specArgs[k] = arguments[k];
+                }
+                if (arguments.contains("depends_on") && arguments["depends_on"].is_array())
+                    specArgs["depends_on"] = arguments["depends_on"];
+
+                std::string libPath = GetScriptRoot() + "spec_lib.lua";
+                std::string script = "local S = dofile(" + LuaQuote(libPath) + "); "
+                                     "print(S.dispatch(" + LuaQuote(SafeDump(specArgs)) + "))";
+
+                MCPRequest* mcpReq = new MCPRequest();
+                mcpReq->type = 0;
+                mcpReq->input = ToInternalEncoding(script);
+                mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_RUN_LUA, 0, (LPARAM)mcpReq);
+                WaitForSingleObject(mcpReq->hEvent, INFINITE);
+                std::string out = ToExternalEncoding(mcpReq->result);
+                CloseHandle(mcpReq->hEvent); delete mcpReq;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
         }
         else if (toolName == "list_knowledge")
         {
