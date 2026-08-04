@@ -14,8 +14,11 @@
 --     run_lua path are converted to the internal (ANSI) encoding; dofile does
 --     NOT convert file content, so any Chinese literal here would not match
 --     runtime strings.
---   * All Chinese text in the spec file comes from agent-provided arguments
---     (already ANSI in the Lua runtime) -> the spec file is uniformly ANSI.
+--   * The .spec.md file is EXTERNAL storage: it is written as UTF-8 and, when
+--     read back, converted to ANSI (to_ansi) so the Lua runtime stays uniform
+--     GBK internally. write_file converts ANSI -> UTF-8 via to_utf8. to_ansi /
+--     to_utf8 are globals provided by the FA2sp runtime (identity for
+--     already-converted input).
 --   * dispatch() returns a JSON string; bytes >= 0x80 are kept raw and the
 --     MCP layer converts them back to UTF-8 for the client.
 --   * Internal status keys are ASCII: designing / implemented / verified /
@@ -206,20 +209,24 @@ local function derive_spec_path(map_path)
     return base .. ".spec.md"
 end
 
+-- External storage is UTF-8; convert to ANSI for the GBK Lua runtime
+-- (to_ansi is a global provided by the FA2sp runtime).
 local function read_file(path)
     local f = io.open(path, "rb")
     if not f then return nil end
     local content = f:read("*a")
     f:close()
-    return content
+    return to_ansi(content)
 end
 
 -- Atomic-ish write: write tmp, verify, remove target, rename.
+-- Convert ANSI -> UTF-8 before writing (to_utf8 is a global provided by the
+-- FA2sp runtime); read_file converts it back, so verification compares ANSI.
 local function write_file(path, content)
     local tmp = path .. ".tmp"
     local f = io.open(tmp, "wb")
     if not f then error("cannot open temp file for write: " .. tmp) end
-    f:write(content)
+    f:write(to_utf8(content))
     f:close()
     local back = read_file(tmp)
     if back ~= content then

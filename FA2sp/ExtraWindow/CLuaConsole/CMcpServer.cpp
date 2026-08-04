@@ -407,12 +407,17 @@ static json ProcessRequest(json& request)
                     specArgs["depends_on"] = arguments["depends_on"];
 
                 std::string libPath = GetScriptRoot() + "spec_lib.lua";
+                // specArgs is UTF-8 (MCP wire format). Convert it to ANSI
+                // explicitly: the script mixes an already-ANSI dofile path with
+                // the UTF-8 JSON, and detection-based ToInternalEncoding is
+                // unreliable on mixed input, which would leave map_path as UTF-8
+                // inside the GBK Lua runtime and break file I/O.
                 std::string script = "local S = dofile(" + LuaQuote(libPath) + "); "
-                                     "print(S.dispatch(" + LuaQuote(SafeDump(specArgs)) + "))";
+                                     "print(S.dispatch(" + LuaQuote(CLuaConsole::EncodeUtf8ToAnsi(SafeDump(specArgs))) + "))";
 
                 MCPRequest* mcpReq = new MCPRequest();
                 mcpReq->type = 0;
-                mcpReq->input = ToInternalEncoding(script);
+                mcpReq->input = script;
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
                 PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_RUN_LUA, 0, (LPARAM)mcpReq);
                 WaitForSingleObject(mcpReq->hEvent, INFINITE);
