@@ -354,6 +354,19 @@ DEFINE_HOOK(460DA0, CIsoView_OnLButtonDblClk_FixPos, 8)
 	return 0;
 }
 
+DEFINE_HOOK(460E07, CIsoView_OnLButtonDblClk_FlatMapCoord, 8)
+{	
+	GET_STACK(int, x, STACK_OFFS(0x28, 0x1C));
+	GET_STACK(int, y, STACK_OFFS(0x28, 0x18));
+
+	CIsoView::ScreenCoord2MapCoord_Flat(x, y);
+	R->EDI(x);
+	R->EAX(y);
+	R->EBX(CMapData::Instance->MapWidthPlusHeight);
+
+	return 0x460E95;
+}
+
 DEFINE_HOOK(456CED, CIsoView_UpdateDialog, 9)
 {
 	if (CLoadingExt::ObjectsNeedReloaded)
