@@ -4129,6 +4129,11 @@ static void DrawMap()
 
 		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+		if (CIsoViewExt::RenderingScreenshot)
+		{
+			pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+			pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+		}
 
 		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
 				hDC,
@@ -4271,6 +4276,11 @@ static void DrawMap()
 
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+				pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+			}
 
 			auto pDX = pThis->g_pDX.get();
 			if (pDX->IsUsingOpenGL())

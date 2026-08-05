@@ -393,6 +393,9 @@ public:
     static bool DrawCellTagsFilter;
     static bool RenderingMap;
     static bool RenderFullMap;
+    static bool RenderingScreenshot;
+    static int RenderingScreenshotBaseX;
+    static int RenderingScreenshotBaseY;
     static bool RenderCurrentLayers;
     static bool RenderTileSuccess;
     static bool RenderInvisibleInGame;

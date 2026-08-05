@@ -850,50 +850,57 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
 
     {
         VEHGuard guard(false);  // disable VEH during Lua execution
-        try
+        if (IsDebuggerPresent())
         {
-            sol::protected_function_result result =
-                Lua.script(req->input, sol::script_pass_on_error);
-
-            if (!result.valid())
+            Lua.script(req->input);
+        }
+        else
+        {
+            try
             {
-                sol::error err = result;
-                std::string errStr = err.what();
-                std::string errorMessage = "Lua Error: " + errStr;
-                // Check for __SCRIPT_ABORT__
-                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                sol::protected_function_result result =
+                    Lua.script(req->input, sol::script_pass_on_error);
+    
+                if (!result.valid())
                 {
-                    CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                    sol::error err = result;
+                    std::string errStr = err.what();
+                    std::string errorMessage = "Lua Error: " + errStr;
+                    // Check for __SCRIPT_ABORT__
+                    if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                    {
+                        CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                    }
+                    else
+                    {
+                        sol::call_status status = result.status();
+                        switch (status)
+                        {
+                        case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
+                        case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
+                        case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
+                        case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
+                        case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
+                        case sol::call_status::file:     errorMessage += " (File Error)"; break;
+                        default:                         errorMessage += " (Unknown Error)"; break;
+                        }
+                        CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                    }
                 }
                 else
                 {
-                    sol::call_status status = result.status();
-                    switch (status)
-                    {
-                    case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
-                    case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
-                    case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
-                    case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
-                    case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
-                    case sol::call_status::file:     errorMessage += " (File Error)"; break;
-                    default:                         errorMessage += " (Unknown Error)"; break;
-                    }
-                    CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                    if (CLuaConsole::mcpOutput.empty())
+                        CLuaConsole::mcpOutput += "Script executed successfully.\r\n";
                 }
             }
-            else
+            catch (const std::exception& e)
             {
-                if (CLuaConsole::mcpOutput.empty())
-                    CLuaConsole::mcpOutput += "Script executed successfully.\r\n";
+                CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
             }
-        }
-        catch (const std::exception& e)
-        {
-            CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
-        }
-        catch (...)
-        {
-            CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+            catch (...)
+            {
+                CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+            }
         }
     }
 

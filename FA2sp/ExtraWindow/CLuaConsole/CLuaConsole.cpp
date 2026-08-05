@@ -473,6 +473,9 @@ void CLuaConsole::Initialize(HWND& hWnd)
         }
         CLuaConsole::yoloMode = enable;
         });
+    Lua.set_function("screenshot", screenshot);
+    Lua.set_function("screenshot_temp", screenshot_temp);
+    Lua.set_function("move_to_map_coord", move_to_map_coord);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -1875,68 +1878,75 @@ void CLuaConsole::OnClickRun(bool fromFile)
     LuaFunctions::time = timeStart;
     skipBuildingUpdate = true;
     VEHGuard guard(false);
-    try {
-        sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
-        if (!result.valid()) {
-            sol::error err = result;
-            std::string errorMessage = "Lua Error: " + std::string(err.what());
-
-            std::string errStr = err.what();
-            if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+    if (IsDebuggerPresent())
+    {
+        Lua.script(script);
+    }
+    else
+    {
+        try {
+            sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
+            if (!result.valid()) {
+                sol::error err = result;
+                std::string errorMessage = "Lua Error: " + std::string(err.what());
+    
+                std::string errStr = err.what();
+                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+                    oss.str("");
+                    auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                    oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                    text = oss.str();
+                    write_lua_console(text);
+                }
+                else
+                {
+                    
+                    sol::call_status status = result.status();
+                    switch (status) {
+                    case sol::call_status::syntax:
+                        errorMessage += " (Syntax Error)";
+                        break;
+                    case sol::call_status::runtime:
+                        errorMessage += " (Runtime Error)";
+                        break;
+                    case sol::call_status::memory:
+                        errorMessage += " (Memory Allocation Error)";
+                        break;
+                    case sol::call_status::handler:
+                        errorMessage += " (Message Handler Error)";
+                        break;
+                    case sol::call_status::gc:
+                        errorMessage += " (Garbage Collector Error)";
+                        break;
+                    case sol::call_status::file:
+                        errorMessage += " (File Error)";
+                        break;
+                    default:
+                        errorMessage += " (Unknown Error)";
+                        break;
+                    }
+        
+                    write_lua_console(errorMessage);
+                }
+            }
+            else {
                 oss.str("");
                 auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-                oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
                 text = oss.str();
                 write_lua_console(text);
             }
-            else
-            {
-                
-                sol::call_status status = result.status();
-                switch (status) {
-                case sol::call_status::syntax:
-                    errorMessage += " (Syntax Error)";
-                    break;
-                case sol::call_status::runtime:
-                    errorMessage += " (Runtime Error)";
-                    break;
-                case sol::call_status::memory:
-                    errorMessage += " (Memory Allocation Error)";
-                    break;
-                case sol::call_status::handler:
-                    errorMessage += " (Message Handler Error)";
-                    break;
-                case sol::call_status::gc:
-                    errorMessage += " (Garbage Collector Error)";
-                    break;
-                case sol::call_status::file:
-                    errorMessage += " (File Error)";
-                    break;
-                default:
-                    errorMessage += " (Unknown Error)";
-                    break;
-                }
-    
-                write_lua_console(errorMessage);
-            }
         }
-        else {
-            oss.str("");
-            auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
-            text = oss.str();
-            write_lua_console(text);
+        catch (const std::exception& e) {
+            std::string errorMessage = "Critical Error: " + std::string(e.what());
+            write_lua_console(errorMessage);
+        }
+        catch (...) {
+            std::string errorMessage = "Critical Error: Unknown exception occurred.";
+            write_lua_console(errorMessage);
         }
     }
-    catch (const std::exception& e) {
-        std::string errorMessage = "Critical Error: " + std::string(e.what());
-        write_lua_console(errorMessage);
-    }
-    catch (...) {
-        std::string errorMessage = "Critical Error: Unknown exception occurred.";
-        write_lua_console(errorMessage);
-    }
-
+  
     for (auto& ini : LoadedINIs)
     {
         GameDelete(ini.second);
