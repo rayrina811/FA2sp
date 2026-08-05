@@ -454,6 +454,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return get_building(indexY, x.value());
         });
     Lua.set_function("get_buildings", get_buildings);
+    Lua.set_function("get_building_foundation", get_building_foundation);
+    Lua.set_function("get_building_cells", get_building_cells);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;

@@ -3980,6 +3980,80 @@ namespace LuaFunctions
 		return ret;
 	}
 
+	static sol::table get_building_foundation(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		ret[1] = DataExt.Width;
+		ret[2] = DataExt.Height;
+		ret[3] = DataExt.IsCustomFoundation() ? 1 : 0;
+		return ret;
+	}
+
+	static sol::table get_building_cells(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		if (!DataExt.IsCustomFoundation())
+		{
+			int i = 1;
+			for (int y = 0; y < DataExt.Height; ++y)
+			{
+				for (int x = 0; x < DataExt.Width; ++x)
+				{
+					sol::table cell = CLuaConsole::Lua.create_table();
+					cell[1] = x;
+					cell[2] = y;
+					ret[i++] = cell;
+				}
+			}
+			return ret;
+		}
+		int i = 1;
+		for (const auto& coord : *DataExt.Foundations)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = coord.X;
+			cell[2] = coord.Y;
+			ret[i++] = cell;
+		}
+		return ret;
+	}
+
 	static std::vector<aircraft> get_aircrafts()
 	{
 		std::vector<aircraft> ret;
