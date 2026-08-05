@@ -111,6 +111,7 @@ public:
     static bool updateCellTag;
     static bool updateVariable;
     static bool skipBuildingUpdate;
+    static bool yoloMode;
     // MCP output capture
     static std::string mcpOutput;
     static bool mcpRunning;

@@ -78,6 +78,7 @@ bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+bool CLuaConsole::yoloMode = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
 TransparencyHelper CLuaConsole::m_transparency;
@@ -439,7 +440,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         if (!ignoreOverlap) {
             ignoreOverlap = false;
         }
-        place_building(house, type, y, x, ignoreOverlap.value());
+        place_building(house, type, y, x, ignoreOverlap.value() || CLuaConsole::yoloMode);
         });
     Lua.set_function("remove_building", [](int indexY, sol::optional<int> x) {
         if (!x) {
@@ -456,6 +457,22 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("get_buildings", get_buildings);
     Lua.set_function("get_building_foundation", get_building_foundation);
     Lua.set_function("get_building_cells", get_building_cells);
+    Lua.set_function("set_yolo_mode", [](bool enable) {
+        if (enable && !CLuaConsole::yoloMode)
+        {
+            int result = MessageBox(CLuaConsole::GetHandle(),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeConfirm",
+                    "YOLO mode will skip all confirmation dialogs during script execution.\n"
+                    "This includes safety checks, snapshot restore confirmations, and building overlap warnings.\n"
+                    "Message boxes explicitly called by the script (e.g. message_box) will still appear.\n\n"
+                    "Are you sure you want to enable YOLO mode?"),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeTitle", "Enable YOLO Mode"),
+                MB_YESNO | MB_ICONWARNING);
+            if (result != IDYES)
+                return;
+        }
+        CLuaConsole::yoloMode = enable;
+        });
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -1731,7 +1748,7 @@ void CLuaConsole::OnSelChangeScript(HWND& hWnd)
 // Scan script for high-risk operations and return {line_number, line_content} pairs
 std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(const std::string& script)
 {
-    if (ExtConfigs::DisableLuaConsoleSafetyCheck)
+    if (ExtConfigs::DisableLuaConsoleSafetyCheck || CLuaConsole::yoloMode)
         return {};
 
     std::vector<std::pair<int, std::string>> results;

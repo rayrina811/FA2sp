@@ -4635,8 +4635,11 @@ namespace LuaFunctions
 			, formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan)).c_str()
 				, snapshot.fileName.c_str());
 	
-		if (message_box(text, title, 1) == IDCANCEL)
-			return;
+		if (!CLuaConsole::yoloMode)
+		{
+			if (message_box(text, title, 1) == IDCANCEL)
+				return;
+		}
 
 		auto ini = &CMapData::Instance->INI;
 
