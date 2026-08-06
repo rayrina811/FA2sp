@@ -5166,10 +5166,7 @@ namespace LuaFunctions
 		}
 		else
 		{
-			// Zoomed out: tile-based rendering, writes directly to pFullBitmap
-			// 1:1 rendering shows [ViewPosition, ViewPosition + clientW/H] per tile,
-			// scanning from the original ViewPosition across the bitmap size
-			// covers exactly the visible area.
+			// Zoomed out
 			auto tempScaledFactor = CIsoViewExt::ScaledFactor;
 			CIsoViewExt::ScaledFactor = 1.0;
 			if (ExtConfigs::DirectXRendering)
@@ -5191,8 +5188,6 @@ namespace LuaFunctions
 				tileH = r.Height();
 			}
 
-			// Bitmap (0,0) must align to the actual view top-left corner,
-			// i.e. the original ViewPosition.
 			CRect validRange;
 			int& width = CMapData::Instance->Size.Width;
 			int& height = CMapData::Instance->Size.Height;
@@ -5279,12 +5274,7 @@ namespace LuaFunctions
 		CIsoViewExt::RenderingScreenshot = oldRenderingScreenshot;
 		pIsoView->ViewPosition = oldViewPos;
 
-		if (!zoomedIn)
-		{
-			// necessary
-			pIsoView->Draw();
-			pIsoView->Draw();
-		}
+		pIsoView->Draw();
 
 		return result == Gdiplus::Ok;
 	}
@@ -5314,8 +5304,59 @@ namespace LuaFunctions
 		return sol::nil;
 	}
 
-	static void move_to_map_coord(int y, int x)
+	static bool is_coord_in_view(int y, int x)
 	{
-		CIsoViewExt::MoveToMapCoord(x, y);
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return false;
+		auto pIsoView = CIsoViewExt::GetExtension();
+		if (!pIsoView)
+			return false;
+
+		CRect window;
+		pIsoView->GetWindowRect(&window);
+		CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+		int x1, y1, x2, y2;
+
+		x1 = window.left + pIsoView->ViewPosition.x;
+		y1 = window.top + pIsoView->ViewPosition.y;
+		x2 = window.right + pIsoView->ViewPosition.x;
+		y2 = window.bottom + pIsoView->ViewPosition.y;
+		pIsoView->ScreenCoord2MapCoord_Flat(x1, y1);
+		pIsoView->ScreenCoord2MapCoord_Flat(x2, y2);
+		if (x2 < 0 || y2 < 0)
+		{
+			x2 = CMapData::Instance->Size.Width;
+			y2 = CMapData::Instance->MapWidthPlusHeight + 1;
+		}
+		if (x1 < 0 || y1 < 0)
+		{
+			x1 = CMapData::Instance->Size.Width;
+			y1 = 0;
+		}
+
+		int top, bottom, left, right;
+        top = x1 + y1;
+        bottom = x2 + y2;
+        left = y1 - x1;
+        right = y2 - x2;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+
+		return
+			x + y >= top &&
+			x + y <= bottom &&
+			y - x >= left &&
+			y - x <= right;
 	}
 }

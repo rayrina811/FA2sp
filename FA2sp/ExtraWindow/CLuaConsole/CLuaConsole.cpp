@@ -475,7 +475,6 @@ void CLuaConsole::Initialize(HWND& hWnd)
         });
     Lua.set_function("screenshot", screenshot);
     Lua.set_function("screenshot_temp", screenshot_temp);
-    Lua.set_function("move_to_map_coord", move_to_map_coord);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -806,13 +805,14 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
+    Lua.set_function("in_view", is_coord_in_view);
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {
         if (!x) {
             x = -1;
         }
         move_to(yindex, x.value()); 
         });
-
+        
     // triggers & teams
     Lua.new_usertype<tag>("tag",
         sol::constructors<tag()>(),

@@ -562,6 +562,12 @@ float DirectXCore::SetZoomOut(float scaleFactor)
         return m_renderScale;
     }
 
+    ID3D11RenderTargetView *nullRTVs[8] = { nullptr };
+    m_pContext->OMSetRenderTargets(8, nullRTVs, nullptr);
+    ID3D11ShaderResourceView *nullSRVs[16] = { nullptr };
+    m_pContext->PSSetShaderResources(0, 16, nullSRVs);
+    m_pTrackedSRV = nullptr;
+
     m_OffscreenTex.Reset();
     m_OffscreenRTV.Reset();
     m_OffscreenSRV.Reset();
@@ -5066,7 +5072,7 @@ bool DirectXCore::GL_CreateQuadGeometry()
 
     // Instance VAO: quad VBO (slot 0, per-vertex) + instance VBO (slot 1, per-instance)
     //   location 0,1: from quad VBO (divisor 0)
-    //   location 2,3,4,5: from instance VBO (divisor 1), 4¡Ávec4=64 bytes per instance
+    //   location 2,3,4,5: from instance VBO (divisor 1), 4xvec4=64 bytes per instance
     {
 		// Create instance VBO first so VAO references a valid buffer (not 0)
 		if (m_glVBOInstance == 0)
@@ -5142,6 +5148,7 @@ bool DirectXCore::GL_CreateOffscreenResources()
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
     return true;
 }
 
@@ -5171,6 +5178,7 @@ void DirectXCore::GL_EnsureFactorTexture()
     glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOFactor);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexFactor, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
 }
 
 void DirectXCore::GL_EnsureScreenCopyTexture()
@@ -5220,6 +5228,7 @@ void DirectXCore::GL_EnsureAlphaAccumTexture()
     glBindFramebuffer(GL_FRAMEBUFFER, m_glFBOAlphaAccum);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_glTexAlphaAccum, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    m_glTrackedFBO = 0;
 }
 
 void DirectXCore::GL_CopyScreenToTexture()
@@ -5927,7 +5936,7 @@ void DirectXCore::GL_DarkenOffscreen(float brightness)
 // GL_FlushInstanceBatch - instanced rendering for Phase 1 opaque + Phase 5 overlays
 //   Uses m_glProgInstanced (kGLSL_InstancedVS + kGLSL_MainPS).
 //   All commands in batch share the same texture, blend state, and depth state.
-//   Instance data layout: 4 ¡Á vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
+//   Instance data layout: 4 x vec4 = 64 bytes per instance, matching kGLSL_InstancedVS.
 // ==========================================================================
 void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &batch)
 {
@@ -5950,7 +5959,7 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
             return;
         }
 
-        // Fast path: single instance ¡ú use regular non-instanced program
+        // Fast path: single instance -> use regular non-instanced program
         // (avoids std::vector alloc + glBufferSubData overhead for the common
         //  case of unique-texture terrain tiles)
         if (count == 1)
@@ -5984,7 +5993,7 @@ void DirectXCore::GL_FlushInstanceBatch(const std::vector<const DrawCommand *> &
 
         // Multi-instance path: use instanced rendering
         // Ensure instance VBO capacity (orphan old if insufficient)
-        // 16 floats per instance (4 vec4 ¡Á 4 floats)
+        // 16 floats per instance (4 vec4 x 4 floats)
         int needed = (int)count * 16;
         if (m_glInstanceVBCapacity < needed)
         {
