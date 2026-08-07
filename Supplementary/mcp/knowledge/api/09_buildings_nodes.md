@@ -56,7 +56,7 @@
   - `house` (`string`) — 所属方。
   - `type` (`string`) — 建筑类型 ID。
   - `x, y` (`number`) — 坐标。
-  - `ignore_overlap` (`boolean`, 可选) — 若为 `true` 可跳过重叠检查，默认为 `false`。
+  - `ignore_overlap` (`boolean`, 可选) — 若为 `true` 可跳过重叠检查，AI调用时应设置为 `true`，默认为 `false`。
 - **返回**：无。
 
 #### `remove_building(index)`

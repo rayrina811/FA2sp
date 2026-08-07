@@ -117,5 +117,6 @@ public:
     static bool mcpRunning;
 
     static TransparencyHelper m_transparency;
+    static std::string CaptureScreenshotTemp();
 };
 

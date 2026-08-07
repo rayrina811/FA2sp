@@ -4708,6 +4708,13 @@ namespace LuaFunctions
 		CMapDataExt::MakeObjectRecord(0x0FFFFFFF);
 	}
 
+	static void save_undo_all()
+	{
+		CMapDataExt::MakeMixedRecord(0, 0, 
+			CMapData::Instance->MapWidthPlusHeight,CMapData::Instance->MapWidthPlusHeight,
+			0x0FFFFFFF);
+	}
+
 	static void save_redo()
 	{
 		// No longer needed since changed undo redo method
@@ -5119,6 +5126,11 @@ namespace LuaFunctions
 		GetClientRect(hWnd, &clientRect);
 		int clientW = clientRect.right - clientRect.left;
 		int clientH = clientRect.bottom - clientRect.top;
+		if ((clientW <= 0 || clientH <= 0) && ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+		{
+			clientW = CIsoViewExt::g_pDX->GetClientWidth();
+			clientH = CIsoViewExt::g_pDX->GetClientHeight();
+		}
 		if (clientW <= 0 || clientH <= 0)
 			return false;
 
@@ -5162,7 +5174,19 @@ namespace LuaFunctions
 			CIsoViewExt::RenderingScreenshot = true;
 			CIsoViewExt::RenderingScreenshotBaseX = pIsoView->ViewPosition.x;
 			CIsoViewExt::RenderingScreenshotBaseY = pIsoView->ViewPosition.y;
-			pIsoView->Draw();
+
+			if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+			{
+				// The window may be in the background (minimized/occluded), so
+				// GPU drivers may have paused rendering to it. Re-activate the
+				// context before drawing.
+				CIsoViewExt::g_pDX->ReactivateContext();
+				pIsoView->Draw();
+			}
+			else
+			{
+				pIsoView->Draw();
+			}
 		}
 		else
 		{
@@ -5171,6 +5195,7 @@ namespace LuaFunctions
 			CIsoViewExt::ScaledFactor = 1.0;
 			if (ExtConfigs::DirectXRendering)
 			{
+				CIsoViewExt::g_pDX->ReactivateContext();
 				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
 			}
 
@@ -5279,12 +5304,12 @@ namespace LuaFunctions
 		return result == Gdiplus::Ok;
 	}
 
-	static sol::object screenshot_temp()
+	static std::string screenshot_temp_path()
 	{
 		// Get %TEMP%\FinalAlert2 directory
 		wchar_t tempPath[MAX_PATH];
 		if (GetTempPathW(MAX_PATH, tempPath) == 0)
-			return sol::nil;
+			return "";
 
 		std::wstring dir = std::wstring(tempPath) + L"FinalAlert2";
 		CreateDirectoryW(dir.c_str(), nullptr);
@@ -5300,6 +5325,14 @@ namespace LuaFunctions
 		std::string path = STDHelpers::WStringToString(fullPath);
 
 		if (screenshot(path))
+			return path;
+		return "";
+	}
+
+	static sol::object screenshot_temp()
+	{
+		std::string path = screenshot_temp_path();
+		if (!path.empty())
 			return sol::make_object(CLuaConsole::Lua, path);
 		return sol::nil;
 	}
@@ -5313,7 +5346,7 @@ namespace LuaFunctions
 			return false;
 
 		CRect window;
-		pIsoView->GetWindowRect(&window);
+		CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
 		int x1, y1, x2, y2;

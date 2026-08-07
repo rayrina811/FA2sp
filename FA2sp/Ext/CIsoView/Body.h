@@ -285,6 +285,13 @@ public:
     static void ReduceBrightness(IDirectDrawSurface7* pSurface, const RECT& rc);
     static int GetRandomTileIndex();
 
+    // Last known good window rect, used when the window is minimized: Windows
+    // reports a position around (-32000,-32000) for minimized windows, which
+    // breaks every map<->screen coordinate conversion. GetValidWindowRect
+    // substitutes the cached position while keeping the current size.
+    static RECT LastValidWindowRect;
+    static void GetValidWindowRect(HWND hwnd, RECT* rc);
+
     // flatMode 0 = auto, 1 = flat, 2 = height
     static void MapCoord2ScreenCoord(int& X, int& Y, int flatMode = 0);
     static bool ClipLineToRect(int& x1, int& y1, int& x2, int& y2, const RECT& rect);
@@ -341,7 +348,7 @@ public:
     inline MapCoord GetCurrentMapCoord(const CPoint& point)
     {
         RECT rect;
-        this->GetWindowRect(&rect);
+        GetValidWindowRect(this->GetSafeHwnd(), &rect);
         //AdaptRectForSecondScreen(&rect);
         int x = point.x + rect.left + this->ViewPosition.x;
         int y = point.y + rect.top + this->ViewPosition.y;

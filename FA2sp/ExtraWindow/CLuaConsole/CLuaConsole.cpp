@@ -88,6 +88,11 @@ std::string CLuaConsole::backupOutputText;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
 
+std::string CLuaConsole::CaptureScreenshotTemp()
+{
+    return screenshot_temp_path();
+}
+
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
     HMODULE hModule = LoadLibrary(TEXT("Riched32.dll"));
@@ -804,6 +809,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
+    Lua.set_function("save_undo_all", save_undo_all);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
     Lua.set_function("in_view", is_coord_in_view);
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {

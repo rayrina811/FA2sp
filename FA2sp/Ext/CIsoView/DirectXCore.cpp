@@ -287,6 +287,15 @@ bool DirectXCore::IsInitialized()
     return m_bInitialized;
 }
 
+void DirectXCore::ReactivateContext()
+{
+    if (m_bUseOpenGL)
+    {
+        if (m_hGLDC && m_hGLRC)
+            wglMakeCurrent(m_hGLDC, m_hGLRC);
+    }
+}
+
 void DirectXCore::ClearTextures()
 {
     if (m_bUseOpenGL)
@@ -416,6 +425,14 @@ void DirectXCore::OnResize(HWND hwnd)
     GetClientRect(hwnd, &rc);
     UINT width = rc.right - rc.left;
     UINT height = rc.bottom - rc.top;
+
+    // Window minimized or hidden: keep the existing resources and the cached
+    // client size instead of recreating a degenerate 0-sized target. Recreating
+    // at 0x0 leaves the swap chain / offscreen unusable, making the restored
+    // view (and offscreen-based screenshots) come out black.
+    if (width == 0 || height == 0)
+        return;
+
     m_clientWidth = width;
     m_clientHeight = height;
 

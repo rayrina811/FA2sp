@@ -89,3 +89,15 @@ end
 -- 指定工作目录
 exec("debug.log", { cwd = game_path().."debug\\", file = true })
 ```
+
+### `screenshot(path)`
+- **说明**：对当前地图窗口截图并保存为 PNG 格式。
+- **参数**：
+  - `path` (`string`) — 保存路径（含 `.png` 扩展名）。
+- **返回** (`boolean`)：`true` 表示保存成功，`false` 表示失败。
+- **备注**：截图尺寸为当前地图窗口的可见区域。
+
+### `screenshot_temp()`
+- **说明**：对当前地图窗口截图并保存到 `%TEMP%\FinalAlert2` 目录，文件名自动带时间戳。
+- **参数**：无。
+- **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。

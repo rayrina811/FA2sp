@@ -932,7 +932,8 @@ void Renderer::Building::Reload(short index)
         || StrINIIndex >= CMapDataExt::BuildingDatasExt.size()
         || StrINIIndex >= CMapDataExt::BuildingRenderDatasFix.size())
         return;
-
+        
+    IniIndex = StrINIIndex;   
     auto& data = CMapDataExt::GetBuildingDataFsFromMap(StrINIIndex);
     pObjectData = &data;
     pType = GetOrCreateBuilding(data.TypeID);
@@ -1068,6 +1069,11 @@ bool Renderer::Object::IsVisible()
     return Visible;
 }
 
+short Renderer::Object::GetIniIndex()
+{
+    return IniIndex;
+}
+
 COLORREF Renderer::Object::GetHouseColor()
 {
     return HouseColor;
@@ -1082,7 +1088,8 @@ void Renderer::Vehicle::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetUnitDadaFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateVehicle(data.TypeID);
@@ -1182,7 +1189,8 @@ void Renderer::Infantry::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetInfantryDataFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateInfantry(data.TypeID);
@@ -1347,7 +1355,8 @@ void Renderer::Aircraft::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetAircraftDataFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateAircraft(data.TypeID);

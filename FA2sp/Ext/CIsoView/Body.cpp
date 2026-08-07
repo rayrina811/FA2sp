@@ -2996,15 +2996,44 @@ std::vector<MapCoord> CIsoViewExt::GetPathFromDirections(int x0, int y0, const s
     return path;
 }
 
+RECT CIsoViewExt::LastValidWindowRect = {0, 0, 0, 0};
+
 RECT CIsoViewExt::GetScaledWindowRect()
 {
     CRect rect;
     auto pThis = CIsoView::GetInstance();
-    pThis->GetWindowRect(&rect);
+    GetValidWindowRect(pThis->GetSafeHwnd(), &rect);
     AdaptRectForSecondScreen(&rect);
     rect.right += rect.Width() * (CIsoViewExt::ScaledFactor - 1.0);
     rect.bottom += rect.Height() * (CIsoViewExt::ScaledFactor - 1.0);
     return rect;
+}
+
+void CIsoViewExt::GetValidWindowRect(HWND hwnd, RECT* rc)
+{
+    ::GetWindowRect(hwnd, rc);
+
+    // Minimized windows are placed around (-32000,-32000) by Windows; using
+    // that position corrupts every map<->screen coordinate conversion (black
+    // screenshots, wrong view bounds). Fall back to the last known good
+    // position while keeping the current size.
+    if (rc->left < -10000 || rc->right < -10000 || rc->top < -10000 || rc->bottom < -10000)
+    {
+        if (LastValidWindowRect.right > LastValidWindowRect.left &&
+            LastValidWindowRect.bottom > LastValidWindowRect.top)
+        {
+            LONG w = rc->right - rc->left;
+            LONG h = rc->bottom - rc->top;
+            rc->left = LastValidWindowRect.left;
+            rc->top = LastValidWindowRect.top;
+            rc->right = rc->left + w;
+            rc->bottom = rc->top + h;
+        }
+    }
+    else
+    {
+        LastValidWindowRect = *rc;
+    }
 }
 
 void CIsoViewExt::ReduceBrightness(IDirectDrawSurface7 *pSurface, const RECT &rc)
@@ -3582,7 +3611,7 @@ void CIsoViewExt::DrawDistanceRuler(HDC hDC, const RECT &rect, bool bScreenSpace
                 {
                     TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
                 }
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ??XY: %d, %d"),
                               coord2.Y, coord2.X, coord2.Y - coord1.Y, coord2.X - coord1.X);
                 if (ExtConfigs::DirectXRendering)
                 {
@@ -3840,7 +3869,7 @@ void CIsoViewExt::DrawOtherMeasurementTools(HDC hDC, const RECT &rect, bool bScr
                 {
                     TextOutClipped(hDC, drawX, drawY + lineHeight * j++, buffer, buffer.GetLength(), rect);
                 }
-                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ¦¤XY: %d, %d"),
+                buffer.Format(Translations::TranslateOrDefault("DistanceRuler.Coordinate", "XY: %d, %d, ??XY: %d, %d"),
                               coord2.Y, coord2.X,
                               coord2.Y - twoPoints.Point1.Y, coord2.X - twoPoints.Point1.X);
                 if (ExtConfigs::DirectXRendering)
@@ -4699,7 +4728,7 @@ void CIsoViewExt::DirectXMouseNewRaiseGroundCursor(int X, int Y, int height, boo
         Y += 1;
     }
 
-    // Reduced to 1/3 of original diamond size (30/SF ¡ú 10/SF, 15/SF ¡ú 5/SF)
+    // Reduced to 1/3 of original diamond size (30/SF ?? 10/SF, 15/SF ?? 5/SF)
     double rx = 10 / CIsoViewExt::ScaledFactor;
     double ry = 5 / CIsoViewExt::ScaledFactor;
     // Center stays at original diamond center

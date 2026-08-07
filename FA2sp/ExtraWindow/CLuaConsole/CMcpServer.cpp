@@ -20,6 +20,7 @@
 #include "../../FA2sp.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Ext/CIsoView/RendererTypes.h"
 
 using json = nlohmann::json;
 
@@ -142,7 +143,7 @@ static json ProcessRequest(json& request)
                 {"tools", json::object()},
                 {"prompts", json::object()}
             }},
-            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.0"}}}
+            {"serverInfo", {{"name", "FA2sp-MCP"}, {"version", "1.0.1"}}}
         };
     }
     // ----- tools/list -----
@@ -278,6 +279,24 @@ static json ProcessRequest(json& request)
                     }}
                 }},
                 {"required", json::array({"key", "content"})}
+            }}
+        });
+
+        tools.push_back({
+            {"name", "observe"},
+            {"description", "Capture the current editor view as a screenshot and return structured "
+                            "information about all objects in the visible area. Returns a JSON string "
+                            "containing the screenshot file path, view bounds (top-left, bottom-left, "
+                            "top-right, bottom-right, and center map coordinates), and detailed object "
+                            "data categorized by type (infantry, unit, aircraft, building, terraintype, "
+                            "smudge, overlay). All objects include x/y coordinates. Infantry/Unit/Aircraft/"
+                            "Building also include index, registration ID, display name, and owner house. "
+                            "TerrainType and Smudge include index and registration ID. Overlay includes "
+                            "Overlay Index and Overlaydata Index."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", json::object()},
+                {"required", json::array()}
             }}
         });
 
@@ -440,6 +459,17 @@ static json ProcessRequest(json& request)
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
                 response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
+        }
+        else if (toolName == "observe")
+        {
+            MCPRequest* mcpReq = new MCPRequest();
+            mcpReq->type = 11;
+            mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
+            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_OBSERVE, 0, (LPARAM)mcpReq);
+            WaitForSingleObject(mcpReq->hEvent, INFINITE);
+            std::string out = ToExternalEncoding(mcpReq->result);
+            CloseHandle(mcpReq->hEvent); delete mcpReq;
+            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else
         {
@@ -1276,6 +1306,228 @@ void CMcpServer::HandleSaveScript(MCPRequest* req)
     ofs.close();
 
     req->result = "Script saved successfully: " + key;
+    SetEvent(req->hEvent);
+}
+
+void CMcpServer::HandleObserve(MCPRequest* req)
+{
+    json j;
+
+    std::string screenshotPath = CLuaConsole::CaptureScreenshotTemp();
+    j["screenshot"] = ToExternalEncoding(screenshotPath);
+
+    auto pIsoView = CIsoViewExt::GetExtension();
+	auto pMap = CMapDataExt::GetExtension();
+
+	int x1, y1, x2, y2, x3, y3, x4, y4, xCenter, yCenter, top, bottom, left, right;
+
+    {
+        CRect window;
+        CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+        CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+        x1 = window.left + pIsoView->ViewPosition.x;
+        y1 = window.top + pIsoView->ViewPosition.y;
+        x2 = window.right + pIsoView->ViewPosition.x;
+        y2 = window.top + pIsoView->ViewPosition.y;
+        x3 = window.left + pIsoView->ViewPosition.x;
+        y3 = window.bottom + pIsoView->ViewPosition.y;
+        x4 = window.right + pIsoView->ViewPosition.x;
+        y4 = window.bottom + pIsoView->ViewPosition.y;
+        xCenter = window.left + window.right / 2 + pIsoView->ViewPosition.x;
+        yCenter = window.top + window.bottom / 2 + pIsoView->ViewPosition.y;
+    
+        pIsoView->ScreenCoord2MapCoord_Flat(x1, y1);
+        pIsoView->ScreenCoord2MapCoord_Flat(x2, y2);
+        pIsoView->ScreenCoord2MapCoord_Flat(x3, y3);
+        pIsoView->ScreenCoord2MapCoord_Flat(x4, y4);
+        pIsoView->ScreenCoord2MapCoord_Flat(xCenter, yCenter);
+        if (x2 < 0 || y2 < 0)
+        {
+            x2 = CMapData::Instance->Size.Width;
+            y2 = CMapData::Instance->MapWidthPlusHeight + 1;
+        }
+        if (x1 < 0 || y1 < 0)
+        {
+            x1 = CMapData::Instance->Size.Width;
+            y1 = 0;
+        }
+    
+        top = x1 + y1;
+        bottom = x4 + y4;
+        left = y1 - x1;
+        right = y4 - x4;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+    }
+ 
+    {
+        json viewBounds;
+        viewBounds["top_left"] = { {"x", y1}, {"y", x1} };
+        viewBounds["bottom_left"] = { {"x", y3}, {"y", x3} };
+        viewBounds["top_right"] = { {"x", y2}, {"y", x2} };
+        viewBounds["bottom_right"] = { {"x", y4}, {"y", x4} };
+        viewBounds["center"] = { {"x", yCenter}, {"y", xCenter} };
+        j["view_bounds"] = viewBounds;
+    }
+
+    json objects = json::object();
+
+	json infantry = json::array();
+	json unit = json::array();
+	json aircraft = json::array();
+	json building = json::array();
+	json terrainType = json::array();
+	json smudge = json::array();
+	json overlay = json::array();
+
+	std::set<short> addedBuildings;
+	for (int pos = 0; pos < pMap->CellDataCount; pos++)
+    {
+        int coordX, coordY;
+        coordX = pMap->GetXFromCoordIndex(pos);
+        coordY = pMap->GetYFromCoordIndex(pos);
+        if (!pMap->IsCoordInMap(coordX, coordY))
+            continue;
+
+        if (!(coordX + coordY >= top &&
+			coordX + coordY <= bottom &&
+			coordY - coordX >= left &&
+			coordY - coordX <= right))
+            continue; 
+
+        auto cell = pMap->GetCellAt(pos);
+        auto& cellExt = pMap->CellDataExts[pos];
+        for (int i = 0; i < 3; ++i)
+        {
+            if (cell->Infantry[i] > -1)
+            {
+                auto& obj = Renderer::Infantries[cell->Infantry[i]];
+                auto data = obj.GetData();
+
+                infantry.push_back({
+                    {"index", cell->Infantry[i]},
+                    {"id", data->TypeID},
+                    {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                    {"house", data->House},
+                    {"x", atoi(data->Y)},
+                    {"y", atoi(data->X)}
+                });
+            }
+        }
+        if (cell->Unit > -1)
+        {
+            auto& obj = Renderer::Vehicles[cell->Unit];
+            auto data = obj.GetData();
+
+            unit.push_back({
+                {"index", cell->Unit},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Aircraft > -1)
+        {
+            auto& obj = Renderer::Aircrafts[cell->Aircraft];
+            auto data = obj.GetData();
+
+            aircraft.push_back({
+                {"index", cell->Aircraft},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Structure > -1 && addedBuildings.find(cell->Structure) == addedBuildings.end())
+        {
+            addedBuildings.insert(cell->Structure);
+            auto& obj = Renderer::Buildings[cell->Structure];
+            auto data = obj.GetData();
+
+            building.push_back({
+                {"index", obj.GetIniIndex()},
+                {"id", data->TypeID},
+                {"name", ToExternalEncoding(CViewObjectsExt::QueryUIName(data->TypeID, true))},
+                {"house", data->House},
+                {"x", atoi(data->Y)},
+                {"y", atoi(data->X)}
+            });
+        }
+        if (cell->Terrain > -1)
+        {
+			auto& terrain = CMapData::Instance->TerrainDatas[cell->Terrain];
+			terrainType.push_back({
+                {"index", cell->Terrain},
+                {"id", terrain.TypeID},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+        if (cell->Smudge > -1)
+        {
+			auto& smudgeData = CMapData::Instance->SmudgeDatas[cell->Smudge];
+			smudge.push_back({
+                {"index", cell->Smudge},
+                {"id", smudgeData.TypeID},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+        if (cellExt.NewOverlay != 0xFFFF)
+        {
+            auto type = Renderer::GetOrCreateOverlay(cellExt.NewOverlay);
+
+            FString display;
+            FString name = Variables::RulesMap.GetString(type->ID, "Name");
+            if (name.IsEmpty() || !Translations::GetTranslationItem(name, display))
+            {
+                display = CViewObjectsExt::QueryUIName(type->ID, true);
+            }
+
+			overlay.push_back({
+                {"overlay_index", cellExt.NewOverlay},
+                {"overlaydata_index", cell->OverlayData},
+                {"id", type->ID},
+                {"name", ToExternalEncoding(display)},
+                {"x", coordY},
+                {"y", coordX}
+            });
+        }
+    }
+
+    if (!infantry.empty())
+        objects["infantry"] = infantry;
+    if (!unit.empty())
+        objects["unit"] = unit;
+    if (!aircraft.empty())
+        objects["aircraft"] = aircraft;
+    if (!building.empty())
+        objects["building"] = building;
+    if (!terrainType.empty())
+        objects["terrainType"] = terrainType;
+    if (!smudge.empty())
+        objects["smudge"] = smudge;
+    if (!overlay.empty())
+        objects["overlay"] = overlay;
+
+    j["objects"] = objects;
+
+    req->result = SafeDump(j);
     SetEvent(req->hEvent);
 }
 

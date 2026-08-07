@@ -95,7 +95,7 @@ DEFINE_HOOK(460F00, CIsoView_ScreenCoord2MapCoord_Height, 7)
 
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
-	GetWindowRect(pThis->GetSafeHwnd(), &dr);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &dr);
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
 	*Y += (*Y - pThis->ViewPosition.y - dr.top) * (CIsoViewExt::ScaledFactor - 1.0);
@@ -147,7 +147,7 @@ DEFINE_HOOK(466890, CIsoView_ScreenCoord2MapCoord_Flat, 8)
 
 	auto pThis = CIsoView::GetInstance();
 	CRect dr;
-	pThis->GetWindowRect(&dr);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &dr);
 	CIsoViewExt::AdaptRectForSecondScreen(&dr);
 
 	*X += (*X - pThis->ViewPosition.x - dr.left) * (CIsoViewExt::ScaledFactor - 1.0);
@@ -296,7 +296,7 @@ DEFINE_HOOK(476419, CIsoView_MoveTo, 7)
 	auto pThis = CIsoView::GetInstance();
 
 	RECT r;
-	pThis->GetWindowRect(&r);
+	CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 	CIsoViewExt::AdaptRectForSecondScreen(&r);
 
 	int left = r.left;
