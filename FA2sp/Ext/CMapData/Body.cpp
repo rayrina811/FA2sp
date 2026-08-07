@@ -3902,64 +3902,60 @@ void CMapDataExt::RaiseVertices(int X, int Y, bool raise, bool IgnoreMorphable, 
 	int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
-	if (tiledataClick.Morphable || IgnoreMorphable)
+	int f, n;
+	VertexHeight vhClick = {X, Y};
+	vhClick.GetVertexHeight(false, true);
+	int heightClick = vhClick.Height;
+	int targetHeight = raise ? std::min(14, heightClick + 1) : std::max(0, heightClick - 1);
+
+	std::set<VertexHeight> vertices;
+	for (f = -pIsoView->BrushSizeX / 2; f < pIsoView->BrushSizeX / 2 + 1; f++)
 	{
-		int f, n;
-		VertexHeight vhClick = {X, Y};
-		vhClick.GetVertexHeight(false, true);
-		int heightClick = vhClick.Height;
-		int targetHeight = raise ? std::min(14, heightClick + 1) : std::max(0, heightClick - 1);
-
-		std::set<VertexHeight> vertices;
-		for (f = -pIsoView->BrushSizeX / 2; f < pIsoView->BrushSizeX / 2 + 1; f++)
+		for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
 		{
-			for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
-			{
-				auto cells = VertexHeight::GetCellsFromVertices({{X + f, Y + n}});
-				bool isAllValid = true;
-				for (auto coord : cells)
-				{	
-					if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y)) 
-					{
-						isAllValid = false;
-						break;
-					}
-					
-					auto cell = mapData.GetCellAt(coord.X, coord.Y);
-					int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-	
-					if (!CMapDataExt::TileData[ground].Morphable && !IgnoreMorphable)
-					{
-						isAllValid = false;
-						break;
-					}
-				}
-				if (!isAllValid) continue;
-
-				VertexHeight vh = {X + f, Y + n};
-				vh.GetVertexHeight(false, true);
-				if (raise)
+			auto cells = VertexHeight::GetCellsFromVertices({{X + f, Y + n}});
+			bool isAllValid = true;
+			for (auto coord : cells)
+			{	
+				if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y)) 
 				{
-					if (vh.Height > heightClick) continue;
+					isAllValid = false;
+					break;
 				}
-				else
-				{
-					if (vh.Height < heightClick) continue;
-				}
-
-				vertices.insert({X + f, Y + n, targetHeight});
+				
+				//auto cell = mapData.GetCellAt(coord.X, coord.Y);
+				//int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+				//if (!CMapDataExt::TileData[ground].Morphable && !IgnoreMorphable)
+				//{
+				//	isAllValid = false;
+				//	break;
+				//}
 			}
+			if (!isAllValid) continue;
+
+			VertexHeight vh = {X + f, Y + n};
+			vh.GetVertexHeight(false, true);
+			if (raise)
+			{
+				if (vh.Height > heightClick) continue;
+			}
+			else
+			{
+				if (vh.Height < heightClick) continue;
+			}
+
+			vertices.insert({X + f, Y + n, targetHeight});
 		}
-		auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
-			vertices, steep && !IgnoreMorphable, IgnoreMorphable);
-		VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
-		
-		for (auto& vh : smoothedVertices)
-		{
-			int pos = vh.X + vh.Y * mapData.MapWidthPlusHeight;
-			if (pos < 0 || pos >= CMapDataExt::CellDataExts.size()) continue;
-			CMapData::Instance->UpdateMapPreviewAt(vh.X, vh.Y);
-		}
+	}
+	auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
+		vertices, steep && !IgnoreMorphable, IgnoreMorphable);
+	VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
+	
+	for (auto& vh : smoothedVertices)
+	{
+		int pos = vh.X + vh.Y * mapData.MapWidthPlusHeight;
+		if (pos < 0 || pos >= CMapDataExt::CellDataExts.size()) continue;
+		CMapData::Instance->UpdateMapPreviewAt(vh.X, vh.Y);
 	}
 }
 
