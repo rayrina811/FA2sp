@@ -702,6 +702,11 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 				else
 					break;
 			}
+			if (DataExt.Foundations->empty())
+			{
+				delete DataExt.Foundations;
+				DataExt.Foundations = nullptr;
+			}
 		}
 		else
 		{
@@ -718,88 +723,91 @@ void CMapDataExt::ProcessBuildingType(const char* ID)
 			DataExt.Foundations->push_back({ 2,2 });
 		}
 
-		// Build outline draw data
-		DataExt.LinesToDraw = new std::vector<std::pair<MapCoord, MapCoord>>;
-		std::vector<std::vector<BOOL>> LinesX, LinesY;
-
-		LinesX.resize(DataExt.Width);
-		for (auto& l : LinesX)
-			l.resize(DataExt.Height + 1);
-		LinesY.resize(DataExt.Width + 1);
-		for (auto& l : LinesY)
-			l.resize(DataExt.Height);
-
-		for (const auto& block : *DataExt.Foundations)
+		if (DataExt.Foundations)
 		{
-			int x = std::clamp(block.X, 0, DataExt.Width - 1);
-			int y = std::clamp(block.Y, 0, DataExt.Height - 1);
-
-			LinesX[x][y] = !LinesX[x][y];
-			LinesX[x][y + 1] = !LinesX[x][y + 1];
-
-			LinesY[x][y] = !LinesY[x][y];
-			LinesY[x + 1][y] = !LinesY[x + 1][y];
-		}
-
-		for (size_t y = 0; y < DataExt.Height + 1; ++y)
-		{
-			size_t length = 0;
-			for (size_t x = 0; x < DataExt.Width; ++x)
+			// Build outline draw data
+			DataExt.LinesToDraw = new std::vector<std::pair<MapCoord, MapCoord>>;
+			std::vector<std::vector<BOOL>> LinesX, LinesY;
+	
+			LinesX.resize(DataExt.Width);
+			for (auto& l : LinesX)
+				l.resize(DataExt.Height + 1);
+			LinesY.resize(DataExt.Width + 1);
+			for (auto& l : LinesY)
+				l.resize(DataExt.Height);
+	
+			for (const auto& block : *DataExt.Foundations)
 			{
-				if (LinesX[x][y])
-					++length;
-				else
+				int x = std::clamp(block.X, 0, DataExt.Width - 1);
+				int y = std::clamp(block.Y, 0, DataExt.Height - 1);
+	
+				LinesX[x][y] = !LinesX[x][y];
+				LinesX[x][y + 1] = !LinesX[x][y + 1];
+	
+				LinesY[x][y] = !LinesY[x][y];
+				LinesY[x + 1][y] = !LinesY[x + 1][y];
+			}
+	
+			for (size_t y = 0; y < DataExt.Height + 1; ++y)
+			{
+				size_t length = 0;
+				for (size_t x = 0; x < DataExt.Width; ++x)
 				{
-					if (!length)
-						continue;
+					if (LinesX[x][y])
+						++length;
+					else
+					{
+						if (!length)
+							continue;
+						MapCoord start, end;
+						start.X = ((x - length) - y) * 30;
+						start.Y = ((x - length) + y) * 15;
+						end.X = (x - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+						end.Y = (x + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
+						DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+						length = 0;
+					}
+				}
+				if (length)
+				{
 					MapCoord start, end;
-					start.X = ((x - length) - y) * 30;
-					start.Y = ((x - length) + y) * 15;
-					end.X = (x - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
-					end.Y = (x + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
+					start.X = ((DataExt.Width - length) - y) * 30;
+					start.Y = ((DataExt.Width - length) + y) * 15;
+					end.X = (DataExt.Width - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
+					end.Y = (DataExt.Width + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
 					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-					length = 0;
 				}
 			}
-			if (length)
+	
+			for (size_t x = 0; x < DataExt.Width + 1; ++x)
 			{
-				MapCoord start, end;
-				start.X = ((DataExt.Width - length) - y) * 30;
-				start.Y = ((DataExt.Width - length) + y) * 15;
-				end.X = (DataExt.Width - y) * 30 + (ExtConfigs::DirectXRendering ? 0 : 2);
-				end.Y = (DataExt.Width + y) * 15 + (ExtConfigs::DirectXRendering ? 0 : 1);
-				DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-			}
-		}
-
-		for (size_t x = 0; x < DataExt.Width + 1; ++x)
-		{
-			size_t length = 0;
-			for (size_t y = 0; y < DataExt.Height; ++y)
-			{
-				if (LinesY[x][y])
-					++length;
-				else
+				size_t length = 0;
+				for (size_t y = 0; y < DataExt.Height; ++y)
 				{
-					if (!length)
-						continue;
-					MapCoord start, end;
-					start.X = (x - (y - length)) * 30;
-					start.Y = (x + (y - length)) * 15;
-					end.X = (x - y) * 30;
-					end.Y = (x + y) * 15;
-					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
-					length = 0;
+					if (LinesY[x][y])
+						++length;
+					else
+					{
+						if (!length)
+							continue;
+						MapCoord start, end;
+						start.X = (x - (y - length)) * 30;
+						start.Y = (x + (y - length)) * 15;
+						end.X = (x - y) * 30;
+						end.Y = (x + y) * 15;
+						DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+						length = 0;
+					}
 				}
-			}
-			if (length)
-			{
-				MapCoord start, end;
-				start.X = (x - (DataExt.Height - length)) * 30;
-				start.Y = (x + (DataExt.Height - length)) * 15;
-				end.X = (x - DataExt.Height) * 30;
-				end.Y = (x + DataExt.Height) * 15;
-				DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+				if (length)
+				{
+					MapCoord start, end;
+					start.X = (x - (DataExt.Height - length)) * 30;
+					start.Y = (x + (DataExt.Height - length)) * 15;
+					end.X = (x - DataExt.Height) * 30;
+					end.Y = (x + DataExt.Height) * 15;
+					DataExt.LinesToDraw->push_back(std::make_pair(start, end));
+				}
 			}
 		}
 	}
@@ -3894,64 +3902,60 @@ void CMapDataExt::RaiseVertices(int X, int Y, bool raise, bool IgnoreMorphable, 
 	int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 	auto tiledataClick = CMapDataExt::TileData[groundClick];
 
-	if (tiledataClick.Morphable || IgnoreMorphable)
+	int f, n;
+	VertexHeight vhClick = {X, Y};
+	vhClick.GetVertexHeight(false, true);
+	int heightClick = vhClick.Height;
+	int targetHeight = raise ? std::min(14, heightClick + 1) : std::max(0, heightClick - 1);
+
+	std::set<VertexHeight> vertices;
+	for (f = -pIsoView->BrushSizeX / 2; f < pIsoView->BrushSizeX / 2 + 1; f++)
 	{
-		int f, n;
-		VertexHeight vhClick = {X, Y};
-		vhClick.GetVertexHeight(false, true);
-		int heightClick = vhClick.Height;
-		int targetHeight = raise ? std::min(14, heightClick + 1) : std::max(0, heightClick - 1);
-
-		std::set<VertexHeight> vertices;
-		for (f = -pIsoView->BrushSizeX / 2; f < pIsoView->BrushSizeX / 2 + 1; f++)
+		for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
 		{
-			for (n = -pIsoView->BrushSizeY / 2; n < pIsoView->BrushSizeY / 2 + 1; n++)
-			{
-				auto cells = VertexHeight::GetCellsFromVertices({{X + f, Y + n}});
-				bool isAllValid = true;
-				for (auto coord : cells)
-				{	
-					if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y)) 
-					{
-						isAllValid = false;
-						break;
-					}
-					
-					auto cell = mapData.GetCellAt(coord.X, coord.Y);
-					int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-	
-					if (!CMapDataExt::TileData[ground].Morphable && !IgnoreMorphable)
-					{
-						isAllValid = false;
-						break;
-					}
-				}
-				if (!isAllValid) continue;
-
-				VertexHeight vh = {X + f, Y + n};
-				vh.GetVertexHeight(false, true);
-				if (raise)
+			auto cells = VertexHeight::GetCellsFromVertices({{X + f, Y + n}});
+			bool isAllValid = true;
+			for (auto coord : cells)
+			{	
+				if (!CMapDataExt::IsCoordInFullMap(coord.X, coord.Y)) 
 				{
-					if (vh.Height > heightClick) continue;
+					isAllValid = false;
+					break;
 				}
-				else
-				{
-					if (vh.Height < heightClick) continue;
-				}
-
-				vertices.insert({X + f, Y + n, targetHeight});
+				
+				//auto cell = mapData.GetCellAt(coord.X, coord.Y);
+				//int ground = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+				//if (!CMapDataExt::TileData[ground].Morphable && !IgnoreMorphable)
+				//{
+				//	isAllValid = false;
+				//	break;
+				//}
 			}
+			if (!isAllValid) continue;
+
+			VertexHeight vh = {X + f, Y + n};
+			vh.GetVertexHeight(false, true);
+			if (raise)
+			{
+				if (vh.Height > heightClick) continue;
+			}
+			else
+			{
+				if (vh.Height < heightClick) continue;
+			}
+
+			vertices.insert({X + f, Y + n, targetHeight});
 		}
-		auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
-			vertices, steep && !IgnoreMorphable, IgnoreMorphable);
-		VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
-		
-		for (auto& vh : smoothedVertices)
-		{
-			int pos = vh.X + vh.Y * mapData.MapWidthPlusHeight;
-			if (pos < 0 || pos >= CMapDataExt::CellDataExts.size()) continue;
-			CMapData::Instance->UpdateMapPreviewAt(vh.X, vh.Y);
-		}
+	}
+	auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
+		vertices, steep && !IgnoreMorphable, IgnoreMorphable);
+	VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
+	
+	for (auto& vh : smoothedVertices)
+	{
+		int pos = vh.X + vh.Y * mapData.MapWidthPlusHeight;
+		if (pos < 0 || pos >= CMapDataExt::CellDataExts.size()) continue;
+		CMapData::Instance->UpdateMapPreviewAt(vh.X, vh.Y);
 	}
 }
 

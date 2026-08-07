@@ -12,6 +12,7 @@
 #include <CIsoView.h>
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
+#include "../../Ext/CIsoView/Body.h"
 #include "../CObjectSearch/CObjectSearch.h"
 #include "../../Sol/sol.hpp"
 #include <cctype>
@@ -26,6 +27,7 @@
 #include "../CNewAITrigger/CNewAITrigger.h"
 #include "../CListUInputDlg/CListUInputDlg.h"
 #include <CInputMessageBox.h>
+#include "../../Ext/CIsoView/DirectXCore.h"
 
 namespace LuaFunctions
 {
@@ -3980,6 +3982,80 @@ namespace LuaFunctions
 		return ret;
 	}
 
+	static sol::table get_building_foundation(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			ret[1] = 1;
+			ret[2] = 1;
+			ret[3] = 0;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		ret[1] = DataExt.Width;
+		ret[2] = DataExt.Height;
+		ret[3] = DataExt.IsCustomFoundation() ? 1 : 0;
+		return ret;
+	}
+
+	static sol::table get_building_cells(const std::string& id)
+	{
+		sol::table ret = CLuaConsole::Lua.create_table();
+		int idx = CMapDataExt::GetBuildingTypeIndex(id.c_str());
+		if (idx < 0)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		auto itr = CMapDataExt::BuildingDataExts.find(idx);
+		if (itr == CMapDataExt::BuildingDataExts.end())
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = 0;
+			cell[2] = 0;
+			ret[1] = cell;
+			return ret;
+		}
+		const auto& DataExt = itr->second;
+		if (!DataExt.IsCustomFoundation())
+		{
+			int i = 1;
+			for (int y = 0; y < DataExt.Height; ++y)
+			{
+				for (int x = 0; x < DataExt.Width; ++x)
+				{
+					sol::table cell = CLuaConsole::Lua.create_table();
+					cell[1] = x;
+					cell[2] = y;
+					ret[i++] = cell;
+				}
+			}
+			return ret;
+		}
+		int i = 1;
+		for (const auto& coord : *DataExt.Foundations)
+		{
+			sol::table cell = CLuaConsole::Lua.create_table();
+			cell[1] = coord.X;
+			cell[2] = coord.Y;
+			ret[i++] = cell;
+		}
+		return ret;
+	}
+
 	static std::vector<aircraft> get_aircrafts()
 	{
 		std::vector<aircraft> ret;
@@ -4561,8 +4637,11 @@ namespace LuaFunctions
 			, formatTimeInterval(std::chrono::duration_cast<std::chrono::seconds>(timeSpan)).c_str()
 				, snapshot.fileName.c_str());
 	
-		if (message_box(text, title, 1) == IDCANCEL)
-			return;
+		if (!CLuaConsole::yoloMode)
+		{
+			if (message_box(text, title, 1) == IDCANCEL)
+				return;
+		}
 
 		auto ini = &CMapData::Instance->INI;
 
@@ -4627,6 +4706,13 @@ namespace LuaFunctions
 	static void save_undo_objects()
 	{
 		CMapDataExt::MakeObjectRecord(0x0FFFFFFF);
+	}
+
+	static void save_undo_all()
+	{
+		CMapDataExt::MakeMixedRecord(0, 0, 
+			CMapData::Instance->MapWidthPlusHeight,CMapData::Instance->MapWidthPlusHeight,
+			0x0FFFFFFF);
 	}
 
 	static void save_redo()
@@ -5027,5 +5113,283 @@ namespace LuaFunctions
 		}
 
 		return sol::make_object(CLuaConsole::Lua, output);
+	}
+
+	static bool screenshot(const std::string& path)
+	{
+		auto pIsoView = CIsoViewExt::GetExtension();
+		if (!pIsoView)
+			return false;
+
+		HWND hWnd = pIsoView->GetSafeHwnd();
+		RECT clientRect;
+		GetClientRect(hWnd, &clientRect);
+		int clientW = clientRect.right - clientRect.left;
+		int clientH = clientRect.bottom - clientRect.top;
+		if ((clientW <= 0 || clientH <= 0) && ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+		{
+			clientW = CIsoViewExt::g_pDX->GetClientWidth();
+			clientH = CIsoViewExt::g_pDX->GetClientHeight();
+		}
+		if (clientW <= 0 || clientH <= 0)
+			return false;
+
+		ppmfc::CPoint oldViewPos = pIsoView->ViewPosition;
+
+		int bmpW = (int)(clientW * CIsoViewExt::ScaledFactor);
+		int bmpH = (int)(clientH * CIsoViewExt::ScaledFactor);
+		if (bmpW <= 0 || bmpH <= 0)
+			return false;
+
+		bool zoomedIn = CIsoViewExt::ScaledFactor <= 1.0f;
+
+		// Save current render state
+		bool oldRenderingMap = CIsoViewExt::RenderingMap;
+		bool oldRenderFullMap = CIsoViewExt::RenderFullMap;
+		bool oldRenderingScreenshot = CIsoViewExt::RenderingScreenshot;
+		Bitmap* oldFullBitmap = CIsoViewExt::pFullBitmap;
+
+		// Create bitmap
+		CIsoViewExt::InitGdiplus();
+		VEHGuard v(false);
+		try {
+			CIsoViewExt::pFullBitmap = new Gdiplus::Bitmap(bmpW, bmpH, PixelFormat24bppRGB);
+		}
+		catch (const std::bad_alloc&) {
+			CIsoViewExt::pFullBitmap = nullptr;
+		}
+
+		if (!CIsoViewExt::pFullBitmap)
+			return false;
+
+		Graphics gInit(CIsoViewExt::pFullBitmap);
+		gInit.Clear(Color(0, 0, 0, 0));
+
+		CIsoViewExt::RenderingMap = true;
+		CIsoViewExt::RenderFullMap = false;
+
+		if (zoomedIn)
+		{
+			// Zoomed in or normal: single draw, content at (0,0)
+			CIsoViewExt::RenderingScreenshot = true;
+			CIsoViewExt::RenderingScreenshotBaseX = pIsoView->ViewPosition.x;
+			CIsoViewExt::RenderingScreenshotBaseY = pIsoView->ViewPosition.y;
+
+			if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+			{
+				// The window may be in the background (minimized/occluded), so
+				// GPU drivers may have paused rendering to it. Re-activate the
+				// context before drawing.
+				CIsoViewExt::g_pDX->ReactivateContext();
+				pIsoView->Draw();
+			}
+			else
+			{
+				pIsoView->Draw();
+			}
+		}
+		else
+		{
+			// Zoomed out
+			auto tempScaledFactor = CIsoViewExt::ScaledFactor;
+			CIsoViewExt::ScaledFactor = 1.0;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->ReactivateContext();
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
+
+			CIsoViewExt::RenderingScreenshot = true;
+
+			CRect cr;
+			pIsoView->GetClientRect(&cr);
+			int tileW = cr.Width();
+			int tileH = cr.Height();
+			if (tileW <= 0 || tileH <= 0)
+			{
+				CRect r;
+				pIsoView->GetWindowRect(&r);
+				tileW = r.Width();
+				tileH = r.Height();
+			}
+
+			CRect validRange;
+			int& width = CMapData::Instance->Size.Width;
+			int& height = CMapData::Instance->Size.Height;
+			validRange.left = oldViewPos.x;
+			validRange.top = oldViewPos.y;
+			validRange.right = oldViewPos.x + bmpW;
+			validRange.bottom = oldViewPos.y + bmpH;
+
+			CIsoViewExt::RenderingScreenshotBaseX = validRange.left;
+			CIsoViewExt::RenderingScreenshotBaseY = validRange.top;
+
+			pIsoView->ViewPosition.y = validRange.top;
+
+			EnableScrollBar(hWnd, SB_BOTH, ESB_DISABLE_BOTH);
+
+			int renderFailedCount = 0;
+			while (pIsoView->ViewPosition.y < validRange.bottom + tileH)
+			{
+				pIsoView->ViewPosition.x = validRange.left;
+				while (pIsoView->ViewPosition.x < validRange.right + tileW)
+				{
+					::SetScrollPos(hWnd, SB_VERT, pIsoView->ViewPosition.y / 30 - width / 2 + 4, TRUE);
+					::SetScrollPos(hWnd, SB_HORZ, pIsoView->ViewPosition.x / 60 - height / 2 + 1, TRUE);
+					CIsoViewExt::RenderTileSuccess = false;
+					pIsoView->Draw();
+
+					MSG msg;
+					if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+					{
+						TranslateMessage(&msg);
+						DispatchMessage(&msg);
+					}
+					Sleep(1);
+
+					if (CIsoViewExt::RenderTileSuccess || renderFailedCount >= 500)
+					{
+						pIsoView->ViewPosition.x += tileW;
+						renderFailedCount = 0;
+					}
+					else
+					{
+						renderFailedCount++;
+					}
+				}
+				pIsoView->ViewPosition.y += tileH;
+			}
+
+			EnableScrollBar(hWnd, SB_BOTH, ESB_ENABLE_BOTH);
+
+			CIsoViewExt::ScaledFactor = tempScaledFactor;
+			if (ExtConfigs::DirectXRendering)
+			{
+				CIsoViewExt::g_pDX->SetZoomOut(CIsoViewExt::ScaledFactor);
+			}
+		}
+
+		// Save as PNG
+		CLSID clsidEncoder;
+		UINT num = 0, size = 0;
+		GetImageEncodersSize(&num, &size);
+		ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+		if (pImageCodecInfo)
+		{
+			GetImageEncoders(num, size, pImageCodecInfo);
+			for (UINT i = 0; i < num; ++i)
+			{
+				if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+				{
+					clsidEncoder = pImageCodecInfo[i].Clsid;
+					break;
+				}
+			}
+			free(pImageCodecInfo);
+		}
+
+		auto wpath = STDHelpers::StringToWString(path);
+		Gdiplus::Status result = CIsoViewExt::pFullBitmap->Save(wpath.c_str(), &clsidEncoder, nullptr);
+
+		// Cleanup
+		delete CIsoViewExt::pFullBitmap;
+		CIsoViewExt::pFullBitmap = oldFullBitmap;
+		CIsoViewExt::RenderingMap = oldRenderingMap;
+		CIsoViewExt::RenderFullMap = oldRenderFullMap;
+		CIsoViewExt::RenderingScreenshot = oldRenderingScreenshot;
+		pIsoView->ViewPosition = oldViewPos;
+
+		pIsoView->Draw();
+
+		return result == Gdiplus::Ok;
+	}
+
+	static std::string screenshot_temp_path()
+	{
+		// Get %TEMP%\FinalAlert2 directory
+		wchar_t tempPath[MAX_PATH];
+		if (GetTempPathW(MAX_PATH, tempPath) == 0)
+			return "";
+
+		std::wstring dir = std::wstring(tempPath) + L"FinalAlert2";
+		CreateDirectoryW(dir.c_str(), nullptr);
+
+		// Generate timestamped filename
+		SYSTEMTIME st;
+		GetLocalTime(&st);
+		wchar_t filename[64];
+		swprintf_s(filename, L"\\screenshot_%04d%02d%02d_%02d%02d%02d.png",
+			st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+		std::wstring fullPath = dir + filename;
+		std::string path = STDHelpers::WStringToString(fullPath);
+
+		if (screenshot(path))
+			return path;
+		return "";
+	}
+
+	static sol::object screenshot_temp()
+	{
+		std::string path = screenshot_temp_path();
+		if (!path.empty())
+			return sol::make_object(CLuaConsole::Lua, path);
+		return sol::nil;
+	}
+
+	static bool is_coord_in_view(int y, int x)
+	{
+		if (!CMapData::Instance->IsCoordInMap(x, y))
+			return false;
+		auto pIsoView = CIsoViewExt::GetExtension();
+		if (!pIsoView)
+			return false;
+
+		CRect window;
+		CIsoViewExt::GetValidWindowRect(pIsoView->GetSafeHwnd(), &window);
+		CIsoViewExt::AdaptRectForSecondScreen(&window);
+
+		int x1, y1, x2, y2;
+
+		x1 = window.left + pIsoView->ViewPosition.x;
+		y1 = window.top + pIsoView->ViewPosition.y;
+		x2 = window.right + pIsoView->ViewPosition.x;
+		y2 = window.bottom + pIsoView->ViewPosition.y;
+		pIsoView->ScreenCoord2MapCoord_Flat(x1, y1);
+		pIsoView->ScreenCoord2MapCoord_Flat(x2, y2);
+		if (x2 < 0 || y2 < 0)
+		{
+			x2 = CMapData::Instance->Size.Width;
+			y2 = CMapData::Instance->MapWidthPlusHeight + 1;
+		}
+		if (x1 < 0 || y1 < 0)
+		{
+			x1 = CMapData::Instance->Size.Width;
+			y1 = 0;
+		}
+
+		int top, bottom, left, right;
+        top = x1 + y1;
+        bottom = x2 + y2;
+        left = y1 - x1;
+        right = y2 - x2;
+        if (top > bottom)
+        {
+            int tmp = top;
+            top = bottom;
+            bottom = tmp;
+        }
+        if (left > right)
+        {
+            int tmp = left;
+            left = right;
+            right = tmp;
+        }
+
+		return
+			x + y >= top &&
+			x + y <= bottom &&
+			y - x >= left &&
+			y - x <= right;
 	}
 }

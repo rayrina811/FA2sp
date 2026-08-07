@@ -200,12 +200,14 @@ namespace Renderer
     {
     protected:
         bool Visible = false;
+		short IniIndex = -1;
         void* pObjectData = nullptr;
         ObjectType* pType = nullptr;
         COLORREF HouseColor;
     public:
         bool IsVisible();
         COLORREF GetHouseColor();
+        short GetIniIndex();
     };
 
     class Building : public Object
@@ -220,7 +222,7 @@ namespace Renderer
 		bool firstDrawA = true;
 		bool firstDrawB = true;
 
-    private:
+	  private:
         BuildingRenderData* pRenderData = nullptr;
         CellData* pCellData = nullptr;
 	};

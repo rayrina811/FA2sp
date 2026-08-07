@@ -17,7 +17,7 @@
 | 文件 | 主要内容 |
 |------|----------|
 | `01_global_state.md` | 全局只读状态变量：地图尺寸、各类对象数量、路径/阵营/地形信息、EXE/GAME/MAP 路径等 |
-| `02_output_interaction.md` | 输出与交互函数：`print`、`message_box`、`input_box`、`open_file`/`save_file`、`end_script` 等 |
+| `02_output_interaction.md` | 输出与交互函数：`print`、`message_box`、`input_box`、`open_file`/`save_file`、`end_script`、`screenshot` 等 |
 | `03_dialog_classes.md` | 对话框类：`select_box`（单选）、`multi_select_box`（多选）、`LuaDialog`（自定义对话框，支持 CheckBox/Edit/ComboBox/ListBox 等控件及事件回调） |
 | `04_terrain_smudge.md` | 地形与覆盖物：地形对象（树木/石头）、污染（Smudge）、覆盖物（Overlay）、围墙的放置与删除，矿石平滑 |
 | `05_waypoints.md` | 路径点：按坐标或 ID 放置、删除路径点 |

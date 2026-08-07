@@ -274,17 +274,23 @@ void VehicleType::Init(FString_view id)
     TiltCount = CLoadingExt::ExtTilts[ID] ? CLoadingExt::TiltTypes.size() : 1;
     pImageData.resize(FacingCount * TiltCount, nullptr);
     pShadowData.resize(FacingCount * TiltCount, nullptr);
+
+    const auto& loadedTilts = CLoadingExt::LoadedTilts[ID];
     for (int i = 0; i < FacingCount; ++i)
     {
-        FString imageName = CLoadingExt::GetImageName(ID, i, false, false, false, 0);
-        pImageData[i * TiltCount] = CLoadingExt::GetImageDataFromMap(imageName);
-        if (ImageDataClassSafe::IsVisibleImage(pImageData[i * TiltCount]))
-            ShouldUseDefaultImage = false;
-
-        if (ExtConfigs::InGameDisplay_Shadow)
+        for (int tiltIdx : loadedTilts)
         {
-            imageName = CLoadingExt::GetImageName(ID, i, true, false, false, 0);
-            pShadowData[i * TiltCount] = CLoadingExt::GetImageDataFromMap(imageName);
+            int idx = i * TiltCount + tiltIdx;
+            FString imageName = CLoadingExt::GetImageName(ID, i, false, false, false, tiltIdx);
+            pImageData[idx] = CLoadingExt::GetImageDataFromMap(imageName);
+            if (tiltIdx == 0 && ImageDataClassSafe::IsVisibleImage(pImageData[idx]))
+                ShouldUseDefaultImage = false;
+
+            if (ExtConfigs::InGameDisplay_Shadow)
+            {
+                imageName = CLoadingExt::GetImageName(ID, i, true, false, false, tiltIdx);
+                pShadowData[idx] = CLoadingExt::GetImageDataFromMap(imageName);
+            }
         }
     }
 
@@ -333,12 +339,18 @@ void AircraftType::Init(FString_view id)
     FacingCount = CLoadingExt::GetAvailableFacing(ID);
     TiltCount = CLoadingExt::ExtTilts[ID] ? CLoadingExt::TiltTypes.size() : 1;
     pImageData.resize(FacingCount * TiltCount, nullptr);
+
+    const auto& loadedTilts = CLoadingExt::LoadedTilts[ID];
     for (int i = 0; i < FacingCount; ++i)
     {
-        FString imageName = CLoadingExt::GetImageName(ID, i, false, false, false, 0);
-        pImageData[i * TiltCount] = CLoadingExt::GetImageDataFromMap(imageName);
-        if (ImageDataClassSafe::IsVisibleImage(pImageData[i * TiltCount]))
-            ShouldUseDefaultImage = false;
+        for (int tiltIdx : loadedTilts)
+        {
+            int idx = i * TiltCount + tiltIdx;
+            FString imageName = CLoadingExt::GetImageName(ID, i, false, false, false, tiltIdx);
+            pImageData[idx] = CLoadingExt::GetImageDataFromMap(imageName);
+            if (tiltIdx == 0 && ImageDataClassSafe::IsVisibleImage(pImageData[idx]))
+                ShouldUseDefaultImage = false;
+        }
     }
  
     if (auto pValue = Variables::RulesMap.TryGetString(ID, "Image.ConditionYellow"))
@@ -654,7 +666,6 @@ ImageDataClassSafe* Renderer::VehicleType::GetShadowData(const CUnitDataFS& obj,
     int nFacing = (atoi(obj.Facing) * pType->FacingCount / 256) % pType->FacingCount;
     int tiltIdx = (pType->TiltCount == 1 ? 0 : RampType2TiltType(rampType));
 
-    // 懒加载（与 GetImageData 共用 LoadedTilts 检查，LoadVehicleOrAircraft 同时加载图像和阴影）
     if (tiltIdx > 0)
     {
         auto& loaded = CLoadingExt::LoadedTilts[pType->ID];
@@ -685,7 +696,6 @@ ImageDataClassSafe* Renderer::VehicleType::GetTechnoAttachmentImageData(int nFac
         pType = DefaultImage;
     int tiltIdx = (pType->TiltCount == 1 ? 0 : RampType2TiltType(rampType));
 
-    // 懒加载
     if (tiltIdx > 0)
     {
         auto& loaded = CLoadingExt::LoadedTilts[pType->ID];
@@ -741,7 +751,6 @@ ImageDataClassSafe* Renderer::AircraftType::GetImageData(const CAircraftDataFS& 
     int nFacing = (atoi(obj.Facing) * pType->FacingCount / 256) % pType->FacingCount;
     int tiltIdx = (pType->TiltCount == 1 ? 0 : RampType2TiltType(rampType));
 
-    // 懒加载
     if (tiltIdx > 0)
     {
         auto& loaded = CLoadingExt::LoadedTilts[pType->ID];
@@ -767,7 +776,6 @@ ImageDataClassSafe* Renderer::AircraftType::GetTechnoAttachmentImageData(int nFa
         pType = DefaultImage;
     int tiltIdx = (pType->TiltCount == 1 ? 0 : RampType2TiltType(rampType));
 
-    // 懒加载
     if (tiltIdx > 0)
     {
         auto& loaded = CLoadingExt::LoadedTilts[pType->ID];
@@ -924,7 +932,8 @@ void Renderer::Building::Reload(short index)
         || StrINIIndex >= CMapDataExt::BuildingDatasExt.size()
         || StrINIIndex >= CMapDataExt::BuildingRenderDatasFix.size())
         return;
-
+        
+    IniIndex = StrINIIndex;   
     auto& data = CMapDataExt::GetBuildingDataFsFromMap(StrINIIndex);
     pObjectData = &data;
     pType = GetOrCreateBuilding(data.TypeID);
@@ -1060,6 +1069,11 @@ bool Renderer::Object::IsVisible()
     return Visible;
 }
 
+short Renderer::Object::GetIniIndex()
+{
+    return IniIndex;
+}
+
 COLORREF Renderer::Object::GetHouseColor()
 {
     return HouseColor;
@@ -1074,7 +1088,8 @@ void Renderer::Vehicle::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetUnitDadaFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateVehicle(data.TypeID);
@@ -1174,7 +1189,8 @@ void Renderer::Infantry::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetInfantryDataFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateInfantry(data.TypeID);
@@ -1339,7 +1355,8 @@ void Renderer::Aircraft::Reload(short index)
     {
         return;
     }
-
+    
+    IniIndex = index;   
     auto& data = CMapDataExt::GetAircraftDataFsFromMap(index);
     pObjectData = &data;
     pType = GetOrCreateAircraft(data.TypeID);

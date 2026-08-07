@@ -988,6 +988,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 
 			auto pIsoView = CIsoViewExt::GetExtension();
 
+ 			// Save the current view so it can be restored after rendering.
+			// MoveToMapCoord below is computed with ScaledFactor forced to 1.0,
+			// so it is wrong when the user is zoomed; leaving the view there
+			// makes subsequent draws/screenshots target an out-of-map area
+			// (black output and bogus observe coordinates).
+			ppmfc::CPoint oldViewPos = pIsoView->ViewPosition;
+
 			int& height = CMapData::Instance->Size.Height;
 			int& width = CMapData::Instance->Size.Width;
 			int startX, startY, endX, endY;
@@ -1166,7 +1173,13 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				::SendMessage(AfxGetMainWnd()->GetSafeHwnd(), WM_THEMECHANGED, 0, 0);
 			}
 
-			CIsoViewExt::MoveToMapCoord(CMapData::Instance->MapWidthPlusHeight / 2, CMapData::Instance->MapWidthPlusHeight / 2);
+			// Restore the user's view position. The rendering loop moved the
+			// view while tiling the map; restoring avoids leaving the camera at
+			// a position computed for ScaledFactor=1.0 that is wrong whenever
+			// the user is zoomed (black screenshots, wrong observe coords).
+			pIsoView->ViewPosition = oldViewPos;
+			::SetScrollPos(pIsoView->GetSafeHwnd(), SB_VERT, pIsoView->ViewPosition.y / 30 - height / 2 + 4, TRUE);
+			::SetScrollPos(pIsoView->GetSafeHwnd(), SB_HORZ, pIsoView->ViewPosition.x / 60 - width / 2 + 1, TRUE);
 
 			if (result == Gdiplus::Status::Ok && !batchProcess)
 			{
@@ -2319,6 +2332,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	{
 		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
 		CMcpServer::HandleSaveScript(req);
+		return TRUE;
+	}
+	case WM_MCP_OBSERVE:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleObserve(req);
 		return TRUE;
 	}
 	}

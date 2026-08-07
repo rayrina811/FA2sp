@@ -150,6 +150,41 @@ struct RecursionGuard
 	}
 };
 
+static void DrawObjectIndex(HDC hDC, const char* pAppendix, int index, int x, int y)
+{
+	return;
+	
+	auto pIsoView = CIsoViewExt::GetExtension();
+	FString text;
+	text.Format("%s%d", pAppendix, index);
+
+	x += 30;
+	y += -60;
+	if (ExtConfigs::DirectXRendering)
+	{
+		TextParams param;
+		param.SetFont("MS Sans Serif").SetFontSize(16).SetBold().
+		SetAlwaysOnTop().SetAlignCenter().SetColor(ShapeColor::FromCOLORREF(RGB(255, 255, 255))).
+		SetPadding(2, 0).SetBgColor(ShapeColor::FromRGBA(0, 0, 0, 192)).SetBorder().SetBorderThickness(1);
+
+		pIsoView->g_pTR->DrawTexts(x, y, text, param);
+	}
+	else
+	{
+		SetBkMode(hDC, OPAQUE);
+		SetBkColor(hDC, RGB(0, 0, 0));
+		SetTextAlign(hDC, TA_CENTER);
+		SetTextColor(hDC, RGB(255, 255, 255));
+
+		TextOut(hDC, x, y, text, strlen(text));
+
+		SetBkMode(hDC, OPAQUE);
+		SetTextAlign(hDC, TA_LEFT);
+		SetBkColor(hDC, RGB(255, 255, 255));
+		SetTextColor(hDC, RGB(0, 0, 0));
+	}	
+}
+
 static int GetRampType(int tileIndex, int TileSubIndex)
 {
 	if (tileIndex >= CMapDataExt::TileDataCount)
@@ -1607,7 +1642,7 @@ static void DrawMap()
 
 	// init window positions
 	{
-		pThis->GetWindowRect(&window);
+		CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &window);
 		CIsoViewExt::AdaptRectForSecondScreen(&window);
 
 		VisibleCoordTL.X = window.left + pThis->ViewPosition.x;
@@ -3049,6 +3084,12 @@ static void DrawMap()
 					veter.ID = objRender.ID;
 				}
 			}
+			
+			if (CIsoViewExt::RenderingScreenshot && part.IsBottom)
+			{
+				int index = pBuilding - Renderer::Buildings; 
+				DrawObjectIndex(hDC, "B", index, x1, y1);
+			}
 		}
 
 		// nodes
@@ -3205,6 +3246,10 @@ static void DrawMap()
 					x, y,
 					info,
 					false);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				DrawObjectIndex(hDC, "U", cell->Unit, x, y);
+			}
 		}
 
 		// aircrafts
@@ -3239,6 +3284,10 @@ static void DrawMap()
 				x, y,
 				info,
 				false);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				DrawObjectIndex(hDC, "A", cell->Aircraft, x, y);
+			}
 		}
 
 		// infantries
@@ -3276,6 +3325,10 @@ static void DrawMap()
 					x, y, i, atoi(obj.SubCell),
 					info,
 					false);
+				if (CIsoViewExt::RenderingScreenshot)
+				{
+					DrawObjectIndex(hDC, "I", cell->Infantry[i], x, y);
+				}
 			}
 		}
 	}
@@ -4124,11 +4177,16 @@ static void DrawMap()
 		pThis->MapCoord2ScreenCoord_Flat(startX, startY);
 
 		RECT r;
-		pThis->GetWindowRect(&r);
+		CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 		pThis->AdaptRectForSecondScreen(&r);
 
 		int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 		int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+		if (CIsoViewExt::RenderingScreenshot)
+		{
+			pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+			pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+		}
 
 		if (CIsoViewExt::BlitDDSurfaceRectToBitmap(
 				hDC,
@@ -4266,11 +4324,16 @@ static void DrawMap()
 			pThis->MapCoord2ScreenCoord_Flat(startX, startY);
 
 			RECT r;
-			pThis->GetWindowRect(&r);
+			CIsoViewExt::GetValidWindowRect(pThis->GetSafeHwnd(), &r);
 			pThis->AdaptRectForSecondScreen(&r);
 
 			int pngPosX = r.left + pThis->ViewPosition.x - startX - 4;
 			int pngPosY = r.top + pThis->ViewPosition.y - startY - 3 + (CIsoViewExt::RenderFullMap ? 0 : 15);
+			if (CIsoViewExt::RenderingScreenshot)
+			{
+				pngPosX = pThis->ViewPosition.x - CIsoViewExt::RenderingScreenshotBaseX;
+				pngPosY = pThis->ViewPosition.y - CIsoViewExt::RenderingScreenshotBaseY;
+			}
 
 			auto pDX = pThis->g_pDX.get();
 			if (pDX->IsUsingOpenGL())
@@ -4497,7 +4560,14 @@ DEFINE_HOOK(468690, CIsoView_OnSize, A)
 {
 	GET(CIsoViewExt *, pThis, ECX);
 	if (pThis->g_pDX)
+	{
 		pThis->g_pDX->OnResize(pThis->GetSafeHwnd());
+
+		RECT rc;
+		::GetClientRect(pThis->GetSafeHwnd(), &rc);
+		if (rc.right > rc.left && rc.bottom > rc.top)
+			pThis->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+	}
 
 	return 0;
 }

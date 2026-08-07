@@ -78,6 +78,7 @@ bool CLuaConsole::updateTaskforce = false;
 bool CLuaConsole::updateCellTag = false;
 bool CLuaConsole::updateVariable = false;
 bool CLuaConsole::skipBuildingUpdate = false;
+bool CLuaConsole::yoloMode = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
 TransparencyHelper CLuaConsole::m_transparency;
@@ -86,6 +87,11 @@ bool CLuaConsole::showingComment = false;
 std::string CLuaConsole::backupOutputText;
 using namespace::LuaFunctions;
 const int splitterHeight = 4;
+
+std::string CLuaConsole::CaptureScreenshotTemp()
+{
+    return screenshot_temp_path();
+}
 
 void CLuaConsole::Create(CFinalSunDlg* pWnd)
 {
@@ -439,7 +445,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         if (!ignoreOverlap) {
             ignoreOverlap = false;
         }
-        place_building(house, type, y, x, ignoreOverlap.value());
+        place_building(house, type, y, x, ignoreOverlap.value() || CLuaConsole::yoloMode);
         });
     Lua.set_function("remove_building", [](int indexY, sol::optional<int> x) {
         if (!x) {
@@ -454,6 +460,26 @@ void CLuaConsole::Initialize(HWND& hWnd)
         return get_building(indexY, x.value());
         });
     Lua.set_function("get_buildings", get_buildings);
+    Lua.set_function("get_building_foundation", get_building_foundation);
+    Lua.set_function("get_building_cells", get_building_cells);
+    Lua.set_function("set_yolo_mode", [](bool enable) {
+        if (enable && !CLuaConsole::yoloMode)
+        {
+            int result = MessageBox(CLuaConsole::GetHandle(),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeConfirm",
+                    "YOLO mode will skip all confirmation dialogs during script execution.\n"
+                    "This includes safety checks, snapshot restore confirmations, and building overlap warnings.\n"
+                    "Message boxes explicitly called by the script (e.g. message_box) will still appear.\n\n"
+                    "Are you sure you want to enable YOLO mode?"),
+                Translations::TranslateOrDefault("LuaConsole.YoloModeTitle", "Enable YOLO Mode"),
+                MB_YESNO | MB_ICONWARNING);
+            if (result != IDYES)
+                return;
+        }
+        CLuaConsole::yoloMode = enable;
+        });
+    Lua.set_function("screenshot", screenshot);
+    Lua.set_function("screenshot_temp", screenshot_temp);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -783,14 +809,16 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
+    Lua.set_function("save_undo_all", save_undo_all);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
+    Lua.set_function("in_view", is_coord_in_view);
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {
         if (!x) {
             x = -1;
         }
         move_to(yindex, x.value()); 
         });
-
+        
     // triggers & teams
     Lua.new_usertype<tag>("tag",
         sol::constructors<tag()>(),
@@ -1729,7 +1757,7 @@ void CLuaConsole::OnSelChangeScript(HWND& hWnd)
 // Scan script for high-risk operations and return {line_number, line_content} pairs
 std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(const std::string& script)
 {
-    if (ExtConfigs::DisableLuaConsoleSafetyCheck)
+    if (ExtConfigs::DisableLuaConsoleSafetyCheck || CLuaConsole::yoloMode)
         return {};
 
     std::vector<std::pair<int, std::string>> results;
@@ -1856,68 +1884,75 @@ void CLuaConsole::OnClickRun(bool fromFile)
     LuaFunctions::time = timeStart;
     skipBuildingUpdate = true;
     VEHGuard guard(false);
-    try {
-        sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
-        if (!result.valid()) {
-            sol::error err = result;
-            std::string errorMessage = "Lua Error: " + std::string(err.what());
-
-            std::string errStr = err.what();
-            if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+    if (IsDebuggerPresent())
+    {
+        Lua.script(script);
+    }
+    else
+    {
+        try {
+            sol::protected_function_result result = Lua.script(script, sol::script_pass_on_error);
+            if (!result.valid()) {
+                sol::error err = result;
+                std::string errorMessage = "Lua Error: " + std::string(err.what());
+    
+                std::string errStr = err.what();
+                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos) {
+                    oss.str("");
+                    auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                    oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                    text = oss.str();
+                    write_lua_console(text);
+                }
+                else
+                {
+                    
+                    sol::call_status status = result.status();
+                    switch (status) {
+                    case sol::call_status::syntax:
+                        errorMessage += " (Syntax Error)";
+                        break;
+                    case sol::call_status::runtime:
+                        errorMessage += " (Runtime Error)";
+                        break;
+                    case sol::call_status::memory:
+                        errorMessage += " (Memory Allocation Error)";
+                        break;
+                    case sol::call_status::handler:
+                        errorMessage += " (Message Handler Error)";
+                        break;
+                    case sol::call_status::gc:
+                        errorMessage += " (Garbage Collector Error)";
+                        break;
+                    case sol::call_status::file:
+                        errorMessage += " (File Error)";
+                        break;
+                    default:
+                        errorMessage += " (Unknown Error)";
+                        break;
+                    }
+        
+                    write_lua_console(errorMessage);
+                }
+            }
+            else {
                 oss.str("");
                 auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-                oss << "Script aborted.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
+                oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
                 text = oss.str();
                 write_lua_console(text);
             }
-            else
-            {
-                
-                sol::call_status status = result.status();
-                switch (status) {
-                case sol::call_status::syntax:
-                    errorMessage += " (Syntax Error)";
-                    break;
-                case sol::call_status::runtime:
-                    errorMessage += " (Runtime Error)";
-                    break;
-                case sol::call_status::memory:
-                    errorMessage += " (Memory Allocation Error)";
-                    break;
-                case sol::call_status::handler:
-                    errorMessage += " (Message Handler Error)";
-                    break;
-                case sol::call_status::gc:
-                    errorMessage += " (Garbage Collector Error)";
-                    break;
-                case sol::call_status::file:
-                    errorMessage += " (File Error)";
-                    break;
-                default:
-                    errorMessage += " (Unknown Error)";
-                    break;
-                }
-    
-                write_lua_console(errorMessage);
-            }
         }
-        else {
-            oss.str("");
-            auto timeEnd = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            oss << "Successfully executed script.\r\n   Elapsed Time: " << timeEnd - timeStart << " ms.";
-            text = oss.str();
-            write_lua_console(text);
+        catch (const std::exception& e) {
+            std::string errorMessage = "Critical Error: " + std::string(e.what());
+            write_lua_console(errorMessage);
+        }
+        catch (...) {
+            std::string errorMessage = "Critical Error: Unknown exception occurred.";
+            write_lua_console(errorMessage);
         }
     }
-    catch (const std::exception& e) {
-        std::string errorMessage = "Critical Error: " + std::string(e.what());
-        write_lua_console(errorMessage);
-    }
-    catch (...) {
-        std::string errorMessage = "Critical Error: Unknown exception occurred.";
-        write_lua_console(errorMessage);
-    }
-
+  
     for (auto& ini : LoadedINIs)
     {
         GameDelete(ini.second);
