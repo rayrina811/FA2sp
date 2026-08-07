@@ -1321,8 +1321,13 @@ void CLuaConsole::Update(HWND& hWnd, const char* filter)
         LabelMatcher matcher(filter);
         for (const auto& entry : fs::directory_iterator(scriptPath)) {
             if (entry.is_regular_file() && entry.path().extension().string() == ".lua") {
-                if ((strlen(filter) && matcher.Match(entry.path().filename().string().c_str())) || !strlen(filter))
-                    SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)entry.path().filename().string().c_str());
+                std::string filename = entry.path().filename().string();
+                // Skip hidden scripts (dot-prefixed, e.g. .spec_lib.lua)
+                if (!filename.empty() && filename[0] == '.')
+                    continue;
+
+                if ((strlen(filter) && matcher.Match(filename.c_str())) || !strlen(filter))
+                    SendMessage(hScripts, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)filename.c_str());
             }
         }
     }

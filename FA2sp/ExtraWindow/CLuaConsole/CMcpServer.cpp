@@ -357,7 +357,8 @@ static json ProcessRequest(json& request)
                         {"description", "set_status: designing | implemented | verified | deprecated."}}}
                 }},
                 {"required", json::array({"action", "map_path"})}
-            });
+            }}
+        });
         tools.push_back({
             {"name", "observe"},
             {"description", "Capture the current editor view as a screenshot and return structured "
@@ -400,8 +401,10 @@ static json ProcessRequest(json& request)
         }
         else if (toolName == "spec")
         {
-            // Bridge to spec_lib.lua: forward whitelisted args, run through the
-            // existing run_lua execution channel (main thread, encoding conversion).
+            // Bridge to .spec_lib.lua: forward whitelisted args, run through a
+            // dedicated main-thread channel (WM_MCP_SPEC / HandleSpec) that
+            // executes the script cleanly, without run_lua side effects
+            // (high-risk scan, redraw, INI diff tracking).
             std::string action = arguments.value("action", "");
             std::string mapPath = arguments.value("map_path", "");
             if (action.empty() || mapPath.empty())
@@ -423,7 +426,7 @@ static json ProcessRequest(json& request)
                 if (arguments.contains("depends_on") && arguments["depends_on"].is_array())
                     specArgs["depends_on"] = arguments["depends_on"];
 
-                std::string libPath = GetScriptRoot() + "spec_lib.lua";
+                std::string libPath = GetScriptRoot() + ".spec_lib.lua";
                 // specArgs is UTF-8 (MCP wire format). Convert it to ANSI
                 // explicitly: the script mixes an already-ANSI dofile path with
                 // the UTF-8 JSON, and detection-based ToInternalEncoding is
@@ -433,10 +436,10 @@ static json ProcessRequest(json& request)
                                      "print(S.dispatch(" + LuaQuote(CLuaConsole::EncodeUtf8ToAnsi(SafeDump(specArgs))) + "))";
 
                 MCPRequest* mcpReq = new MCPRequest();
-                mcpReq->type = 0;
+                mcpReq->type = 12;
                 mcpReq->input = script;
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_RUN_LUA, 0, (LPARAM)mcpReq);
+                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SPEC, 0, (LPARAM)mcpReq);
                 WaitForSingleObject(mcpReq->hEvent, INFINITE);
                 std::string out = ToExternalEncoding(mcpReq->result);
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
@@ -1649,6 +1652,71 @@ void CMcpServer::HandleObserve(MCPRequest* req)
     j["objects"] = objects;
 
     req->result = SafeDump(j);
+    SetEvent(req->hEvent);
+}
+
+// ---------------------------------------------------------------------------
+// HandleSpec: dedicated main-thread handler for the 'spec' MCP tool.
+// req->input carries the bridge script into .spec_lib.lua (built in tools/call).
+// Runs it through the Lua console cleanly: no high-risk scan, no confirmation
+// dialog, no redraw / INI-diff logic - spec actions only read/write the spec
+// file and validate triggers against the map, so run_lua's side effects do
+// not apply.
+// ---------------------------------------------------------------------------
+void CMcpServer::HandleSpec(MCPRequest* req)
+{
+    CLuaConsole::mcpRunning = true;
+    CLuaConsole::mcpOutput.clear();
+
+    auto& Lua = CLuaConsole::Lua;
+    {
+        VEHGuard guard(false);  // disable VEH during Lua execution
+        try
+        {
+            sol::protected_function_result result =
+                Lua.script(req->input, sol::script_pass_on_error);
+
+            if (!result.valid())
+            {
+                sol::error err = result;
+                std::string errStr = err.what();
+                std::string errorMessage = "Lua Error: " + errStr;
+                if (errStr.find("__SCRIPT_ABORT__") != std::string::npos)
+                {
+                    CLuaConsole::mcpOutput += "Script aborted.\r\n";
+                }
+                else
+                {
+                    sol::call_status status = result.status();
+                    switch (status)
+                    {
+                    case sol::call_status::syntax:   errorMessage += " (Syntax Error)"; break;
+                    case sol::call_status::runtime:  errorMessage += " (Runtime Error)"; break;
+                    case sol::call_status::memory:   errorMessage += " (Memory Error)"; break;
+                    case sol::call_status::handler:  errorMessage += " (Handler Error)"; break;
+                    case sol::call_status::gc:       errorMessage += " (GC Error)"; break;
+                    case sol::call_status::file:     errorMessage += " (File Error)"; break;
+                    default:                         errorMessage += " (Unknown Error)"; break;
+                    }
+                    CLuaConsole::mcpOutput += errorMessage + "\r\n";
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            CLuaConsole::mcpOutput += std::string("Critical Error: ") + e.what() + "\r\n";
+        }
+        catch (...)
+        {
+            CLuaConsole::mcpOutput += "Critical Error: Unknown exception occurred.\r\n";
+        }
+    }
+
+    // Build result
+    req->result = std::move(CLuaConsole::mcpOutput);
+    CLuaConsole::mcpRunning = false;
+    CLuaConsole::mcpOutput.clear();
+
     SetEvent(req->hEvent);
 }
 

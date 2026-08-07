@@ -1,12 +1,12 @@
 -- ============================================================================
--- spec_lib.lua - Map spec management library for FA2sp MCP
+-- .spec_lib.lua - Map spec management library for FA2sp MCP
 -- ----------------------------------------------------------------------------
 -- Purpose: Persist the map design intent (story -> screenplay -> implementation)
 --          as a structured .spec.md file next to the map, so the design process
 --          can be resumed across sessions/agents.
 --
 -- Usage (via MCP 'spec' tool or manually):
---     local S = dofile([[...path.../spec_lib.lua]])
+--     local S = dofile([[...path.../.spec_lib.lua]])
 --     print(S.dispatch('{"action":"read","map_path":"C:/maps/mymap.map"}'))
 --
 -- ENCODING NOTES (important):
@@ -373,10 +373,12 @@ end
 -- Trigger existence validation (FA2sp globals; guarded)
 -- ============================================================================
 
--- Returns true/false when map is available, nil when unavailable.
+-- Returns true/false when map is available, nil (plus reason) when unavailable.
+-- NOTE: get_triggers() returns a sol3 container userdata (not a plain table),
+--       so do not rely on type(x) == "table"; iterate with ipairs / #.
 local function trigger_exists(trigger_type)
     local ok, ids = pcall(get_triggers)
-    if not ok or type(ids) ~= "table" then return nil end
+    if not ok then return nil, "map trigger validation failed: " .. tostring(ids) end
     for _, v in ipairs(ids) do
         if tostring(v) == trigger_type then return true end
     end
@@ -386,7 +388,7 @@ end
 -- All trigger ids currently in the map, or nil.
 local function map_trigger_ids()
     local ok, ids = pcall(get_triggers)
-    if not ok or type(ids) ~= "table" then return nil end
+    if not ok then return nil end
     local out = {}
     for _, v in ipairs(ids) do out[#out + 1] = tostring(v) end
     return out
@@ -546,14 +548,14 @@ local function act_link_trigger(data, args)
         return { ok = false, error = "missing 'trigger_type'" }
     end
     -- 1) existence check against the map (hard error when map is available)
-    local exists = trigger_exists(ttype)
+    local exists, val_reason = trigger_exists(ttype)
     if exists == false then
         return { ok = false, error = "trigger_type not found in map [Triggers]: " .. ttype
                     .. " (create the trigger first, then link)" }
     end
     local warnings = {}
     if exists == nil then
-        warnings[#warnings + 1] = "map trigger validation skipped (map not loaded?)"
+        warnings[#warnings + 1] = val_reason or "map trigger validation skipped (map not loaded?)"
     end
     -- 2) duplicate-across-entries warning (allowed)
     for _, e2 in ipairs(data.entries) do
