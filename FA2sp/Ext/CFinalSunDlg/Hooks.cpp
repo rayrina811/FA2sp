@@ -232,7 +232,7 @@ DEFINE_HOOK(43209D, CFinalSunDlg_Update_TranslateMenuItems, A)
     translateMenuItem(30110, "Menu.Options.DisableAutoConnectWall");
 
     translateMenuItem(40004, "Menu.Options.Settings");
-    translateMenuItem(40024, "Menu.Options.ShowMinimap");
+    translateMenuItem(30107, "Menu.Options.ShowMinimap");
     translateMenuItem(40023, "Menu.Options.Easymode");
     translateMenuItem(40118, "Menu.Options.Sounds");
     translateMenuItem(40123, "Menu.Options.ShowBuildingOutline");
