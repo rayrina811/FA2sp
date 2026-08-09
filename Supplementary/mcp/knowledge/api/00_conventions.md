@@ -34,4 +34,5 @@
 | `16_taskforces.md` | 特遣部队：task_force 类（构造函数、成员管理 add_number/delete_number/replace_number、apply/delete） |
 | `17_teams.md` | 作战小队：team 类（构造函数、所属方/特遣部队/脚本/路径点/经验/科技等级等属性、apply/delete），含典型创建流程示例 |
 | `18_variables.md` | 变量操作：局部/全局变量的读写(get_variable_value/get_variable_name)、设置(set_variable_value/set_variable_name)、新增变量(add_variable) |
-| `19_appendices.md` | 附录：message_box 格式码、tile.land_type 地表类型映射表、load_from 参数取值说明、参数类型返回值表 |
+| `19_terrain_generator.md` | 地形生成器：terrain_generator 类（构造函数、属性、预设管理、生成应用、重载、清除等） |
+| `20_appendices.md` | 附录：message_box 格式码、tile.land_type 地表类型映射表、load_from 参数取值说明、参数类型返回值表 |

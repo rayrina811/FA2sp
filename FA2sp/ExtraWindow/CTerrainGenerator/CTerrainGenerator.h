@@ -2,6 +2,7 @@
 
 #include <FA2PP.h>
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include <regex>
@@ -313,6 +314,17 @@ public:
     static void OnSetRangeDone();
     static std::shared_ptr<TerrainGeneratorPreset> CurrentPreset;
     static HWND hRampAnchorHeight;
+
+    // Apply a preset to a rectangular range (or multi-selection) without touching the window state.
+    // onlyClearTab < 0 means clear all categories; otherwise it is the tab index (0-3) to clear.
+    static void ApplyPreset(const std::shared_ptr<TerrainGeneratorPreset>& preset,
+        int x1, int y1, int x2, int y2,
+        bool override, bool ignoreLandtypes,
+        bool multiSelection, const std::set<MapCoord>& selectedCoords,
+        bool onlyClear = false, int onlyClearTab = -1);
+
+    // Write all fields of a preset into an ini object (does not write to file nor rebuild).
+    static void WritePresetToINI(const std::shared_ptr<TerrainGeneratorPreset>& preset, CINI* ini);
 
 protected:
     static void Initialize(HWND& hWnd);

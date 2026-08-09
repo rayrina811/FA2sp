@@ -297,6 +297,8 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("remove_terrain", remove_terrain);
     Lua.set_function("place_smudge", place_smudge);
     Lua.set_function("remove_smudge", remove_smudge);
+    Lua.set_function("get_tilesets", get_tilesets);
+    Lua.set_function("get_tileset_info", get_tileset_info);
     Lua.set_function("place_overlay", [](int y, int x, int overlay, sol::optional<int> overlayData) {
         if (!overlayData) {
             overlayData = -1;
@@ -991,6 +993,57 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Lua.set_function("delete_team", team::delete_team);
     Lua.set_function("get_team", team::get_team);
     Lua.set_function("get_teams", team::get_teams);
+
+    // terrain generator
+    Lua.new_usertype<terrain_generator>("terrain_generator",
+        sol::constructors<terrain_generator()>(),
+        "override", &terrain_generator::bOverride,
+        "ignore_landtypes", &terrain_generator::bIgnoreLandtypes,
+        // preset management
+        "list", &terrain_generator::list,
+        "load", &terrain_generator::load,
+        "add", &terrain_generator::add,
+        "copy", &terrain_generator::copy,
+        "remove", &terrain_generator::remove,
+        "save", &terrain_generator::save,
+        "reload", &terrain_generator::reload,
+        "get_id", &terrain_generator::get_id,
+        "get_name", &terrain_generator::get_name,
+        "get_theaters", &terrain_generator::get_theaters,
+        // apply / clear
+        "apply", &terrain_generator::apply,
+        "apply_selection", &terrain_generator::apply_selection,
+        "clear", &terrain_generator::clear,
+        "clear_selection", &terrain_generator::clear_selection,
+        // preset parameters
+        "set_name", &terrain_generator::set_name,
+        "set_scale", &terrain_generator::set_scale,
+        "set_theaters", &terrain_generator::set_theaters,
+        "set_tileset", &terrain_generator::set_tileset,
+        "remove_tileset", &terrain_generator::remove_tileset,
+        "set_terrain", &terrain_generator::set_terrain,
+        "remove_terrain", &terrain_generator::remove_terrain,
+        "set_overlay", &terrain_generator::set_overlay,
+        "remove_overlay", &terrain_generator::remove_overlay,
+        "set_smudge", &terrain_generator::set_smudge,
+        "remove_smudge", &terrain_generator::remove_smudge,
+        "set_ramp", &terrain_generator::set_ramp,
+        "disable_ramp", &terrain_generator::disable_ramp,
+        "set_preserve_anchor_heights", &terrain_generator::set_preserve_anchor_heights,
+        "set_avoid_nonmorphable_tiles", &terrain_generator::set_avoid_nonmorphable_tiles,
+        // ramp anchors
+        "get_anchors", &terrain_generator::get_anchors,
+        "add_anchor", &terrain_generator::add_anchor,
+        "remove_anchor", &terrain_generator::remove_anchor,
+        "clear_anchors", &terrain_generator::clear_anchors,
+        // query
+        "get_scale", &terrain_generator::get_scale,
+        "get_tilesets", &terrain_generator::get_tilesets,
+        "get_tileset_chances", &terrain_generator::get_tileset_chances,
+        "get_ramp_percent", &terrain_generator::get_ramp_percent,
+        "get_ramp_min_height", &terrain_generator::get_ramp_min_height,
+        "get_ramp_max_height", &terrain_generator::get_ramp_max_height
+    );
 
     Lua.set_function("get_variable_value", get_variable_value);
     Lua.set_function("get_variable_name", get_variable_name);
