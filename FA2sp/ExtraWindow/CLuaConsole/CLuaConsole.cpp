@@ -513,6 +513,7 @@ void CLuaConsole::InitializeLuaState()
         });
     Lua.set_function("screenshot", screenshot);
     Lua.set_function("screenshot_temp", screenshot_temp);
+    Lua.set_function("get_tile_image", get_tile_image);
     Lua.set_function("place_node", [](std::string house, std::string type, int y, int x, sol::optional<int> index) {
         if (!index) {
             index = -1;
@@ -1069,7 +1070,7 @@ void CLuaConsole::InitializeLuaState()
         "clear_anchors", &terrain_generator::clear_anchors,
         // query
         "get_scale", &terrain_generator::get_scale,
-        "get_tilesets", &terrain_generator::get_tilesets,
+        "get_tileset_list", &terrain_generator::get_tileset_list,
         "get_tileset_chances", &terrain_generator::get_tileset_chances,
         "get_ramp_percent", &terrain_generator::get_ramp_percent,
         "get_ramp_min_height", &terrain_generator::get_ramp_min_height,

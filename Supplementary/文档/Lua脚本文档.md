@@ -228,6 +228,12 @@ exec("debug.log", { cwd = game_path().."debug\\", file = true })
 - **参数**：无。
 - **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。
 
+### `get_tile_image(index)`
+- **说明**：渲染指定索引的地形并保存为 PNG 到 `%TEMP%\FinalAlert2` 目录。
+- **参数**：
+  - `index` (`int`) — 地形索引。
+- **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。
+
 ---
 
 ### `select_box` 类
@@ -1200,7 +1206,7 @@ cell:apply()
 - **返回** (`table<tile>`)：该地形所有有效子块组成的数组。
 
 #### `place_whole_tile(x, y, tile_index)`
-- **说明**：在指定坐标放置整个地形（自动选取最佳子块）。
+- **说明**：在指定坐标放置整个地形。
 - **参数**：
   - `x, y` (`number`) — 坐标。
   - `tile_index` (`number`) — 地形索引。
@@ -2331,7 +2337,7 @@ end
 - **返回**：无。
 
 #### `set_tileset(index, tileset, chance, [available_indexes])`
-- **说明**：设置地形组。`tileset` 为地形组编号（0~9999 内为官方地形组，>=10000 为自定义地形组）；`available_indexes` 为可选的地形块相对索引列表（相对于该地形组起始索引），不提供则使用该地形组全部可用地形块。
+- **说明**：设置地形组。`tileset` 为地形组编号（0~9999 内为游戏内地形组，>=10000 为自定义地形组）；`available_indexes` 为可选的地形相对索引列表（相对于该地形组起始索引），不提供则使用该地形组全部可用地形。
 - **参数**：
   - `index` (`int`) — 组索引（0~9）。
   - `tileset` (`int`) — 地形组编号。
@@ -2437,7 +2443,7 @@ end
 | 方法 | 返回类型 | 说明 |
 |------|----------|------|
 | `get_scale()` | `int` | 当前预设的精细度 |
-| `get_tilesets()` | `table<int>` | 当前预设各地形组的地形组编号 |
+| `get_tileset_list()` | `table<int>` | 当前预设各地形组的地形组编号 |
 | `get_tileset_chances()` | `table<number>` | 当前预设各地形组的权重 |
 | `get_ramp_percent()` | `int` | 斜坡粗糙度（未启用斜坡时为 -1） |
 | `get_ramp_min_height()` | `int` | 斜坡最低高度（未启用斜坡时为 -1） |
@@ -2459,7 +2465,7 @@ end
 local tg = terrain_generator:new()
 local id = tg:add("沙漠地形")
 tg:set_scale(30)
-tg:set_tileset(0, 41, 100, "0")        -- 地形组 0，仅用第一个地形块
+tg:set_tileset(0, 41, 100, "0")        -- 地形组 0，仅用第一个地形
 tg:set_overlay(0, {0}, 50)             -- 覆盖物类型 0，权重 50
 tg:set_smudge(0, {"CRATER01", "CRATER02"}, 30)
 tg:set_ramp(30, 2, 8)                  -- 启用斜坡

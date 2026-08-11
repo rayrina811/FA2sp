@@ -222,7 +222,7 @@ end
 | 方法 | 返回类型 | 说明 |
 |------|----------|------|
 | `get_scale()` | `int` | 当前预设的精细度 |
-| `get_tilesets()` | `table<int>` | 当前预设各地形组的地形组编号 |
+| `get_tileset_list()` | `table<int>` | 当前预设各地形组的地形组编号 |
 | `get_tileset_chances()` | `table<number>` | 当前预设各地形组的权重 |
 | `get_ramp_percent()` | `int` | 斜坡粗糙度（未启用斜坡时为 -1） |
 | `get_ramp_min_height()` | `int` | 斜坡最低高度（未启用斜坡时为 -1） |

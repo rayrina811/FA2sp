@@ -101,3 +101,9 @@ exec("debug.log", { cwd = game_path().."debug\\", file = true })
 - **说明**：对当前地图窗口截图并保存到 `%TEMP%\FinalAlert2` 目录，文件名自动带时间戳。
 - **参数**：无。
 - **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。
+
+### `get_tile_image(index)`
+- **说明**：渲染指定索引的地形并保存为 PNG 到 `%TEMP%\FinalAlert2` 目录。
+- **参数**：
+  - `index` (`int`) — 地形索引。
+- **返回** (`string` 或 `nil`)：成功时返回完整的文件路径，失败时返回 `nil`。

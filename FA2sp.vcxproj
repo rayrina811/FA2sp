@@ -273,6 +273,7 @@
     <ClCompile Include="FA2sp\Ext\CIsoView\DirectXCore.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapData\HeightGenerator.cpp" />
     <ClCompile Include="FA2sp\Ext\CMapD\Body.cpp" />
+    <ClCompile Include="FA2sp\Ext\CTileSetBrowserView\Body.cpp" />
     <ClCompile Include="glad\src\glad.c" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Hooks.cpp" />
     <ClCompile Include="FA2sp\Ext\CIsoView\Body.DrawObjects.cpp" />
@@ -427,6 +428,7 @@
     <ClInclude Include="FA2sp\Ext\CIsoView\DirectXCore.h" />
     <ClInclude Include="FA2sp\Ext\CMapData\HeightGenerator.h" />
     <ClInclude Include="FA2sp\Ext\CMapD\Body.h" />
+    <ClInclude Include="FA2sp\Ext\CTileSetBrowserView\Body.h" />
     <ClInclude Include="glad\include\glad\glad.h" />
     <ClInclude Include="FA2sp\Ext\CIsoView\RendererTypes.h" />
     <ClInclude Include="FA2sp\Ext\CLighting\Body.h" />

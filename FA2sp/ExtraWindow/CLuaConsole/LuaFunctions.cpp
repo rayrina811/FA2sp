@@ -13,6 +13,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../../Ext/CMapData/Body.h"
 #include "../../Ext/CIsoView/Body.h"
+#include "../../Ext/CTileSetBrowserView/Body.h"
 #include "../../Ext/CFinalSunApp/Body.h"
 #include "../CObjectSearch/CObjectSearch.h"
 #include "../CTerrainGenerator/CTerrainGenerator.h"
@@ -1056,7 +1057,7 @@ namespace LuaFunctions
 			return current ? current->Scale : -1;
 		}
 
-		std::vector<int> get_tilesets()
+		std::vector<int> get_tileset_list()
 		{
 			std::vector<int> ret;
 			if (!current) return ret;
@@ -5965,6 +5966,108 @@ namespace LuaFunctions
 		if (!path.empty())
 			return sol::make_object(CLuaConsole::Lua, path);
 		return sol::nil;
+	}
+
+	static bool SaveSurfaceToPng(LPDIRECTDRAWSURFACE7 lpdds, const std::wstring& path)
+	{
+		DDSURFACEDESC2 ddsd;
+		memset(&ddsd, 0, sizeof(DDSURFACEDESC2));
+		ddsd.dwSize = sizeof(DDSURFACEDESC2);
+		if (lpdds->GetSurfaceDesc(&ddsd) != DD_OK)
+			return false;
+
+		const int width = (int)ddsd.dwWidth;
+		const int height = (int)ddsd.dwHeight;
+		if (width <= 0 || height <= 0)
+			return false;
+
+		HDC hSurfaceDC = NULL;
+		if (lpdds->GetDC(&hSurfaceDC) != DD_OK)
+			return false;
+
+		HDC hMemDC = CreateCompatibleDC(hSurfaceDC);
+		HBITMAP hBitmap = CreateCompatibleBitmap(hSurfaceDC, width, height);
+		HBITMAP hOldBmp = (HBITMAP)SelectObject(hMemDC, hBitmap);
+		BitBlt(hMemDC, 0, 0, width, height, hSurfaceDC, 0, 0, SRCCOPY);
+		SelectObject(hMemDC, hOldBmp);
+		lpdds->ReleaseDC(hSurfaceDC);
+		DeleteDC(hMemDC);
+
+		CIsoViewExt::InitGdiplus();
+
+		Gdiplus::Bitmap bitmap(hBitmap, NULL);
+		CLSID clsidEncoder;
+		UINT num = 0, size = 0;
+		GetImageEncodersSize(&num, &size);
+		ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)malloc(size);
+		if (pImageCodecInfo)
+		{
+			GetImageEncoders(num, size, pImageCodecInfo);
+			for (UINT i = 0; i < num; ++i)
+			{
+				if (wcscmp(pImageCodecInfo[i].MimeType, L"image/png") == 0)
+				{
+					clsidEncoder = pImageCodecInfo[i].Clsid;
+					break;
+				}
+			}
+			free(pImageCodecInfo);
+		}
+
+		Gdiplus::Status result = bitmap.Save(path.c_str(), &clsidEncoder, nullptr);
+		DeleteObject(hBitmap);
+		return result == Gdiplus::Ok;
+	}
+
+	static sol::object get_tile_image(int index)
+	{
+		if (index < 0)
+			return sol::nil;
+
+		if (index < CUSTOM_TILE_START)
+		{
+			if (!CMapDataExt::TileData || index >= CMapDataExt::TileDataCount)
+				return sol::nil;
+		}
+		else if (!CMapDataExt::GetCustomTile(index))
+		{
+			return sol::nil;
+		}
+
+		auto pIsoView = CIsoView::GetInstance();
+		if (!pIsoView || !pIsoView->lpDD7)
+			return sol::nil;
+
+		LPDIRECTDRAWSURFACE7 lpdds = CTileSetBrowserViewExt::RenderTile(index);
+		if (!lpdds)
+			return sol::nil;
+
+		// Get %TEMP%\FinalAlert2 directory
+		wchar_t tempPath[MAX_PATH];
+		if (GetTempPathW(MAX_PATH, tempPath) == 0)
+		{
+			lpdds->Release();
+			return sol::nil;
+		}
+
+		std::wstring dir = std::wstring(tempPath) + L"FinalAlert2";
+		CreateDirectoryW(dir.c_str(), nullptr);
+
+		// Generate timestamped filename
+		SYSTEMTIME st;
+		GetLocalTime(&st);
+		wchar_t filename[64];
+		swprintf_s(filename, L"\\tile_%d_%04d%02d%02d_%02d%02d%02d.png",
+			index, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+		std::wstring fullPath = dir + filename;
+
+		bool ok = SaveSurfaceToPng(lpdds, fullPath);
+		lpdds->Release();
+		if (!ok)
+			return sol::nil;
+
+		return sol::make_object(CLuaConsole::Lua, STDHelpers::WStringToString(fullPath));
 	}
 
 	static bool is_coord_in_view(int y, int x)
