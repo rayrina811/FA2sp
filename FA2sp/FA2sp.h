@@ -184,6 +184,7 @@ public:
     static float MultiSelect_Opacity;
     static bool FillArea_ConsiderLAT;
     static bool FillArea_ConsiderWater;
+    static bool FillArea_ConsiderWholeTile;
     static bool DPIAware;
     static bool SkipBrushSizeChangeOnTools;
     static bool RecordBrushSizeHistory;

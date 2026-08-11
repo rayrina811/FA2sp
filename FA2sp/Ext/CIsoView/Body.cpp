@@ -1973,6 +1973,7 @@ void CIsoViewExt::DrawWaypointFlag(int X, int Y, LPDDSURFACEDESC2 lpDesc)
     auto image = CLoadingExt::GetSurfaceImageDataFromMap("FLAG");
     this->BlitTransparentDesc(image->lpSurface, GetBackBuffer(), lpDesc, X + 5 + 25 - image->FullWidth / 2, Y + 12 - image->FullHeight / 2, -1, -1);
 }
+
 void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::set<MapCoord> *selectedCoords)
 {
     if (!selectedCoords)
@@ -2065,6 +2066,14 @@ void CIsoViewExt::GetSameConnectedCells(int X, int Y, int oriX, int oriY, std::s
             {
                 if (CMapDataExt::TileData[tileIndex_cell2].TileSet == CMapDataExt::WaterSet &&
                     CMapDataExt::TileData[tileIndex_cell].TileSet == CMapDataExt::WaterSet)
+                {
+                    match = true;
+                }
+            }
+
+            if (ExtConfigs::FillArea_ConsiderWholeTile && !match)
+            {
+                if (tileIndex_cell2 == tileIndex_cell)
                 {
                     match = true;
                 }

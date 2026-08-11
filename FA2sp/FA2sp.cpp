@@ -175,6 +175,7 @@ bool ExtConfigs::MultiSelect_ConsiderLAT;
 float ExtConfigs::MultiSelect_Opacity;
 bool ExtConfigs::FillArea_ConsiderLAT;
 bool ExtConfigs::FillArea_ConsiderWater;
+bool ExtConfigs::FillArea_ConsiderWholeTile;
 bool ExtConfigs::DPIAware;
 bool ExtConfigs::SkipBrushSizeChangeOnTools;
 bool ExtConfigs::RecordBrushSizeHistory;
@@ -319,6 +320,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::MultiSelect_Opacity = CINI::FAData->GetSingle("ExtConfigs", "MultiSelect.Opacity", 0.33f);
 	ExtConfigs::FillArea_ConsiderLAT = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderLAT", true);
 	ExtConfigs::FillArea_ConsiderWater = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWater", true);
+	ExtConfigs::FillArea_ConsiderWholeTile = CINI::FAData->GetBool("ExtConfigs", "FillArea.ConsiderWholeTile", true);
 	ExtConfigs::ForceNeutralSpecialColor = CINI::FAData->GetBool("ExtConfigs", "ForceNeutralSpecialColor", true);
 
 	ExtConfigs::DPIAware = CINI::FAData->GetBool("ExtConfigs", "DPIAware");
@@ -1139,6 +1141,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.FillArea.ConsiderWater", "Consider all water tiles the same when ctrl-filling areas"),
 		.IniKey = "FillArea.ConsiderWater",
 		.Value = &ExtConfigs::FillArea_ConsiderWater,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.FillArea.ConsiderWholeTile", "Consider sub tile blocks as identical when ctrl-filling areas"),
+		.IniKey = "FillArea.ConsiderWholeTile",
+		.Value = &ExtConfigs::FillArea_ConsiderWholeTile,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
