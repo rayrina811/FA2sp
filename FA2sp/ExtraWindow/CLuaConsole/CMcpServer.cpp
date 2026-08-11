@@ -158,6 +158,20 @@ static std::string ToExternalEncoding(const std::string& str)
 // Public interface
 // ===================================================================
 
+// Post an MCP request to the editor main thread and wait for completion.
+// Returns false if the editor window is not ready yet (the MCP server may
+// start before the main window exists during app startup).
+static bool RunOnEditorThread(int wmMsg, MCPRequest* req)
+{
+    CFinalSunDlg* pDlg = CFinalSunDlg::Instance.get();
+    if (!pDlg || !::IsWindow(pDlg->GetSafeHwnd()))
+        return false;
+    if (!::PostMessage(pDlg->GetSafeHwnd(), wmMsg, 0, (LPARAM)req))
+        return false;
+    WaitForSingleObject(req->hEvent, INFINITE);
+    return true;
+}
+
 static json ProcessRequest(json& request)
 {
     std::string method = request.value("method", "");
@@ -393,11 +407,16 @@ static json ProcessRequest(json& request)
             mcpReq->input = ToInternalEncoding(arguments.value("script", ""));
             mcpReq->trackIniChanges = arguments.value("track_ini_changes", false);
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_RUN_LUA, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = ToExternalEncoding(mcpReq->result);
+            if (RunOnEditorThread(WM_MCP_RUN_LUA, mcpReq))
+            {
+                std::string out = ToExternalEncoding(mcpReq->result);
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "spec")
         {
@@ -439,11 +458,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 12;
                 mcpReq->input = script;
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SPEC, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_SPEC, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "list_knowledge")
@@ -451,11 +475,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 3;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_KNOWLEDGE, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_KNOWLEDGE, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_knowledge")
         {
@@ -470,11 +499,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 4;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_KNOWLEDGE, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_KNOWLEDGE, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "search_knowledge")
@@ -490,11 +524,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 5;
                 mcpReq->input = ToInternalEncoding(query);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SEARCH_KNOWLEDGE, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_SEARCH_KNOWLEDGE, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "list_skills")
@@ -502,11 +541,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 6;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SKILL, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_SKILL, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_skill")
         {
@@ -521,11 +565,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 7;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SKILL, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_SKILL, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "list_scripts")
@@ -533,11 +582,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 8;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_LIST_SCRIPTS, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = mcpReq->result;
+            if (RunOnEditorThread(WM_MCP_LIST_SCRIPTS, mcpReq))
+            {
+                std::string out = mcpReq->result;
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else if (toolName == "get_script")
         {
@@ -552,11 +606,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 9;
                 mcpReq->input = ToInternalEncoding(key);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_GET_SCRIPT, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_GET_SCRIPT, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "save_script")
@@ -577,11 +636,16 @@ static json ProcessRequest(json& request)
                 mcpReq->type = 10;
                 mcpReq->input = ToInternalEncoding(key + "\n" + content);
                 mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-                PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_SAVE_SCRIPT, 0, (LPARAM)mcpReq);
-                WaitForSingleObject(mcpReq->hEvent, INFINITE);
-                std::string out = ToExternalEncoding(mcpReq->result);
+                if (RunOnEditorThread(WM_MCP_SAVE_SCRIPT, mcpReq))
+                {
+                    std::string out = ToExternalEncoding(mcpReq->result);
+                    response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+                }
+                else
+                {
+                    response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+                }
                 CloseHandle(mcpReq->hEvent); delete mcpReq;
-                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
             }
         }
         else if (toolName == "observe")
@@ -589,11 +653,16 @@ static json ProcessRequest(json& request)
             MCPRequest* mcpReq = new MCPRequest();
             mcpReq->type = 11;
             mcpReq->hEvent = CreateEventA(nullptr, FALSE, FALSE, nullptr);
-            PostMessage(CFinalSunDlg::Instance->GetSafeHwnd(), WM_MCP_OBSERVE, 0, (LPARAM)mcpReq);
-            WaitForSingleObject(mcpReq->hEvent, INFINITE);
-            std::string out = ToExternalEncoding(mcpReq->result);
+            if (RunOnEditorThread(WM_MCP_OBSERVE, mcpReq))
+            {
+                std::string out = ToExternalEncoding(mcpReq->result);
+                response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
+            }
+            else
+            {
+                response["error"] = {{"code", -32000}, {"message", "The editor main window is not ready yet. Please try again."}};
+            }
             CloseHandle(mcpReq->hEvent); delete mcpReq;
-            response["result"] = {{"content", json::array({{{"type", "text"}, {"text", out}}})}};
         }
         else
         {
@@ -701,6 +770,8 @@ static json ProcessRequest(json& request)
 
 void CMcpServer::Start(int port)
 {
+    CLuaConsole::EnsureLuaState();
+
     if (m_running) Stop();
 
     m_port = port;
@@ -983,8 +1054,14 @@ void CMcpServer::HandleRunLua(MCPRequest* req)
             warnMsg << "\r\n" << Translations::TranslateOrDefault("LuaHighRisk.Footer",
                 "Are you sure you want to continue?");
                 
-            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());
-            int result = MessageBox(CLuaConsole::GetHandle(), warnMsg.str().c_str(),
+            // Use the console window as the dialog owner when available,
+            // otherwise fall back to the main editor window (the console may
+            // never have been opened).
+            HWND hParent = CLuaConsole::GetHandle();
+            if (!hParent && CFinalSunDlg::Instance.get())
+                hParent = CFinalSunDlg::Instance.get()->GetSafeHwnd();
+            ExtraWindow::DisableOtherWindows(hParent);
+            int result = MessageBox(hParent, warnMsg.str().c_str(),
                 Translations::TranslateOrDefault("LuaHighRisk.Title", "High-Risk Operation Confirmation"),
                 MB_YESNO | MB_ICONWARNING);
             ExtraWindow::RestoreDisabledWindows();

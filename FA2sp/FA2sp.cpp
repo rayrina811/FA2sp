@@ -106,6 +106,7 @@ bool ExtConfigs::UndoRedo_ShiftPlaceTile;
 bool ExtConfigs::UndoRedo_RecordObjects;
 bool ExtConfigs::UndoRedo_HoldPlaceOverlay;
 bool ExtConfigs::UseRGBHouseColor;
+bool ExtConfigs::UnifyHouseColors;
 bool ExtConfigs::SaveMap_AutoSave;
 int ExtConfigs::SaveMap_AutoSave_Interval;
 int ExtConfigs::SaveMap_AutoSave_Interval_Real;
@@ -431,6 +432,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::UndoRedo_RecordObjects = CINI::FAData->GetBool("ExtConfigs", "UndoRedo.RecordObjects", true);
 
 	ExtConfigs::UseRGBHouseColor = CINI::FAData->GetBool("ExtConfigs", "UseRGBHouseColor");
+	ExtConfigs::UnifyHouseColors = CINI::FAData->GetBool("ExtConfigs", "UnifyHouseColors");
 	ExtConfigs::INIEditor_IgnoreTeams = CINI::FAData->GetBool("ExtConfigs", "INIEditor.IgnoreTeams");
 	// ExtConfigs::StringBufferStackAllocation = CINI::FAData->GetBool("ExtConfigs", "StringBufferStackAllocation", true);
 
@@ -974,6 +976,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.DisplayName = Translations::TranslateOrDefault("Options.ForceNeutralSpecialColor", "Force Neutral and Special houses to use the light gray color in skirmish"),
 		.IniKey = "ForceNeutralSpecialColor",
 		.Value = &ExtConfigs::ForceNeutralSpecialColor,
+		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.UnifyHouseColors", "Map house color variants to their corresponding solid colors"),
+		.IniKey = "UnifyHouseColors",
+		.Value = &ExtConfigs::UnifyHouseColors,
 		.Type = ExtConfigs::SpecialOptionType::ReloadMap});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

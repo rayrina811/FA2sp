@@ -253,6 +253,9 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 	}).detach();
 #endif
 
+	if (ExtConfigs::MCP_Enable)
+		CMcpServer::Start(ExtConfigs::MCP_Port);
+
 	CFinalSunDlg dlg(nullptr);
 	this->m_pMainWnd = &dlg;
 
@@ -260,6 +263,8 @@ BOOL CFinalSunAppExt::InitInstanceExt()
 
 	is_watcher_running = false; // stop watcher
 	watcher.join(); // wait for thread exit
+
+	CMcpServer::Stop();
 
 	return FALSE;
 }

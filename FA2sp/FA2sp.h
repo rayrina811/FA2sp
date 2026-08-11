@@ -115,6 +115,7 @@ public:
     static bool UndoRedo_ShiftPlaceTile;
     static bool UndoRedo_HoldPlaceOverlay;
     static bool UseRGBHouseColor;
+    static bool UnifyHouseColors;
     static bool SaveMap_AutoSave;
     static int SaveMap_AutoSave_Interval;
     static int SaveMap_AutoSave_Interval_Real;

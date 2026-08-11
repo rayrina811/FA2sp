@@ -379,21 +379,28 @@ void LightingPalette::RemapColors(BGRStruct color)
         auto& cache = PaletteCache::CalculatedRemapableColors[color];
         for (int i = 16; i <= 31; ++i)
         {
-            int ii = i - 16;
-            double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
-            double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
-            if (!ii)
-                cosval = 0.1963495408493621;
-
-            RGBClass rgb_remap{ color.R,color.G,color.B };
-            HSVClass hsv_remap = rgb_remap;
-            hsv_remap.H = hsv_remap.H;
-            hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
-            hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
-            RGBClass result = hsv_remap;
-
-            this->Colors[i] = { result.B,result.G,result.R };
-            cache[i - 16] = { result.B,result.G,result.R };
+			if (ExtConfigs::UnifyHouseColors)
+            {
+                this->Colors[i] = color;
+                cache[i - 16] = color;
+            }
+            else
+            {
+                int ii = i - 16;
+                double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
+                double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
+                if (!ii)
+                    cosval = 0.1963495408493621;
+    
+                RGBClass rgb_remap{ color.R,color.G,color.B };
+                HSVClass hsv_remap = rgb_remap;
+                hsv_remap.H = hsv_remap.H;
+                hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
+                hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
+                RGBClass result = hsv_remap;
+                this->Colors[i] = { result.B,result.G,result.R };
+                cache[i - 16] = { result.B,result.G,result.R };
+            }
         }
     }
 }
@@ -586,20 +593,26 @@ const std::array<BGRStruct, 16>& PaletteCache::GetRemapableColorArray(BGRStruct 
         auto& cache = PaletteCache::CalculatedRemapableColors[color];
         for (int i = 16; i <= 31; ++i)
         {
-            int ii = i - 16;
-            double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
-            double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
-            if (!ii)
-                cosval = 0.1963495408493621;
-
-            RGBClass rgb_remap{ color.R,color.G,color.B };
-            HSVClass hsv_remap = rgb_remap;
-            hsv_remap.H = hsv_remap.H;
-            hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
-            hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
-            RGBClass result = hsv_remap;
-
-            cache[i - 16] = { result.B,result.G,result.R };
+			if (ExtConfigs::UnifyHouseColors)
+            {
+                cache[i - 16] = color;
+            }
+            else
+            {
+                int ii = i - 16;
+                double cosval = ii * 0.08144869842640204 + 0.3490658503988659;
+                double sinval = ii * 0.04654211338651545 + 0.8726646259971648;
+                if (!ii)
+                    cosval = 0.1963495408493621;
+    
+                RGBClass rgb_remap{ color.R,color.G,color.B };
+                HSVClass hsv_remap = rgb_remap;
+                hsv_remap.H = hsv_remap.H;
+                hsv_remap.S = (unsigned char)(std::sin(sinval) * hsv_remap.S);
+                hsv_remap.V = (unsigned char)(std::cos(cosval) * hsv_remap.V);
+                RGBClass result = hsv_remap;
+                cache[i - 16] = { result.B,result.G,result.R };
+            }
         }
         return cache;
     }

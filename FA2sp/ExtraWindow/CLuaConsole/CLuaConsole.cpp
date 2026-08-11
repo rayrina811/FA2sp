@@ -46,6 +46,7 @@ HWND CLuaConsole::hInputText;
 HWND CLuaConsole::hScripts;
 HWND CLuaConsole::hRunFile;
 HWND CLuaConsole::hApply;
+HWND CLuaConsole::hReset;
 HWND CLuaConsole::hSearchText;
 HWND CLuaConsole::hSplitter;
 bool CLuaConsole::applyingScript = false;
@@ -81,6 +82,7 @@ bool CLuaConsole::skipBuildingUpdate = false;
 bool CLuaConsole::yoloMode = false;
 std::string CLuaConsole::mcpOutput;
 bool CLuaConsole::mcpRunning = false;
+bool CLuaConsole::luaStateReady = false;
 TransparencyHelper CLuaConsole::m_transparency;
 sol::state CLuaConsole::Lua;
 bool CLuaConsole::showingComment = false;
@@ -141,6 +143,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "Check 'Run File' to read the selected Lua script; otherwise, the input window will be used. "
         "Click 'Run' to run the selected code. "
         "Click 'Lua Brush' to run the script at the specified coordinates on the map. "
+        "Click 'Reset Lua' to reset Lua state. "
         "Scripts may damage the map, please save it or execute the snapshot function before running. "
         "Please refer to the documentation for available functions.");
     SetWindowText(hDesc, buffer);
@@ -152,6 +155,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     Translate(Controls::Run, "LuaScriptConsoleRun");
     Translate(Controls::Apply, "LuaScriptConsoleBrush");
     Translate(Controls::RunFile, "LuaScriptConsoleRunFile");
+    Translate(Controls::Reset, "LuaScriptConsoleReset");
 
     hExecute = GetDlgItem(hWnd, Controls::Execute);
     hRun = GetDlgItem(hWnd, Controls::Run);
@@ -162,6 +166,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     hInputText = GetDlgItem(hWnd, Controls::InputText);
     hRunFile = GetDlgItem(hWnd, Controls::RunFile);
     hApply = GetDlgItem(hWnd, Controls::Apply);
+    hReset = GetDlgItem(hWnd, Controls::Reset);
     hSearchText = GetDlgItem(hWnd, Controls::SearchText);
     hSplitter = GetDlgItem(hWnd, Controls::Splitter);
     //hStop = GetDlgItem(hWnd, Controls::Stop);
@@ -180,6 +185,32 @@ void CLuaConsole::Initialize(HWND& hWnd)
     SendMessage(hRunFile, BM_SETCHECK, runFile, 0);
     CIsoView::ControlKeyIsDown() = false;
 
+    EnsureLuaState();
+
+    Update(hWnd);
+
+    if (ExtConfigs::MCP_Enable)
+    {
+        if (!CMcpServer::IsRunning())
+            CMcpServer::Start(ExtConfigs::MCP_Port);
+        if (CMcpServer::IsRunning())
+        {
+            FString text;
+            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
+            write_lua_console(text);
+        }
+    }
+}
+
+void CLuaConsole::EnsureLuaState()
+{
+    if (luaStateReady)
+        return;
+    InitializeLuaState();
+}
+
+void CLuaConsole::InitializeLuaState()
+{
     Lua.collect_garbage();
     Lua = sol::state();
 
@@ -1085,18 +1116,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
         "set_window_size", &CLuaDialog::SetWindowSize
     );
 
-    Update(hWnd);
-
-    if (ExtConfigs::MCP_Enable)
-	{
-		CMcpServer::Start(ExtConfigs::MCP_Port);
-        if (CMcpServer::IsRunning())
-        {
-            FString text;
-            text.Format("MCP Server running at http://127.0.0.1:%d", ExtConfigs::MCP_Port);
-            write_lua_console(text);
-        }
-	}
+    luaStateReady = true;
 }
 
 void CLuaConsole::SetupLuaHighlight(HWND& hWnd)
@@ -1356,8 +1376,8 @@ void CLuaConsole::Close(HWND& hWnd)
     EndDialog(hWnd, NULL);
     ShowWindow(hWnd, SW_HIDE);
 
-    CMcpServer::Stop();
-
+    // The MCP server lifecycle is decoupled from the console window:
+    // it keeps running even when the console is closed.
     CLuaConsole::m_hwnd = NULL;
     CLuaConsole::m_parent = NULL;
 }
@@ -1565,6 +1585,13 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
         newHeight = rect.bottom - rect.top;
         MoveWindow(hApply, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
 
+        GetWindowRect(hReset, &rect);
+        topLeft = { rect.left, rect.top };
+        ScreenToClient(hWnd, &topLeft);
+        newWidth = rect.right - rect.left;
+        newHeight = rect.bottom - rect.top;
+        MoveWindow(hReset, topLeft.x + newWndWidth - origWndWidth, topLeft.y, newWidth, newHeight, TRUE);
+
         GetWindowRect(hRunFile, &rect);
         topLeft = { rect.left, rect.top };
         ScreenToClient(hWnd, &topLeft);
@@ -1598,6 +1625,10 @@ BOOL CALLBACK CLuaConsole::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lP
             {
                 runFile = SendMessage(hRunFile, BM_GETCHECK, 0, 0);
             }
+            break;
+        case Controls::Reset:
+            InitializeLuaState();
+            write_lua_console("Lua state has been reset.");
             break;
         case Controls::SearchText:
             if (CODE == EN_CHANGE)
