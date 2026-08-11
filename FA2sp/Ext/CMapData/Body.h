@@ -4,6 +4,8 @@
 
 #include <unordered_map>
 #include <vector>
+#include <limits>
+#include <set>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../Miscs/Palettes.h"
 #include "../../Helpers/FString.h"
@@ -793,7 +795,10 @@ public:
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
     static LandType GetAltLandType(int tileIndex, int TileSubIndex);
     static LandType GetLandType(int tileIndex, int TileSubIndex);
-    void PlaceTileAt(int X, int Y, int index, int callType = -1);
+    void PlaceTileAt(int X, int Y, int index, int callType = -1,
+        int clipMinX = std::numeric_limits<int>::min(), int clipMinY = std::numeric_limits<int>::min(),
+        int clipMaxX = std::numeric_limits<int>::max(), int clipMaxY = std::numeric_limits<int>::max(),
+        const std::set<MapCoord>* clipCells = nullptr);
     void SetHeightAt(int X, int Y, int height);
     static void ReplaceRampWithFlat(int X, int Y);
 

@@ -1746,8 +1746,6 @@ namespace LuaFunctions
 		bool RedrawTerrain;
 		bool CliffHack;
 		char AltIndex;
-
-
 	};
 
 	class tile 
@@ -4938,7 +4936,7 @@ namespace LuaFunctions
 		c.House = pCell->BaseNode.House.GetString();
 		c.Overlay = pCellExt.NewOverlay;
 		c.OverlayData = pCell->OverlayData;
-		c.TileIndex = pCell->TileIndex;
+		c.TileIndex = pCell->TileIndex == 0xFFFF ? 0 : pCell->TileIndex;
 		c.TileIndexHiPart = pCell->TileIndexHiPart;
 		c.TileSubIndex = pCell->TileSubIndex;
 		c.Height = pCell->Height;

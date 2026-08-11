@@ -1184,10 +1184,21 @@ void CMapDataExt::ReplaceRampWithFlat(int X, int Y)
 	}
 }
 
-void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
+void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType,
+	int clipMinX, int clipMinY, int clipMaxX, int clipMaxY,
+	const std::set<MapCoord>* clipCells)
 {
 	if (!this->IsCoordInMap(X, Y))
 		return;
+
+	auto InClipRect = [&](int cx, int cy) -> bool
+	{
+		if (cx < clipMinX || cx > clipMaxX || cy < clipMinY || cy > clipMaxY)
+			return false;
+		if (clipCells && clipCells->find(MapCoord{ cx, cy }) == clipCells->end())
+			return false;
+		return true;
+	};
 
 	if (ExtConfigs::PlaceTileSkipHide && callType != 3) // 3 = cut
 	{
@@ -1215,11 +1226,13 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			{
 				for (int n = 0; n < width; n++)
 				{
-					if (!this->IsCoordInMap(m + X, n + Y))
-						continue;
-					if (tileData.TileBlockDatas[subIdx].ImageData != NULL)
+					int cx = m + X;
+					int cy = n + Y;
+					if (tileData.TileBlockDatas[subIdx].ImageData != NULL
+						&& this->IsCoordInMap(cx, cy)
+						&& InClipRect(cx, cy))
 					{
-						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(cx, cy)];
 						if (cellExt.AddRandomTile) return;
 					}
 					subIdx++;
@@ -1236,16 +1249,20 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 		{
 			for (int n = 0; n < width; n++)
 			{
-				if (tileData.TileBlockDatas[subIdx].ImageData != NULL && this->IsCoordInMap(m + X, n + Y))
+				int cx = m + X;
+				int cy = n + Y;
+				if (tileData.TileBlockDatas[subIdx].ImageData != NULL
+					&& this->IsCoordInMap(cx, cy)
+					&& InClipRect(cx, cy))
 				{
-					auto cell = this->GetCellAt(m + X, n + Y);
+					auto cell = this->GetCellAt(cx, cy);
 					cell->TileIndex = index;
 					cell->TileSubIndex = subIdx;
 					cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
-					SetHeightAt(m + X, n + Y, startHeight + tileData.TileBlockDatas[subIdx].Height);
-					CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+					SetHeightAt(cx, cy, startHeight + tileData.TileBlockDatas[subIdx].Height);
+					CMapData::Instance->UpdateMapPreviewAt(cx, cy);
 
-					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(cx, cy)];
 					switch (callType)
 					{
 					case 1: // random terrain
@@ -1283,12 +1300,14 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 			{
 				for (int n = 0; n < width; n++)
 				{
-					if (!this->IsCoordInMap(m + X, n + Y))
-						continue;
-					if (customTileData->TileBlockDatas[subIdx].HasTileBlock 
-						&& customTileData->TileBlockDatas[subIdx].GetTileBlock()->ImageData)
+					int cx = m + X;
+					int cy = n + Y;
+					if (customTileData->TileBlockDatas[subIdx].HasTileBlock
+						&& customTileData->TileBlockDatas[subIdx].GetTileBlock()->ImageData
+						&& this->IsCoordInMap(cx, cy)
+						&& InClipRect(cx, cy))
 					{
-						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+						auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(cx, cy)];
 						if (cellExt.AddRandomTile) return;
 					}
 					subIdx++;
@@ -1305,21 +1324,25 @@ void CMapDataExt::PlaceTileAt(int X, int Y, int index, int callType)
 		{
 			for (int n = 0; n < width; n++)
 			{
+				int cx = m + X;
+				int cy = n + Y;
 				auto& tile = customTileData->TileBlockDatas[subIdx];
-				if (tile.GetTileBlock() && tile.GetTileBlock()->ImageData && this->IsCoordInMap(m + X, n + Y))
+				if (tile.GetTileBlock() && tile.GetTileBlock()->ImageData
+					&& this->IsCoordInMap(cx, cy)
+					&& InClipRect(cx, cy))
 				{
 					auto tileData = CMapDataExt::TileData[tile.TileIndex];
 					auto tileSet = tileData.TileSet;
 					bool isBridge = (tileSet == CMapDataExt::BridgeSet || tileSet == CMapDataExt::WoodBridgeSet);
 
-					auto cell = this->GetCellAt(m + X, n + Y);
+					auto cell = this->GetCellAt(cx, cy);
 					cell->TileIndex = tile.TileIndex;
 					cell->TileSubIndex = tile.SubTileIndex;
 					cell->Flag.AltIndex = isBridge ? 0 : STDHelpers::RandomSelectInt(0, tileData.AltTypeCount + 1);
-					SetHeightAt(m + X, n + Y, startHeight + tile.GetHeight());
-					CMapData::Instance->UpdateMapPreviewAt(m + X, n + Y);
+					SetHeightAt(cx, cy, startHeight + tile.GetHeight());
+					CMapData::Instance->UpdateMapPreviewAt(cx, cy);
 
-					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(m + X, n + Y)];
+					auto& cellExt = CMapDataExt::CellDataExts[this->GetCoordIndex(cx, cy)];
 					switch (callType)
 					{
 					case 1: // random terrain

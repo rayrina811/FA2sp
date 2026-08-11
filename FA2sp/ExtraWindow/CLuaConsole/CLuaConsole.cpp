@@ -291,7 +291,7 @@ void CLuaConsole::Initialize(HWND& hWnd)
     );
     Lua.set_function("input_box", input_box);
     Lua.set_function("read_input", read_input);
-
+    
     // game objects
     Lua.set_function("place_terrain", place_terrain);
     Lua.set_function("remove_terrain", remove_terrain);

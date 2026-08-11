@@ -431,7 +431,8 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
                 }
             }
 
-            CMapDataExt::GetExtension()->PlaceTileAt(i, j, STDHelpers::RandomSelectInt(tileIndexes), 1);
+            const std::set<MapCoord>* clipCells = multiSelection ? &MultiSelection::SelectedCoords : nullptr;
+            CMapDataExt::GetExtension()->PlaceTileAt(i, j, STDHelpers::RandomSelectInt(tileIndexes), 1, TopX, TopY, BottomX, BottomY, clipCells);
         }
     }
     if (!CFinalSunApp::Instance->DisableAutoShore) {
