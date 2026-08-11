@@ -162,7 +162,7 @@ print("文件编码: " .. enc)
 - **说明**：启用/禁用 YOLO 模式。启用后，脚本运行期间将跳过所有确认弹窗，直接执行操作。
 - **参数**：
   - `enable` (`boolean`) — `true` 启用，`false` 禁用。
-- **返回**：无。
+- **返回** (`boolean`)：YOLO 模式是否已启用。
 - **备注**：
   - 启用 YOLO 模式时，会弹出一次独立的确认对话框，确认后才会生效。
   - YOLO 模式会跳过以下确认：
@@ -1512,18 +1512,17 @@ local trigger = trigger:new(new_id)
 - `update_unit()`
 - `update_aircraft()`
 - `update_building()`
-- `update_terrain()`
 - `update_waypoint()`
 - `update_node()`
 - `update_overlay()`
 - `update_tube()`
-- `update_smudge()`
 - `update_tiles()`
 - `update_trigger()`：刷新触发（会通知已打开的触发编辑器窗口）。
 
 **使用提示**：
 - 对于直接通过 `write_string` 修改的 INI 内容，调用对应的 `update_xxx()` 函数确保内存数据与 INI 同步，然后调用 `redraw_window()` 立即刷新视图。
 - 对于使用 lua 类的 `apply()` 函数进行的修改，不需要调用刷新函数。特别是 `cell` 类，如果使用 `update_tiles()` 会错误地覆盖修改。
+- 地形对象和污染的 INI 仅会在地图保存时修改，因此没有对应的刷新函数。
 
 ### 界面更新
 
@@ -1570,6 +1569,10 @@ end
 
 #### `save_undo_all()`
 - **说明**：记录覆盖物与地形、游戏对象（建筑、车辆、飞行器、步兵、地形对象、污染、基地节点、隧道、路径点、单元标记）、地图注释、测距工具、可视区域大小的撤销点。通常在进行大量地形与游戏对象修改前调用。每次使用生成一个新的撤销点。
+- **返回**：无。
+
+#### `do_undo()`
+- **说明**：执行一次撤销操作，回退到上一个撤销点（与编辑器的撤销快捷键效果一致）。
 - **返回**：无。
 
 ### 其他

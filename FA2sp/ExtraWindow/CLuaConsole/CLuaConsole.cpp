@@ -498,6 +498,7 @@ void CLuaConsole::InitializeLuaState()
     Lua.set_function("set_yolo_mode", [](bool enable) {
         if (enable && !CLuaConsole::yoloMode)
         {
+            ExtraWindow::DisableOtherWindows(CLuaConsole::GetHandle());          
             int result = MessageBox(CLuaConsole::GetHandle(),
                 Translations::TranslateOrDefault("LuaConsole.YoloModeConfirm",
                     "YOLO mode will skip all confirmation dialogs during script execution.\n"
@@ -506,10 +507,12 @@ void CLuaConsole::InitializeLuaState()
                     "Are you sure you want to enable YOLO mode?"),
                 Translations::TranslateOrDefault("LuaConsole.YoloModeTitle", "Enable YOLO Mode"),
                 MB_YESNO | MB_ICONWARNING);
+            ExtraWindow::RestoreDisabledWindows();
             if (result != IDYES)
-                return;
+                return CLuaConsole::yoloMode;
         }
         CLuaConsole::yoloMode = enable;
+		return CLuaConsole::yoloMode;
         });
     Lua.set_function("screenshot", screenshot);
     Lua.set_function("screenshot_temp", screenshot_temp);
@@ -844,6 +847,7 @@ void CLuaConsole::InitializeLuaState()
     Lua.set_function("save_undo_objects", save_undo_objects);
     Lua.set_function("save_redo", save_redo);
     Lua.set_function("save_undo_all", save_undo_all);
+    Lua.set_function("do_undo", do_undo);
     Lua.set_function("in_map", [](int y, int x) {return CMapData::Instance->IsCoordInMap(x, y); });
     Lua.set_function("in_view", is_coord_in_view);
     Lua.set_function("move_to", [](int yindex, sol::optional<int>x) {

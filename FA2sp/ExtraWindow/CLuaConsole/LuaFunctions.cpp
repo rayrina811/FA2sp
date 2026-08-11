@@ -5346,6 +5346,13 @@ namespace LuaFunctions
 			0x0FFFFFFF);
 	}
 
+	static void do_undo()
+	{
+		CMapData::Instance->DoUndo();
+		CLuaConsole::needRedraw = true;
+		CLuaConsole::updateMinimap = true;
+	}
+
 	static void save_redo()
 	{
 		// No longer needed since changed undo redo method
