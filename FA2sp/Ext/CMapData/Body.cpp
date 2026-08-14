@@ -1892,88 +1892,60 @@ void CMapDataExt::SmoothTileAt(int X, int Y, bool gameLAT)
 
 bool CMapDataExt::CreateSlopeAt(int x, int y, bool IgnoreMorphable, bool considerRamp)
 {
-	auto isDefinedMorphable = [](int tileIndex)
-	{
-		return CMapDataExt::TileData[tileIndex].Morphable;
-	};
-	
-	auto cell = CMapData::Instance->TryGetCellAt(x, y);
 	std::array<VertexHeight, 4> vertexHeights;
 	for (int i = 0; i < 4; ++i)
 	{
 		vertexHeights.at(i) = VertexHeight::GetCoordVertexHeight({x, y}, VertexType(i), IgnoreMorphable, considerRamp);
 	}
-	int type = VertexHeight::GetRampType(vertexHeights);
+	VertexHeight::ApplyRampToCell({x, y}, vertexHeights, IgnoreMorphable);
+	return true;
+}
 
-	int groundClick = GetSafeTileIndex(cell->TileIndex);
-	if (!IgnoreMorphable && !isDefinedMorphable(groundClick)) return true;
-
-	// default use clear
-	int startTile = RampBase > 0 ? CMapDataExt::TileSet_starts[RampBase] : 0;
-	int flatTile = CMapDataExt::TileSet_starts[0];
+int CMapDataExt::GetRampIndex(int tileIndex, int rampType)
+{
+	tileIndex = GetSafeTileIndex(tileIndex);
+	int originTileSet = TileData[tileIndex].TileSet;
 	for (auto& info : TheaterInfo::CurrentInfo)
-	{
-		if (groundClick == info.MorphableIndex || CMapDataExt::TileData[groundClick].TileSet == info.Ramp)
+	{			
+		int iSmoothSet = info.Morphable;
+		int iLatSet = info.Morphable;
+		for (const auto& latInfo : CMapDataExt::Tile_to_lat)
 		{
-			startTile = CMapDataExt::TileSet_starts[info.Ramp];
-			flatTile = info.MorphableIndex;
-			break;
-		}
-	}
-	// take LAT into consideration
-	for (const auto& latInfo : CMapDataExt::Tile_to_lat)
-	{
-		int iSmoothSet = latInfo.SmoothSet;
-		int iLatSet = latInfo.LatSet;
-
-		if (CMapDataExt::TileData[groundClick].TileSet == iLatSet)
-		{
-			for (auto& info : TheaterInfo::CurrentInfo)
+			if (iSmoothSet == latInfo.SmoothSet)
 			{
-				if (iSmoothSet == info.Morphable)
-				{
-					startTile = CMapDataExt::TileSet_starts[info.Ramp];
-					flatTile = info.MorphableIndex;
-					break;
-				}
+				iLatSet = latInfo.LatSet;
+				break;
 			}
-
+			else if (iLatSet == latInfo.LatSet)
+			{
+				iSmoothSet = latInfo.SmoothSet;
+				break;
+			}
+		}
+		if (rampType < 0)
+		{		
+			if (originTileSet == iSmoothSet || originTileSet == iLatSet)
+			{
+				return tileIndex;
+			}
+			else if (originTileSet == info.Ramp)
+			{
+				return CMapDataExt::TileSet_starts[iSmoothSet];
+			}
+		}
+		if (rampType >= 0)
+		{
+			if (originTileSet == iSmoothSet || originTileSet == iLatSet || originTileSet == info.Ramp)
+			{
+				return CMapDataExt::TileSet_starts[info.Ramp] + rampType;
+			}
 		}
 	}
-
-	auto isMorphable = [IgnoreMorphable, isDefinedMorphable](CellData* cell)
-		{
-			if (!cell) return 0;
-			if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
-				return 0;
-			if (IgnoreMorphable) return 1;
-			int groundClick = GetSafeTileIndex(cell->TileIndex);
-			return isDefinedMorphable(groundClick) ? 1 : 0;
-		};
-	auto getIndex = [startTile](int idx)
-		{
-			return startTile + idx;
-		};
-
-	int tileIndex;
-	if (type >= 0)
+	if (rampType < 0 || RampBase <= 0)
 	{
-		tileIndex = getIndex(type);
+		return 0;
 	}
-	else
-	{
-		tileIndex = flatTile;
-	}
-	if (tileIndex != flatTile || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
-	{
-		if (!ExtConfigs::PlaceTileSkipHide || !CMapDataExt::IsHiddenCell(cell))
-		{
-			cell->TileIndex = tileIndex;
-			cell->TileSubIndex = 0;
-			cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[tileIndex].AltTypeCount + 1);
-		}
-	}
-	return type != -2;
+	return CMapDataExt::TileSet_starts[RampBase] + rampType;
 }
 
 void CMapDataExt::UpdateFieldStructureData_Index(int iniIndex, ppmfc::CString value, bool refreshCenter)
@@ -3993,7 +3965,10 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 		int groundClick = CMapDataExt::GetSafeTileIndex(mapData.GetCellAt(X, Y)->TileIndex);
 		auto tiledataClick = CMapDataExt::TileData[groundClick];
 		bool IgnoreMorphable = (nFlags & MK_SHIFT) && (nFlags & MK_CONTROL);
-	
+
+		std::vector<int> slopeList;
+		std::vector<int> adjustedList;
+
 		for (auto& cell : CMapDataExt::CellDataExts)
 		{
 			cell.Adjusted = false;
@@ -4049,6 +4024,7 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 				{
 					if (CMapDataExt::CellDataExts[i].Adjusted)
 					{
+						adjustedList.push_back(i);
 						int thisX = mapData.GetXFromCoordIndex(i);
 						int thisY = mapData.GetYFromCoordIndex(i);
 						int loops[3] = { 0, -1, 1 };
@@ -4059,18 +4035,19 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 								int newY = thisY + e;
 								int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 								if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-								CMapDataExt::CellDataExts[pos].CreateSlope = true;
+								if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+								{
+									CMapDataExt::CellDataExts[pos].CreateSlope = true;
+									slopeList.push_back(pos);
+								}
 							}
 					}
 				}
-				for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+				for (int pos : slopeList)
 				{
-					if (CMapDataExt::CellDataExts[i].CreateSlope)
-					{
-						int thisX = mapData.GetXFromCoordIndex(i);
-						int thisY = mapData.GetYFromCoordIndex(i);
-						CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
-					}
+					int thisX = mapData.GetXFromCoordIndex(pos);
+					int thisY = mapData.GetYFromCoordIndex(pos);
+					CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
 				}
 			}
 	
@@ -4101,6 +4078,7 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 			{
 				if (CMapDataExt::CellDataExts[i].Adjusted)
 				{
+					adjustedList.push_back(i);
 					int thisX = mapData.GetXFromCoordIndex(i);
 					int thisY = mapData.GetYFromCoordIndex(i);
 					int loops[3] = { 0, -1, 1 };
@@ -4111,32 +4089,36 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 							int newY = thisY + e;
 							int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 							if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+							{
+								CMapDataExt::CellDataExts[pos].CreateSlope = true;
+								slopeList.push_back(pos);
+							}
 						}
 				}
 			}
-			for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+			for (int pos : slopeList)
 			{
-				if (CMapDataExt::CellDataExts[i].CreateSlope)
-				{
-					int thisX = mapData.GetXFromCoordIndex(i);
-					int thisY = mapData.GetYFromCoordIndex(i);
-					CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
-				}
+				int thisX = mapData.GetXFromCoordIndex(pos);
+				int thisY = mapData.GetYFromCoordIndex(pos);
+				CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
 			}
 		}
 		else
 		{
 			CMapDataExt::GetExtension()->SetHeightAt(X, Y, cellClick->Height + 1);
 		}
-		for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-			{
-				int thisX = mapData.GetXFromCoordIndex(i);
-				int thisY = mapData.GetYFromCoordIndex(i);
-				CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-			}
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+		for (int pos : adjustedList)
+		{
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
 		}
 	}
 	else
@@ -4149,6 +4131,9 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 		auto tiledataClick = CMapDataExt::TileData[groundClick];
 	
 		bool IgnoreMorphable = (nFlags & MK_SHIFT) && (nFlags & MK_CONTROL);
+
+		std::vector<int> slopeList;
+		std::vector<int> adjustedList;
 
 		for (auto& cell : CMapDataExt::CellDataExts)
 		{
@@ -4207,6 +4192,7 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 	
 					// for lower, we need one more square
 					// but ignore non-norphable tiles
+					std::vector<int> extraSlopeList;
 					for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++)
 					{
 						if (CMapDataExt::CellDataExts[i].Adjusted)
@@ -4227,33 +4213,35 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 									auto tiledataCheckNonMorphable = CMapDataExt::TileData[groundCheckNonMorphable];
 									if (!tiledataCheckNonMorphable.Morphable) continue;
 									if (cellCheckNonMorphable->Height <= heightClick - 1) continue;
-	
-									CMapDataExt::CellDataExts[pos].CreateSlope = true;
+
+									if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+									{
+										CMapDataExt::CellDataExts[pos].CreateSlope = true;
+										extraSlopeList.push_back(pos);
+									}
 								}
 						}
 					}
-					for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++)
+					for (int pos : extraSlopeList)
 					{
-						if (CMapDataExt::CellDataExts[i].CreateSlope)
-						{
-							CMapDataExt::CellDataExts[i].CreateSlope = false;
-							if (CMapDataExt::CellDataExts[i].Adjusted) continue;
-	
-							CMapDataExt::CellDataExts[i].Adjusted = true;
-							int thisX = mapData.GetXFromCoordIndex(i);
-							int thisY = mapData.GetYFromCoordIndex(i);
-							CMapDataExt::GetExtension()->SetHeightAt(thisX, thisY, heightClick - 1);
-						}
+						CMapDataExt::CellDataExts[pos].CreateSlope = false;
+						if (CMapDataExt::CellDataExts[pos].Adjusted) continue;
+
+						CMapDataExt::CellDataExts[pos].Adjusted = true;
+						int thisX = mapData.GetXFromCoordIndex(pos);
+						int thisY = mapData.GetYFromCoordIndex(pos);
+						CMapDataExt::GetExtension()->SetHeightAt(thisX, thisY, heightClick - 1);
 					}
 					CMapDataExt::CheckCellLow(false, 0, false);
 				}
 				else
 					CMapDataExt::SetHeightForSameTileIndex(X, Y, heightClick - 1 - heightOffset, groundClick);
-	
+
 				for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
 				{
 					if (CMapDataExt::CellDataExts[i].Adjusted)
 					{
+						adjustedList.push_back(i);
 						int thisX = mapData.GetXFromCoordIndex(i);
 						int thisY = mapData.GetYFromCoordIndex(i);
 						int loops[3] = { 0, -1, 1 };
@@ -4264,18 +4252,19 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 								int newY = thisY + e;
 								int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 								if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-								CMapDataExt::CellDataExts[pos].CreateSlope = true;
+								if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+								{
+									CMapDataExt::CellDataExts[pos].CreateSlope = true;
+									slopeList.push_back(pos);
+								}
 							}
 					}
 				}
-				for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+				for (int pos : slopeList)
 				{
-					if (CMapDataExt::CellDataExts[i].CreateSlope)
-					{
-						int thisX = mapData.GetXFromCoordIndex(i);
-						int thisY = mapData.GetYFromCoordIndex(i);
-						CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
-					}
+					int thisX = mapData.GetXFromCoordIndex(pos);
+					int thisY = mapData.GetYFromCoordIndex(pos);
+					CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
 				}		
 			}
 		}
@@ -4305,6 +4294,7 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 			{
 				if (CMapDataExt::CellDataExts[i].Adjusted)
 				{
+					adjustedList.push_back(i);
 					int thisX = mapData.GetXFromCoordIndex(i);
 					int thisY = mapData.GetYFromCoordIndex(i);
 					int loops[3] = { 0, -1, 1 };
@@ -4315,33 +4305,37 @@ void CMapDataExt::RaiseGrounds(int X, int Y, bool raise, UINT nFlags)
 							int newY = thisY + e;
 							int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 							if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+							{
+								CMapDataExt::CellDataExts[pos].CreateSlope = true;
+								slopeList.push_back(pos);
+							}
 						}
 				}
 			}
-			for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+			for (int pos : slopeList)
 			{
-				if (CMapDataExt::CellDataExts[i].CreateSlope)
-				{
-					int thisX = mapData.GetXFromCoordIndex(i);
-					int thisY = mapData.GetYFromCoordIndex(i);
-					CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
-				}
+				int thisX = mapData.GetXFromCoordIndex(pos);
+				int thisY = mapData.GetYFromCoordIndex(pos);
+				CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable);
 			}
 		}
 		else
 		{
 			CMapDataExt::GetExtension()->SetHeightAt(X, Y, cellClick->Height - 1);
 		}
-		for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-			{
-				int thisX = mapData.GetXFromCoordIndex(i);
-				int thisY = mapData.GetYFromCoordIndex(i);
-				CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-			}
-		}	
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+		for (int pos : adjustedList)
+		{
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
 	}
 }
 
@@ -6207,15 +6201,6 @@ std::set<VertexHeight> VertexHeight::GetVerticesFromCells(const std::set<MapCoor
 void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 	 std::set<MapCoord>* restrictedCoords, bool ignoreBoundary, bool IgnoreMorphable)
 {	
-	auto isMorphable = [IgnoreMorphable](CellData* cell)
-	{
-		if (!cell) return 0;
-		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
-			return 0;
-		if (IgnoreMorphable) return 1;
-		int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
-		return CMapDataExt::TileData[groundClick].Morphable ? 1 : 0;
-	};
 	const std::set<VertexHeight>* points;
 	std::set<VertexHeight> inners;
 	if (ignoreBoundary)
@@ -6294,67 +6279,40 @@ void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 				cellVertexHeights.at(i) = VertexHeight{ ret.X, ret.Y, cell->Height };
 			}
 		}
-		int type = VertexHeight::GetRampType(cellVertexHeights);
-		int basicHeight = VertexHeight::GetBasicHeight(cellVertexHeights);
-		if (isMorphable(cell))
+		ApplyRampToCell(coord, cellVertexHeights, IgnoreMorphable);
+	}
+}
+
+void VertexHeight::ApplyRampToCell(const MapCoord& coord, const std::array<VertexHeight, 4>& cellVertexHeights, bool IgnoreMorphable)
+{
+	auto cell = CMapDataExt::TryGetCellAt(coord.X, coord.Y);
+
+	if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
+		return;
+	int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+	int type = VertexHeight::GetRampType(cellVertexHeights);
+	int basicHeight = VertexHeight::GetBasicHeight(cellVertexHeights);
+	auto isMorphable = [IgnoreMorphable](CellData* cell)
+	{
+		if (!cell) return 0;
+		if (ExtConfigs::PlaceTileSkipHide && CMapDataExt::IsHiddenCell(cell))
+			return 0;
+		if (IgnoreMorphable) return 1;
+		int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
+		return CMapDataExt::TileData[groundClick].Morphable ? 1 : 0;
+	};
+	if (isMorphable(cell))
+	{
+		int tileIndex = CMapDataExt::GetRampIndex(groundClick, type);
+		if (type >= 0 || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
 		{
-			// default use clear
-			int startTile = CMapDataExt::TileSet_starts[CINI::CurrentTheater->GetInteger("General", "RampBase", 9)];
-			int flatTile = CMapDataExt::TileSet_starts[0];
-			for (auto& info : TheaterInfo::CurrentInfo)
-			{
-				if (groundClick == info.MorphableIndex || CMapDataExt::TileData[groundClick].TileSet == info.Ramp)
-				{
-					startTile = CMapDataExt::TileSet_starts[info.Ramp];
-					flatTile = info.MorphableIndex;
-					break;
-				}
-			}
-			// take LAT into consideration
-			for (const auto& latInfo : CMapDataExt::Tile_to_lat)
-			{
-				int iSmoothSet = latInfo.SmoothSet;
-				int iLatSet = latInfo.LatSet;
-		
-				if (CMapDataExt::TileData[groundClick].TileSet == iLatSet)
-				{
-					for (auto& info : TheaterInfo::CurrentInfo)
-					{
-						if (iSmoothSet == info.Morphable)
-						{
-							startTile = CMapDataExt::TileSet_starts[info.Ramp];
-							flatTile = info.MorphableIndex;
-							break;
-						}
-					}
-		
-				}
-			}
-		
-			auto getIndex = [startTile](int idx)
-				{
-					return startTile + idx;
-				};
-		
-			int tileIndex;
-			if (type >= 0)
-			{
-				tileIndex = getIndex(type);
-			}
-			else
-			{
-				tileIndex = flatTile;
-			}
-			if (tileIndex != flatTile || CMapDataExt::TileData[groundClick].TileBlockDatas[cell->TileSubIndex].RampType != 0)
-			{
-				cell->TileIndex = tileIndex;
-				cell->TileSubIndex = 0;
-				cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[tileIndex].AltTypeCount + 1);
-				cell->Height = basicHeight;
-			}
-			else {			
-				cell->Height = basicHeight;
-			}
+			cell->TileIndex = tileIndex;
+			cell->TileSubIndex = 0;
+			cell->Flag.AltIndex = STDHelpers::RandomSelectInt(0, CMapDataExt::TileData[tileIndex].AltTypeCount + 1);
+			cell->Height = basicHeight;
+		}
+		else {			
+			cell->Height = basicHeight;
 		}
 	}
 }

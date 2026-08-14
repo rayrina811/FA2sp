@@ -92,6 +92,7 @@ struct VertexHeight
 	static int GetRampType(const std::array<VertexHeight, 4>& vertexHeights, bool strict = false);
     static void ApplyRamps(const std::set<VertexHeight>& vertexHeights, 
         std::set<MapCoord>* restrictedCoords = nullptr, bool ignoreBoundary = false, bool IgnoreMorphable = false);
+    static void ApplyRampToCell(const MapCoord& coord, const std::array<VertexHeight, 4>& cellVertexHeights, bool IgnoreMorphable);
 	static std::set<MapCoord> GetCellsFromVertices(const std::set<VertexHeight>& points);
 	static std::set<VertexHeight> GetVerticesFromCells(const std::set<MapCoord>& coords);
 };
@@ -837,6 +838,7 @@ public:
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static bool CreateSlopeAt(int x, int y, bool IgnoreMorphable = false, bool considerRamp = false);
+    static int GetRampIndex(int tileIndex, int rampType);
     static void SmoothWater();
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);
