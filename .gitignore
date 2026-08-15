@@ -3,6 +3,8 @@
 VC5
 MFC42
 .vs
+*
+!.gitignore
 *.rc_bak
 *.swp_bak
 *.swp

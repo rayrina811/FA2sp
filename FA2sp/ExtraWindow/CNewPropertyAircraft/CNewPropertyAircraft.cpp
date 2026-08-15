@@ -48,6 +48,11 @@ BOOL CALLBACK CNewPropertyAircraft::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, 
         WORD id = LOWORD(wParam);
         WORD code = HIWORD(wParam);
 
+        if (id == 1080 && code == EN_CHANGE)
+        {
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
         if (id == IDOK && code == BN_CLICKED)
         {
             pThis->OnOK(hWnd);
@@ -107,15 +112,22 @@ BOOL CNewPropertyAircraft::OnInitDialog(HWND hDlg)
     HWND hLongDesc = GetDlgItem(hDlg, 1233);
     if (hLongDesc) ShowWindow(hLongDesc, SW_HIDE);
 
-    // Strength trackbar (1080)
+    // Strength input (1080)
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        SendMessage(hStrength, TBM_SETRANGE, TRUE, MAKELONG(0, 256));
-        int pos = 256;
-        if (!CString_HealthPoint.IsEmpty())
-            pos = atoi(CString_HealthPoint);
-        SendMessage(hStrength, TBM_SETPOS, TRUE, pos);
+        m_totalHealth = CString_ObjectID.IsEmpty()
+            ? 256
+            : Variables::RulesMap.GetInteger(CString_ObjectID, "Strength", 256);
+        if (m_totalHealth <= 0)
+            m_totalHealth = 256;
+        int currentHealth = CString_HealthPoint.IsEmpty()
+            ? m_totalHealth
+            : (atoi(CString_HealthPoint) * m_totalHealth + 128) / 256;
+        char healthBuffer[32] = {};
+        sprintf_s(healthBuffer, "%d", currentHealth);
+        SetWindowTextA(hStrength, healthBuffer);
+        UpdateHealthDisplay(hDlg);
     }
 
     // Direction combo (1088) - VirtualComboBoxEx
@@ -124,14 +136,23 @@ BOOL CNewPropertyAircraft::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hDirection, nullptr, true);
-        const char* directions[] = { "0","32","64","96","128","160","192","224" };
+        const char* directions[] = {
+            "\xD3\xD2\xC9\xCF(0)", "\xD3\xD2(32)", "\xD3\xD2\xCF\xC2(64)", "\xCF\xC2(96)",
+            "\xD7\xF3\xCF\xC2(128)", "\xD7\xF3(160)", "\xD7\xF3\xC9\xCF(192)", "\xC9\xCF(224)"
+        };
         for (int i = 0; i < 8; ++i)
             vcb->AddString(directions[i]);
         if (!CString_Direction.IsEmpty())
         {
-            int index = vcb->FindStringExact(CString_Direction);
-            if (index != CB_ERR) vcb->SetCurSel(index);
-            else vcb->SetEditText(CString_Direction);
+            int direction = atoi(CString_Direction);
+            if (direction >= 0 && direction <= 224 && direction % 32 == 0)
+                vcb->SetCurSel(direction / 32);
+            else
+            {
+                int index = vcb->FindStringExact(CString_Direction);
+                if (index != CB_ERR) vcb->SetCurSel(index);
+                else vcb->SetEditText(CString_Direction);
+            }
         }
         m_comboBoxes[hDirection] = std::move(vcb);
     }
@@ -290,14 +311,20 @@ void CNewPropertyAircraft::OnCancel(HWND hDlg)
 
 void CNewPropertyAircraft::CollectResults(HWND hDlg)
 {
-    char buffer[256];
+    char buffer[256] = {};
 
     // Strength
     HWND hStrength = GetDlgItem(hDlg, 1080);
     if (hStrength)
     {
-        int pos = static_cast<int>(SendMessage(hStrength, TBM_GETPOS, 0, 0));
-        sprintf(buffer, "%d", pos);
+        GetWindowTextA(hStrength, buffer, sizeof(buffer));
+        int health = atoi(buffer);
+        health = health < 0 ? 0 : (health > m_totalHealth ? m_totalHealth : health);
+        if (!CString_ObjectID.IsEmpty())
+            health = (health * 256 + m_totalHealth / 2) / m_totalHealth;
+        else
+            health = health > 256 ? 256 : health;
+        sprintf_s(buffer, "%d", health);
         CString_HealthPoint = buffer;
     }
 
@@ -305,7 +332,11 @@ void CNewPropertyAircraft::CollectResults(HWND hDlg)
     HWND hDirection = GetDlgItem(hDlg, 1088);
     if (hDirection && m_comboBoxes[hDirection])
     {
-        CString_Direction = m_comboBoxes[hDirection]->GetSelectedText(true);
+        int direction = m_comboBoxes[hDirection]->GetCurSel();
+        if (direction >= 0 && direction < 8)
+            CString_Direction.Format("%d", direction * 32);
+        else
+            CString_Direction = m_comboBoxes[hDirection]->GetSelectedText(true);
     }
 
     // House
@@ -364,6 +395,18 @@ void CNewPropertyAircraft::CollectResults(HWND hDlg)
         GetWindowTextA(hVeteran, buffer, sizeof(buffer));
         CString_VeteranLevel = buffer;
     }
+}
+
+void CNewPropertyAircraft::UpdateHealthDisplay(HWND hDlg)
+{
+    char buffer[32] = {};
+    GetWindowTextA(GetDlgItem(hDlg, 1080), buffer, sizeof(buffer));
+    int currentHealth = atoi(buffer);
+    currentHealth = currentHealth < 0 ? 0 : (currentHealth > m_totalHealth ? m_totalHealth : currentHealth);
+    int percentage = m_totalHealth > 0 ? (currentHealth * 100 + m_totalHealth / 2) / m_totalHealth : 0;
+    FString display;
+    display.Format("%d/%d (%d%%)", currentHealth, m_totalHealth, percentage);
+    SetWindowTextA(GetDlgItem(hDlg, 1314), display);
 }
 
 void CNewPropertyAircraft::TranslateLabels(HWND hDlg)

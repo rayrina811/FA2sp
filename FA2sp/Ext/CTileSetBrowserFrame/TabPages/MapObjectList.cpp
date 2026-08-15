@@ -146,7 +146,7 @@ void MapObjectList::CreateControls()
     }
 
     const char* headers[] = {
-        "Index", "Type", "Name (ID)", "Coordinate", "House", "Health",
+        "Index", "Type", "Name (ID)", "Coordinate", "House", "Health (%)",
         "Facing", "Status", "Tag"
     };
     const int widths[] = { 
@@ -367,10 +367,19 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
         text = row.House;
         break;
     case Column::Health:
-        text.Format("%d",  atoi(row.Health));
+        text.Format("%d%%", (atoi(row.Health) * 100 + 128) / 256);
         break;
     case Column::Facing:
-        text.Format("%d", row.Facing);
+        if (row.Facing >= 0 && row.Facing <= 224 && row.Facing % 32 == 0)
+        {
+            const char* directions[] = {
+                "\xD3\xD2\xC9\xCF(0)", "\xD3\xD2(32)", "\xD3\xD2\xCF\xC2(64)", "\xCF\xC2(96)",
+                "\xD7\xF3\xCF\xC2(128)", "\xD7\xF3(160)", "\xD7\xF3\xC9\xCF(192)", "\xC9\xCF(224)"
+            };
+            text = directions[row.Facing / 32];
+        }
+        else
+            text.Format("%d", row.Facing);
         break;
     case Column::Status:
         text = row.Status;
