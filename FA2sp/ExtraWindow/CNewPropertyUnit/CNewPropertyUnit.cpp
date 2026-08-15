@@ -73,6 +73,39 @@ BOOL CALLBACK CNewPropertyUnit::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPAR
 
         return FALSE;
     }
+    case WM_HSCROLL:
+    {
+        CNewPropertyUnit* pThis = reinterpret_cast<CNewPropertyUnit*>(GetWindowLongPtr(hWnd, DWLP_USER));
+        HWND hTrack = GetDlgItem(hWnd, 1315);
+        if (pThis && reinterpret_cast<HWND>(lParam) == hTrack)
+        {
+            char buffer[32] = {};
+            sprintf_s(buffer, "%d", static_cast<int>(SendMessage(hTrack, TBM_GETPOS, 0, 0)));
+            SetWindowTextA(GetDlgItem(hWnd, 1080), buffer);
+            pThis->UpdateHealthDisplay(hWnd);
+            return TRUE;
+        }
+        break;
+    }
+    case WM_DRAWITEM:
+    {
+        auto* dis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+        if (dis && dis->CtlID == 1316)
+        {
+            auto* pThis = reinterpret_cast<CNewPropertyUnit*>(GetWindowLongPtr(hWnd, DWLP_USER));
+            int health = static_cast<int>(SendMessage(GetDlgItem(hWnd, 1315), TBM_GETPOS, 0, 0));
+            int percentage = pThis && pThis->m_totalHealth > 0
+                ? (health * 100 + pThis->m_totalHealth / 2) / pThis->m_totalHealth : 0;
+            COLORREF color = percentage >= 60 ? RGB(0, 192, 0)
+                : percentage >= 30 ? RGB(220, 180, 0) : RGB(220, 0, 0);
+            HBRUSH brush = CreateSolidBrush(color);
+            FillRect(dis->hDC, &dis->rcItem, brush);
+            DeleteObject(brush);
+            FrameRect(dis->hDC, &dis->rcItem, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+            return TRUE;
+        }
+        break;
+    }
     case WM_MEASUREITEM:
     {
         VirtualComboBoxEx::SetWindowHeight(hWnd, lParam);
@@ -129,6 +162,12 @@ BOOL CNewPropertyUnit::OnInitDialog(HWND hDlg)
         char healthBuffer[32] = {};
         sprintf_s(healthBuffer, "%d", currentHealth);
         SetWindowTextA(hStrength, healthBuffer);
+        HWND hTrack = GetDlgItem(hDlg, 1315);
+        if (hTrack)
+        {
+            SendMessage(hTrack, TBM_SETRANGE, TRUE, MAKELONG(0, m_totalHealth));
+            SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
+        }
         UpdateHealthDisplay(hDlg);
     }
 
@@ -138,12 +177,21 @@ BOOL CNewPropertyUnit::OnInitDialog(HWND hDlg)
     {
         auto vcb = std::make_unique<VirtualComboBoxEx>();
         vcb->Attach(hDirection, nullptr, true);
-        const char* directions[] = {
-            "\xD3\xD2\xC9\xCF(0)", "\xD3\xD2(32)", "\xD3\xD2\xCF\xC2(64)", "\xCF\xC2(96)",
-            "\xD7\xF3\xCF\xC2(128)", "\xD7\xF3(160)", "\xD7\xF3\xC9\xCF(192)", "\xC9\xCF(224)"
+        const char* directionKeys[] = {
+            "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+            "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
+        };
+        const char* directionDefaults[] = {
+            "North-East", "East", "South-East", "South",
+            "South-West", "West", "North-West", "North"
         };
         for (int i = 0; i < 8; ++i)
-            vcb->AddString(directions[i]);
+        {
+            FString direction;
+            direction.Format("%s (%d)",
+                Translations::TranslateOrDefault(directionKeys[i], directionDefaults[i]), i * 32);
+            vcb->AddString(direction);
+        }
         if (!CString_Direction.IsEmpty())
         {
             int direction = atoi(CString_Direction);
@@ -378,9 +426,13 @@ void CNewPropertyUnit::UpdateHealthDisplay(HWND hDlg)
     int currentHealth = atoi(buffer);
     currentHealth = currentHealth < 0 ? 0 : (currentHealth > m_totalHealth ? m_totalHealth : currentHealth);
     int percentage = m_totalHealth > 0 ? (currentHealth * 100 + m_totalHealth / 2) / m_totalHealth : 0;
+    HWND hTrack = GetDlgItem(hDlg, 1315);
+    if (hTrack)
+        SendMessage(hTrack, TBM_SETPOS, TRUE, currentHealth);
     FString display;
     display.Format("%d/%d (%d%%)", currentHealth, m_totalHealth, percentage);
     SetWindowTextA(GetDlgItem(hDlg, 1314), display);
+    InvalidateRect(GetDlgItem(hDlg, 1316), nullptr, TRUE);
 }
 
 void CNewPropertyUnit::TranslateLabels(HWND hDlg)

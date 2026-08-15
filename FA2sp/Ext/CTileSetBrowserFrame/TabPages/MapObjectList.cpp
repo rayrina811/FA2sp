@@ -372,11 +372,17 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
     case Column::Facing:
         if (row.Facing >= 0 && row.Facing <= 224 && row.Facing % 32 == 0)
         {
-            const char* directions[] = {
-                "\xD3\xD2\xC9\xCF(0)", "\xD3\xD2(32)", "\xD3\xD2\xCF\xC2(64)", "\xCF\xC2(96)",
-                "\xD7\xF3\xCF\xC2(128)", "\xD7\xF3(160)", "\xD7\xF3\xC9\xCF(192)", "\xC9\xCF(224)"
+            const char* directionKeys[] = {
+                "Direction.NorthEast", "Direction.East", "Direction.SouthEast", "Direction.South",
+                "Direction.SouthWest", "Direction.West", "Direction.NorthWest", "Direction.North"
             };
-            text = directions[row.Facing / 32];
+            const char* directionDefaults[] = {
+                "North-East", "East", "South-East", "South",
+                "South-West", "West", "North-West", "North"
+            };
+            text.Format("%s (%d)",
+                Translations::TranslateOrDefault(directionKeys[row.Facing / 32],
+                    directionDefaults[row.Facing / 32]), row.Facing);
         }
         else
             text.Format("%d", row.Facing);
