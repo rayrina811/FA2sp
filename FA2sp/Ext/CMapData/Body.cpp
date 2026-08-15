@@ -3569,7 +3569,15 @@ void CMapDataExt::InitializeTileDataInfo()
 				imageName.Format("TileAnim%s\233%d%d", anim.AnimName, index, CLoadingExt::GetITheaterIndex());
 				FString sectionName;
 				sectionName.Format("TileSet%04d", index);
-				auto customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
+				FString customPal;
+				if (!CINI::Art->GetBool(anim.AnimName, "TheaterPalette", true))
+				{
+					customPal = CINI::Art->GetString(anim.AnimName, "CustomPalette", "anim.pal");
+				}
+				if (customPal.IsEmpty())
+				{
+					customPal = CINI::CurrentTheater->GetString(sectionName, "CustomPalette", "iso");
+				}
 				if (customPal == "iso")
 					CLoadingExt::LoadShp(imageName, anim.AnimName + CLoadingExt::GetExtension()->GetFileExtension(), &Palette_ISO_NoTint, 0);
 				else
