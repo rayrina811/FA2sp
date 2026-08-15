@@ -1544,9 +1544,10 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 				{
 					if (MyViewFrame.pViewObjects)
 					{
-						HWND hViewObjs = MyViewFrame.pViewObjects->GetSafeHwnd();
-						if (hViewObjs)
-							::ShowWindow(hViewObjs, isChecked ? SW_SHOW : SW_HIDE);
+
+						HWND hFrame = ::GetParent(MyViewFrame.pViewObjects->GetSafeHwnd());
+						if (hFrame)
+							::ShowWindow(hFrame, isChecked ? SW_SHOW : SW_HIDE);
 					}
 				}
 				else if (MyViewFrame.SplitterWnd.m_hWnd)

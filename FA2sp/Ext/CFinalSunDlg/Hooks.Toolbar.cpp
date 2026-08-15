@@ -672,6 +672,8 @@ DEFINE_HOOK(424132, CFinalSunDlg_OnInitDialog_InsertToolBar, 7)
             HWND hWnd = frame.pViewObjects->GetSafeHwnd();
             if (hWnd)
             {
+                // The floating window is the container hosting the tree view.
+                hWnd = ::GetParent(hWnd);
                 int w = (rcMain.right - rcMain.left) * 1 / 6;
                 int h = (rcMain.bottom - rcMain.top) * 3 / 4;
                 int x = rcMain.left;
