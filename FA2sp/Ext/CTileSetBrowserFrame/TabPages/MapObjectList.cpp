@@ -155,8 +155,8 @@ void MapObjectList::CreateControls()
         static_cast<int>(150 * s), 
         static_cast<int>(100 * s), 
         static_cast<int>(130 * s), 
-        static_cast<int>(60 * s),
-        static_cast<int>(60 * s),
+        static_cast<int>(70 * s),
+        static_cast<int>(65 * s),
         static_cast<int>(70 * s),
         static_cast<int>(240 * s)
     };
@@ -367,7 +367,7 @@ FString MapObjectList::GetCellText(const Row& row, Column column) const
         text = row.House;
         break;
     case Column::Health:
-        text.Format("%d%%", (atoi(row.Health) * 100 + 128) / 256);
+        text.Format("%d (%d%%)", atoi(row.Health), (atoi(row.Health) * 100 + 128) / 256);
         break;
     case Column::Facing:
         if (row.Facing >= 0 && row.Facing <= 224 && row.Facing % 32 == 0)
