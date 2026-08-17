@@ -77,6 +77,9 @@ public:
     static void OnDropdownTaskForce();
     static void OnDropdownScript();
     static void OnDropdownTag();
+    static void RebuildTaskforceList();
+    static void RebuildScriptList();
+    static void RebuildTagList();
 
 protected:
     static void Initialize(HWND& hWnd);

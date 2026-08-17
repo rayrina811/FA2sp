@@ -26,6 +26,22 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
 {
     if (!CMapData::Instance->MapWidthPlusHeight) return 0;
     REF_STACK(LPMSG, lpMsg, 0x8);
+
+    // When the app window returns to the foreground after being minimized or
+    // fully occluded, the swap chain back buffer contents are lost and a WM_PAINT
+    // is not always delivered. Force a full redraw so the restored view isn't
+    // left black until the user triggers one manually.
+    if (lpMsg->message == WM_ACTIVATE && (lpMsg->wParam == WA_ACTIVE || lpMsg->wParam == WA_CLICKACTIVE))
+    {
+        if (ExtConfigs::DirectXRendering && CIsoViewExt::g_pDX)
+        {
+            auto pIsoView = CIsoViewExt::GetExtension();
+            if (pIsoView)
+                pIsoView->RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+        return 0;
+    }
+
     if (lpMsg->message != WM_KEYDOWN) return 0;
 
     POINT pt;
@@ -93,7 +109,7 @@ DEFINE_HOOK(4229E0, CFinalSunApp_ProcessMessageFilter, 7)
                 CIsoView::GetInstance()->OnMouseMove(0, pt);
             }       
         }
-        else
+        else if (CIsoView::CurrentCommand->Command != 10)
         {		
             switch (lpMsg->wParam)
             {

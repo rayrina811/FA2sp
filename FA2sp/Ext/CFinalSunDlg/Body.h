@@ -323,6 +323,9 @@ private:
     int PropagateFirstNonZeroIcon(HTREEITEM hItem);
     void UpdateTreeIconsForSubtree(HTREEITEM hItem);
 
+    void SnapshotTreeState();
+    void RebuildTreeFromState();
+
 public:
     enum ObjectTerrainType
     {
@@ -432,6 +435,9 @@ public:
     static MoveBaseNode MoveBaseNode_SelectedObj;
     static bool NeedChangeTreeViewSelect;
     static bool Initialized;
+
+    static FString SearchText;
+    void ApplySearchFilter();
 
     static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlg;

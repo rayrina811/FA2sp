@@ -4,6 +4,8 @@
 
 #include <unordered_map>
 #include <vector>
+#include <limits>
+#include <set>
 #include "../../ExtraWindow/CNewTrigger/CNewTrigger.h"
 #include "../../Miscs/Palettes.h"
 #include "../../Helpers/FString.h"
@@ -90,6 +92,7 @@ struct VertexHeight
 	static int GetRampType(const std::array<VertexHeight, 4>& vertexHeights, bool strict = false);
     static void ApplyRamps(const std::set<VertexHeight>& vertexHeights, 
         std::set<MapCoord>* restrictedCoords = nullptr, bool ignoreBoundary = false, bool IgnoreMorphable = false);
+    static void ApplyRampToCell(const MapCoord& coord, const std::array<VertexHeight, 4>& cellVertexHeights, bool IgnoreMorphable);
 	static std::set<MapCoord> GetCellsFromVertices(const std::set<VertexHeight>& points);
 	static std::set<VertexHeight> GetVerticesFromCells(const std::set<MapCoord>& coords);
 };
@@ -793,7 +796,10 @@ public:
     std::vector<MapCoord> GetIntactTileCoords(int x, int y, bool oriIntact);
     static LandType GetAltLandType(int tileIndex, int TileSubIndex);
     static LandType GetLandType(int tileIndex, int TileSubIndex);
-    void PlaceTileAt(int X, int Y, int index, int callType = -1);
+    void PlaceTileAt(int X, int Y, int index, int callType = -1,
+        int clipMinX = std::numeric_limits<int>::min(), int clipMinY = std::numeric_limits<int>::min(),
+        int clipMaxX = std::numeric_limits<int>::max(), int clipMaxY = std::numeric_limits<int>::max(),
+        const std::set<MapCoord>* clipCells = nullptr);
     void SetHeightAt(int X, int Y, int height);
     static void ReplaceRampWithFlat(int X, int Y);
 
@@ -832,6 +838,7 @@ public:
     static void SmoothAll();
     static void SmoothTileAt(int X, int Y, bool gameLAT = false);
     static bool CreateSlopeAt(int x, int y, bool IgnoreMorphable = false, bool considerRamp = false);
+    static int GetRampIndex(int tileIndex, int rampType);
     static void SmoothWater();
     static BuildingPowers GetStructurePower(CBuildingData object);
     static BuildingPowers GetStructurePower(ppmfc::CString value);

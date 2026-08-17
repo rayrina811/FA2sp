@@ -235,8 +235,11 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 
     vcbSelectedTeam.Attach(hSelectedTeam, &ExtConfigs::SortByLabelName_Team, false);
     vcbTaskForce.Attach(hTaskforce);
+    vcbTaskForce.SetPreFilterCallback([]() { RebuildTaskforceList(); });
     vcbScript.Attach(hScript);
+    vcbScript.SetPreFilterCallback([]() { RebuildScriptList(); });
     vcbTag.Attach(hTag);
+    vcbTag.SetPreFilterCallback([]() { RebuildTagList(); });
     vcbHouse.Attach(hHouse);
     vcbWaypoint.Attach(hWaypoint);
     vcbWaypoint.SetAutoSearchRestriction(&ExtConfigs::SearchCombobox_Waypoint);
@@ -895,7 +898,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTaskForce();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTaskForce(true);
-            else if (CODE == CBN_DROPDOWN && TaskforceListChanged)
+            else if (CODE == CBN_DROPDOWN && TaskforceListChanged && !vcbTaskForce.IsProgrammaticDropdown())
                 OnDropdownTaskForce();
             break;
         case Controls::Script:
@@ -903,7 +906,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeScript();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeScript(true);
-            else if (CODE == CBN_DROPDOWN && ScriptListChanged)
+            else if (CODE == CBN_DROPDOWN && ScriptListChanged && !vcbScript.IsProgrammaticDropdown())
                 OnDropdownScript();
             break;
         case Controls::Tag:
@@ -911,7 +914,7 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 OnSelchangeTag();
             else if (CODE == CBN_EDITCHANGE)
                 OnSelchangeTag(true);
-            else if (CODE == CBN_DROPDOWN && TagListChanged)
+            else if (CODE == CBN_DROPDOWN && TagListChanged && !vcbTag.IsProgrammaticDropdown())
                 OnDropdownTag();
             break;
         case Controls::TransportWaypoint:
@@ -1205,6 +1208,14 @@ void CNewTeamTypes::OnSelchangeHouse(bool edited)
     map.WriteString(CurrentTeamID, "House", Translations::ParseHouseName(text, false));
 }
 
+void CNewTeamTypes::RebuildTaskforceList()
+{
+    if (!TaskforceListChanged) return;
+    int tmp = 0;
+    ExtraWindow::SortTeams(vcbTaskForce, "TaskForces", tmp);
+    TaskforceListChanged = false;
+}
+
 void CNewTeamTypes::OnDropdownTaskForce()
 {
     int curSel = SendMessage(hTaskforce, CB_GETCURSEL, NULL, NULL);
@@ -1214,12 +1225,7 @@ void CNewTeamTypes::OnDropdownTaskForce()
     FString::TrimIndex(text);
 	text += " ";
 
-    if (TaskforceListChanged)
-    {
-        int tmp = 0;
-        ExtraWindow::SortTeams(vcbTaskForce, "TaskForces", tmp);
-        TaskforceListChanged = false;
-    }
+    RebuildTaskforceList();
 
     int idx = vcbTaskForce.FindStringExactStart(text);
     if (idx != CB_ERR)
@@ -1233,6 +1239,14 @@ void CNewTeamTypes::OnDropdownTaskForce()
     }
 }
 
+void CNewTeamTypes::RebuildScriptList()
+{
+    if (!ScriptListChanged) return;
+    int tmp = 0;
+    ExtraWindow::SortTeams(vcbScript, "ScriptTypes", tmp);
+    ScriptListChanged = false;
+}
+
 void CNewTeamTypes::OnDropdownScript()
 {
     int curSel = SendMessage(hScript, CB_GETCURSEL, NULL, NULL);
@@ -1242,12 +1256,7 @@ void CNewTeamTypes::OnDropdownScript()
     FString::TrimIndex(text);
 	text += " ";
 
-    if (ScriptListChanged)
-    {
-        int tmp = 0;
-        ExtraWindow::SortTeams(vcbScript, "ScriptTypes", tmp);
-        ScriptListChanged = false;
-    }
+    RebuildScriptList();
 
     int idx = vcbScript.FindStringExactStart(text);
     if (idx != CB_ERR)
@@ -1261,6 +1270,28 @@ void CNewTeamTypes::OnDropdownScript()
     }
 }
 
+void CNewTeamTypes::RebuildTagList()
+{
+    if (!TagListChanged) return;
+    vcbTag.Clear();
+    std::vector<std::pair<FString, FString>> labels;
+    if (auto pSection = map.GetSection("Tags")) {
+        for (auto& pair : pSection->GetEntities()) {
+            labels.emplace_back(std::make_pair(pair.first, ExtraWindow::GetTagDisplayName(pair.first)));
+        }
+    }
+    bool tmp2 = ExtConfigs::SortByLabelName;
+    ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
+    ExtraWindow::SortLabels(labels, false);
+    ExtConfigs::SortByLabelName = tmp2;
+    vcbTag.AddString("None");
+    for (auto& [id, name] : labels)
+    {
+        vcbTag.AddString(name, ExtraWindow::GetTriggerColor(id));		
+    }
+    TagListChanged = false;
+}
+
 void CNewTeamTypes::OnDropdownTag()
 {
     int curSel = SendMessage(hTag, CB_GETCURSEL, NULL, NULL);
@@ -1270,25 +1301,7 @@ void CNewTeamTypes::OnDropdownTag()
 	FString::TrimIndex(text);
 	text += " ";
 
-	if (TagListChanged)
-    {
-        vcbTag.Clear();
-        std::vector<std::pair<FString, FString>> labels;
-        if (auto pSection = map.GetSection("Tags")) {
-            for (auto& pair : pSection->GetEntities()) {
-                labels.emplace_back(std::make_pair(pair.first, ExtraWindow::GetTagDisplayName(pair.first)));
-            }
-        }
-        bool tmp2 = ExtConfigs::SortByLabelName;
-        ExtConfigs::SortByLabelName = ExtConfigs::SortByLabelName_Tag;
-        ExtraWindow::SortLabels(labels, false);
-        ExtConfigs::SortByLabelName = tmp2;
-        vcbTag.AddString("None");
-        for (auto& [id, name] : labels)
-        {
-            vcbTag.AddString(name, ExtraWindow::GetTriggerColor(id));		
-        }
-    }
+    RebuildTagList();
 
     int idx = vcbTag.FindStringExactStart(text);
     if (idx != CB_ERR)

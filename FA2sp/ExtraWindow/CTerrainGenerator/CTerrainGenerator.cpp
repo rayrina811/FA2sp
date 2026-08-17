@@ -1736,12 +1736,28 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         y2 = RangeFirstCell.Y;
         y1 = RangeSecondCell.Y;
     }
-    if (UseMultiSelection) {
+
+    ApplyPreset(CurrentPreset, x1, y1, x2, y2,
+        bOverride, bIgnoreLandtypes, UseMultiSelection, MultiSelection::SelectedCoords,
+        onlyClear, CurrentTabPage);
+
+    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
+}
+
+void CTerrainGenerator::ApplyPreset(const std::shared_ptr<TerrainGeneratorPreset>& preset,
+    int x1, int y1, int x2, int y2,
+    bool override, bool ignoreLandtypes,
+    bool multiSelection, const std::set<MapCoord>& selectedCoords,
+    bool onlyClear, int onlyClearTab)
+{
+    if (!preset) return;
+
+    if (multiSelection) {
         x1 = INT_MAX;
         y1 = INT_MAX;
         x2 = 0;
         y2 = 0;
-        for (const auto& coord : MultiSelection::SelectedCoords) {
+        for (const auto& coord : selectedCoords) {
             if (coord.X <= x1)
                 x1 = coord.X;
             if (coord.X >= x2)
@@ -1753,34 +1769,39 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
         }
     }
     std::vector<std::pair<std::vector<FString>, float>> smudges;
-    for (const auto& group : CurrentPreset->Smudges) {
+    for (const auto& group : preset->Smudges) {
         smudges.push_back(std::make_pair(group.Items, group.Chance));
     }
     std::vector<std::pair<std::vector<FString>, float>> terrains;
-    for (const auto& group : CurrentPreset->TerrainTypes) {
+    for (const auto& group : preset->TerrainTypes) {
         terrains.push_back(std::make_pair(group.Items, group.Chance));
     }
 
+    auto clearTab = [onlyClear, onlyClearTab](int tab) {
+        return onlyClearTab < 0 || onlyClearTab == tab;
+    };
+
     int recordType = 0;
-    if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1))
+    if (!terrains.empty() && !onlyClear || (onlyClear && clearTab(1)))
         recordType |= ObjectRecord::RecordType::Terrain;
-    if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3))
+    if (!smudges.empty() && !onlyClear || (onlyClear && clearTab(3)))
         recordType |= ObjectRecord::RecordType::Smudge;
 
-    if (CurrentPreset->RampPercent >= 0
-        && CurrentPreset->RampMinHeight >= 0
-        && CurrentPreset->RampMaxHeight >= 0)
+    if (preset->RampPercent >= 0
+        && preset->RampMinHeight >= 0
+        && preset->RampMaxHeight >= 0
+        && !onlyClear)
     {
         CMapDataExt::MakeMixedRecord(x1 - 16, y1 - 16, x2 + 16, y2 + 16, recordType);
 
         std::set<MapCoord> coords;
-        if (UseMultiSelection)
+        if (multiSelection)
         {
-            for (const auto& coord : MultiSelection::SelectedCoords)
+            for (const auto& coord : selectedCoords)
             {
                 if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y)) continue;
                 auto cell = CMapData::Instance->GetCellAt(coord.X, coord.Y);
-                if (CurrentPreset->bAvoidNonmorphableTiles)
+                if (preset->bAvoidNonmorphableTiles)
                 {
                     int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
                     if (CMapDataExt::TileData[groundClick].Morphable == 0) continue;
@@ -1796,7 +1817,7 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
                 for (int j = y1; j <= y2; ++j) {
                     if (!CMapData::Instance->IsCoordInMap(i, j)) continue;
                     auto cell = CMapData::Instance->GetCellAt(i, j);
-                    if (CurrentPreset->bAvoidNonmorphableTiles)
+                    if (preset->bAvoidNonmorphableTiles)
                     {
                         int groundClick = CMapDataExt::GetSafeTileIndex(cell->TileIndex);
                         if (CMapDataExt::TileData[groundClick].Morphable == 0) continue;
@@ -1808,19 +1829,19 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
             }
         }
 
-        CurrentPreset->RampMinHeight = std::clamp(CurrentPreset->RampMinHeight, 0, 13);
-        CurrentPreset->RampMaxHeight = std::clamp(CurrentPreset->RampMaxHeight, 1, 14);
-    
-        if (CurrentPreset->RampMinHeight >= CurrentPreset->RampMaxHeight)
+        int rampMinHeight = std::clamp(preset->RampMinHeight, 0, 13);
+        int rampMaxHeight = std::clamp(preset->RampMaxHeight, 1, 14);
+
+        if (rampMinHeight >= rampMaxHeight)
         {
-            if (CurrentPreset->RampMinHeight < 14)
+            if (rampMinHeight < 14)
             {
-                CurrentPreset->RampMaxHeight = CurrentPreset->RampMinHeight + 1;
+                rampMaxHeight = rampMinHeight + 1;
             }
             else
             {
-                CurrentPreset->RampMinHeight = 13;
-                CurrentPreset->RampMaxHeight = 14;
+                rampMinHeight = 13;
+                rampMaxHeight = 14;
             }
         }
 
@@ -1852,11 +1873,11 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
             HeightGenerator generator;
             auto heights = generator.generateHeights(
                 points, 
-                CurrentPreset->RampPercent / 100.0, 
-                CurrentPreset->RampMinHeight, 
-                CurrentPreset->RampMaxHeight, 
+                preset->RampPercent / 100.0, 
+                rampMinHeight, 
+                rampMaxHeight, 
                 presets, 
-                CurrentPreset->bPreserveAnchorHeights);
+                preset->bPreserveAnchorHeights);
             VertexHeight::ApplyRamps(heights, &group);
         }
        
@@ -1872,59 +1893,55 @@ void CTerrainGenerator::OnClickApply(bool onlyClear)
 
     std::vector<std::pair<std::vector<int>, float>> tiles;
     std::vector<MapCoord> processedTiles;
-    for (const auto& group : CurrentPreset->TileSets) {
+    for (const auto& group : preset->TileSets) {
         tiles.push_back(std::make_pair(group.AvailableTiles, group.Chance));  
     }
-    if (!tiles.empty() && !onlyClear || (onlyClear && CurrentTabPage == 0)) {
-        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, CurrentPreset->Scale, tiles, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
+    if (!tiles.empty() && !onlyClear || (onlyClear && clearTab(0))) {
+        CMapDataExt::CreateRandomGround(x1, y1, x2, y2, preset->Scale, tiles, override, multiSelection, onlyClear, ignoreLandtypes);
     }
 
     std::vector<std::pair<std::vector<TerrainGeneratorOverlay>, float>> overlays;
-    for (const auto& group : CurrentPreset->Overlays) {
+    for (const auto& group : preset->Overlays) {
         overlays.push_back(std::make_pair(group.Overlays, group.Chance));
     }
-    if (!overlays.empty() && !onlyClear || (onlyClear && CurrentTabPage == 2)) {
-        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
+    if (!overlays.empty() && !onlyClear || (onlyClear && clearTab(2))) {
+        CMapDataExt::CreateRandomOverlay(x1, y1, x2, y2, overlays, override, multiSelection, processedTiles, onlyClear, ignoreLandtypes);
     }
 
-    if (!terrains.empty() && !onlyClear || (onlyClear && CurrentTabPage == 1)) {
-        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, bOverride, UseMultiSelection, processedTiles, onlyClear, bIgnoreLandtypes);
+    if (!terrains.empty() && !onlyClear || (onlyClear && clearTab(1))) {
+        CMapDataExt::CreateRandomTerrain(x1, y1, x2, y2, terrains, override, multiSelection, processedTiles, onlyClear, ignoreLandtypes);
     }
 
-    if (!smudges.empty() && !onlyClear || (onlyClear && CurrentTabPage == 3)) {
-        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, bOverride, UseMultiSelection, onlyClear, bIgnoreLandtypes);
+    if (!smudges.empty() && !onlyClear || (onlyClear && clearTab(3))) {
+        CMapDataExt::CreateRandomSmudge(x1, y1, x2, y2, smudges, override, multiSelection, onlyClear, ignoreLandtypes);
     }
-
-    ::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
 }
 
-void CTerrainGenerator::SaveAndReloadPreset()
+void CTerrainGenerator::WritePresetToINI(const std::shared_ptr<TerrainGeneratorPreset>& preset, CINI* ini)
 {
-    if (!CurrentPreset) return;
-    FString id = CurrentPreset->ID;
-    FString path = CFinalSunAppExt::ExePathExt();
-    path += "\\TerrainGenerator.ini";
+    if (!preset || !ini) return;
+    FString id = preset->ID;
 
     auto transed = FinalAlertConfig::Language + "-" + "Name";
-    ini->WriteString(id, "Name", CurrentPreset->Name);
-    ini->WriteString(id, transed, CurrentPreset->Name);
-    ini->WriteString(id, "Scale", STDHelpers::IntToString(CurrentPreset->Scale));
+    ini->WriteString(id, "Name", preset->Name);
+    ini->WriteString(id, transed, preset->Name);
+    ini->WriteString(id, "Scale", STDHelpers::IntToString(preset->Scale));
     FString theaters = "";
-    for (const auto& t : CurrentPreset->Theaters) {
+    for (const auto& t : preset->Theaters) {
         theaters += t + ",";
     }
     ini->WriteString(id, "Theaters", theaters.Mid(0, theaters.GetLength() - 1));
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->TileSets[idx];
         FString key;
         key.Format("TileSet%d", idx);
-        if (idx < CurrentPreset->TileSets.size()) {
+        if (idx < preset->TileSets.size()) {
+            auto& group = preset->TileSets[idx];
             FString value;
             value.Format("%s,%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION), STDHelpers::IntToString(atoi(group.Items[0])));
             ini->WriteString(id, key, value);
             key += "AvailableIndexes";
             if (group.HasExtraIndex) { 
-                ini->WriteString(id, key, CurrentPreset->TileSetAvailableIndexesText[idx]);
+                ini->WriteString(id, key, preset->TileSetAvailableIndexesText[idx]);
             }
             else {
                 ini->DeleteKey(id, key);
@@ -1938,10 +1955,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
 
     } 
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->TerrainTypes[idx];
         FString key;
         key.Format("TerrainType%d", idx);
-        if (idx < CurrentPreset->TerrainTypes.size()) {
+        if (idx < preset->TerrainTypes.size()) {
+            auto& group = preset->TerrainTypes[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
@@ -1955,10 +1972,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
         }
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->Smudges[idx];
         FString key;
         key.Format("Smudge%d", idx);
-        if (idx < CurrentPreset->Smudges.size()) {
+        if (idx < preset->Smudges.size()) {
+            auto& group = preset->Smudges[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Items.size(); i++) {
@@ -1972,10 +1989,10 @@ void CTerrainGenerator::SaveAndReloadPreset()
         }
     }
     for (auto idx = 0; idx < TERRAIN_GENERATOR_MAX; idx++) {
-        auto& group = CurrentPreset->Overlays[idx];
         FString key;
         key.Format("Overlay%d", idx);
-        if (idx < CurrentPreset->Overlays.size()) {
+        if (idx < preset->Overlays.size()) {
+            auto& group = preset->Overlays[idx];
             FString value;
             value.Format("%s", DoubleToString(group.Chance, TERRAIN_GENERATOR_PRECISION));
             for (int i = 0; i < group.Overlays.size(); i++) {
@@ -1985,7 +2002,7 @@ void CTerrainGenerator::SaveAndReloadPreset()
             ini->WriteString(id, key, value);
             key += "AvailableData";
             if (group.HasExtraIndex) {
-                ini->WriteString(id, key, CurrentPreset->OverlayAvailableDataText[idx]);
+                ini->WriteString(id, key, preset->OverlayAvailableDataText[idx]);
             }
             else {
                 ini->DeleteKey(id, key);
@@ -1999,21 +2016,21 @@ void CTerrainGenerator::SaveAndReloadPreset()
     }
 
     FString value;
-    if (CurrentPreset->RampPercent > -1)
+    if (preset->RampPercent > -1)
     {
-        value.Format("%d", CurrentPreset->RampPercent);
+        value.Format("%d", preset->RampPercent);
         ini->WriteString(id, "RampPercent", value);
     }
     else
     {
         ini->DeleteKey(id, "RampPercent");
     }
-    if (CurrentPreset->RampMinHeight > -1)
+    if (preset->RampMinHeight > -1)
     {
-        value.Format("%d", CurrentPreset->RampMinHeight);
+        value.Format("%d", preset->RampMinHeight);
         ini->WriteString(id, "RampMinHeight", value);
 
-        if (CurrentPreset->bPreserveAnchorHeights)
+        if (preset->bPreserveAnchorHeights)
         {
             ini->WriteString(id, "RampPreserveAnchorHeights", "true");
         }
@@ -2021,7 +2038,7 @@ void CTerrainGenerator::SaveAndReloadPreset()
         {
             ini->WriteString(id, "RampPreserveAnchorHeights", "false");
         }
-        if (CurrentPreset->bAvoidNonmorphableTiles)
+        if (preset->bAvoidNonmorphableTiles)
         {
             ini->WriteString(id, "AvoidNonmorphableTiles", "true");
         }
@@ -2034,15 +2051,25 @@ void CTerrainGenerator::SaveAndReloadPreset()
     {
         ini->DeleteKey(id, "RampMinHeight");
     }
-    if (CurrentPreset->RampMaxHeight > -1)
+    if (preset->RampMaxHeight > -1)
     {
-        value.Format("%d", CurrentPreset->RampMaxHeight);
+        value.Format("%d", preset->RampMaxHeight);
         ini->WriteString(id, "RampMaxHeight", value);
     }
     else
     {
         ini->DeleteKey(id, "RampMaxHeight");
     }
+}
+
+void CTerrainGenerator::SaveAndReloadPreset()
+{
+    if (!CurrentPreset) return;
+    FString id = CurrentPreset->ID;
+    FString path = CFinalSunAppExt::ExePathExt();
+    path += "\\TerrainGenerator.ini";
+
+    WritePresetToINI(CurrentPreset, ini.get());
 
     ini->WriteToFile(path);
     CurrentPreset = nullptr;

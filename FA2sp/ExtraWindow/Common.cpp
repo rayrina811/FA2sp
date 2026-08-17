@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <CFinalSunApp.h>
+#include <CLoading.h>
 #include "../Miscs/StringtableLoader.h"
 #include "../Miscs/DialogStyle.h"
 #include "../Ext/CMapData/Body.h"
@@ -126,7 +127,7 @@ FString ExtraWindow::GetTagName(const char* id)
 
 FString ExtraWindow::GetTagDisplayName(const char* id)
 {
-    if (strcmp(id, "<none>") == 0)
+    if (strcmp(id, "<none>") == 0 || strcmp(id, "None") == 0 )
         return id;
     FString name;
     name.Format("%s (%s)", id, FString::GetParam(map.GetString("Tags", id, "0,MISSING,01000000"), 1));
@@ -353,6 +354,9 @@ void ExtraWindow::LoadParams(VirtualComboBoxEx& vcb, FString idx, CNewTrigger* i
         break;
     case 19:
         LoadParam_Structures(vcb);
+        break;
+    case 20:
+        LoadParam_Scenarios(vcb);
         break;
     default:
         if (atoi(idx) >= 500)
@@ -762,6 +766,17 @@ void ExtraWindow::LoadParam_Structures(VirtualComboBoxEx& vcb)
 			text.Format("%d - %s (%s), %s, (%d, %d)", index++, type, uiname, transedHouse, x, y);
 			vcb.AddString(text);
 		}
+    }
+}
+
+void ExtraWindow::LoadParam_Scenarios(VirtualComboBoxEx& vcb)
+{
+	CINI mapsel;
+    CLoading::Instance->LoadTSINI(CINI::FAData->GetString("Filenames", "MapselYR", "mapselmd.ini"), &mapsel, TRUE);
+    for (auto& [_, section] : mapsel.Dict) {
+        auto map = section.GetString("Scenario");
+        if (!map.IsEmpty())
+            vcb.AddString(map);
     }
 }
 
@@ -2793,6 +2808,14 @@ void VirtualComboBoxEx::SyncListCount()
 
 void VirtualComboBoxEx::Filter(const char* text)
 {
+    if (m_preFilterCallback)
+    {
+        DWORD selStart = 0, selEnd = 0;
+        SendMessage(hEdit, EM_GETSEL, (WPARAM)&selStart, (LPARAM)&selEnd);
+        m_preFilterCallback();
+        SendMessage(hEdit, EM_SETSEL, selStart, selEnd);
+    }
+
     if (!m_EnterKeyPressed 
         && (m_allowFilter && !*m_allowFilter || ExtConfigs::SearchCombobox_Disabled)
         && !m_filterActive)

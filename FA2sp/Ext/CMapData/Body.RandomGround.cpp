@@ -431,7 +431,8 @@ void CMapDataExt::CreateRandomGround(int TopX, int TopY, int BottomX, int Bottom
                 }
             }
 
-            CMapDataExt::GetExtension()->PlaceTileAt(i, j, STDHelpers::RandomSelectInt(tileIndexes), 1);
+            const std::set<MapCoord>* clipCells = multiSelection ? &MultiSelection::SelectedCoords : nullptr;
+            CMapDataExt::GetExtension()->PlaceTileAt(i, j, STDHelpers::RandomSelectInt(tileIndexes), 1, TopX, TopY, BottomX, BottomY, clipCells);
         }
     }
     if (!CFinalSunApp::Instance->DisableAutoShore) {
@@ -1029,10 +1030,13 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
     CMapDataExt::CheckCellLow(steep, 0, false, &ignoreList);
     CMapDataExt::CheckCellRise(steep, 0, false, &ignoreList);
 
+    std::vector<int> slopeList;
+    std::vector<int> adjustedList;
     for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
     {
         if (CMapDataExt::CellDataExts[i].Adjusted)
         {
+            adjustedList.push_back(i);
             int thisX = CMapData::Instance->GetXFromCoordIndex(i);
             int thisY = CMapData::Instance->GetYFromCoordIndex(i);
             int loops[3] = { 0, -1, 1 };
@@ -1043,26 +1047,30 @@ void CMapDataExt::GenerateNoiseSlopeTerrain(
                     int newY = thisY + e;
                     int pos = CMapData::Instance->GetCoordIndex(newX, newY);
                     if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-                    CMapDataExt::CellDataExts[pos].CreateSlope = true;
+                    if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+                    {
+                        CMapDataExt::CellDataExts[pos].CreateSlope = true;
+                        slopeList.push_back(pos);
+                    }
                 }
         }
     }
-    for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+    for (int pos : slopeList)
     {
-        if (CMapDataExt::CellDataExts[i].CreateSlope)
-        {
-            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
-            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
-            CMapDataExt::CreateSlopeAt(thisX, thisY);
-        }
+        int thisX = CMapData::Instance->GetXFromCoordIndex(pos);
+        int thisY = CMapData::Instance->GetYFromCoordIndex(pos);
+        CMapDataExt::CreateSlopeAt(thisX, thisY);
     }
-    for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+    for (int pos : slopeList)
     {
-        if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-        {
-            int thisX = CMapData::Instance->GetXFromCoordIndex(i);
-            int thisY = CMapData::Instance->GetYFromCoordIndex(i);
-            CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-        }
+        int thisX = CMapData::Instance->GetXFromCoordIndex(pos);
+        int thisY = CMapData::Instance->GetYFromCoordIndex(pos);
+        CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+    }
+    for (int pos : adjustedList)
+    {
+        int thisX = CMapData::Instance->GetXFromCoordIndex(pos);
+        int thisY = CMapData::Instance->GetYFromCoordIndex(pos);
+        CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
     }
 }

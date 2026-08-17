@@ -72,6 +72,8 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 	int X = point.X;
 	int Y = point.Y;
 	std::vector<int> ignoreList;
+	std::vector<int> slopeList;
+	std::vector<int> adjustedList;
 
 	for (auto& cell : CMapDataExt::CellDataExts)
 	{
@@ -87,6 +89,7 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 			if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 			int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 			ignoreList.push_back(pos);
+			adjustedList.push_back(pos);
 			CMapDataExt::AdjustHeightAt(X + f, Y + n, 1);
 			CMapDataExt::CellDataExts[pos].Adjusted = true;
 		}
@@ -98,6 +101,8 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 		{
 			if (CMapDataExt::CellDataExts[i].Adjusted)
 			{
+				if (std::find(adjustedList.begin(), adjustedList.end(), i) == adjustedList.end())
+					adjustedList.push_back(i);
 				int thisX = mapData.GetXFromCoordIndex(i);
 				int thisY = mapData.GetYFromCoordIndex(i);
 				int loops[3] = { 0, -1, 1 };
@@ -108,31 +113,35 @@ DEFINE_HOOK(46557C, CIsoView_OnLButtonDown_ACTIONMODE_HEIGHTENTILE, 6)
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-						CMapDataExt::CellDataExts[pos].CreateSlope = true;
+						if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+						{
+							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							slopeList.push_back(pos);
+						}
 					}
 			}
 		}
-		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope)
+			if (std::find(ignoreList.begin(), ignoreList.end(), pos) == ignoreList.end())
 			{
-				if (std::find(ignoreList.begin(), ignoreList.end(), i) == ignoreList.end())
-				{
-					int thisX = mapData.GetXFromCoordIndex(i);
-					int thisY = mapData.GetYFromCoordIndex(i);
-					CMapDataExt::CreateSlopeAt(thisX, thisY, false);
-				}
+				int thisX = mapData.GetXFromCoordIndex(pos);
+				int thisY = mapData.GetYFromCoordIndex(pos);
+				CMapDataExt::CreateSlopeAt(thisX, thisY, false);
 			}
 		}
 	}
-	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	for (int pos : slopeList)
 	{
-		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-		{
-			int thisX = mapData.GetXFromCoordIndex(i);
-			int thisY = mapData.GetYFromCoordIndex(i);
-			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-		}
+		int thisX = mapData.GetXFromCoordIndex(pos);
+		int thisY = mapData.GetYFromCoordIndex(pos);
+		CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+	}
+	for (int pos : adjustedList)
+	{
+		int thisX = mapData.GetXFromCoordIndex(pos);
+		int thisY = mapData.GetYFromCoordIndex(pos);
+		CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
 	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
@@ -148,6 +157,8 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 	int X = point.X;
 	int Y = point.Y;
 	std::vector<int> ignoreList;
+	std::vector<int> slopeList;
+	std::vector<int> adjustedList;
 
 	for (auto& cell : CMapDataExt::CellDataExts)
 	{
@@ -163,12 +174,14 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 			if (!CMapDataExt::IsCoordInFullMap(X + f, Y + n)) continue;
 			int pos = X + f + (Y + n) * mapData.MapWidthPlusHeight;
 			ignoreList.push_back(pos);
+			adjustedList.push_back(pos);
 			CMapDataExt::AdjustHeightAt(X + f, Y + n, -1);
 			CMapDataExt::CellDataExts[pos].Adjusted = true;
 		}
 	}
 	if (nFlags & MK_CONTROL)
 	{
+		std::vector<int> extraSlopeList;
 		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // for lower, we need one more square
 		{
 			if (CMapDataExt::CellDataExts[i].Adjusted)
@@ -183,28 +196,31 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-						CMapDataExt::CellDataExts[pos].CreateSlope = true;
+						if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+						{
+							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							extraSlopeList.push_back(pos);
+						}
 					}
 			}
 		}
-		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // for lower, we need one more square
+		for (int pos : extraSlopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope)
-			{
-				CMapDataExt::CellDataExts[i].CreateSlope = false;
-				if (CMapDataExt::CellDataExts[i].Adjusted) continue;
+			CMapDataExt::CellDataExts[pos].CreateSlope = false;
+			if (CMapDataExt::CellDataExts[pos].Adjusted) continue;
 
-				CMapDataExt::CellDataExts[i].Adjusted = true;
-				int thisX = mapData.GetXFromCoordIndex(i);
-				int thisY = mapData.GetYFromCoordIndex(i);
-				CMapDataExt::AdjustHeightAt(thisX, thisY, -1);
-			}
+			CMapDataExt::CellDataExts[pos].Adjusted = true;
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapDataExt::AdjustHeightAt(thisX, thisY, -1);
 		}
 		CMapDataExt::CheckCellLow(false, 0, false, &ignoreList);
 		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
 		{
 			if (CMapDataExt::CellDataExts[i].Adjusted)
 			{
+				if (std::find(adjustedList.begin(), adjustedList.end(), i) == adjustedList.end())
+					adjustedList.push_back(i);
 				int thisX = mapData.GetXFromCoordIndex(i);
 				int thisY = mapData.GetYFromCoordIndex(i);
 				int loops[3] = { 0, -1, 1 };
@@ -215,31 +231,35 @@ DEFINE_HOOK(465CC7, CIsoView_OnLButtonDown_ACTIONMODE_LOWERTILE, 6)
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-						CMapDataExt::CellDataExts[pos].CreateSlope = true;
+						if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+						{
+							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							slopeList.push_back(pos);
+						}
 					}
 			}
 		}
-		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope)
+			if (std::find(ignoreList.begin(), ignoreList.end(), pos) == ignoreList.end())
 			{
-				if (std::find(ignoreList.begin(), ignoreList.end(), i) == ignoreList.end())
-				{
-					int thisX = mapData.GetXFromCoordIndex(i);
-					int thisY = mapData.GetYFromCoordIndex(i);
-					CMapDataExt::CreateSlopeAt(thisX, thisY, false);
-				}
+				int thisX = mapData.GetXFromCoordIndex(pos);
+				int thisY = mapData.GetYFromCoordIndex(pos);
+				CMapDataExt::CreateSlopeAt(thisX, thisY, false);
 			}
 		}
 	}
-	for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+	for (int pos : slopeList)
 	{
-		if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-		{
-			int thisX = mapData.GetXFromCoordIndex(i);
-			int thisY = mapData.GetYFromCoordIndex(i);
-			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-		}
+		int thisX = mapData.GetXFromCoordIndex(pos);
+		int thisY = mapData.GetYFromCoordIndex(pos);
+		CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+	}
+	for (int pos : adjustedList)
+	{
+		int thisX = mapData.GetXFromCoordIndex(pos);
+		int thisY = mapData.GetYFromCoordIndex(pos);
+		CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
 	}
 
 	::RedrawWindow(CFinalSunDlg::Instance->MyViewFrame.pIsoView->m_hWnd, 0, 0, RDW_UPDATENOW | RDW_INVALIDATE);
@@ -380,6 +400,8 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 	}
 	else
 	{
+		std::vector<int> slopeList;
+		std::vector<int> adjustedList;
 		for (auto& cell : CMapDataExt::CellDataExts)
 		{
 			cell.Adjusted = false;
@@ -438,6 +460,7 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 		{
 			if (CMapDataExt::CellDataExts[i].Adjusted)
 			{
+				adjustedList.push_back(i);
 				int thisX = mapData.GetXFromCoordIndex(i);
 				int thisY = mapData.GetYFromCoordIndex(i);
 				int loops[3] = { 0, -1, 1 };
@@ -448,28 +471,32 @@ DEFINE_HOOK(45B5B6, CIsoView_OnMouseMove_FLATTENGROUND, 9)
 						int newY = thisY + e;
 						int pos = CMapData::Instance->GetCoordIndex(newX, newY);
 						if (!CMapDataExt::IsCoordInFullMap(pos)) continue;
-						CMapDataExt::CellDataExts[pos].CreateSlope = true;
+						if (!CMapDataExt::CellDataExts[pos].CreateSlope)
+						{
+							CMapDataExt::CellDataExts[pos].CreateSlope = true;
+							slopeList.push_back(pos);
+						}
 						CMapDataExt::ReplaceRampWithFlat(newX, newY);
 					}
 			}
 		}
-		for (int i = 1; i < CMapDataExt::CellDataExts.size(); i++) // skip 0
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope)
-			{
-				int thisX = mapData.GetXFromCoordIndex(i);
-				int thisY = mapData.GetYFromCoordIndex(i);	
-				CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable, true);
-			}
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);	
+			CMapDataExt::CreateSlopeAt(thisX, thisY, IgnoreMorphable, true);
 		}
-		for (int i = 0; i < CMapDataExt::CellDataExts.size(); i++)
+		for (int pos : slopeList)
 		{
-			if (CMapDataExt::CellDataExts[i].CreateSlope || CMapDataExt::CellDataExts[i].Adjusted)
-			{
-				int thisX = mapData.GetXFromCoordIndex(i);
-				int thisY = mapData.GetYFromCoordIndex(i);
-				CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
-			}
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
+		}
+		for (int pos : adjustedList)
+		{
+			int thisX = mapData.GetXFromCoordIndex(pos);
+			int thisY = mapData.GetYFromCoordIndex(pos);
+			CMapData::Instance->UpdateMapPreviewAt(thisX, thisY);
 		}
 	}
 
