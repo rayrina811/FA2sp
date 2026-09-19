@@ -32,6 +32,9 @@ namespace Renderer
     class ObjectType;
 }
 
+enum class PathfindingMoveType : int;
+enum class PathfindingObjectType : int;
+
 struct EditedMarks
 {
     short X;
@@ -133,6 +136,7 @@ enum MeasurementTypes : int
     PlaceCircle_Annotation,
     LineSegment_Annotation,
     ArrowSegment_Annotation,
+    PathDistance,
 };
 
 struct TwoPointStruct
@@ -141,6 +145,16 @@ struct TwoPointStruct
     MapCoord Point2;
     bool drawText;
     bool hasArrow;
+};
+
+struct PathDistanceStruct
+{
+    MapCoord Point1{ 0, 0 };
+    MapCoord Point2{ 0, 0 };
+    std::vector<MapCoord> Path;
+    std::vector<unsigned char> Levels;
+    std::vector<unsigned char> Heights;
+    bool Reachable = true;
 };
 
 struct HighBridgeLineStruct
@@ -414,6 +428,7 @@ public:
     static bool EnableAutoTrack;
 
     static bool AutoPropertyBrush[4];
+    static int AutoPropertyBrushFacing[4]; // [0]=Aircraft [1]=Building [2]=Infantry [3]=Vehicle
 
     static COLORREF CellHilightColors[16];
     static int drawOffsetX;
@@ -449,6 +464,24 @@ public:
     static bool EnableOtherMeasurementTools;
     static std::vector<TwoPointStruct> TwoPointDistance;
     static std::vector<TwoPointStruct> TwoPointDistance_Annotation;
+    static std::vector<PathDistanceStruct> PathDistances;
+    static PathfindingMoveType SelectedPathfindingType;
+    static PathfindingObjectType SelectedPathfindingObjectType;
+    static bool EnableDestroyOverlay;
+    static bool EnableIgnoreBuilding;
+    static bool EnableIgnoreTree;
+    static bool PathPreviewValid;
+    static MapCoord PathPreviewStart;
+    static MapCoord PathPreviewEnd;
+    static PathfindingMoveType PathPreviewType;
+    static PathfindingObjectType PathPreviewObjectType;
+    static bool PathPreviewDestroyOverlay;
+    static bool PathPreviewIgnoreBuilding;
+    static bool PathPreviewIgnoreTree;
+    static std::vector<MapCoord> PathPreviewPath;
+    static std::vector<unsigned char> PathPreviewLevels;
+    static std::vector<unsigned char> PathPreviewHeights;
+    static bool PathPreviewReachable;
     static MapCoord AxialSymmetryLine[2];
     static MapCoord TempCircle[2];
     static MapCoord TempCircle_Annotation[2];

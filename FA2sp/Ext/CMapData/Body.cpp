@@ -2125,7 +2125,7 @@ std::vector<int> CMapDataExt::GetStructureSize(ppmfc::CString structure)
 		std::string y = std::string(art->GetString(image, "Foundation.Y", "5"));
 		foundation = x + "x" + y;
 	}
-	auto found = STDHelpers::SplitString(foundation.c_str(), "x");
+	auto found = STDHelpers::SplitString(foundation.c_str(), 1, "x");
 	result.push_back(atoi(found[1]));
 	result.push_back(atoi(found[0]));
 	return result;
@@ -2812,6 +2812,7 @@ void ObjectRecord::record(int recordType)
 		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
 		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
 		MeasurementRecords->Circles = CIsoViewExt::Circles;
+		MeasurementRecords->PathDistances = CIsoViewExt::PathDistances;
 	}
 	if (recordType & RecordType::Basenode)
 	{
@@ -2955,6 +2956,7 @@ void ObjectRecord::appendRecord(int recordType)
 		MeasurementRecords->AxialSymmetricPoints = CIsoViewExt::AxialSymmetricPoints;
 		MeasurementRecords->CentralSymmetricPoints = CIsoViewExt::CentralSymmetricPoints;
 		MeasurementRecords->Circles = CIsoViewExt::Circles;
+		MeasurementRecords->PathDistances = CIsoViewExt::PathDistances;
 	}
 	if (recordType & RecordType::Basenode && !(recordedFlages & RecordType::Basenode))
 	{
@@ -3139,6 +3141,8 @@ void ObjectRecord::recover()
 		CIsoViewExt::AxialSymmetricPoints = MeasurementRecords->AxialSymmetricPoints;
 		CIsoViewExt::CentralSymmetricPoints = MeasurementRecords->CentralSymmetricPoints;
 		CIsoViewExt::Circles = MeasurementRecords->Circles;
+		CIsoViewExt::PathDistances = MeasurementRecords->PathDistances;
+		CIsoViewExt::PathPreviewValid = false;
 
 		if (CIsoViewExt::AxialSymmetryLine[1] == MapCoord{ 0,0 })
 		{
@@ -3150,6 +3154,14 @@ void ObjectRecord::recover()
 			if (last.Point2 == MapCoord{ 0,0 })
 			{
 				last.Point1 = { 0,0 };
+			}
+		}
+		if (!CIsoViewExt::PathDistances.empty())
+		{
+			auto& last = CIsoViewExt::PathDistances.back();
+			if (last.Point2 == MapCoord{ 0,0 })
+			{
+				last = {};
 			}
 		}
 	}
@@ -3972,7 +3984,7 @@ void CMapDataExt::RaiseVertices(int X, int Y, bool raise, bool IgnoreMorphable, 
 		}
 	}
 	auto smoothedVertices = CMapDataExt::GetSmoothedVertexHeight(
-		vertices, steep && !IgnoreMorphable, IgnoreMorphable);
+		vertices, steep && !IgnoreMorphable, IgnoreMorphable, true);
 	VertexHeight::ApplyRamps(smoothedVertices, nullptr, true, IgnoreMorphable);
 	
 	for (auto& vh : smoothedVertices)
@@ -4996,9 +5008,34 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 		return true;
 	};
 
+	// Two non-morphable cells that only touch at a corner still form a wall, and the vertex
+	// between them is a closed corner that nothing may pass through. This is what a 1 cell
+	// wide wall drawn straight on screen looks like: its cells only touch at corners, so the
+	// face based test below never sees two non-morphable cells on the same edge.
+	auto isClosedCorner = [isMorphable](int x, int y) -> bool
+	{
+		return (!isMorphable(CMapDataExt::TryGetCellAt(x - 1, y - 1)) && !isMorphable(CMapDataExt::TryGetCellAt(x, y)))
+			|| (!isMorphable(CMapDataExt::TryGetCellAt(x - 1, y)) && !isMorphable(CMapDataExt::TryGetCellAt(x, y - 1)));
+	};
+
+	auto getMorphableCellCount = [isMorphable](int x, int y) -> int
+	{
+		return (isMorphable(CMapDataExt::TryGetCellAt(x - 1, y - 1)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x - 1, y)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x, y - 1)) ? 1 : 0)
+			+ (isMorphable(CMapDataExt::TryGetCellAt(x, y)) ? 1 : 0);
+	};
+
 	auto canCrossEdge = [&](int fromX, int fromY, int toX, int toY) -> bool
 	{
 		if (!usePathfinding || IgnoreMorphable) return true;
+		if (isClosedCorner(toX, toY)) return false;
+		// A closed corner may still be the source of a spread when only one of its cells is
+		// morphable (the vertex the user clicked at the edge of a wall): leaving it can only
+		// go along that single cell, and every vertex on the other side of the wall is a
+		// closed corner as well, so the spread cannot cross. With two or more morphable
+		// cells the vertex is a passage and has to stay blocked in both directions.
+		if (isClosedCorner(fromX, fromY) && getMorphableCellCount(fromX, fromY) != 1) return false;
 		int dx = toX - fromX;
 		int dy = toY - fromY;
 		if (dx != 0 && dy != 0)
@@ -5142,39 +5179,91 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 		bool hasDown  = result.find({v.X, v.Y - 1}) != result.end();
 		bool hasLeft  = result.find({v.X - 1, v.Y}) != result.end();
 		bool hasRight = result.find({v.X + 1, v.Y}) != result.end();
+		// The ring exists to complete the neighbourhood of the result vertices for
+		// ApplyRamps, but it must not reach beyond the vertex map bound: anchors further
+		// outside do not describe the terrain inside the map.
 		if (!hasUp)
 		{
 			VertexHeight vh;
 			vh.X = v.X;
 			vh.Y = v.Y + 1;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasDown)
 		{
 			VertexHeight vh;
 			vh.X = v.X;
 			vh.Y = v.Y - 1;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasLeft)
 		{
 			VertexHeight vh;
 			vh.X = v.X - 1;
 			vh.Y = v.Y;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 		if (!hasRight)
 		{
 			VertexHeight vh;
 			vh.X = v.X + 1;
 			vh.Y = v.Y;
-			vh.GetVertexHeight(false, true);
-			expandedVertices.insert(vh);
+			if (vh.IsVertexInMap())
+			{
+				vh.GetVertexHeight(false, true);
+				expandedVertices.insert(vh);
+			}
 		}
 	}
+
+    // Vertices whose four touching cells are all non-morphable are dropped while the
+    // smoothing front is built, but ApplyRamps only hands a vertex's cells over once its
+    // radius 2 neighbourhood is complete. Those missing vertices made every vertex along a
+    // wall fail that test, which is why the raise tool did nothing at the edge of
+    // non-morphable terrain. Treat them as present and add one ring around them.
+    std::set<VertexHeight> wallVertices;
+    for (const auto& v : result)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            VertexHeight vh;
+            vh.X = v.X + Dirs4[i][0];
+            vh.Y = v.Y + Dirs4[i][1];
+            if (!vh.IsVertexInMap()) continue;
+            vh.GetVertexHeight(false, true);
+            if ((vh.Height == 0 && isSurroundedByNonmorphable(vh))
+                || !canCrossEdge(v.X, v.Y, vh.X, vh.Y))
+            {
+                wallVertices.insert(vh);
+            }
+        }
+    }
+
+    for (const auto& v : wallVertices)
+    {
+        expandedVertices.insert(v);
+        for (int i = 0; i < 4; ++i)
+        {
+            VertexHeight vh;
+            vh.X = v.X + Dirs4[i][0];
+            vh.Y = v.Y + Dirs4[i][1];
+            if (!vh.IsVertexInMap()) continue;
+            vh.GetVertexHeight(false, true);
+            expandedVertices.insert(vh);
+        }
+    }
 
     return expandedVertices;
 }
@@ -5182,6 +5271,11 @@ std::set<VertexHeight> CMapDataExt::GetSmoothedVertexHeight(const std::set<Verte
 void CMapDataExt::RefreshAllWindows()
 {
 	CMeasurementToolbox::ClearStatus();
+	if (CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame
+		&& !::IsWindowVisible(CFinalSunDlg::Instance->MyViewFrame.pTileSetBrowserFrame->GetSafeHwnd()))
+	{
+		CTileSetBrowserFrameExt::RefreshPending = true;
+	}
 	if (TagSort::Instance.IsVisible())
 	{
 		TagSort::Instance.LoadAllTriggers();
@@ -5343,6 +5437,9 @@ void CMapDataExt::InitializeAllHdmEdition(bool updateMinimap, bool reloadCellDat
 		item.Veins = Variables::RulesMap.GetBool(ol, "IsVeins");
 		item.Rubble = Variables::RulesMap.GetBool(ol, "IsRubble");
 		item.Tiberium = Variables::RulesMap.GetBool(ol, "Tiberium");
+		item.Crushable = Variables::RulesMap.GetBool(ol, "Crushable");
+		item.Overrides = Variables::RulesMap.GetBool(ol, "Overrides");
+		item.Road = Variables::RulesMap.GetString(ol, "Land", "") == "Road";
 		item.CustomPaletteName = CINI::Art->GetString(ol, "Palette");
 		item.TerrainRock = Variables::RulesMap.GetString(ol, "Land", "") == "Rock";
 		auto name = Variables::RulesMap.GetString(ol, "Name", "");
@@ -5958,8 +6055,18 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 		break;
 	}
 	
-	auto basicCell = CMapDataExt::TryGetCellAt(coord.X, coord.Y);
-	char basicHeight = basicCell->Height;
+	// The four cells of this vertex are (ret.X-1, ret.Y-1), (ret.X-1, ret.Y), (ret.X, ret.Y),
+	// (ret.X, ret.Y-1). Cells outside the map are not part of the terrain surface: they can
+	// neither be the reference cell nor contribute their height or their ramp offset.
+	const MapCoord cellCoords[4] = { {ret.X - 1, ret.Y - 1}, {ret.X - 1, ret.Y}, {ret.X, ret.Y}, {ret.X, ret.Y - 1} };
+	auto isCellInMap = [&cellCoords](int i)
+	{
+		return CMapData::Instance->IsCoordInMap(cellCoords[i].X, cellCoords[i].Y);
+	};
+
+	bool basicCellInMap = CMapData::Instance->IsCoordInMap(coord.X, coord.Y);
+	auto basicCell = basicCellInMap ? CMapDataExt::TryGetCellAt(coord.X, coord.Y) : nullptr;
+	char basicHeight = basicCell ? basicCell->Height : 0;
 	auto cells = ret.GetVertexCells();
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
@@ -5976,6 +6083,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 	int basicNeighbourNonmorphableCount = 0;
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!isCellInMap(i)) continue;
 		auto cell = cells.at(i);
 		if (cell == basicCell && cell != &CMapDataExt::ExtTempCellData)
 		{
@@ -5989,6 +6097,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 		{
 			if (i == basicCellIndex || i == oppositeCellIndex)
 				continue;
+			if (!isCellInMap(i)) continue;
 			auto cell = cells.at(i);
 			if (!isMorphable(cell))
 				basicNeighbourNonmorphableCount++;
@@ -5998,6 +6107,7 @@ VertexHeight VertexHeight::GetCoordVertexHeight(const MapCoord& coord, VertexTyp
 	ret.Height = 0;
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!isCellInMap(i)) continue;
 		auto cell = cells.at(i);
 		int h = cell->Height;
 		if (considerRamp)
@@ -6048,6 +6158,11 @@ void VertexHeight::GetVertexHeight(bool IgnoreMorphable, bool considerRamp)
 {
 	Height = 0;
 	auto cells = GetVertexCells();
+	// The four cells of this vertex are (X-1, Y-1), (X-1, Y), (X, Y), (X, Y-1). Cells
+	// outside the map are not part of the terrain surface and must not contribute their
+	// height or their ramp offset, otherwise the invisible terrain beyond the map edge
+	// leaks into every vertex on the boundary.
+	const MapCoord cellCoords[4] = { {X - 1, Y - 1}, {X - 1, Y}, {X, Y}, {X, Y - 1} };
 	auto isMorphable = [IgnoreMorphable](CellData* cell)
 	{
 		if (!cell) return 0;
@@ -6060,6 +6175,8 @@ void VertexHeight::GetVertexHeight(bool IgnoreMorphable, bool considerRamp)
 	
 	for (int i = 0; i < 4; ++i)
 	{
+		if (!CMapData::Instance->IsCoordInMap(cellCoords[i].X, cellCoords[i].Y))
+			continue;
 		auto cell = cells.at(i);
 		int h = cell->Height;
 		if (considerRamp)
@@ -6261,9 +6378,23 @@ void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 		points = &vertexHeights;
 	}
 	auto coords = GetCellsFromVertices(*points);
+	// An anchor whose four cells are all outside the map cannot describe the surface of an
+	// in-map cell; such an anchor is not used, the cell's own height is the fallback.
+	auto isAnchorInMap = [](const VertexHeight& vh)
+	{
+		return CMapData::Instance->IsCoordInMap(vh.X - 1, vh.Y - 1)
+			|| CMapData::Instance->IsCoordInMap(vh.X - 1, vh.Y)
+			|| CMapData::Instance->IsCoordInMap(vh.X, vh.Y - 1)
+			|| CMapData::Instance->IsCoordInMap(vh.X, vh.Y);
+	};
 	for (const auto& coord : coords)
 	{
 		if (restrictedCoords && !restrictedCoords->contains(coord))
+			continue;
+		// The map edge is the end of the terrain: never write cells outside the map,
+		// otherwise a stroke creates invisible terrain (and anchors) beyond the edge
+		// which come back as slopes on the next stroke.
+		if (!CMapData::Instance->IsCoordInMap(coord.X, coord.Y))
 			continue;
 		auto cell = CMapDataExt::TryGetCellAt(coord.X, coord.Y);
 		
@@ -6299,7 +6430,7 @@ void VertexHeight::ApplyRamps(const std::set<VertexHeight>& vertexHeights,
 			}
 
 			auto itr = vertexHeights.find(ret);
-			if (itr != vertexHeights.end())
+			if (itr != vertexHeights.end() && isAnchorInMap(*itr))
 			{				
 				cellVertexHeights.at(i) = *itr;
 			}

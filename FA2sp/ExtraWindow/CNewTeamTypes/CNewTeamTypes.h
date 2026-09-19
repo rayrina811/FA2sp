@@ -29,10 +29,14 @@ public:
         Priority = 1011,
         Max = 1012,
         Techlevel = 1103,
+        ParaDropPlane = 1503,
         TransportWaypoint = 1126,
         Group = 1122,
         Waypoint = 1123,
         MindControlDecision = 1140,
+        SetRecruitOnLiber = 1142,
+        TooltipSetRecruitOnLiber = 1144,
+        TooltipParaDropPlane = 1145,
         CheckBoxLoadable = 1113,
         CheckBoxFull = 1114,
         CheckBoxAnnoyance = 1115,
@@ -56,6 +60,8 @@ public:
         TurnToTaskforce = 1500,
         TurnToScript = 1501,
         TurnToTag = 1502,
+        TurnToTransportWaypoint = 1504,
+        TurnToWaypoint = 1505,
         SearchReference = 1999,
         ParadropAircraft = 2001,
         DragPoint = 2002
@@ -84,13 +90,14 @@ public:
 protected:
     static void Initialize(HWND& hWnd);
     static void Update(HWND& hWnd);
+    static void OnSelchangeParaDropPlane(bool edited = false);
     static void OnSelchangeTransportWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeWaypoint(HWND& hWnd, bool edited = false);
     static void OnSelchangeHouse(bool edited = false);
     static void OnSelchangeVeteranLevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeTechlevel(HWND& hWnd, bool edited = false);
     static void OnSelchangeMindControlDecision(HWND& hWnd, bool edited = false);
-    static void OnSelchangeParadropAircrafts(HWND& hWnd, bool edited = false);
+    static void OnSelchangeSetRecruitOnLiber(HWND& hWnd, bool edited = false);
     static void OnSelchangeGroup(HWND& hWnd, bool edited = false);
     static void OnClickDelTeam(HWND& hWnd);
     static void OnClickCloTeam(HWND& hWnd);
@@ -99,6 +106,8 @@ protected:
     static void OnClickTurnToTaskforce();
     static void OnClickTurnToScript();
     static void OnClickTurnToTag();
+    static void OnClickTurnToTransportWaypoint();
+    static void OnClickTurnToWaypoint();
 
     static void Close(HWND& hWnd);
 
@@ -126,11 +135,14 @@ public:
     static HWND hPriority;
     static HWND hMax;
     static HWND hTechlevel;
+    static HWND hParaDropPlane;
     static HWND hTransportWaypoint;
     static HWND hGroup;
     static HWND hWaypoint;
     static HWND hMindControlDecision;
-    static HWND hParadropAircraft;
+    static HWND hSetRecruitOnLiber;
+    static HWND hTooltipSetRecruitOnLiber;
+    static HWND hTooltipParaDropPlane;
     static HWND hCheckBoxLoadable;
     static HWND hCheckBoxFull;
     static HWND hCheckBoxAnnoyance;
@@ -155,6 +167,8 @@ public:
     static HWND hTurnToTaskforce;
     static HWND hTurnToScript;
     static HWND hTurnToTag;
+    static HWND hTurnToTransportWaypoint;
+    static HWND hTurnToWaypoint;
     static HWND hDragPoint;
 
     static bool TaskforceListChanged;
@@ -170,9 +184,13 @@ private:
     static VirtualComboBoxEx vcbTag;
     static VirtualComboBoxEx vcbHouse;
     static VirtualComboBoxEx vcbWaypoint;
+    static VirtualComboBoxEx vcbParaDropPlane;
     static VirtualComboBoxEx vcbTransportWaypoint;
 
     static std::vector<FString> mindControlDecisions;
+    static std::vector<FString> setRecruitOnLiberOptions;
+    static TooltipHelper tooltipSetRecruitOnLiber;
+    static TooltipHelper tooltipParaDropPlane;
 
     static WNDPROC OrigDragDotProc;
     static WNDPROC OrigDragingDotProc;

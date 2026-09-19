@@ -179,6 +179,10 @@ public:
     bool WaterCliff;
     bool IsTXCityCliff;
     int ToSetPress[10];
+    // AutoConnect planning parameters (defaults per Type, INI-overridable)
+    double AutoWeaveAmplitude;      // soft lateral limit base; hard limit = 2x
+    bool AutoSingleVariantPenalty;  // penalize consecutive identical 1-variant pieces
+    int AutoBacktrackSteps;         // segments to drop when planning dead-ends
 };
 struct ConnectedTileInfo
 {
@@ -249,7 +253,7 @@ public:
 
     enum {
         Add = 0, Delete, AllDelete, batchAdd, batchDelete, TileSetAdd, TileSetDelete,
-        ConnectedAdd, ConnectedDelete, ReplaceHide, squareBatchAdd, squareBatchDelete
+        ConnectedAdd, ConnectedDelete, ReplaceHide, squareBatchAdd, squareBatchDelete, InvertSelection
     };
 
     enum
@@ -372,6 +376,7 @@ public:
     static bool HeightChanged;
     static bool IsInPlaceCliff_OnMouseMove;
     static bool PlaceConnectedTile_Start;
+    static bool PlaceConnectedTile_AutoConnect;
 
     static int NextCTHeightOffset;
     static void LowerNextCT()
@@ -439,6 +444,20 @@ public:
     static FString SearchText;
     void ApplySearchFilter();
 
+    enum class ViewObjectsMenuItem : UINT
+    {
+        CollapseAll = 0x4001,
+        ExpandAll = 0x4002,
+        ScrollTop = 0x4003,
+        ScrollBottom = 0x4004
+    };
+
+    void ShowContextMenu(POINT pt);
+    void Menu_CollapseAll();
+    void Menu_ExpandAll();
+    void Menu_ScrollToTop();
+    void Menu_ScrollToBottom();
+
     static std::unique_ptr<CNewPropertyBuilding> BuildingBrushDlg;
     static std::unique_ptr<CNewPropertyInfantry> InfantryBrushDlg;
     static std::unique_ptr<CNewPropertyUnit> VehicleBrushDlg;
@@ -481,6 +500,13 @@ public:
     static void ApplyInfantrySubCell(int X, int Y);
     static void PlaceConnectedTile_OnMouseMove(int X, int Y, bool place = false);
     static void PlaceConnectedTile_OnLButtonDown(int X, int Y);
+    // AutoConnect (virtual placement) session entry points
+    static void AutoConnect_UpdatePreview(int X, int Y);
+    static bool AutoConnect_OnClick(int X, int Y);
+    static void AutoConnect_Cancel();
+    static void AutoConnect_UndoLastBatch();
+    static void AutoConnect_ResetHistory();
+    static bool AutoConnect_PreviewActive();
     static void ConnectedTile_Initialize();
     static void MoveBaseNodeOrder(int X, int Y);
     static void MoveBaseNode(int X, int Y);

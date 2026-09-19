@@ -8,17 +8,78 @@
 #include <filesystem>
 #include "../CFinalSunApp/Body.h"
 #include "../../Helpers/STDHelpers.h"
+#include "../../Miscs/AudioBagSound.h"
 
 bool CLoadingExt::HasFile_ReadyToReadFromFolder = false;
 Palette CLoadingExt::TempISOPalette = { };
 bool CLoadingExt::IsLoadingObjectView = false;
 FHashSet CLoadingExt::SwimableInfantries;
 
+std::vector<FString> CLoadingExt::s_extraDirectories;
+bool CLoadingExt::s_extraDirectoriesLoaded = false;
+
+const std::vector<FString>& CLoadingExt::GetExtraDirectories()
+{
+	if (!s_extraDirectoriesLoaded)
+	{
+		s_extraDirectoriesLoaded = true;
+		s_extraDirectories.clear();
+
+		if (auto pSection = CINI::FAData->GetSection("ExtraDirectories"))
+		{
+			std::map<int, FString> collector;
+
+			for (const auto& [key, index] : pSection->GetIndices())
+				collector[index] = key;
+
+			for (const auto& [_, key] : collector)
+			{
+				FString path;
+
+				if (CINI::FAData->GetBool("ExtraDirectories", key))
+					path = CFinalSunApp::ExePath();
+				else
+					path = CFinalSunApp::FilePath();
+
+				path += "\\" + key;
+				if (!path.empty() && path.back() != '\\' && path.back() != '/')
+					path += "\\";
+
+				s_extraDirectories.push_back(path);
+			}
+		}
+	}
+	return s_extraDirectories;
+}
+
+bool CLoadingExt::FindInExtraDirectories(const char* filename, FString* outPath)
+{
+	std::ifstream fin;
+	for (const auto& dir : GetExtraDirectories())
+	{
+		FString path = dir;
+		path += filename;
+		fin.open(path, std::ios::in | std::ios::binary);
+		if (fin.is_open())
+		{
+			fin.close();
+			if (outPath)
+				*outPath = path;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool CLoadingExt::InitMixFilesFix()
 {
 	HasMdFile = true;
 	CLoadingExt::Ra2dotMixes.clear();
 	CLoadingExt::NotFoundFiles.clear();
+
+	// Force [ExtraDirectories] to be re-parsed on every initialization
+	CLoadingExt::s_extraDirectoriesLoaded = false;
+	CLoadingExt::s_extraDirectories.clear();
 
 	// Load encrypted packages
 	ResourcePackManager::instance().clear();
@@ -336,8 +397,14 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("ISOLUN.MIX", 0, true);
 		LoadMixFile("LUN.MIX", 0, true);
 
-		LoadMixFile("LANGMD.MIX", 0, true);
-		LoadMixFile("LANGUAGE.MIX", 0, true);
+		LoadMixFile("LANGMD.MIX", 0, false);
+		LoadMixFile("AUDIOMD.MIX", 0, false);
+		LoadMixFile("LANGUAGE.MIX", 0, false);
+		LoadMixFile("AUDIO.MIX", 0, false);
+
+		FString theme;
+		theme.Format("THEME%s.MIX", CINI::FAData->GetString("Filenames", "MixExtension", "MD"));
+		LoadMixFile(theme, 0, false);
 	}
 	else
 	{
@@ -565,9 +632,17 @@ bool CLoadingExt::InitMixFilesFix()
 		LoadMixFile("ISOLUN.MIX", 0, true);
 		LoadMixFile("LUN.MIX", 0, true);
 
-		LoadMixFile("LANGMD.MIX", 0, true);
-		LoadMixFile("LANGUAGE.MIX", 0, true);
+		LoadMixFile("LANGMD.MIX", 0, false);
+		LoadMixFile("AUDIOMD.MIX", 0, false);
+		LoadMixFile("LANGUAGE.MIX", 0, false);
+		LoadMixFile("AUDIO.MIX", 0, false);
+
+		FString theme;
+		theme.Format("THEME%s.MIX", CINI::FAData->GetString("Filenames", "MixExtension", "MD"));
+		LoadMixFile(theme, 0, false);
 	}
+
+	AudioBagSound::LoadIndexes();
 
 	return true;
 }

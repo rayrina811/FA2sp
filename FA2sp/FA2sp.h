@@ -130,6 +130,7 @@ public:
     static bool DisableLuaConsoleSafetyCheck;
     static bool VerticalLayout;
     static bool TileSetBrowserFloating;
+    static bool TileSetBrowserMultiLineTabs;
     static bool ViewObjectsFloating;
     static int RecentFileLimit;
     static int MultiSelectionColor;
@@ -155,6 +156,7 @@ public:
     static bool ExtVariables;
     static bool TestNotLoaded;
     static bool CloneWithOrderedID;
+    static bool ConfirmDeleteSubEntries;
     static bool InfantrySubCell_GameDefault;
     static bool InfantrySubCell_Edit;
     static bool InfantrySubCell_Edit_Single;
@@ -256,7 +258,8 @@ public:
     static CUnitData DefaultUnitProperty;
     static CAircraftData DefaultAircraftProperty;
     static CBuildingData DefaultBuildingProperty;
-    static FMap<bool> SupportedFormats;
+	static bool DisplayRealHPinTechnoDlg;
+	static FMap<bool> SupportedFormats;
     static int OverlayDataLimit;
     static bool MCP_Enable;
     static int MCP_Port;

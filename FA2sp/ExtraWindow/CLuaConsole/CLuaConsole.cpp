@@ -1,6 +1,7 @@
 #include "CLuaConsole.h"
 #include "CMcpServer.h"
 #include "LuaFunctions.cpp"
+#include "../CNewTrigger/CNewTrigger.h"
 #include "../../Helpers/Translations.h"
 #include "../../Helpers/STDHelpers.h"
 #include "../../Helpers/WinVer.h"
@@ -842,6 +843,8 @@ void CLuaConsole::InitializeLuaState()
         });
     Lua.set_function("create_snapshot", create_snapshot);
     Lua.set_function("restore_snapshot", restore_snapshot);
+    Lua.set_function("save_map", save_map);
+    Lua.set_function("load_map", load_map);
     Lua.set_function("clear_snapshot", clear_snapshot);
     Lua.set_function("save_undo", save_undo);
     Lua.set_function("save_undo_objects", save_undo_objects);
@@ -907,6 +910,10 @@ void CLuaConsole::InitializeLuaState()
     Lua.set_function("remove_celltags", remove_celltags);
     Lua.set_function("int_to_float", trigger::int_to_float);
     Lua.set_function("float_to_int", trigger::float_to_int);
+
+    CNewTrigger::RegisterHeadlessTriggerLua(Lua);
+
+    Lua.set_function("csf_search", csf_search);
 
     Lua.new_usertype<ai_trigger>("ai_trigger",
         sol::constructors<ai_trigger(std::string), ai_trigger()>(),
@@ -1865,6 +1872,8 @@ std::vector<std::pair<int, std::string>> CLuaConsole::ScanHighRiskOperations(con
         std::regex(R"(io\.output\s*\()"),
         std::regex(R"(exec\s*\()"),
         std::regex(R"(save_file\s*\()"),
+        std::regex(R"(load_map\s*\()"),
+        std::regex(R"(save_map\s*\()"),
         std::regex(R"(package\.loadlib\s*\()"),
     };
 

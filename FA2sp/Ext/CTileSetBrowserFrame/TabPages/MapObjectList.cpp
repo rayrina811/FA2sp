@@ -153,10 +153,10 @@ void MapObjectList::CreateControls()
         static_cast<int>(50 * s), 
         static_cast<int>(80 * s), 
         static_cast<int>(150 * s), 
-        static_cast<int>(100 * s), 
+        static_cast<int>(80 * s), 
         static_cast<int>(130 * s), 
-        static_cast<int>(70 * s),
-        static_cast<int>(65 * s),
+        static_cast<int>(75 * s),
+        static_cast<int>(75 * s),
         static_cast<int>(70 * s),
         static_cast<int>(240 * s)
     };
@@ -748,7 +748,7 @@ void MapObjectList::OnSize() const
     RECT parentRect{};
     HWND parent = GetParent(m_hWnd);
     GetClientRect(parent, &parentRect);
-    int tabPageheight = 20 * s;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     ::MoveWindow(
         m_hWnd, 2, tabPageheight,
         std::max(static_cast<int>(100 * s), static_cast<int>(parentRect.right) - 6),

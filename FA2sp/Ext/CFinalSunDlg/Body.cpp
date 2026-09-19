@@ -978,11 +978,14 @@ BOOL CFinalSunDlgExt::OnCommandExt(WPARAM wParam, LPARAM lParam)
 					if (Variables::RulesMap.GetBool(ID, "InvisibleInGame"))
 						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
 				}
-				const auto& overlays = Variables::RulesMap.GetSection("OverlayTypes");
-				for (auto& [_, ID] : overlays)
+				const auto& overlays = Variables::RulesMap.ParseIndicies("OverlayTypes", true);
+				for (int i = 0; i < overlays.size(); ++i)
 				{
-					if (Variables::RulesMap.GetBool(ID, "IsRubble"))
-						CIsoViewExt::MapRendererIgnoreObjects.insert(ID);
+					const auto& value = overlays[i];
+					if (Variables::RulesMap.GetBool(value, "IsRubble"))
+						CIsoViewExt::MapRendererIgnoreObjects.insert(value);
+					if (i == 100 || i == 101 || i == 231 || i == 232) // hidden bridges
+						CIsoViewExt::MapRendererIgnoreObjects.insert(value);
 				}
 			}
 
@@ -2162,6 +2165,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 		}
 		if (CIsoView::CurrentCommand->Command == 0x1E)
 		{
+			if (pMsg->wParam == 'A')
+			{
+				CViewObjectsExt::AutoConnect_Cancel();
+				CViewObjectsExt::PlaceConnectedTile_AutoConnect = !CViewObjectsExt::PlaceConnectedTile_AutoConnect;
+				return TRUE;
+			}
 			for (int i = 0; i < 10; ++i)
 			{
 				if (pMsg->wParam == i + '0' || pMsg->wParam == i + VK_NUMPAD0)
@@ -2171,6 +2180,8 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 					auto& tileSet = CViewObjectsExt::ConnectedTileSets[info.Index];
 					if (tileSet.ToSetPress[i] > -1)
 					{
+						// switching the connected tile set discards a pending preview
+						CViewObjectsExt::AutoConnect_Cancel();
 						for (auto& [ctIndex2, info2] : CViewObjectsExt::TreeView_ConnectedTileMap)
 						{
 							if (info2.Index == tileSet.ToSetPress[i] && info2.Front == info.Front)
@@ -2212,6 +2223,45 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 				int index = std::clamp(pBrushSize->GetCurSel() + (zDelta > 0 ? -1 : 1), 0, pBrushSize->GetCount() - 1);
 				pBrushSize->SetCurSel(index);
 				ChangeBrushSize(index);
+			}
+		}
+		else if (CIsoView::CurrentCommand->Command == 1)
+		{
+			int facingIndex = -1;
+			if (CIsoView::CurrentCommand->Command == 1) // ObjectPlace
+			{
+				switch (CIsoView::CurrentCommand->Type)
+				{
+				case 1: facingIndex = 2; break; // Infantry
+				case 2: facingIndex = 1; break; // Building
+				case 3: facingIndex = 0; break; // Aircraft
+				case 4: facingIndex = 3; break; // Vehicle
+				}
+			}
+
+			if (facingIndex >= 0
+				&& !(CIsoView::CurrentCommand->Command == 1 && CIsoView::CurrentCommand->Type == 7)
+				&& !CIsoView::GetInstance()->Drag
+				&& CIsoView::CurrentCommand->Command != 21)
+			{
+				POINT pt;
+				GetCursorPos(&pt);
+				if (ExtraWindow::IsPointOnIsoViewAndNotCovered(pt))
+				{
+					int zDelta = GET_WHEEL_DELTA_WPARAM(pMsg->wParam);
+					// infantry always stays at 8 directions (step 32), others follow ExtFacings
+					const int step = (facingIndex == 2) ? 32 : (ExtConfigs::ExtFacings_Drag ? 8 : 32);
+					const int count = 256 / step;
+					// snap the stored value onto the current preset grid, then step one preset
+					int idx = (CIsoViewExt::AutoPropertyBrushFacing[facingIndex] + step / 2) / step;
+					idx %= count;
+					idx = (idx + (zDelta < 0 ? 1 : -1)) % count;
+					if (idx < 0)
+						idx += count;
+					CIsoViewExt::AutoPropertyBrushFacing[facingIndex] = idx * step;
+					::ScreenToClient(CIsoView::GetInstance()->GetSafeHwnd(), &pt);
+					CIsoView::GetInstance()->OnMouseMove(0, pt);
+				}
 			}
 		}
 		// last one
@@ -2345,6 +2395,12 @@ BOOL CFinalSunDlgExt::PreTranslateMessageExt(MSG* pMsg)
 	{
 		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
 		CMcpServer::HandleSpec(req);
+		return TRUE;
+	}
+	case WM_MCP_DESPEC:
+	{
+		MCPRequest* req = reinterpret_cast<MCPRequest*>(pMsg->lParam);
+		CMcpServer::HandleDespec(req);
 		return TRUE;
 	}
 	}

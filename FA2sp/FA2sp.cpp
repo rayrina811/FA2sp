@@ -121,6 +121,7 @@ bool ExtConfigs::SaveMap_FileEncodingComment;
 bool ExtConfigs::DisableLuaConsoleSafetyCheck;
 bool ExtConfigs::VerticalLayout;
 bool ExtConfigs::TileSetBrowserFloating;
+bool ExtConfigs::TileSetBrowserMultiLineTabs;
 bool ExtConfigs::ViewObjectsFloating;
 int ExtConfigs::RecentFileLimit;
 int ExtConfigs::MultiSelectionColor;
@@ -146,6 +147,7 @@ bool ExtConfigs::LoadRA2MixFilesOnly;
 bool ExtConfigs::ExtVariables;
 bool ExtConfigs::TestNotLoaded;
 bool ExtConfigs::CloneWithOrderedID;
+bool ExtConfigs::ConfirmDeleteSubEntries;
 bool ExtConfigs::InfantrySubCell_GameDefault;
 bool ExtConfigs::InfantrySubCell_Edit;
 bool ExtConfigs::InfantrySubCell_Edit_Single;
@@ -243,6 +245,7 @@ bool ExtConfigs::GridObjectViewer_LoadForceSides;
 bool ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory;
 bool ExtConfigs::HiDPIAwareness;
 bool ExtConfigs::HiDPIAwareness_ScaleIsoView;
+bool ExtConfigs::DisplayRealHPinTechnoDlg;
 
 CInfantryData ExtConfigs::DefaultInfantryProperty;
 CUnitData ExtConfigs::DefaultUnitProperty;
@@ -287,6 +290,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::TutorialTexts_Fix = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Fix");
 	ExtConfigs::TutorialTexts_Viewer = CINI::FAData->GetBool("ExtConfigs", "TutorialTexts.Viewer");
 	ExtConfigs::CloneWithOrderedID = CINI::FAData->GetBool("ExtConfigs", "CloneWithOrderedID", true);
+	ExtConfigs::ConfirmDeleteSubEntries = CINI::FAData->GetBool("ExtConfigs", "ConfirmDelete.SubEntries");
 
 	ExtConfigs::SkipTipsOfTheDay = CINI::FAData->GetBool("ExtConfigs", "SkipTipsOfTheDay", false);
 
@@ -410,6 +414,7 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::FlatToGroundHideExtra = CINI::FAData->GetBool("ExtConfigs", "FlatToGroundHideExtra");
 	ExtConfigs::ExtOverlays = CINI::FAData->GetBool("ExtConfigs", "ExtOverlays");
 	ExtConfigs::LoadObjectsOnInit = CINI::FAData->GetBool("ExtConfigs", "LoadObjectsOnInit");
+	ExtConfigs::DisplayRealHPinTechnoDlg = CINI::FAData->GetBool("ExtConfigs", "DisplayRealHPinTechnoDlg", true);
 
 	ExtConfigs::DistanceRuler_Records = CINI::FAData->GetInteger("ExtConfigs", "DistanceRuler.Records", 5);
 	ExtConfigs::DisplayTextSize = CINI::FAData->GetInteger("ExtConfigs", "DisplayTextSize", 18);
@@ -460,6 +465,7 @@ void FA2sp::ExtConfigsInitialize()
 
 	ExtConfigs::VerticalLayout = CINI::FAData->GetBool("ExtConfigs", "VerticalLayout");
 	ExtConfigs::TileSetBrowserFloating = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserFloating");
+	ExtConfigs::TileSetBrowserMultiLineTabs = CINI::FAData->GetBool("ExtConfigs", "TileSetBrowserMultiLineTabs");
 	ExtConfigs::ViewObjectsFloating = CINI::FAData->GetBool("ExtConfigs", "ViewObjectsFloating");
 
 	ExtConfigs::RecentFileLimit = std::clamp(CINI::FAData->GetInteger("ExtConfigs", "RecentFileLimit"), 4, 9);
@@ -583,6 +589,26 @@ void FA2sp::ExtConfigsInitialize()
 	ExtConfigs::DefaultBuildingProperty.Upgrade3 = building[14];
 	ExtConfigs::DefaultBuildingProperty.AIRepairable = building[15];
 	ExtConfigs::DefaultBuildingProperty.Nominal = building[16];
+
+	// Initialize per-type placement facings on a preset grid (step depends on ExtFacings;
+	// infantry always stays at 8 directions => step 32). Snapping to the nearest preset so
+	// values changed at runtime by the mouse wheel stay valid.
+	{
+		auto SnapFacing = [](const ppmfc::CString& str, int step) -> int
+		{
+			int v = atoi(str);
+			v = ((v + step / 2) / step) * step;
+			v %= 256;
+			if (v < 0)
+				v += 256;
+			return v;
+		};
+		const int step = ExtConfigs::ExtFacings_Drag ? 8 : 32;
+		CIsoViewExt::AutoPropertyBrushFacing[0] = SnapFacing(ExtConfigs::DefaultAircraftProperty.Facing, step);
+		CIsoViewExt::AutoPropertyBrushFacing[1] = SnapFacing(ExtConfigs::DefaultBuildingProperty.Facing, step);
+		CIsoViewExt::AutoPropertyBrushFacing[2] = SnapFacing(ExtConfigs::DefaultInfantryProperty.Facing, 32);
+		CIsoViewExt::AutoPropertyBrushFacing[3] = SnapFacing(ExtConfigs::DefaultUnitProperty.Facing, step);
+	}
 
 	auto formats = STDHelpers::SplitString(CINI::FAData->GetString("ExtConfigs", "SupportedFormats", "map,mpr,yrm,mmx,yro"));
 	for (auto &f : formats)
@@ -715,6 +741,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Type = ExtConfigs::SpecialOptionType::None});
 
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.ConfirmDelete.SubEntries", "Ask for confirmation when deleting sub-entries of triggers/scripts, etc."),
+		.IniKey = "ConfirmDelete.SubEntries",
+		.Value = &ExtConfigs::ConfirmDeleteSubEntries,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.UseSequentialIndexing", "Always assign the next incremental index when creating triggers and teams"),
 		.IniKey = "UseSequentialIndexing",
 		.Value = &ExtConfigs::UseSequentialIndexing,
@@ -810,6 +842,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.Value = &ExtConfigs::DisableLuaConsoleSafetyCheck,
 		.Type = ExtConfigs::SpecialOptionType::None});
 
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.DisplayRealHPinTechnoDlg", "Display real HP in techno dialogs"),
+		.IniKey = "DisplayRealHPinTechnoDlg",
+		.Value = &ExtConfigs::DisplayRealHPinTechnoDlg,
+		.Type = ExtConfigs::SpecialOptionType::None});
+
 	// Object Browser Settings
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
 		.DisplayName = Translations::TranslateOrDefault("Options.ObjectBrowser.SafeHouses", "Block invalid houses"),
@@ -852,6 +890,12 @@ void ExtConfigs::UpdateOptionTranslations()
 		.IniKey = "GridObjectViewer.LoadObjectBrowserCategory",
 		.Value = &ExtConfigs::GridObjectViewer_LoadObjectBrowserCategory,
 		.Type = ExtConfigs::SpecialOptionType::ReloadObjectViewer});
+		
+	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{
+		.DisplayName = Translations::TranslateOrDefault("Options.TileSetBrowserMultiLineTabs", "Display tile browser tabs in multiple rows"),
+		.IniKey = "TileSetBrowserMultiLineTabs",
+		.Value = &ExtConfigs::TileSetBrowserMultiLineTabs,
+		.Type = ExtConfigs::SpecialOptionType::Restart});
 
 	// Map Display and Rendering
 	ExtConfigs::Options.push_back(ExtConfigs::DynamicOptions{

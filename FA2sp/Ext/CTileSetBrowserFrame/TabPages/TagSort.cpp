@@ -324,7 +324,7 @@ void TagSort::OnSize() const
 {
     RECT rect;
     ::GetClientRect(::GetParent(this->GetHwnd()), &rect);
-    int tabPageheight = 20 * CFinalSunAppExt::ProgramScaleFactor;
+    int tabPageheight = CTileSetBrowserFrameExt::GetTabPageHeight();
     ::MoveWindow(this->GetHwnd(), 2, tabPageheight, rect.right - rect.left - 6, rect.bottom - rect.top - 6 - tabPageheight, FALSE);
 }
 
@@ -666,6 +666,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : AircraftTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -693,6 +694,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : BuildingTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -721,6 +723,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : InfantryTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {
@@ -749,6 +752,7 @@ void TagSort::AddTrigger(std::vector<FString> group, FString name, FString id) c
                     for (auto& pairObj : UnitTags[id])
                     {
                         auto atomsObj = FString::SplitString(pairObj);
+                        if (atomsObj.size() < 5) continue;
 
                         if (first)
                         {

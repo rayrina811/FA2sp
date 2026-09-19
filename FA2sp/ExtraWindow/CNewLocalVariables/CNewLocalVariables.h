@@ -8,6 +8,7 @@
 #include "../../Ext/CFinalSunDlg/Body.h"
 #include "../CNewScript/CNewScript.h"
 #include "../../Helpers/FString.h"
+#include "../Common.h"
 
 class VirtualComboBoxEx;
 // A static window class
@@ -19,13 +20,16 @@ public:
         Name = 1003,
         Value = 1005,
         New = 1006,
-        Search = 1007 };
+        Search = 1007 
+    };
     static void Create(CFinalSunDlg* pWnd);
 
     static HWND GetHandle()
     {
         return CNewLocalVariables::m_hwnd;
     }
+    static VirtualComboBoxEx vcbVariables;
+    static void OnSelchangeVariable(bool edited = false, int index = -1);
 
 protected:
     static void Initialize(HWND& hWnd);
@@ -34,7 +38,6 @@ protected:
 
     static BOOL CALLBACK DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
-    static void OnSelchangeVariable(bool edited = false);
     static void OnClickNew();
     static void OnClickSearchReference();
 
@@ -42,7 +45,6 @@ private:
     static HWND m_hwnd;
     static CFinalSunDlg* m_parent;
     static CINI& map;
-    static VirtualComboBoxEx vcbVariables;
 
     static HWND hVariables;
     static HWND hName;
@@ -52,5 +54,6 @@ private:
     static int SelectedIndex;
     static FString SelectedKey;
     static TransparencyHelper m_transparency;
+    static TooltipHelper tooltipVariable;
 };
 

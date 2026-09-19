@@ -189,7 +189,7 @@ bool SaveMapExt::SaveMapSilent(FString filepath, bool panic)
     FString buffer;
     FString buffer2;
 
-    int previewOption = 2;
+    int previewOption = 1;
     if (!panic)
     {
         SaveMapExt::StopTimer();
@@ -270,7 +270,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
         SaveMapExt::ResetTimer();
 
     if (SaveMapExt::IsAutoSaving)
-        previewOption = 2; //no preview to save time
+        previewOption = 1;
 
     FileWatcher::IsSavingMap = false;
     TempValueHolder saving(FileWatcher::IsSavingMap, true);
@@ -374,8 +374,8 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
 
             auto tiledata = CMapDataExt::TileData;
 
-            auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"));
-            auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"));
+            auto size = STDHelpers::SplitString(map.GetString("Map", "Size", "0,0,0,0"), 3);
+            auto lSize = STDHelpers::SplitString(map.GetString("Map", "LocalSize", "0,0,0,0"), 3);
 
             int mapwidth = atoi(size[2]);
             int mapheight = atoi(size[3]);
@@ -612,7 +612,7 @@ bool SaveMapExt::SaveMap(CINI* pINI, CFinalSunDlg* pFinalSun, FString filepath, 
         // Do not update preview.
         Logger::Raw("SaveMap : Retaining current map preview.\n");
     }
-    if (!panic)
+    if (!panic && !SaveMapExt::IsAutoSaving)
         pINI->WriteString("FA2spVersionControl", "LastPreviewOption", STDHelpers::IntToString(previewOption));
 
     std::ofstream fout;
