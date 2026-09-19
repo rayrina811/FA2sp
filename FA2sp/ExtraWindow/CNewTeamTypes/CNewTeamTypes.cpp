@@ -1201,9 +1201,9 @@ void CNewTeamTypes::OnSelchangeParaDropPlane(bool edited)
         text = "";
 
     if (text.IsEmpty())
-        map.DeleteKey(CurrentTeamID, "ParaDropAircraft");
+        map.DeleteKey(CurrentTeamID, "ParadropAircraft");
     else
-        map.WriteString(CurrentTeamID, "ParaDropAircraft", text);
+        map.WriteString(CurrentTeamID, "ParadropAircraft", text);
 }
 
 void CNewTeamTypes::OnSelchangeTransportWaypoint(HWND& hWnd, bool edited)
