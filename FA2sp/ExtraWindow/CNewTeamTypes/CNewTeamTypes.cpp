@@ -179,7 +179,6 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
 	Translate(1139, "TeamTypesCheckBoxOnlyTargetHouseEnemy"); 
 	Translate(1146, "TeamTypesParaDropPlane"); 
     Translate(1999, "SearchReferenceTitle");
-    Translate(2000, "TeamTypesLabelParadropAircraft");
 
     hSelectedTeam = GetDlgItem(hWnd, Controls::SelectedTeam);
     hNewTeam = GetDlgItem(hWnd, Controls::NewTeam);
@@ -198,7 +197,6 @@ void CNewTeamTypes::Initialize(HWND& hWnd)
     hTransportWaypoint = GetDlgItem(hWnd, Controls::TransportWaypoint);
     hGroup = GetDlgItem(hWnd, Controls::Group);
     hWaypoint = GetDlgItem(hWnd, Controls::Waypoint);
-    hParadropAircraft = GetDlgItem(hWnd, Controls::ParadropAircraft);
     hMindControlDecision = GetDlgItem(hWnd, Controls::MindControlDecision);
     hSetRecruitOnLiber = GetDlgItem(hWnd, Controls::SetRecruitOnLiber);
     hTooltipSetRecruitOnLiber = GetDlgItem(hWnd, Controls::TooltipSetRecruitOnLiber);
@@ -400,16 +398,6 @@ void CNewTeamTypes::Update(HWND& hWnd)
         if(uiname != aircraft)
             uiname.Format("%s - %s", aircraft, uiname);
         vcbParaDropPlane.AddString(uiname);
-    }
-
-    while (SendMessage(hParadropAircraft, CB_DELETESTRING, 0, NULL) != CB_ERR);
-    SendMessage(hParadropAircraft, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)"None");
-    if (auto pSection = CINI::FAData->GetSection("ParadropAircrafts"))
-    {
-        for (auto& pair : pSection->GetEntities())
-        {
-            SendMessage(hParadropAircraft, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)pair.second.m_pchData);
-        }
     }
 
     while (SendMessage(hGroup, CB_DELETESTRING, 0, NULL) != CB_ERR);
@@ -1101,11 +1089,11 @@ BOOL CALLBACK CNewTeamTypes::DlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
                 map.WriteBool(CurrentTeamID, "Droppod", SendMessage(hCheckBoxCargoPlane, BM_GETCHECK, 0, 0));
                 if (map.GetBool(CurrentTeamID, "Droppod"))
                 {
-                    EnableWindow(hParadropAircraft, TRUE);
+                    EnableWindow(hParaDropPlane, TRUE);
                 }
                 else
                 {
-                    EnableWindow(hParadropAircraft, FALSE);
+                    EnableWindow(hParaDropPlane, FALSE);
                 }
             }
             break;
@@ -1733,12 +1721,6 @@ void CNewTeamTypes::OnSelchangeTeamtypes(bool edited)
             else
                 SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)text);
         };
-
-        if (paradropAircraft == "")
-            paradropAircraft = "None";
-        if (!found)
-            SendMessage(hParadropAircraft, WM_SETTEXT, 0, (LPARAM)paradropAircraft.m_pchData);
-
         
         SetCurSel(hVeteranLevel, map.GetString(pID, "VeteranLevel").GetString());
         SetCurSel(hTechlevel, map.GetString(pID, "TechLevel").GetString());
@@ -2087,7 +2069,6 @@ void CNewTeamTypes::OnClickCloTeam(HWND& hWnd)
         copyitem("LooseRecruit");
         copyitem("VeteranLevel");
         copyitem("IsBaseDefense");
-        copyitem("ParaDropAircraft");
         copyitem("TransportWaypoint");
         copyitem("UseTransportOrigin");
         copyitem("MindControlDecision");
